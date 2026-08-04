@@ -65,6 +65,20 @@ is written during wayfinding.
 
 *(the hosting research also resolved, but its subject was subsequently ruled out of scope — see below)*
 
+- [Universe definition and data hygiene](issues/05-universe-definition.md) — **288 IDX / 1,966 US names**,
+  measured under the exact rule stack, not estimated. The universe is **liquidity + instrument type +
+  listing age only**: median-20d `close × volume` ≥ Rp 1B / $20M, common stock only (ADRs kept), ≥ 20
+  non-phantom bars. **ADR is a post-rank filter, not a gate** — gating would make decile denominators
+  breathe with the volatility regime and would evict names on the eve of the move. Phantom bars
+  (`volume == 0`) are dropped and windows count traded bars; an **80%/3-session density gate doubles as
+  suspension detection**, so the Cloudflare-blocked IDX suspension list is never needed. **Absence of
+  data means nothing** — membership is sticky, removal needs positive evidence, and runs resolving < 99%
+  of symbols are quarantined rather than published. Provisional bars are dropped on an exchange-clock
+  finality rule. **Adjusted everywhere except dollar volume, and no absolute-price rules** — which makes
+  ticket 01's unrecoverable-raw-IDX-prices finding cost nothing, since almost every quantity in the
+  method is a ratio and ratios survive adjustment. Nightly rebuild with a 0.8× hysteresis band. One
+  principle unifies D3/D7/D11: **removal requires stronger evidence than admission.**
+
 - [Market regime filter](issues/10-market-regime-filter.md) — **three states per market from one index
   each** (US `^IXIC`, IDX `^JKSE`), on simple `SMA10`/`SMA20` of daily closes. Slope is **sign-only**
   (`SMA[t]` vs `SMA[t-5]`), so the whole filter has **zero tunable parameters** — deliberate, because
@@ -84,10 +98,13 @@ is written during wayfinding.
   are that detection isn't defined yet (ticket 08) and that **delisted names return zero rows on
   Yahoo**, so any replay is survivorship-biased upward with no free fix. The one concrete action is
   already assigned to ticket 12: start snapshotting listing files nightly, so a point-in-time universe
-  accumulates from today whatever validation eventually looks like. Ticket 10 adds a **second
-  forward-accumulating capture** on the same principle — every detected setup and its trigger level,
-  written nightly from launch. Both exist because they are unbiased *and* irrecoverable after the fact;
-  together they are the seed of whatever validation is eventually possible.
+  accumulates from today whatever validation eventually looks like. **Ticket 05 added the layer above
+  it** — nightly snapshots of universe *membership* (one row per name per night), so a future validation
+  can ask what was actually rankable on a given night, not merely what was listed. **Ticket 10 adds a
+  third** — every detected setup and its trigger level, written nightly from launch. All three exist for
+  the same reason: they are unbiased *and* irrecoverable after the fact, so the clock has to start at
+  launch. Together — what was listed, what was rankable, what was signalled — they are the seed of
+  whatever validation eventually becomes possible.
 - **Alerting.** He hangs price alerts on the trendline. Whether v1 notifies at all, and through what
   channel, waits on detection being defined. Running locally narrows the options — a desktop
   notification or a nightly digest, not a push service.
@@ -95,14 +112,11 @@ is written during wayfinding.
   storage that implies, waits on the architecture ticket.
 - **Chart rendering approach.** Library and how the detected trendline / MA context is drawn — waits
   on the dashboard IA ticket.
-- **History depth.** How many years of daily bars for how many symbols — waits on the data-source
-  research. Running locally removes the free-tier storage ceiling, so this is now purely a question of
-  how much history the sources give us and how much the computations need.
-- **Data quality handling on IDX.** Ticket 01 confirmed the suspicion and made most of it sharp enough
-  to live in ticket 05 (phantom zero-volume bars, invisible rights adjustment, suspended-name noise).
-  What remains foggy: **ARA/ARB limit days** — they distort range-based measures like ADR and
-  tightness, but since raw prices are unrecoverable they cannot be reconstructed from history. Whether
-  this needs handling at all depends on how ticket 08 defines contraction.
+  <!-- "History depth" graduated into ticket 12: the data-source research it waited on is done, and
+       ticket 05 fixed the demand side (24-month lookbacks + 20-bar minimum). It is now a storage
+       decision, not fog. -->
+  <!-- "Data quality handling on IDX" graduated: ticket 05 resolved phantom bars, rights adjustment
+       and suspended names. The ARA/ARB remainder is now assigned to ticket 08, so it is no longer fog. -->
 - **Survivorship bias.** Yahoo's screener enumerates only live names, so delisted history is not
   discoverable. Harmless for nightly scanning, potentially fatal for any backtest — folds into the
   validation patch above once that takes shape.

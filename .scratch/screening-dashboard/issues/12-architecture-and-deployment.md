@@ -55,10 +55,31 @@ serving path, not deployment.
 - **Portability** — how much of this design would survive being hosted later? Note the choices that
   would be expensive to reverse, without designing for hosting now.
 
-Resolve against ticket 05's universe size. Ticket 04's free-tier findings are **background only** —
-v1 is not constrained by them.
+- **History depth — graduated from the map's fog into this ticket by ticket 05.** The data-source
+  research it was waiting on is done, and ticket 05 fixed the demand side, so this is now purely a
+  storage decision. Constraints: ranking lookbacks run to **24 months** (§1), so ~3 years is the
+  functional minimum and 5 years gives comfortable headroom; ticket 01 measured **5 years × 840 IDX
+  names ≈ 904k bars ≈ 50 MB**, and running locally removes any storage ceiling. Depth is therefore
+  cheap — decide it, don't agonise.
+- **Two nightly snapshots to store**, both cheap and both only useful if started early: listing files
+  (already on this ticket) and, added by ticket 05 (D11), **universe membership** — one row per name per
+  night, so a future validation can ask what was *rankable* that night, not merely what was listed.
+- **Pipeline invariants this ticket must preserve**, all from ticket 05: an `unresolved` third state
+  distinct from absent; **sticky membership** (removal needs positive evidence, never a failed fetch);
+  **run quarantine** when < ~99% of symbols resolve, leaving the last good run serving with a banner;
+  an **exchange-clock finality rule** dropping provisional bars at ingest; and the exchange calendar
+  derived from observed bar dates rather than a hardcoded holiday table. The store needs to hold **both**
+  adjusted and unadjusted series (D9).
+- **Rate limiting is a hard requirement, not a nicety.** Ticket 02 measured an unthrottled pull
+  returning only **52.9%** of the universe while reporting the losses as "possibly delisted"; 12 req/s
+  gives 99.93% in 8.5 min. Combined with run quarantine, an unthrottled ingester would simply never
+  publish.
+
+Resolve against ticket 05's universe size — now measured: **288 IDX / 1,966 US** names, ~2,250 total
+symbols to pull nightly. Ticket 04's free-tier findings are **background only** — v1 is not constrained
+by them.
 
 **Owed to ticket 10 (market regime filter):** a **nightly setup-snapshot table** (symbol, date, trigger
-level) written every run from launch, alongside the listing-file snapshot this ticket already carries.
-Both are forward-accumulating and irrecoverable if skipped. Ticket 10 also needs index bars for `^IXIC`
-and `^JKSE` ingested on the same path as equities.
+level) written every run from launch — a third forward-accumulating capture alongside the listing files
+and universe membership already on this ticket. Ticket 10 also needs index bars for `^IXIC` and
+`^JKSE` ingested on the same path as equities.

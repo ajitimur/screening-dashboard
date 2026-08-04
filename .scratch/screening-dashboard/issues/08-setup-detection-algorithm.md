@@ -55,6 +55,21 @@ that it can't be computed and must be shown to the human instead:
   the one at risk. Decide explicitly whether detection ever runs against an open session, or only ever
   against closed bars.
 
+- **ARA/ARB limit days on IDX — inherited from ticket 05, undecided by design.** Ticket 05 (D10)
+  established that limit-day detection is a dead end on free data: the auto-reject band is tiered by
+  price and board with the table behind Cloudflare, and raw IDX prices are unrecoverable so the bands
+  cannot be inferred from history either. The distortion is that a limit-locked bar has a **collapsed
+  high/low range**, which understates ADR and flatters tightness. Whether contraction/tightness must
+  handle this at all is **this ticket's call** — it is the only place the question can be answered,
+  because it depends on how contraction is defined.
+- **The partial-bar question below is already settled** by ticket 05 (D8): non-final bars are dropped at
+  ingest on an exchange-clock rule, so detection *never* sees an open session. What remains for this
+  ticket is only whether detection wants anything else from the current session.
+- **Inputs this ticket can assume**, all fixed by ticket 05: phantom (`volume == 0`) bars are already
+  removed and windows count **traded bars**, not calendar days; series are **adjusted** (so all ratio
+  measures are adjustment-safe); there is **no absolute-price rule** anywhere, so detection must not
+  introduce one on IDX.
+
 Resolve against `references/qullamaggie-method.md` §3, §6, §7. Expect this to spawn follow-on tickets.
 
 **Owed to ticket 10 (market regime filter):** detection must emit a defined **trigger level** per

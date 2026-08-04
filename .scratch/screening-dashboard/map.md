@@ -108,6 +108,32 @@ is written during wayfinding.
   twice. Rank history persists nightly on a **rolling 2-year window**. The session also **reproduced
   ticket 05's universe exactly (1,966 / 288) from its written decisions alone**.
 
+- [Sector/theme leadership and rotation model](issues/07-sector-theme-and-rotation-model.md) — **industry
+  *is* the theme layer**, which dissolves ticket 03's four-way parity dilemma rather than deciding it:
+  Yahoo returns `industry` in the *same* request as `sector`, so 145 industries arrive free on both
+  markets — no scraper, no LLM line item, no curation, no staleness — and v1 stays entirely free-data. A
+  narrative layer spanning industries ("nickel downstream", "GLP-1") is ruled **out of scope**. Sector
+  strength is **share of members in that lookback's top decile, five numbers per sector** (1w/1m/3m/6m/12m),
+  aggregated over ticket 06's rank table per R6 — per-lookback deciles, *not* the §3.1 union gate, which
+  would park every sector near 29%. **Rotation is two sortable columns**: the **shape differential**
+  `share(1w) − share(6m)` (zero tunables, no history, default sort) and a **20-session temporal delta**
+  whose window is inherited from §2/§3.5's 10/20-day horizon, not invented — the trader overruled the
+  session's sparkline-and-eyeball proposal and required it computed. **Quantization is an IDX problem**:
+  one name moves IDX Technology's share **11.1pp** (vs 0.5–3.2pp on US), and Technology topped the measured
+  IDX rotation board at +22.2pp on *two stocks* — so a sector needs **`k ≥ 2` in the decile to top the
+  board**, with `k/n` on every row; nothing is ever hidden, and shrinkage was rejected as smoothing.
+  **IDX cannot carry an industry leaderboard** (median industry size 2, 32 singletons), US can (~135
+  industries, Biotechnology 58) — resolved as **one rule, `n ≥ 10` to be ranked**, yielding ~55 US rows and
+  4 IDX rows: parity of rule, not of result. §3.5's confirmation boolean is **leave-one-out sector share
+  ≥ 10% on 1m** — the leave-one-out is load-bearing, because a candidate inflates its own sector and the
+  naive rule fires 77–90%, making the point nearly free; the industry-peer alternative was rejected for
+  swinging 24–55% (IDX) vs 79–86% (US) and being unavailable to a third of IDX names. §10's pullback-RS is
+  **emergent** — a decile is cross-sectional, so on a falling tape the 1m decile *is* what held up — surfaced
+  as regime-conditional copy, with the washout inversion stated as a limit. Sector strength **never filters**.
+  Cache: **new names block, 1/30th rolls nightly, a failed fetch never nulls**. The session also
+  **reproduced the universe a third time (290/1,896)** and measured **1.2s Yahoo spacing as throttle-free**,
+  halving ticket 03's assumed full-pass cost.
+
 ## Not yet specified
 
 - **Validation / backtest.** How do we know the screen actually surfaces the right names? History depth
@@ -123,7 +149,10 @@ is written during wayfinding.
   launch. **Ticket 06 adds a fourth** — nightly percentile rank and raw return per (name, lookback), so
   a future validation can ask not just what was rankable but *where it ranked*. Together — what was
   listed, what was rankable, where it ranked, what was signalled — they are the seed of whatever
-  validation eventually becomes possible.
+  validation eventually becomes possible. **Ticket 07 adds a fifth** — nightly sector and ranked-industry
+  shares, so a future study can ask whether sector leadership actually preceded the moves, and can replay
+  the rotation columns rather than only the per-name ranks. It is a few hundred KB a year and, like the
+  other four, irrecoverable if not started at launch.
   **Two constraints ticket 06 puts on that seed, which sharpen this patch rather than clear it:** the
   rank stream is the first that **discards** — a rolling 2-year window was chosen deliberately, so a
   multi-year study is foreclosed unless a coarser permanent archive is added later (a few MB/year); and
@@ -148,6 +177,13 @@ is written during wayfinding.
 
 ## Out of scope
 
+- **Narrative theme layer spanning industries** — "nickel downstream", "GLP-1", "AI" as named, curated
+  themes. Ruled out by [Sector/theme leadership and rotation model](issues/07-sector-theme-and-rotation-model.md):
+  Yahoo's 145-industry level arrives free with sector and covers the theme question wherever the theme
+  *is* an industry (most of the time on IDX). The remainder — genuinely cross-industry narratives — would
+  cost either a paid LLM tagging pass, a US-only ETF-holdings scraper that breaks market parity, or
+  ongoing hand-curation. Not on the route to a v1 spec. The option survey is preserved in
+  [ticket 03's findings](research/03-sector-taxonomy.md) if it ever becomes its own effort.
 - **Episodic Pivot (§4)** — deferred by the method reference itself; needs intraday/pre-market data.
 - **Parabolic short (§5)** — not practically available on IDX, largest blow-up risk.
 - **Position sizing calculator (§8)** — considered and ruled out of v1.

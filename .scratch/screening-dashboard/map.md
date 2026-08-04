@@ -91,6 +91,23 @@ is written during wayfinding.
   follow-through is **captured nightly from day one but never shown or gated in v1** — it is the only
   unbiased regime signal available and is irrecoverable if not started at launch.
 
+- [Ranking and decile model](issues/06-ranking-and-decile-model.md) — **the gate and the leaderboard are
+  two different cuts**, which dissolves ticket 05's "a decile of 1,966 is unreviewable" hand-off. The
+  §3.1 gate is a **union of top deciles across 1w/1m/3m/6m/12m** — measured at **566 US / 82 IDX**, so
+  **"top decile" passes ~29% of the universe, not 10%**, and the 28.8%/28.5% agreement across two
+  markets differing 7× in size shows a percentile gate is self-normalising. The leaderboard is **five
+  separate boards per market, 30 rows each** — N=30 is simultaneously §1's "top 1–2% of gainers" on US
+  and IDX's natural decile. Returns are **calendar-anchored on adjusted closes, which narrows D6**
+  (traded-bar windows stay for ADR and dollar volume only). The model **reports rather than judges**:
+  **pure return, no volatility adjustment** (normalising would replace up to 20 of 30 US rows), **no
+  smoothing** (the 1w board turns over 16 of 30 nightly and that is honest), **ADR does nothing by
+  default** — a column plus one toggle, off everywhere. Rows carry a **`k/5` breadth badge** (only 3 of
+  1,964 US names lead all five windows) and a **`NEW` marker**; §1's "up ≥30% in 5 days" is a **flag on
+  the 1w board**, with the accepted failure mode that a hot tape hides the names below rank 30. Ranking
+  is a **shared service** — ticket 07 aggregates over its rank table rather than defining strength
+  twice. Rank history persists nightly on a **rolling 2-year window**. The session also **reproduced
+  ticket 05's universe exactly (1,966 / 288) from its written decisions alone**.
+
 ## Not yet specified
 
 - **Validation / backtest.** How do we know the screen actually surfaces the right names? History depth
@@ -103,8 +120,16 @@ is written during wayfinding.
   can ask what was actually rankable on a given night, not merely what was listed. **Ticket 10 adds a
   third** — every detected setup and its trigger level, written nightly from launch. All three exist for
   the same reason: they are unbiased *and* irrecoverable after the fact, so the clock has to start at
-  launch. Together — what was listed, what was rankable, what was signalled — they are the seed of
-  whatever validation eventually becomes possible.
+  launch. **Ticket 06 adds a fourth** — nightly percentile rank and raw return per (name, lookback), so
+  a future validation can ask not just what was rankable but *where it ranked*. Together — what was
+  listed, what was rankable, where it ranked, what was signalled — they are the seed of whatever
+  validation eventually becomes possible.
+  **Two constraints ticket 06 puts on that seed, which sharpen this patch rather than clear it:** the
+  rank stream is the first that **discards** — a rolling 2-year window was chosen deliberately, so a
+  multi-year study is foreclosed unless a coarser permanent archive is added later (a few MB/year); and
+  the stored ranks carry a **~1.5% noise floor** from denominator churn (30 US / 8 IDX names entering or
+  leaving the universe overnight even with D11's hysteresis), so small percentile moves are not
+  necessarily price moves. Whatever validation becomes possible has to be robust to both.
 - **Alerting.** He hangs price alerts on the trendline. Whether v1 notifies at all, and through what
   channel, waits on detection being defined. Running locally narrows the options — a desktop
   notification or a nightly digest, not a push service.

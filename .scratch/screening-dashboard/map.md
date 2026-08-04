@@ -119,15 +119,15 @@ is written during wayfinding.
   `share(1w) − share(6m)` (zero tunables, no history, default sort) and a **20-session temporal delta**
   whose window is inherited from §2/§3.5's 10/20-day horizon, not invented — the trader overruled the
   session's sparkline-and-eyeball proposal and required it computed. **Quantization is an IDX problem**:
-  one name moves IDX Technology's share **11.1pp** (vs 0.5–3.2pp on US), and Technology topped the measured
-  IDX rotation board at +22.2pp on *two stocks* — so a sector needs **`k ≥ 2` in the decile to top the
-  board**, with `k/n` on every row; nothing is ever hidden, and shrinkage was rejected as smoothing.
-  **IDX cannot carry an industry leaderboard** (median industry size 2, 32 singletons), US can (~135
-  industries, Biotechnology 58) — resolved as **one rule, `n ≥ 10` to be ranked**, yielding ~55 US rows and
-  4 IDX rows: parity of rule, not of result. §3.5's confirmation boolean is **leave-one-out sector share
-  ≥ 10% on 1m** — the leave-one-out is load-bearing, because a candidate inflates its own sector and the
-  naive rule fires 77–90%, making the point nearly free; the industry-peer alternative was rejected for
-  swinging 24–55% (IDX) vs 79–86% (US) and being unavailable to a third of IDX names. §10's pullback-RS is
+  one name moves IDX Utilities' share **10.0pp** (vs 0.3–1.7pp anywhere on US), and Technology topped the
+  measured IDX rotation board at +21.4pp on *three stocks* — so a sector needs **`k ≥ 2` in the decile to
+  top the board**, with `k/n` on every row; nothing is ever hidden, and shrinkage was rejected as smoothing.
+  **IDX cannot carry an industry leaderboard** (87 industries, median size 2, 38 singletons), US can (139
+  industries, median size 9, Biotechnology 107) — resolved as **one rule, `n ≥ 10` to be ranked**, yielding
+  63 US rows and 7 IDX rows: parity of rule, not of result. §3.5's confirmation boolean is **leave-one-out
+  sector share ≥ 10% on 1m** — the leave-one-out is load-bearing, because a candidate inflates its own
+  sector and the naive rule fires 77–90%, making the point nearly free; the industry-peer alternative was
+  rejected for swinging 24–55% (IDX) vs a flat 88–89% (US) and being unavailable to 38 IDX singletons. §10's pullback-RS is
   **emergent** — a decile is cross-sectional, so on a falling tape the 1m decile *is* what held up — surfaced
   as regime-conditional copy, with the washout inversion stated as a limit. Sector strength **never filters**.
   Cache: **new names block, 1/30th rolls nightly, a failed fetch never nulls**. The session also

@@ -50,8 +50,10 @@ Every number below is **measured**, not estimated. The session rebuilt the unive
 written decisions alone (median-20d `close × volume` ≥ Rp 1B / $20M, phantom `volume == 0` bars dropped,
 ≥ 20 non-phantom bars) and got **290 IDX / 1,896 US** against ticket 05's 288 / 1,966 — within 1% and 4%.
 That is the third independent session to reproduce the universe. It then pulled sector *and* industry for
-every surviving name, and computed ticket 06's calendar-anchored returns and per-lookback deciles on top,
-so the share figures below are the real distribution rather than arithmetic on assumed sector sizes.
+**every** surviving name — **289 of 290 IDX and 1,893 of 1,896 US carry a sector** (the 4 misses are
+ticket 03's delisting signal, not coverage gaps) — and computed ticket 06's calendar-anchored returns and
+per-lookback deciles on top. The share figures below are therefore the real distribution over the whole
+universe, not arithmetic on assumed sector sizes or extrapolation from a sample.
 
 ### S1 — **Industry *is* the theme layer.** The parity dilemma is dissolved, not decided
 
@@ -121,12 +123,12 @@ caveat in the UI.
 ### S4 — No sector is ever hidden, but **`k ≥ 2` is required to top the rotation board**
 
 **Measured: quantization is an IDX problem and it lands squarely on S3's default sort.** IDX's smallest
-Morningstar sectors are Technology and Utilities at **9 members each**, the largest Industrials at 33 —
-so there is nothing thin enough to *exclude*, and an exclusion floor is moot. But one name entering the
-decile moves **Technology's share by 11.1pp** and Industrials' by 3.0pp. In the measured snapshot
-Technology topped the IDX rotation differential at **+22.2pp**, which is literally **two stocks** in the
-1w decile against zero in the 6m. Sorted freely, the IDX rotation board would be led by its two smallest
-sectors on most nights.
+Morningstar sector is Utilities at **10 members**, then Technology and Healthcare at 14; the largest is
+Industrials at 43 — so nothing is thin enough to *exclude*, and an exclusion floor is moot. But one name
+entering the decile moves **Utilities' share by 10.0pp** and Technology's by 7.1pp, against Industrials'
+2.3pp. In the measured snapshot **Technology topped the IDX rotation differential at +21.4pp**, which is
+**three stocks** in the 1w decile against zero in the 6m. Sorted freely, the IDX rotation board would be
+led by its smallest sectors on most nights.
 
 So: **a sector needs at least 2 members in the shorter lookback's decile to be eligible for the top of
 the rotation board.** Single-name sectors sort into a separate group below it, still visible with their
@@ -139,24 +141,26 @@ sector rotating.**
 **Rejected: shrinkage toward the 10% baseline.** That is a smoothing parameter on the noisiest input on
 the map, and ticket 06 already rejected smoothing on the same grounds.
 
-On US the rule is nearly a no-op — one name moves a US sector share by only **0.5–3.2pp** — which is the
-correct behaviour for a rule that exists to catch thin markets.
+On US the rule is nearly a no-op — the smallest US sector is Utilities at 59 members and the largest
+Technology at 340, so one name moves a US sector share by only **0.3–1.7pp** — which is the correct
+behaviour for a rule that exists to catch thin markets.
 
 ### S5 — **One industry board**, and a ranked industry needs `n ≥ 10`
 
-**IDX cannot support an industry leaderboard on its own numbers**: 75 industries across its universe,
-**median size 2**, **32 industries with exactly one member**, only 4 with ten or more. The shares are
-noise by construction — Real Estate Services reads 66.7% on 1m, which is 4 names of 6.
+**IDX cannot support an industry leaderboard on its own numbers**: **87 industries** across its 289
+names, **median size 2**, **38 industries with exactly one member**, only 7 with ten or more. The shares
+are noise by construction — Real Estate Services reads **57.1% on 1m, which is 4 names of 7**.
 
-**US can**: ~135 industries with a median size of 5 and a long tail of real mass — Biotechnology 58,
-Software-Application 49, Banks-Regional 49, Software-Infrastructure 37.
+**US can**: **139 industries, median size 9, only 5 singletons, and 63 at ten or more** — with real mass
+in the head: Biotechnology 107, Software-Application 85, Banks-Regional 80, Software-Infrastructure 75,
+Semiconductors 44.
 
 The ruling is **one rule applied identically to both markets: an industry is ranked if it has ≥ 10
-members.** That yields roughly 55 rows on US and exactly **4 on IDX** (Banks-Regional 18, Farm Products
-14, Real Estate-Development 12, Thermal Coal 10). **Parity of rule, not parity of result** — the market's
-own data density decides the yield and no market is special-cased. An IDX industry board reading Thermal
-Coal / Farm Products / Banks / Real Estate is not degenerate; those are close to the actual Indonesian
-themes.
+members.** That yields **63 rows on US and exactly 7 on IDX** (Banks-Regional 19, Farm Products 18,
+Real Estate-Development 17, Thermal Coal 15, Packaged Foods 12, Marine Shipping 12, Other Industrial
+Metals & Mining 10). **Parity of rule, not parity of result** — the market's own data density decides the
+yield and no market is special-cased. An IDX industry board reading Thermal Coal / Farm Products / Marine
+Shipping / Other Industrial Metals is not degenerate; those are close to the actual Indonesian themes.
 
 **`n ≥ 10` is derived, not picked**: it is exactly the point at which one name can move the share by at
 most 10pp — the decile baseline itself. Below it, a single stock can swing an industry by more than its
@@ -177,10 +181,10 @@ denominator — fixes it exactly, dropping the rule to a **stable 52% on IDX acr
 one point out of ten, firing about half the time is where a binary belongs.
 
 **Rejected: the industry-peer rule** ("at least one *other* name in this stock's industry is also in the
-decile"). It is closer to §10's "strength clusters," but it measured **24–55% on IDX against 79–86% on
-US** — a ~3× swing, so the same rubric line would mean genuinely different things in the two markets. It
-is also **structurally unavailable to a third of IDX names**: 32 IDX industries have exactly one member,
-so those stocks could never earn the point however strong their theme.
+decile"). It is closer to §10's "strength clusters," but it measured **24–55% on IDX against a flat
+88–89% on US** — so the same rubric line would be a coin-flip in one market and nearly free in the other.
+It is also **structurally unavailable to many IDX names**: 38 IDX industries have exactly one member, so
+those stocks could never earn the point however strong their theme.
 
 **1m rather than the lookback the stock qualified on**, because §3.5 already scores the stock's own
 momentum separately under "prior move strength (top decile 1–6m)". This dimension asks whether the
@@ -189,9 +193,9 @@ momentum separately under "prior move strength (top decile 1–6m)". This dimens
 **Industry appears on the candidate row as context** — "Thermal Coal, 20% of members in the 1m decile" —
 but **does not score**, so no name is penalised for being alone in its industry.
 
-**Named cost, accepted:** the rule is not symmetric across markets. It fires **52% on IDX but 63–77% on
-US**. It still discriminates on both (the all-names baseline is 33–46%), and it is far more stable than
-the industry-peer alternative it replaced.
+**Named cost, accepted:** the rule is not symmetric across markets. It fires **52% on IDX — identical on
+1m, 3m and 6m — but 61–79% on US**. It still discriminates on both (the all-names baseline is 36–46%),
+and it is far more stable than the industry-peer alternative it replaced.
 
 ### S7 — §10's "pullbacks are information" is **emergent**, not a feature
 
@@ -229,8 +233,9 @@ first. The note states this.
 ### S9 — Sector/industry cache: new names block, 1/30th rolls nightly, a failed fetch never nulls
 
 Ticket 03 established that sector costs **one request per symbol**. This session measured the full
-universe at **1.2s spacing with zero throttling across ~1,900 consecutive calls** — so ticket 03's 2s
-recommendation was conservative, and a full pass is ~45 minutes rather than 75. Still far too long for
+universe at **1.2s spacing with zero throttling across ~1,850 consecutive calls** (every row returned
+`ok`; the only non-`ok` values were the 4 genuine `no_sector` delistings) — so ticket 03's 2s
+recommendation was conservative, and a full pass is ~48 minutes rather than 75. Still far too long for
 the nightly job.
 
 - **New names block.** A symbol entering the universe has sector/industry fetched *before* it can appear

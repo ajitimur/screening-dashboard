@@ -53,6 +53,10 @@ and ADR ≥ 4–5%. This ticket settles everything around them:
 Resolve against `references/qullamaggie-method.md` §1, and against whatever the data-source research
 says is actually obtainable.
 
+**Raised by ticket 10 (market regime filter):** the regime needs the last **closed** session per market
+and must surface its date. D8 below settles it for every consumer of the latest bar — non-final bars are
+dropped at ingest on an exchange-clock rule, so nothing downstream ever sees a partial session.
+
 ## Answer
 
 Resolved 2026-08-04 in a grilling session. Thirteen decisions below. Every number in the "Measured"

@@ -29,3 +29,8 @@ screens to react to — outlines or a clickable stub, not production UI.
   screen early on, dead weight later.
 
 Output: agreed screen inventory and the nightly path. Link the prototype rather than pasting it here.
+
+**From ticket 10 (market regime filter):** the screens must carry **two persistent regime banners**, one
+per market, each showing its state (`FRIENDLY` / `CHOPPY` / `HOSTILE`), a sizing posture, the as-of
+session date, and a universe-breadth reading beside it. The candidate list is **identical in all three
+states** — the regime never filters or reorders it — so the banner is the only place regime appears.

@@ -71,3 +71,8 @@ that it can't be computed and must be shown to the human instead:
   introduce one on IDX.
 
 Resolve against `references/qullamaggie-method.md` §3, §6, §7. Expect this to spawn follow-on tickets.
+
+**Owed to ticket 10 (market regime filter):** detection must emit a defined **trigger level** per
+detected setup — the price the breakout keys on. Ticket 10 records it nightly from launch so a
+follow-through series accumulates forward; without a stable definition here there is nothing to record
+against, and the capture cannot be backfilled later.

@@ -78,3 +78,8 @@ serving path, not deployment.
 Resolve against ticket 05's universe size — now measured: **288 IDX / 1,966 US** names, ~2,250 total
 symbols to pull nightly. Ticket 04's free-tier findings are **background only** — v1 is not constrained
 by them.
+
+**Owed to ticket 10 (market regime filter):** a **nightly setup-snapshot table** (symbol, date, trigger
+level) written every run from launch — a third forward-accumulating capture alongside the listing files
+and universe membership already on this ticket. Ticket 10 also needs index bars for `^IXIC` and
+`^JKSE` ingested on the same path as equities.

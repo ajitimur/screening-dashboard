@@ -63,6 +63,8 @@ is written during wayfinding.
   silence** — must be distinguished from genuinely missing data. Theme *parity* across markets is the
   open scope risk, carried to ticket 07.
 
+*(the hosting research also resolved, but its subject was subsequently ruled out of scope — see below)*
+
 - [Universe definition and data hygiene](issues/05-universe-definition.md) — **288 IDX / 1,966 US names**,
   measured under the exact rule stack, not estimated. The universe is **liquidity + instrument type +
   listing age only**: median-20d `close × volume` ≥ Rp 1B / $20M, common stock only (ADRs kept), ≥ 20
@@ -77,7 +79,17 @@ is written during wayfinding.
   method is a ratio and ratios survive adjustment. Nightly rebuild with a 0.8× hysteresis band. One
   principle unifies D3/D7/D11: **removal requires stronger evidence than admission.**
 
-*(the hosting research also resolved, but its subject was subsequently ruled out of scope — see below)*
+- [Market regime filter](issues/10-market-regime-filter.md) — **three states per market from one index
+  each** (US `^IXIC`, IDX `^JKSE`), on simple `SMA10`/`SMA20` of daily closes. Slope is **sign-only**
+  (`SMA[t]` vs `SMA[t-5]`), so the whole filter has **zero tunable parameters** — deliberate, because
+  survivorship bias makes any threshold uncalibratable. `HOSTILE` = both falling and 10 below 20;
+  `FRIENDLY` = close above both and both rising; `CHOPPY` = **the residual**, which is where §10's two
+  named conditions leave a gap. The three are mutually exclusive by construction. Effect is **advisory
+  only**: a per-market banner with a sizing posture (full / reduced / sit), and the candidate list is
+  identical in all three states — regime never filters, reorders, or touches the star score. Breadth is
+  **displayed but does not gate** (it is the measure survivorship bias corrupts most). Breakout
+  follow-through is **captured nightly from day one but never shown or gated in v1** — it is the only
+  unbiased regime signal available and is irrecoverable if not started at launch.
 
 ## Not yet specified
 
@@ -88,7 +100,11 @@ is written during wayfinding.
   already assigned to ticket 12: start snapshotting listing files nightly, so a point-in-time universe
   accumulates from today whatever validation eventually looks like. **Ticket 05 added the layer above
   it** — nightly snapshots of universe *membership* (one row per name per night), so a future validation
-  can ask what was actually rankable on a given night, not merely what was listed.
+  can ask what was actually rankable on a given night, not merely what was listed. **Ticket 10 adds a
+  third** — every detected setup and its trigger level, written nightly from launch. All three exist for
+  the same reason: they are unbiased *and* irrecoverable after the fact, so the clock has to start at
+  launch. Together — what was listed, what was rankable, what was signalled — they are the seed of
+  whatever validation eventually becomes possible.
 - **Alerting.** He hangs price alerts on the trendline. Whether v1 notifies at all, and through what
   channel, waits on detection being defined. Running locally narrows the options — a desktop
   notification or a nightly digest, not a push service.

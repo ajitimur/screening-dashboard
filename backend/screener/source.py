@@ -104,7 +104,7 @@ class LabelResolution:
 
 class SourceClient(Protocol):
     """The raw network boundary. The real implementation is the only code that
-    talks to Yahoo / Nasdaq; tests supply a fake with these two methods."""
+    talks to Yahoo / Nasdaq; tests supply a fake with these methods."""
 
     def enumerate(self, market: str) -> list[Instrument]: ...
 

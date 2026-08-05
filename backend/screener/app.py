@@ -212,9 +212,8 @@ def create_app(store: Store | None = None) -> FastAPI:
                 # the prior-move decile gate and the leave-one-out 1m sector share,
                 # both off this session's rank table and labels (spec §4.7). Only a
                 # name with a base tonight is scored, so this is skipped otherwise.
-                sector_of = {
-                    sym: lab.sector for sym, lab in store.labels(market).items()
-                }
+                labels = store.labels(market)
+                sector_of = {sym: label.sector for sym, label in labels.items()}
                 prior_move = symbol in detection_gate(session_ranks)
                 sector_share = leave_one_out_sector_shares(
                     session_ranks, sector_of

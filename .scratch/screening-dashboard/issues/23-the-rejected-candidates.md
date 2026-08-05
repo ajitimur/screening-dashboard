@@ -35,5 +35,5 @@ Sizing, from `PREREGISTRATION_R3.md` §2: 20 per arm resolves a **1.00★** diff
 a 0.75★ difference needs 33 per arm. So a clear result is readable and a marginal one is not — say
 which arrived rather than reading a null as a pass.
 
-Carries **6 repeat pairs**, which with ticket 22's 6 would take ticket 20's test–retest ceiling from
-12 pairs to 24 and roughly halve its error.
+Carries **6 repeat pairs**. Ticket 22's 6 have landed — the ceiling is now **+0.854 on 18 pairs**
+(mean |difference| 0.44★, up from +0.808 on 12) — and these would take it to 24.

@@ -317,6 +317,36 @@ is written during wayfinding.
   nights still write the file**, so a missing file means a failed run — the map's "Yahoo fails as silence"
   property, bought for free.
 
+- [Second grading round: fix the star-score thresholds](issues/15-star-score-second-grading-round.md) —
+  **the rubric is fitted on the split, and it agrees with the eye for the first time on this structure**:
+  out-of-fold **r = +0.255** (n=120, significance 0.180), mean error 1.11★, within one star 60%,
+  calibration **monotone** across predicted bands for the first time on this map. **Tightness is a
+  packing count, not a width** — D3's retained set is gone, every measure of *narrowness* fails on the
+  population the rubric ranks, and **cluster length k** is the only candidate that replicates
+  (+0.196 fresh, +0.327 on mixed cards, both length-free), because the cluster is *selected* to fit
+  under `TIGHT_MULT × ADR` so its width is spent by the selection. k clears its pre-registered floor,
+  so **ticket 17's R6 fallback does not fire**. **Orderliness needed a new shape**: on a ~14-bar base
+  the one-sided cut is counterproductive and the fit gave its point to 99% of cards — not a sign error
+  (a synthetic control confirms churn/L still measures disorder at every length) but a **leak**, since
+  the gap between an *orderly* base and a *gap-then-dead* one narrows 2.9× → **1.8×** → 1.65× as L goes
+  3 → 14 → 30, so a low churn/L stops meaning orderly and starts meaning quiet. Now a **band**,
+  `0.275 ≤ churn/L ≤ 0.50`, losing the point at both ends — trader's call, and **chosen after seeing
+  the grades**, so it is a hypothesis with fitted numbers rather than a confirmed result. **D10's MA
+  distance is retired** (partial r +0.010, p = 0.93; the split's catch-up test already gates every
+  survivor) leaving "SMA20 rising", so the free numbers went 6 → 4 → 5. **The 4★ cut stands a third
+  time and precision at the trade line is 0.53**, up from 0.37 — the number ticket 11 depends on,
+  since the score sorts the only list in the app. Two method findings outlive the numbers: round 2's
+  **coordinate-descent fitter does not reach the optimum of its own objective** here (mae 1.0875 vs
+  1.0292 exhaustive on the identical grid) and settled somewhere degenerate that read +0.060
+  out-of-fold — fixed, with round 2's own thresholds re-checked and unaffected; and **the two earlier
+  graded sets are not poolable** (+0.69★, p = 0.044), which is why round 3 re-collected on the split's
+  population with every card rendered **bare**. **D13's partial-lock probe is de-scoped** — 98.1% of
+  accepted IDX detections have zero collapsed bars, so the population ticket 09 sized it for is gone.
+  **What it could not settle graduated to [ticket 20](issues/20-confirm-the-band-and-measure-the-ceiling.md)**:
+  the band's confirmation, per-market calibration (**still zero graded IDX cards on any structure**),
+  the rejected candidates, and **the test–retest ceiling — unmeasured for the second round running**,
+  so by its own pre-registration none of the thresholds above is final.
+
 - [Architecture and local runtime shape](issues/12-architecture-and-deployment.md) — **one DuckDB file,
   one command per market, and every derived table is dated rows.** A4 is the load-bearing one: universe
   membership, ranks, sector shares, detections, scores and signal vectors are all keyed by

@@ -285,3 +285,29 @@ the state half would render one value for every row on every night.
 declined for exactly the reason I2 gives: it is the diff-first surface, moved inside the app. The
 break keeps the single home ticket 14 gave it — the digest — which is the file you may ignore at no
 cost.
+
+---
+
+## Amendment from ticket 19 — I4's stop column is right, its base rate is not
+
+[Ticket 19](19-fit-the-split-parameters.md) R2 measured the quantity I4's fourth column displays and
+found the column well chosen but described backwards.
+
+I4 justifies "Stop width ÷ 1×ADR" as "§7's veto, visible before you open anything — **a row at 0.97×
+is nearly dead**", which reads as though most rows sit comfortably below 1.0 and the column exists to
+catch the occasional straggler. Measured over 19,527 detections: the median row is at **1.28×**, and
+**~92% of the nightly list sits above 1.0** — because `TIGHT_MULT` (1.5) *is* the stop budget, and the
+cluster's ≤1.5×ADR span is what bounds it.
+
+Nothing about the column's presence or position changes. Two things about its treatment do:
+
+- **The highlight inverts.** Marking the rows that exceed 1×ADR would mark 92% of the list, which is
+  not a mark. The **≤1×ADR minority** is the exceptional, affordable case and is what should be
+  visually distinguished.
+- **It is never a filter.** Ticket 19 R2 measured what filtering costs — 85% of ticket 15's graded
+  cards, and preferentially the ones that graded *highest* — and declined it. §7 is enforced by the
+  human at entry, against the real LOD stop the screen cannot see. The column exists to make that
+  check free, not to pre-empt it.
+
+Whether the *sort* should also know about the stop is not settled here — that is
+[ticket 21](21-should-the-score-know-about-the-stop.md). I4's sort key remains the star score.

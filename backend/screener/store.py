@@ -1,0 +1,163 @@
+"""The DuckDB store: dated, append-only rows keyed ``(market, session, ...)``.
+
+This is the load-bearing architectural decision of v1 (spec §7.1/§7.2). Every
+derived table is written once and never rewritten, so the thing the app reads
+*is* the archive and the two cannot disagree. "Tonight" is the max session.
+
+The walking skeleton lays down two tables — ``runs`` (the run record) and one
+derived table, ``universe`` — enough to prove the append-only discipline and
+both test seams. Later tickets add ranks, sector shares, detections and scores
+against the same guard.
+"""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+from pathlib import Path
+from typing import Optional
+
+import duckdb
+
+from .models import RunRecord, RunStatus
+
+# Bump when a derived-table definition changes. Detection rows will additionally
+# carry their own detector_version (spec §7.2); this is the store-level schema.
+SCHEMA_VERSION = 1
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS runs (
+    market              TEXT      NOT NULL,
+    session             DATE      NOT NULL,
+    status              TEXT      NOT NULL,
+    symbols_enumerated  INTEGER   NOT NULL,
+    symbols_resolved    INTEGER   NOT NULL,
+    created_at          TIMESTAMP NOT NULL,
+    PRIMARY KEY (market, session)
+);
+
+-- One derived table stood up in the skeleton to exercise the append-only guard.
+-- Keyed (market, session, symbol); rewritten never, only appended for absent
+-- sessions (spec §7.2).
+CREATE TABLE IF NOT EXISTS universe (
+    market   TEXT NOT NULL,
+    session  DATE NOT NULL,
+    symbol   TEXT NOT NULL,
+    PRIMARY KEY (market, session, symbol)
+);
+"""
+
+
+class SessionExistsError(RuntimeError):
+    """Raised when a write would rewrite an already-written session's rows.
+
+    Backfill only ever fills *absent* sessions; rewriting a derived row would
+    inject look-ahead into the unbiased streams that exist because they are not
+    rewritten (spec §7.2).
+    """
+
+
+class Store:
+    """A thin wrapper over one DuckDB connection with append-only writes."""
+
+    def __init__(self, connection: duckdb.DuckDBPyConnection) -> None:
+        self._con = connection
+        self._con.execute(_SCHEMA)
+
+    # -- lifecycle ---------------------------------------------------------
+
+    @classmethod
+    def open(cls, path: str | Path) -> "Store":
+        """Open (creating on first run) the DuckDB file at ``path``."""
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        return cls(duckdb.connect(str(p)))
+
+    @classmethod
+    def memory(cls) -> "Store":
+        """An in-memory store, for fixtures and tests."""
+        return cls(duckdb.connect(":memory:"))
+
+    def close(self) -> None:
+        self._con.close()
+
+    # -- writes (append-only) ---------------------------------------------
+
+    def _guard_absent(self, table: str, market: str, session: date) -> None:
+        existing = self._con.execute(
+            f"SELECT 1 FROM {table} WHERE market = ? AND session = ? LIMIT 1",
+            [market, session],
+        ).fetchone()
+        if existing is not None:
+            raise SessionExistsError(
+                f"{table} already has rows for ({market}, {session}); "
+                "derived rows are written once and never rewritten"
+            )
+
+    def append_run(
+        self,
+        market: str,
+        session: date,
+        *,
+        status: RunStatus,
+        symbols_enumerated: int,
+        symbols_resolved: int,
+        created_at: datetime,
+    ) -> RunRecord:
+        """Record one run. Raises :class:`SessionExistsError` on a rewrite."""
+        self._guard_absent("runs", market, session)
+        self._con.execute(
+            "INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?)",
+            [market, session, status, symbols_enumerated, symbols_resolved, created_at],
+        )
+        return RunRecord(
+            market=market,
+            session=session,
+            status=status,
+            symbols_enumerated=symbols_enumerated,
+            symbols_resolved=symbols_resolved,
+            created_at=created_at,
+        )
+
+    def append_universe(self, market: str, session: date, symbols: list[str]) -> int:
+        """Append a session's universe membership. Raises on a rewrite."""
+        self._guard_absent("universe", market, session)
+        self._con.executemany(
+            "INSERT INTO universe VALUES (?, ?, ?)",
+            [[market, session, s] for s in symbols],
+        )
+        return len(symbols)
+
+    # -- reads -------------------------------------------------------------
+
+    def runs(self, market: str) -> list[RunRecord]:
+        """All run records for a market, newest session first."""
+        rows = self._con.execute(
+            "SELECT market, session, status, symbols_enumerated, symbols_resolved, "
+            "created_at FROM runs WHERE market = ? ORDER BY session DESC",
+            [market],
+        ).fetchall()
+        return [
+            RunRecord(
+                market=r[0],
+                session=r[1],
+                status=r[2],
+                symbols_enumerated=r[3],
+                symbols_resolved=r[4],
+                created_at=r[5],
+            )
+            for r in rows
+        ]
+
+    def latest_run(self, market: str) -> Optional[RunRecord]:
+        """The last *published* run — the as-of session the tab renders."""
+        for record in self.runs(market):
+            if record.status == "published":
+                return record
+        return None
+
+    def universe(self, market: str, session: date) -> list[str]:
+        rows = self._con.execute(
+            "SELECT symbol FROM universe WHERE market = ? AND session = ? ORDER BY symbol",
+            [market, session],
+        ).fetchall()
+        return [r[0] for r in rows]

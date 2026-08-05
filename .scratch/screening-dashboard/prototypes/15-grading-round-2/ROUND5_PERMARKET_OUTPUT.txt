@@ -1,0 +1,21 @@
+US core cards: 120   IDX cards: 52
+
+=== arm 2 — IDX-only fit vs pooled, out-of-fold on the same IDX cards
+  pooled    mae 0.913  r +0.298  within1 69%  bias +0.01
+  IDX-only  mae 0.788  r +0.408  within1 77%  bias +0.06
+  IDX-only beats pooled by +0.125 stars (bar is > 0.15)
+  -> arm 2 misses: pooled is not beaten
+
+  IDX-only thresholds by fold (a threshold that moves is not a threshold):
+    cluster_k      fold spread 3-6
+    ord_lo         fold spread 0.1-0.2
+    ord_hi         fold spread 0.35-0.6
+    dryup          fold spread 1.0-1.25
+    len_ok         fold spread 4-26
+    len_bad        fold spread 40-40
+
+  descriptive: mean eye  US 3.23  IDX 2.35
+  descriptive: >=4 star  US 48%  IDX 15%
+
+  descriptive: over 25 fold assignments the arm-2 gain runs -0.077 to +0.231, median +0.058
+  descriptive: it clears the 0.15 bar on 12% of them

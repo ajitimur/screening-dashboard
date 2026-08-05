@@ -1,0 +1,9 @@
+E3, n=194.  POST HOC — decides nothing, R6 did not contain this.
+
+  fit                                    rho    mae  within1  pred sd
+  mae                                 +0.215   0.98      70%     0.80
+  mae + isotonic level map            +0.158   0.93      64%     0.36
+  cindex                              +0.326   1.15      61%     1.24
+  cindex + isotonic level map         +0.233   0.93      63%     0.44
+
+  R6 S2's guardrail was: mae may not exceed the incumbent's (0.98) by more than 0.15 -> 1.13

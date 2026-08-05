@@ -1,0 +1,13 @@
+{
+  "objective": "mae",
+  "lambda": 0.001,
+  "population": "A3+E3+C3",
+  "thresholds": {
+    "cluster_k": 7.0,
+    "ord_lo": 0.1,
+    "ord_hi": 0.7,
+    "dryup": 0.9,
+    "len_ok": 26.0,
+    "len_bad": 40.0
+  }
+}

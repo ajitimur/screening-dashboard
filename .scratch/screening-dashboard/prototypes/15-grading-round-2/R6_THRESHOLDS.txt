@@ -1,0 +1,6 @@
+mae       E3       {'cluster_k': 5, 'ord_lo': 0.1, 'ord_hi': 0.6, 'dryup': 0.85, 'len_ok': 4} loss 0.9253
+cindex    E3       {'cluster_k': 5, 'ord_lo': 0.3, 'ord_hi': 0.6, 'dryup': 0.85, 'len_ok': 20} loss 0.3540
+spearman  E3       {'cluster_k': 5, 'ord_lo': 0.3, 'ord_hi': 0.6, 'dryup': 0.85, 'len_ok': 20} loss 0.6428
+mae       pooled   {'cluster_k': 7, 'ord_lo': 0.1, 'ord_hi': 0.7, 'dryup': 0.9, 'len_ok': 26} loss 0.9549
+cindex    pooled   {'cluster_k': 5, 'ord_lo': 0.3, 'ord_hi': 0.7, 'dryup': 0.85, 'len_ok': 20} loss 0.3621
+incumbent T3         {'cluster_k': 5, 'ord_lo': 0.275, 'ord_hi': 0.6, 'dryup': 0.95, 'len_ok': 14}

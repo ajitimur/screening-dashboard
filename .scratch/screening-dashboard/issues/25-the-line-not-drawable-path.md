@@ -1,7 +1,7 @@
 # Does the `line_not_drawable` rejection path discard setups you want?
 
 Type: prototype
-Status: claimed
+Status: resolved
 Blocked by: —
 
 ## Question
@@ -88,3 +88,57 @@ from 0.56★ to **0.46★**, and deck F's decision rule was amended to it before
 rendered — which *narrows* the band in which the remedy fires, the conservative direction.
 
 Deck F's 6 repeats will take the pool to 30 pairs.
+
+## Answer
+
+**The path does not separate, so it stops being a gate.** Full write-up:
+[`DECK_F_RESULTS.md`](../prototypes/15-grading-round-2/DECK_F_RESULTS.md).
+
+105 cards graded. `line_not_drawable` grades **−0.12★** against detections (95% CI **−0.73 to
++0.48**, p = 0.691; −0.18★ controlling base length) — inside the eye's own **0.46★** noise floor.
+By §5 of the pre-registration that is row 2: **a finding, not a pass.** A rejection rule that
+cannot be told apart from acceptance is not earning a gate.
+
+Removing deck D3's two confounds moved the estimate from −0.40★ to −0.12★, the direction the
+pre-registration predicted **before the deck was built**. The control arm confirms it independently:
+band-stratified it read 3.20, drawn at random it reads **2.97**. The deck rules out any true gap
+worse than −0.72★, so ticket 23 is not contradicted — only sharpened.
+
+**Remedy: `line_ok` is downgraded from a hard reject to a scored penalty** — §6 option 1, the
+pre-registered default, trader's call. Loosening only the touches sub-test and refusing the remedy
+outright were both put and not taken. The accepted cost is the decile-gated US list going
+**5.98 → 9.5 names a night (+59%)**.
+
+**The remedy is nearly free geometrically.** Ticket 18 proved the fitted line can never exceed the
+cluster high, so the trigger *is* the cluster high and the line never reaches it. `line_ok` feeds
+one boolean and one chart overlay: demoting it changes **no trigger, no stop, no cluster and no
+parameter**. It follows D6 out of the gate set, leaving the cluster and the decile as the tests
+that do separate.
+
+**Sub-tests, descriptive only** (pre-registered as such at these n): overshoot-only cards grade
+−0.84★ (n=8), touches-only **+0.03★** (n=16), and cards failing **both** grade **+0.25★** (n=9, 56%
+at ≥4★). The overshoot test is the only part doing work; the touches test is where the null comes
+from. D15's decile gate inverts the ungated mix — 50% overshoot becomes 48% touches — so the
+sub-test that survives is the one the gate makes rarest.
+
+**The secondary arm did not separate either, at full power.** `not_caught_up` reads **+0.03★**
+(CI −0.50 to +0.56, p = 0.910) on a full 33-card arm. No remedy fires and none was pre-committed.
+It is parked as fog rather than ticketed for two reasons: it is worth 0.95 names a night (0.16× the
+list), and **catch-up may not be a quality rule at all** — it governs where you *enter*, so *"is
+this a setup you want to see"* is the wrong ruler for it. That is tickets 19 and 24's pattern for
+the third time: a risk rule measured with a quality ruler. It needs a different question, not more
+cards. The third path, `no_cluster`, is untouched and not in question.
+
+**Two ride-alongs outlive the ticket.** The **base-length penalty reproduces** at r = −0.373,
+p = 0.0001 (n=99, arm-demeaned, consistent in sign across all three arms) — so **ticket 17's
+finding that ticket 09's length effect "did not reproduce" is itself wrong**, and ticket 15's
+length term is earning its place rather than being inherited. And **cluster length k replicates a
+fourth time** (+0.329, p = 0.001), the one signal on this map that has never failed to reproduce.
+
+**The ceiling is now 30 pairs at +0.846** (mean |difference| 0.47★). The pooled 24-pair figure the
+map recorded as owed was computed from existing grades at no cost (+0.855 / 0.46★) before the deck
+was rendered; deck F's own 6 pairs read +0.773 and leave the number where it has sat since 12.
+
+What the remedy does **not** fix — the penalty's shape, and whether ticket 11's scan-not-a-queue
+list survives at 9.5 a night — graduated to
+[ticket 26](26-the-line-penalty-and-the-longer-list.md).

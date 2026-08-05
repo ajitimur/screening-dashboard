@@ -72,6 +72,17 @@ is written during wayfinding.
   named: **`line_not_drawable` is the one rejection path that does not separate from the accepted
   names** (−0.40★, interval spanning zero, below the eye's own noise floor), so the residual risk is
   a single rejection rule, not the population. Ticket 25 carries that.
+  **Ticket 25 closed it, and the rule lost.** On a properly matched 105-card deck `line_not_drawable`
+  grades **−0.12★** against detections — inside the eye's own noise floor — so it is downgraded from a
+  hard reject to a scored penalty and the detector's gate set shrinks to the cluster and the decile.
+  The residual risk on this branch is now **operational, not evidential**: the list grows 59% and
+  nobody has decided what the penalty looks like (ticket 26). Two of the map's standing worries
+  moved with it. **Ticket 17's dismissal of the base-length effect is wrong** — it reproduces at
+  r = −0.373, p = 0.0001 on a fourth population — so ticket 09's original finding stands and ticket
+  15's length term is earned rather than inherited. And **the catch-up test does not separate either**,
+  at full power (+0.03★, n=33), which is tickets 19 and 24's pattern a third time: a rule about
+  *entry* measured with a ruler about *quality*. Parked as fog, because it needs a different
+  question rather than more cards.
 - **Standing property of the data layer** (found independently by tickets 01, 02 and 03): **Yahoo fails
   as silence.** Throttled requests return empty results — and for price history, the literal message
   "possibly delisted; no price data found". Every ingestion path must distinguish throttling from
@@ -409,7 +420,8 @@ is written during wayfinding.
   23 then each added 6 **disjoint** repeats in parallel, reading +0.854 and +0.831 on their own
   18-pair sets, so the number held twice; ticket 25 then computed the owed **pooled 24-pair**
   figure from the existing grades at no cost: **+0.855, mean |difference| 0.46★**, up again, so the
-  noise floor every result is read against tightens from 0.56★ to **0.46★***), measured for the
+  noise floor every result is read against tightens from 0.56★ to **0.46★**; deck F's own 6 pairs then
+  took it to **30 at +0.846 / 0.47★**, where it has now sat since 12*), measured for the
   first time after two rounds of going unmeasured, so R3 §2's "published against an unmeasured
   ceiling" caveat is **discharged** — and every correlation on this map now reads against +0.83
   rather than an unknown maximum. That reframes ticket 15: **+0.255 is not a rubric against a noisy
@@ -446,6 +458,40 @@ is written during wayfinding.
   [ticket 25](issues/25-the-line-not-drawable-path.md); the third path, `not_caught_up`, was never
   sampled. The ceiling moved **12 pairs → 18 and held at +0.831** (mean absolute difference 0.56★),
   so ticket 20's reading survives more data. Nothing else moved — deck D carries no A or E cards.
+  **Ticket 25 has since closed the `line_not_drawable` path, and corrected two of this ticket's
+  own sampling choices** — see below.
+
+- [Does the `line_not_drawable` rejection path discard setups you want?](issues/25-the-line-not-drawable-path.md)
+  — **it does not separate from what the screen surfaces, so it stops being a gate.** On 105 bare
+  cards with three arms drawn from one gated population, `line_not_drawable` grades **−0.12★**
+  against detections (95% CI −0.73 to +0.48; −0.18★ controlling base length), **inside the eye's own
+  0.46★ noise floor** — which the pre-registration fixed in advance as *a finding, not a pass*. The
+  move from ticket 23's −0.40★ was **predicted before the deck was built**, because
+  [ticket 23's](issues/23-the-rejected-candidates.md) two arms were not the same population:
+  `build_deck3.py` decile-gates and band-stratifies the detections arm and does **neither** for the
+  rejects, and only **6.7%** of the `line_not_drawable` pool clears the decile the detections arm was
+  100% inside. Both confounds push rejects down. The control arm confirms it independently —
+  band-stratified 3.20, drawn at random **2.97**. Ticket 23 is sharpened, not contradicted: the deck
+  rules out any true gap worse than −0.72★, and its pooled −0.90★ headline still rests on
+  `no_cluster`, which is untouched. **Remedy: a scored penalty, not a reject** (§6's pre-registered
+  default; loosening only the touches sub-test and refusing outright were both put and declined),
+  accepting the decile-gated US list going **5.98 → 9.5 names a night, +59%**. It is the smallest
+  blast radius any remedy on this map has had, because **ticket 18's identity makes `line_ok`
+  geometrically inert** — the line never reaches the trigger, so demoting it changes no trigger, no
+  stop, no cluster and no parameter. It follows D6 out of the gate set, leaving **the cluster and the
+  decile as the only tests that separate**. Sub-tests are **descriptive only** and pre-registered as
+  such: overshoot-only −0.84★ (n=8), touches-only +0.03★ (n=16), and cards failing **both** grade
+  **+0.25★** (n=9, 56% ≥4★) — the touches test is where the null lives, and the decile gate inverts
+  the ungated mix so the surviving sub-test is the one it makes rarest. **The secondary arm is the
+  bigger surprise**: `not_caught_up` reads **+0.03★ on a full 33-card arm**, so two of three rejection
+  paths fail to separate — parked as fog, not ticketed, because it is worth 0.95 names a night and
+  because catch-up governs *entry*, making "is this a setup you want to see" the wrong ruler for it.
+  Ride-alongs: **the base-length penalty reproduces** (r = −0.373, p = 0.0001, arm-demeaned, same
+  sign in all three arms), so **ticket 17's correction of ticket 09 is itself wrong**; **cluster
+  length k replicates a fourth time** (+0.329, p = 0.001); and the **ceiling reaches 30 pairs at
+  +0.846**, the pooled 24-pair figure the map had owed having been computed free (+0.855) before the
+  deck was rendered. The penalty's shape and the longer list graduated to
+  [ticket 26](issues/26-the-line-penalty-and-the-longer-list.md).
 
 - [Does IDX need its own thresholds?](issues/22-idx-per-market-calibration.md) — **no: one threshold
   set covers both markets**, and the reason is more interesting than the ruling. Both pre-registered
@@ -582,8 +628,8 @@ is written during wayfinding.
   rediscover and over-read. Whatever validation becomes possible needs to clear that bar before any
   claim about score quality is made from returns.
   **Ticket 20 sharpened that warning by removing one of its escape routes.** The test–retest ceiling
-  is **+0.855 on the pooled 24 pairs** (ticket 20 measured +0.808 on 12; tickets 22 and 23 each took
-  it to 18 on disjoint repeat sets, reading +0.854 and +0.831; ticket 25 pooled them), so
+  is **+0.846 on 30 pairs** (ticket 20 measured +0.808 on 12; tickets 22 and 23 each took it to 18 on
+  disjoint repeat sets, reading +0.854 and +0.831; ticket 25 pooled them to 24 at +0.855 and added 6), so
   the eye is reproducible to within half a star and "the grader is just noisy" is no
   longer available as an explanation for an eye-versus-outcome disagreement. If a later study
   reproduces ticket 09's finding at a workable n, it is a **real disagreement between the eye and
@@ -671,6 +717,20 @@ is written during wayfinding.
        decision, not fog. -->
   <!-- "Data quality handling on IDX" graduated: ticket 05 resolved phantom bars, rights adjustment
        and suspended names. The ARA/ARB remainder is now assigned to ticket 08, so it is no longer fog. -->
+- **The catch-up test, measured and unresolved.** [Ticket 25](issues/25-the-line-not-drawable-path.md)
+  carried `not_caught_up` as a secondary arm and it **did not separate** — +0.03★ against detections
+  (CI −0.50 to +0.56, p = 0.910) on a **full 33-card arm**, as well powered as the primary. By the
+  logic that demoted `line_ok` this rule is not earning its gate either. It is fog rather than a
+  ticket for two reasons, and both would have to change before it graduates. It is **worth 0.95 US
+  names a night** (0.16× the list), so even a wholly wrong gate is a small miss. And more
+  importantly, **catch-up is probably not a quality rule at all**: §3.1 wants price back at the 10/20
+  so the *stop* is close, which is a statement about entry, not about whether the base is good — so
+  *"is there a setup here you would want to see tonight"* is the wrong ruler for it, and a null under
+  the wrong ruler is not evidence. This is tickets 19 and 24's pattern a third time — a risk rule
+  measured with a quality ruler — and like those it needs a **different question**, not more cards.
+  What would sharpen it into a ticket is naming that question: probably something about realised stop
+  distance at entry for names that were extended when detected, which is forward-history work and
+  therefore folds into the validation patch above.
 - **Survivorship bias.** Yahoo's screener enumerates only live names, so delisted history is not
   discoverable. Harmless for nightly scanning, potentially fatal for any backtest — folds into the
   validation patch above once that takes shape.

@@ -26,15 +26,19 @@ def _row(session, *, close, volume, adj_close=None):
 
 
 class FakeBarClient:
-    def __init__(self, instruments, bars_by_symbol):
+    def __init__(self, instruments, bars_by_symbol, info_by_symbol=None):
         self._instruments = instruments
         self._bars = bars_by_symbol
+        self._info = info_by_symbol or {}
 
     def enumerate(self, market):
         return self._instruments[market]
 
     def fetch(self, symbol):
         return self._bars.get(symbol, [])
+
+    def fetch_info(self, symbol):
+        return self._info.get(symbol, {})
 
 
 def test_run_market_universe_leaves_a_rank_row_per_member(store: Store):

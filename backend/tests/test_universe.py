@@ -27,6 +27,7 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from screener.bars import Bar
+from screener.labels import Label
 from screener.pipeline import run_market_universe
 from screener.source import Instrument, Source
 from screener.store import Store
@@ -256,17 +257,21 @@ def _row(session, *, close, volume):
 
 
 class FakeBarClient:
-    """Fakes enumerate + fetch, returning raw bar rows keyed by symbol."""
+    """Fakes enumerate + fetch (+ fetch_info), keyed by symbol."""
 
-    def __init__(self, instruments, bars_by_symbol):
+    def __init__(self, instruments, bars_by_symbol, info_by_symbol=None):
         self._instruments = instruments
         self._bars = bars_by_symbol
+        self._info = info_by_symbol or {}
 
     def enumerate(self, market):
         return self._instruments[market]
 
     def fetch(self, symbol):
         return self._bars.get(symbol, [])
+
+    def fetch_info(self, symbol):
+        return self._info.get(symbol, {})
 
 
 def test_run_market_universe_ingests_and_builds_a_liquid_universe(store: Store):
@@ -283,7 +288,8 @@ def test_run_market_universe_ingests_and_builds_a_liquid_universe(store: Store):
         "LIQ": [_row(s, close=2000.0, volume=1_000_000) for s in sessions],  # 2B/day
         "THIN": [_row(s, close=100.0, volume=1_000) for s in sessions],  # 100k/day
     }
-    source = Source(FakeBarClient({"IDX": instruments}, bars),
+    info = {"LIQ": {"sector": "Energy", "industry": "Coal"}}
+    source = Source(FakeBarClient({"IDX": instruments}, bars, info),
                     rate_per_sec=1000, sleep=lambda s: None)
 
     record = run_market_universe(store, source, "IDX", date(2026, 8, 20), now=now)
@@ -293,5 +299,9 @@ def test_run_market_universe_ingests_and_builds_a_liquid_universe(store: Store):
     assert record.symbols_resolved == 2
     # Only the liquid common stock is a member; the index is a reference.
     assert store.universe("IDX", date(2026, 8, 20)) == ["LIQ"]
+    # The new member's labels were fetched and cached as part of the run (§3.3);
+    # THIN never entered the universe, so it was never a label fetch.
+    assert store.label("IDX", "LIQ") == Label("LIQ", "Energy", "Coal", date(2026, 8, 20))
+    assert store.label("IDX", "THIN") is None
     # Bars for all instruments (index included) were ingested on the way.
     assert len(store.bars("IDX", "^JKSE")) == 25

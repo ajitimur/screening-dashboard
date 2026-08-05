@@ -92,3 +92,39 @@ operational point for the build: **a first-pass failure and a genuine absence ar
 at the call site, so an ingestion run has to retry the failures and compare resolution rates before
 it publishes anything** — which is ticket 05's D-series quarantine rule, arrived at from the other
 direction.
+
+**The retry is also the discriminator.** The full-universe pull (R5) resolved 3,808 of 4,758
+symbols — 80%, below this script's own 90% guard — and a second identical pass recovered **exactly
+zero** additional names. That null is the useful result: throttle silence clears on a retry and
+genuine absence does not, so *"retry once and compare the counts"* separates the two cases without
+needing to know which is which in advance. Here the missing 950 are names without 250 daily bars in
+the window — recent IPOs and short histories — not losses.
+
+## R5. The ticket's caution, executed: the reduced universe was hiding ~5% of one dimension and ~9% of another
+
+Ticket 15 warned that ticket 09's numbers come off a 650-name sample, so the decile boundaries — and
+therefore the two **cross-sectional** dimensions, `prior_move` and `sector` — are approximations.
+Every other scored quantity is a within-name ratio and cannot move with the denominator.
+
+Rebuilt over the full common-stock universe (3,808 names with usable history; **median 1,055
+eligible names per date** after ticket 05's $20M dollar-volume floor, against ~180 in the prototype —
+a **5.9× larger denominator**), and re-evaluated on exactly the 224 US cards that were drawn for the
+decks:
+
+| | 650-name | full |
+| --- | --- | --- |
+| prior-move percentile (mean) | 0.957 | 0.961 |
+| **D15 decile gate flips** | — | **10 of 224 (4.5%)**, all losses |
+| sector leave-one-out share (mean) | 0.112 | 0.128 |
+| **sector boolean flips** | — | **20 of 224 (8.9%)** |
+
+**The caution is discharged, and the answer is reassuring.** Neither cross-sectional dimension moves
+far enough to invalidate a threshold fitted on the reduced pool: the prior-move gate is a
+percentile, and ticket 06 already showed a percentile gate is self-normalising across universes
+differing 7× in size — this is that result again, one layer down. The sector dimension is the
+looser of the two at 8.9%, worth half a star when it flips.
+
+Two honesty notes. The 1,055 figure is **not** ticket 05's 1,966: that was measured on today's
+universe with today's dollar volumes, while this is a 2019–2023 average over names that still exist
+today. And this pull carries the same survivorship bias as every other on this map — it is a larger
+denominator, not an unbiased one.

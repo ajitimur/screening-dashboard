@@ -1,0 +1,73 @@
+==============================================================================
+Ticket 28 — the retired dimensions, under PREREGISTRATION_R7.md
+==============================================================================
+populations: A3 n=120  E3 n=194  C3 n=52  F3 n=66   pool n=432
+baseline predictor pinned to score3 on all 432 cards (R7 S6)
+
+=== 1. the screen (R7 S2): |rho| >= 0.15, controlling base_len, signs agreeing
+  candidate           |rho| 432      A3      E3      C3      F3   family  verdict
+  cluster_churn          +0.337  +0.236  +0.334  +0.413  +0.421  packing  passes
+  density                +0.291  +0.228  +0.298  +0.290  +0.353  packing  passes
+  narrowing_ratio        +0.183  +0.201  +0.190  +0.298  +0.029    shape  passes
+  ma_dist_adr            +0.136  +0.144  +0.198  +0.068  +0.044    shape  fails floor
+  base_height_adr        -0.235  -0.270  -0.272  -0.232  -0.049    shape  passes
+  sqrt_shortfall         -0.182  -0.156  -0.250  -0.092  -0.127    shape  passes
+  narrow_cluster         -0.090  -0.169  -0.155  +0.068  +0.026  packing  fails floor + signs
+  dryup                  -0.082  -0.129  -0.119  +0.027  -0.087     None  fails floor + signs
+  cluster_k (incumbent)     +0.261
+  orderliness (incumbent)     +0.297
+
+=== 2. one seat per family (R7 S2 stage 3)
+  packing  carries cluster_churn (+0.337); screened out as same-family: density +0.291
+  shape    carries base_height_adr (-0.235); screened out as same-family: narrowing_ratio +0.183, sqrt_shortfall -0.182
+
+=== 3. how much of each candidate is new (R7 S2, diagnostic only)
+  candidate           ctrl len  + incumbents
+  cluster_churn         +0.337        +0.178
+  density               +0.291        +0.114
+  narrowing_ratio       +0.183        -0.168
+  ma_dist_adr           +0.136        -0.076
+  base_height_adr       -0.235        +0.119
+  sqrt_shortfall        -0.182        +0.014
+  narrow_cluster        -0.090        -0.117
+  dryup                 -0.082        -0.040
+
+=== 4. the fits (R7 S5), objective cindex, len_ok=14 and dryup=0.95 frozen
+
+  BASELINE (incumbent rubric)   rho +0.292 [+0.269..+0.303]  mae 1.16  within1 59%
+      cluster_k mode 5       share 88%  range 5-7 (2 steps)  stable
+      ord_lo    mode 0.3     share 64%  range 0.275-0.3 (1 steps)  stable
+      ord_hi    mode 0.6     share 100%  range 0.6-0.6 (0 steps)  stable
+
+  SWAP cluster_churn -> tightness seat   rho +0.293 [+0.285..+0.302]  mae 1.13  within1 61%
+      gain +0.001 (bar +0.030)  candidate stable: False   -> rejected
+      cand      mode 2.39913 share 72%  range 2.39913-3.10899 (3 steps)  UNSTABLE
+      ord_lo    mode 0.3     share 48%  range 0.225-0.3 (3 steps)  UNSTABLE
+      ord_hi    mode 0.6     share 100%  range 0.6-0.6 (0 steps)  stable
+
+  ADD cluster_churn at x1   rho +0.293 [+0.269..+0.314]  mae 1.17  within1 47%
+      gain +0.001 (bar +0.050)  candidate stable: False   -> rejected
+      cand      mode 2.39913 share 76%  range 2.39913-3.10899 (3 steps)  UNSTABLE
+      cluster_k mode 5       share 60%  range 4-7 (3 steps)  UNSTABLE
+      ord_lo    mode 0.3     share 56%  range 0.225-0.3 (3 steps)  UNSTABLE
+      ord_hi    mode 0.6     share 100%  range 0.6-0.6 (0 steps)  stable
+
+  SWAP base_height_adr -> orderliness seat   rho +0.261 [+0.241..+0.269]  mae 1.18  within1 59%
+      gain -0.031 (bar +0.030)  candidate stable: False   -> rejected
+      cand      mode 3.36267 share 44%  range 2.93168-4.40998 (3 steps)  UNSTABLE
+      cluster_k mode 5       share 96%  range 5-6 (1 steps)  stable
+
+  ADD base_height_adr at x1   rho +0.286 [+0.275..+0.315]  mae 1.16  within1 49%
+      gain -0.007 (bar +0.050)  candidate stable: False   -> rejected
+      cand      mode 5.12075 share 80%  range 2.52592-5.12075 (5 steps)  UNSTABLE
+      cluster_k mode 5       share 88%  range 5-7 (2 steps)  stable
+      ord_lo    mode 0.3     share 64%  range 0.275-0.3 (1 steps)  stable
+      ord_hi    mode 0.6     share 96%  range 0.5-0.6 (2 steps)  stable
+
+=== 5. the pre-registered verdict (R7 S3, S8)
+
+  NOTHING CLEARS. Every retired dimension stays retired, and the incumbent
+  rubric is the right shape (R7 S10). The |rho| fix and the enlarged pool were
+  applied as pre-registered; the gains are simply not there.
+
+  written: r7_result.json

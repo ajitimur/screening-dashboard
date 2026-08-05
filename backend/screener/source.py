@@ -84,6 +84,24 @@ class Resolution:
     bars: list = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class LabelResolution:
+    """The result of fetching one symbol's sector/industry — a result type, the
+    same shape as :class:`Resolution` for the same reason (Yahoo fails as
+    silence, spec §3.2).
+
+    ``resolved`` carries *both* labels — they arrive in one ``.info`` request
+    (spec §3.1), and a name missing either cannot be placed on the axis, so a
+    partial result is ``unresolved``. ``unresolved`` leaves the cached value
+    intact and is retried (spec §3.3).
+    """
+
+    symbol: str
+    status: ResolutionStatus
+    sector: str = ""
+    industry: str = ""
+
+
 class SourceClient(Protocol):
     """The raw network boundary. The real implementation is the only code that
     talks to Yahoo / Nasdaq; tests supply a fake with these two methods."""
@@ -92,6 +110,11 @@ class SourceClient(Protocol):
 
     def fetch(self, symbol: str) -> list:
         """Return the symbol's bars, or an empty list for silence. Raises
+        :class:`RateLimitedError` on a 429."""
+
+    def fetch_info(self, symbol: str) -> dict:
+        """Return the symbol's ``.info``-style dict (``sector`` and ``industry``
+        in one request), or an empty dict for silence. Raises
         :class:`RateLimitedError` on a 429."""
 
 
@@ -239,6 +262,32 @@ class Source:
                 delay *= 2
         return Resolution(symbol, "unresolved", [])
 
+    def resolve_labels(self, symbol: str) -> LabelResolution:
+        """Fetch a symbol's sector and industry, paced and backed off.
+
+        Both labels arrive in one ``.info`` request (spec §3.1). Silence — an
+        empty result *or* a persistent 429 (spec §3.2) — is retried with the
+        same exponential backoff as bars; a result missing *either* label is
+        treated as silence too, because a name with no industry cannot be placed
+        on the axis (spec §3.3). If it never yields both labels the result is
+        ``unresolved`` and the cached value is left untouched.
+        """
+        delay = self._backoff_base
+        for attempt in range(1, self._max_attempts + 1):
+            self._pacer.wait()
+            try:
+                info = self._client.fetch_info(symbol)
+            except RateLimitedError:
+                info = {}  # a 429 is silence too — back off and retry
+            sector = (info.get("sector") or "").strip()
+            industry = (info.get("industry") or "").strip()
+            if sector and industry:
+                return LabelResolution(symbol, "resolved", sector, industry)
+            if attempt < self._max_attempts:
+                self._sleep(delay)
+                delay *= 2
+        return LabelResolution(symbol, "unresolved")
+
 
 class YFinanceSourceClient:
     """The real network boundary: Yahoo (via yfinance) plus the Nasdaq listing
@@ -277,6 +326,23 @@ class YFinanceSourceClient:
         if frame.columns.nlevels > 1:
             frame = frame.droplevel(1, axis=1)
         return frame.reset_index().to_dict("records")
+
+    def fetch_info(self, symbol: str) -> dict:
+        """Fetch a symbol's ``.info``. Empty on silence; raises on a 429.
+
+        ``sector`` and ``industry`` ride in the one dict (spec §3.1); only those
+        two keys are load-bearing, but the whole dict is returned so the policy
+        above decides what "resolved" means.
+        """
+        import yfinance as yf
+
+        try:
+            info = yf.Ticker(symbol).info
+        except Exception as exc:  # yfinance raises its own YFRateLimitError type
+            if type(exc).__name__ == "YFRateLimitError":
+                raise RateLimitedError(symbol) from exc
+            raise
+        return info or {}
 
     def _screen_idx(self) -> list[str]:
         import yfinance as yf

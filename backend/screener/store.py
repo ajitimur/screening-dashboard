@@ -18,11 +18,13 @@ from pathlib import Path
 import duckdb
 
 from .bars import Bar
+from .labels import Label
 from .models import RunRecord, RunStatus
 
 # Bump when a derived-table definition changes. Detection rows will additionally
 # carry their own detector_version (spec §7.2); this is the store-level schema.
-SCHEMA_VERSION = 1
+# v2 adds the sector/industry label cache (spec §3.3).
+SCHEMA_VERSION = 2
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
@@ -59,6 +61,20 @@ CREATE TABLE IF NOT EXISTS bars (
     adj_close  DOUBLE NOT NULL,  -- adjusted, for everything geometric
     volume     BIGINT NOT NULL,
     PRIMARY KEY (market, symbol, session)
+);
+
+-- The sector/industry label cache: the one *incremental* derived table (spec
+-- §3.3, §7.4). Unlike every append-only dated table above, this is keyed
+-- (market, symbol) and updated in place — a label is a slow-moving fact about a
+-- name, not a per-session observation. ``as_of`` stamps the run that last
+-- fetched it (an as-of-only capture, never backfilled, spec §7.3).
+CREATE TABLE IF NOT EXISTS labels (
+    market    TEXT NOT NULL,
+    symbol    TEXT NOT NULL,
+    sector    TEXT NOT NULL,
+    industry  TEXT NOT NULL,
+    as_of     DATE NOT NULL,
+    PRIMARY KEY (market, symbol)
 );
 """
 
@@ -169,6 +185,25 @@ class Store:
         ).fetchall()
         return len(inserted)
 
+    def upsert_label(
+        self, market: str, symbol: str, sector: str, industry: str, as_of: date
+    ) -> None:
+        """Write (or overwrite) one symbol's cached sector/industry.
+
+        This is the *one* in-place write in the store — the label cache is
+        incremental (spec §3.3), not an append-only dated table. Only ever
+        called with a freshly *resolved* fetch: a failed fetch must never null a
+        cached value, so the caller simply does not call this on silence (spec
+        §3.3), and the ``as_of`` it stamps drives the rolling refresh.
+        """
+        self._con.execute(
+            "INSERT INTO labels VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT (market, symbol) DO UPDATE SET "
+            "sector = excluded.sector, industry = excluded.industry, "
+            "as_of = excluded.as_of",
+            [market, symbol, sector, industry, as_of],
+        )
+
     # -- reads -------------------------------------------------------------
 
     def bars(self, market: str, symbol: str) -> list[Bar]:
@@ -232,6 +267,24 @@ class Store:
             [market, session],
         ).fetchall()
         return [r[0] for r in rows]
+
+    def label(self, market: str, symbol: str) -> Label | None:
+        """One symbol's cached label, or ``None`` if never fetched."""
+        row = self._con.execute(
+            "SELECT symbol, sector, industry, as_of FROM labels "
+            "WHERE market = ? AND symbol = ?",
+            [market, symbol],
+        ).fetchone()
+        return Label(*row) if row is not None else None
+
+    def labels(self, market: str) -> dict[str, Label]:
+        """The whole label cache for a market, keyed by symbol — what the
+        rolling-refresh policy reads to find the stalest names (spec §3.3)."""
+        rows = self._con.execute(
+            "SELECT symbol, sector, industry, as_of FROM labels WHERE market = ?",
+            [market],
+        ).fetchall()
+        return {r[0]: Label(*r) for r in rows}
 
     def universe_before(self, market: str, session: date) -> list[str]:
         """Yesterday's membership: the universe of the most recent session

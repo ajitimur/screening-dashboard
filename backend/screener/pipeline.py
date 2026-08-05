@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from .bars import clean_bars, parse_bars
+from .labels import select_fetches
 from .models import RunRecord
 from .source import Source, resolve_market
 from .store import Store
@@ -119,7 +120,9 @@ def run_market_universe(
     quarantined and writes no universe, so a throttled pull cannot shrink good
     data. Above it the universe is rebuilt from the freshly-ingested bars, with
     the candidates that stayed unresolved carrying yesterday's classification
-    (§3.4 rule 6). ``now`` must be timezone-aware for the finality rule.
+    (§3.4 rule 6). Once the membership is known the label cache is kept warm —
+    new members block, a rolling 1/30th of the rest refresh (§3.3, stage 7).
+    ``now`` must be timezone-aware for the finality rule.
     """
     instruments = source.enumerate(market)
     status: dict[str, str] = {}
@@ -136,9 +139,10 @@ def run_market_universe(
     published = len(resolved) >= RESOLUTION_FLOOR * len(candidates)
     if published:
         unresolved = {s for s in candidates if status[s] != "resolved"}
-        rebuild_universe(
+        members = rebuild_universe(
             store, market, session, instruments=instruments, unresolved=unresolved
         )
+        refresh_labels(store, source, market, members, session)
     return store.append_run(
         market,
         session,
@@ -147,6 +151,40 @@ def run_market_universe(
         symbols_resolved=len(resolved),
         created_at=now,
     )
+
+
+def refresh_labels(
+    store: Store,
+    source: Source,
+    market: str,
+    members: list[str],
+    session: date,
+) -> set[str]:
+    """Pipeline stage 7's label cache: keep every member's sector/industry warm.
+
+    Both labels arrive in one request (spec §3.1). The nightly cost is bounded by
+    the cache policy (spec §3.3): every member with no cached label is fetched
+    *first* — it blocks, because a name with no industry cannot be placed on the
+    axis — and only a rolling ``1/30`` slice of the already-cached members
+    refreshes, stalest first. A fetch that comes back ``unresolved`` (silence or
+    a persistent 429) leaves the cached value untouched and is retried next
+    night by construction: its ``as_of`` did not move, so it stays among the
+    stalest, and a never-cached new name stays uncached and blocks again.
+
+    Returns the members that carry both labels after this run — the set that may
+    appear on a surface. A newly-admitted name whose fetch failed is absent from
+    it, so it cannot be placed until a later night resolves it.
+    """
+    cached = store.labels(market)
+    new, refresh = select_fetches(members, cached)
+    for symbol in new + refresh:
+        resolution = source.resolve_labels(symbol)
+        if resolution.status == "resolved":
+            store.upsert_label(
+                market, symbol, resolution.sector, resolution.industry, session
+            )
+    after = store.labels(market)  # one read, not one per member
+    return {s for s in members if s in after}
 
 
 def run_market_from_source(

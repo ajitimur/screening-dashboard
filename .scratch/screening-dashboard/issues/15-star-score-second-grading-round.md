@@ -1,7 +1,7 @@
 # Second grading round: fix the star-score thresholds
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: —
 
 ## Question
@@ -54,3 +54,31 @@ free higher-lows point on it.
 **One caution.** Ticket 09's numbers all come from a reduced, survivorship-biased 650-name universe.
 Before treating any threshold as final, check it against the real universe from ticket 05 (1,966 US /
 288 IDX) — the decile boundaries and therefore the prior-move and sector dimensions both move.
+
+---
+
+## Progress — apparatus built, awaiting the grading round
+
+The round is **designed, sized and built; it has not been graded.** This ticket is HITL by type and
+cannot resolve without the trader's grades, so the session stopped at the hand-off rather than
+standing in for the eye.
+
+Built in [`prototypes/15-grading-round-2/`](../prototypes/15-grading-round-2/):
+
+- **[`PREREGISTRATION.md`](../prototypes/15-grading-round-2/PREREGISTRATION.md)** — deck sizes,
+  sampling, fitting objective and every decision rule, fixed *before* any card was graded. Sized off
+  round 1's measured grade SD of 1.282★: **114 cards** to confirm an r of 0.26, **26 per arm** to
+  catch a 1-star difference on a probe.
+- **Four decks, 276 cards**: A core 120 · B trigger probe 52 · C IDX lock probe 52 · D
+  false-negative probe 40 · plus 12 repeats for a test–retest ceiling. Deck A is the only one that
+  must be complete. Nothing is revealed until submission — round 1's card-by-card reveal would teach
+  the rubric over 276 cards.
+- **[`PRE_GRADING_NOTES.md`](../prototypes/15-grading-round-2/PRE_GRADING_NOTES.md)** — the four
+  things measurable without grades, including that the corrected rubric is *more* generous than the
+  one it replaces (38.1% reach 4★ vs 16.6%), and that the detector discards **11 decile-gated
+  bar-dates for every one it keeps**.
+- **`analyse2.py`** — the pre-registered analysis, verified end to end on synthetic grades, so the
+  grades run the moment they arrive.
+
+**To resume:** open `decks/deck_A.html`, grade, hit export, and run
+`analyse2.py grades.txt`.

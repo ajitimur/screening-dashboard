@@ -1,0 +1,3 @@
+venv/
+.scratch/screening-dashboard/prototypes/*/cache/
+__pycache__/

@@ -46,16 +46,16 @@ from .detection import Detection
 # The published thresholds (spec §4.7). One set, both markets. An earlier
 # wayfinding table carried different values under an objective later shown blind —
 # these are the ones that stand.
+# Prior move (decile percentile >= 0.90, ticket 06) has no constant here: it is
+# not scored from the detection but passed in as a boolean by the caller, decided
+# upstream by the decile gate. The rubric's ceiling — ten weighted points, ÷2 for
+# 0–5 stars — is likewise not a tunable but the sum of the weights below.
 TIGHT_K = 5              # cluster_k >= 5
 CHURN_LO, CHURN_HI = 0.30, 0.60   # 0.30 <= churn/L <= 0.60, a band on both edges
-PRIOR_MOVE_PCTILE = 0.90  # decile percentile >= 0.90 — the decile gate, ticket 06
 BASE_LEN_MAX = 14        # base_len <= 14
 DRYUP_MAX = 0.95         # dry-up <= 0.95
 SECTOR_SHARE_MIN = 0.10  # leave-one-out 1m sector share >= 0.10, ticket 07
 ADR_MIN = 0.05           # ADR >= 0.05
-
-# The rubric is booleans over ten weighted points; ÷2 gives 0–5 stars.
-MAX_POINTS = 10
 
 
 @dataclass(frozen=True)

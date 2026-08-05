@@ -244,11 +244,22 @@ one click from the row — not by the app deciding what you are allowed to see.
 
 ## Hand-offs
 
-- **Ticket 09 (star score calibration)** — two things land here.
-  1. Per I3, the score is now the **default ordering** of the only list in the app, not a label on it.
-     Calibration error shows up as the wrong name at the top of the screen, nightly.
-  2. Per I8, v1 has **no rejected-candidates view**, so 09's prototype session is the only place the
-     discarded set gets human eyes. It should look at rejects, not only accepts.
+- **Ticket 09 (star score calibration)** — ~~two things land here~~ **resolved concurrently with this
+  ticket; both hand-offs are now settled or moved.** Recorded rather than deleted, because what 09
+  found changes how I3 reads.
+  1. Per I3, the score is the **default ordering** of the only list in the app, not a label on it.
+     **09 collected on that risk immediately:** blind-graded over 27 charts the score is *uncorrelated*
+     with the trader's eye (r = −0.043), largely because both ×2 dimensions proxy base length — which
+     §3.5 never names and the trader reads inverted. 09 corrected the structure but explicitly did not
+     set the thresholds, which is now ticket 15. **So the default sort currently orders by a number
+     known not to agree with the eye.** I3 still stands — nothing better is available to sort on, and
+     sorting by distance was rejected for reasons 09 does not touch — but it is running on borrowed
+     time until 15 lands, and 15 is the ticket that makes the workbench's primary ordering trustworthy.
+  2. Per I8, v1 has **no rejected-candidates view**, so 09 was made the only place the discarded set
+     would get human eyes. **09 did not do it** — its grading deck was built from detections, not
+     rejects. The obligation is therefore **unowned**, and belongs on **ticket 15**, which is running
+     the larger grading round and already selects decks deliberately (breached triggers, IDX limit
+     locks). A deck of *rejects* is the same kind of ask.
 - **Ticket 14 (alerting)** — now unblocked, and I2 sharpens it considerably. The dashboard is a
   score-ordered surface you scan with **no diff view and nothing that surfaces a state transition**. So
   the `WATCHING`→`TRIGGERED` event, and a name newly entering the watch state at 4–5★, currently have no

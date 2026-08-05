@@ -33,7 +33,11 @@ is written during wayfinding.
   **Discharged by ticket 08** — both dimensions proved scorable (contraction against a √L baseline;
   churn ratio for orderliness), and the resulting detector has **zero tunable parameters**. The residual
   risk moved rather than vanished: it now sits in ticket 09, which is where a human eye first meets the
-  computed score.
+  computed score. **Ticket 09 collected on that risk.** The score as 08 specified it is *uncorrelated*
+  with the trader's eye (r = −0.043), because both ×2 dimensions turned out to track **base length**,
+  which §3.5 never names and the trader reads the opposite way. 08's zero-parameter property does not
+  survive the correction — the count is now two. The structure is fixed; the numbers are not, and the
+  remainder is ticket 15.
 - **Standing property of the data layer** (found independently by tickets 01, 02 and 03): **Yahoo fails
   as silence.** Throttled requests return empty results — and for price history, the literal message
   "possibly delisted; no price data found". Every ingestion path must distinguish throttling from
@@ -166,6 +170,31 @@ is written during wayfinding.
   windows excluded as burst and stale. **Every scored quantity is a ratio**, confirming ticket 05's prediction
   that ticket 01's unrecoverable raw IDX prices cost nothing.
 
+- [Star score calibration](issues/09-star-score-calibration.md) — **the score does not agree with the
+  eye, and it is not a threshold problem**: blind-graded over 27 charts the two are *uncorrelated*
+  (r = **−0.043**, 44% within one star, machine +0.74★ too generous). The errors lie on one axis —
+  **the star score is largely a proxy for base length**, with share reaching ≥4★ running **0.9% → 63.6%**
+  as the base grows from 3–5 to 41–60 bars, because contraction rises with L and churn/L falls with it.
+  So **4 of the 10 points collapse onto an axis §3.5 never names**, and the trader reads it *inverted*
+  (L correlates −0.558 with him, +0.622 with the machine — the only signal clearing significance).
+  **Root cause: 08's D14 is false** — the triangle test does not self-cap (22.9% of bases ≥ 30 bars,
+  1.8% hit the 60-bar "never binds" bound), so §3.4's *"months of sideways"* anti-pattern is what tops
+  the score. Two more 08 corrections: **D7's contraction sign is inverted** (end-anchored windows grow
+  *faster* than √L, not flatter — flat channel 0.86 vs tight cone 1.59 on controlled synthetics) and
+  **D8's churn is not scale-free in L** (2.20 → 18.36 at fixed disorder; `churn/L` fixes it). The fix
+  that works is **decoupling the measurement**, not penalising the symptom: a length penalty alone moves
+  agreement to only +0.076, while measuring both ×2 dims over `min(L, 20)` reaches **+0.259 and 63%
+  within one star**. Base length is a **penalty, not a gate** (trader's call), paid for by the
+  higher-lows point, which F4 showed is **free** — true for 92% of detections by construction. Unmeasurable
+  dimensions now score **neutral, not zero** (they were penalising the tight 3-bar bases hardest). **The
+  thresholds are still not set** — at n=27 significance needs |r| > 0.38 and the best variant reaches
+  0.26 — so the ticket's asked-for "concrete thresholds" is a **shortfall**, carried to ticket 15.
+  **D13 inverted**: fully-locked IDX bases reach 4★ *zero* times (the ADR dimension kills them free),
+  while **partially** locked ones score best of any group (24.9% ≥4★) — so 08's declined liveness floor
+  would have aimed at the wrong case. **D5's trigger survives unexamined** (the eye was indifferent,
+  r = +0.012, which is not vindication). Outcomes cannot arbitrate any of it: ~672 triggered setups per
+  band are needed to resolve 0.3R, and the top band flipped ordering when one ×1 dimension completed.
+
 - [Dashboard information architecture](issues/11-dashboard-information-architecture.md) — **two screens,
   and market is the top-level axis**: `IDX` and `US` are tabs worked as **two short sittings**, each after
   its own close, which dissolves the staleness problem rather than labelling it — there is no coherent
@@ -177,7 +206,10 @@ is written during wayfinding.
   sorts by **star score descending** — proximity to the trigger is a column, not the sort, because sorting
   by distance puts a 2★ barcode above a 5★ base and defending against that needs a star floor, i.e. a
   tunable. **This promotes ticket 09 from labelling to ordering**: a miscalibrated score now puts the wrong
-  name at the top of the only list in the app, nightly. **Six columns** (ticker, score+state, distance,
+  name at the top of the only list in the app, nightly. **Ticket 09 then collected on exactly that** —
+  the score is *uncorrelated* with the eye (r = −0.043) and its thresholds are still unset, so until
+  ticket 15 lands the default sort orders by a number known not to agree with the trader. The IA
+  decision stands; what changed is that its cost is now measured rather than hypothetical. **Six columns** (ticker, score+state, distance,
   stop ÷1×ADR, industry, `k/5`) — the row decides whether to open the chart, the chart decides whether to
   trade; ADR, dollar volume, `L` and the five ranks were cut as near-constant night to night. The chart
   panel **settles ticket 08's provisional D16 bundle**: §2's full MA set including the 65 EMA, the
@@ -193,8 +225,9 @@ is written during wayfinding.
   tab off the nightly path**, since ticket 08's D15 already gates on decile membership so the boards
   re-read an input to a filter that has already run. **No rejected-candidates view in v1** — overruled against a live
   counter-argument (a zero-parameter detector, never checked against a real chart, with three knowing
-  omissions), so the inspection of the discarded set is handed to ticket 09 as the only place it can now
-  happen.
+  omissions), so the inspection of the discarded set was handed to ticket 09 as the only place it could
+  happen — **and ticket 09 did not do it**: its deck graded detections, not rejects, so that obligation
+  is currently unowned and belongs on ticket 15.
 
 ## Not yet specified
 
@@ -228,6 +261,14 @@ is written during wayfinding.
   measure, because ticket 08 shipped three knowing omissions — the unenforced backside veto, unhandled IDX
   limit days, and a half-measured volume dimension — each of which is a hypothesis about what does not
   matter, and none of which can be tested until there is something to test against.
+  **Ticket 09 sharpened this patch considerably rather than adding to it.** It ran the first real
+  measurement against forward outcomes and found the noise floor: **~672 triggered setups per band** to
+  resolve a 0.3R difference, against 33 available at five stars. It also demonstrated the fragility
+  concretely — completing a single ×1 dimension reversed the ordering of the top two star bands. And on
+  the 27 graded charts **neither the trader nor the machine graded in the direction outcomes went**,
+  which at n=27 means nothing on its own but is exactly the kind of result a later study will
+  rediscover and over-read. Whatever validation becomes possible needs to clear that bar before any
+  claim about score quality is made from returns.
   <!-- "Alerting" graduated into ticket 14: ticket 08 defined a stable trigger level per detected setup,
        which is the thing an alert hangs on. It is now a channel-and-threshold decision, not fog. -->
 - **Watchlist persistence and user state.** Whether the app remembers names you've marked, and what

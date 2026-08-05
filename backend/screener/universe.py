@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from .bars import Bar
+from .source import Instrument
 from .store import Store
 
 # Liquidity floors, at their reference values (ticket 05 D12): median of
@@ -168,7 +169,7 @@ def rebuild_universe(
     market: str,
     session: date,
     *,
-    instruments: list,
+    instruments: list[Instrument],
     unresolved: set[str],
 ) -> list[str]:
     """Rebuild ``market``'s universe for ``session`` and append the membership.

@@ -17,12 +17,14 @@ from fastapi.staticfiles import StaticFiles
 from . import MARKETS
 from .boards import board_symbols, build_boards
 from .candidates import build_candidates
+from .chart import build_chart
 from .indicators import adr
 from .models import (
     Board,
     BoardRow,
     BoardsResponse,
     CandidatesResponse,
+    ChartResponse,
     RegimeResponse,
     RunsResponse,
     SectorsResponse,
@@ -160,6 +162,45 @@ def create_app(store: Store | None = None) -> FastAPI:
         # states that the score sort is not yet live rather than inventing one.
         return CandidatesResponse(
             market=market, session=session, ordered_by="ticker", candidates=candidates
+        )
+
+    @app.get("/api/chart/{market}/{symbol}", response_model=ChartResponse)
+    def get_chart(market: str, symbol: str) -> ChartResponse:
+        market = market.upper()
+        if market not in MARKETS:
+            raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
+        bars = store.bars(market, symbol)
+        if not bars:
+            # A symbol the store has never seen — genuinely absent, not an empty
+            # state. Click-a-row can only reach names that have bars, so this is
+            # the hand-typed-URL case.
+            raise HTTPException(
+                status_code=404, detail=f"no bars for {symbol!r} in {market}"
+            )
+        # Compose the bundle from what the pipeline published for the as-of
+        # session: the detection row (the facts' base/trigger/stop), the rank
+        # rows (the decile ranks) and the label cache (the sector). The chart
+        # re-computes nothing about detection or ranking (spec §5.1).
+        latest = store.latest_run(market)
+        session = latest.session if latest else None
+        detection = None
+        ranks_for_symbol: list = []
+        sector = None
+        if latest is not None:
+            # Scope to bars on or before the published session so a newer,
+            # quarantined pull's bars never leak onto the chart (§4.9).
+            bars = [b for b in bars if b.session <= session]
+            detection = next(
+                (d for d in store.detections(market, session) if d.symbol == symbol),
+                None,
+            )
+            ranks_for_symbol = [
+                r for r in store.ranks(market, session) if r.symbol == symbol
+            ]
+            label = store.label(market, symbol)
+            sector = label.sector if label else None
+        return build_chart(
+            market, symbol, session, bars, detection, ranks_for_symbol, sector
         )
 
     @app.get("/api/regime/{market}", response_model=RegimeResponse)

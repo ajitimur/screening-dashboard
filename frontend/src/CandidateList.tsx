@@ -22,9 +22,18 @@ function adrMultiple(value: number): string {
  *
  * The row decides whether to open the chart; the chart decides whether to trade —
  * so ADR, dollar volume, base length, the decile ranks and sector live in the
- * chart panel, not here.
+ * chart panel, not here. Clicking a row's ticker selects it via ``onSelect`` and
+ * the chart panel swaps; nothing else navigates (spec §5.3).
  */
-export default function CandidateList({ market }: { market: string }) {
+export default function CandidateList({
+  market,
+  selected,
+  onSelect,
+}: {
+  market: string;
+  selected?: string | null;
+  onSelect?: (symbol: string) => void;
+}) {
   const [data, setData] = useState<CandidatesResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,8 +85,17 @@ export default function CandidateList({ market }: { market: string }) {
         </thead>
         <tbody>
           {data.candidates.map((c) => (
-            <tr key={c.symbol}>
-              <th scope="row">{c.symbol}</th>
+            <tr key={c.symbol} aria-selected={c.symbol === selected}>
+              <th scope="row">
+                <button
+                  type="button"
+                  className="ticker-select"
+                  aria-current={c.symbol === selected}
+                  onClick={() => onSelect?.(c.symbol)}
+                >
+                  {c.symbol}
+                </button>
+              </th>
               {/* Placeholder until the rubric lands — never a fabricated number. */}
               <td className="score">{c.score === null ? "—" : c.score.toFixed(1)}</td>
               <td className="distance">{adrMultiple(c.dist_adr)}</td>

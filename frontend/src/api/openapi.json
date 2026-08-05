@@ -206,6 +206,195 @@
         "title": "CandidatesResponse",
         "type": "object"
       },
+      "Candle": {
+        "description": "One OHLCV bar for the chart, **unadjusted** \u2014 real price levels the trigger\nand stop rules are placed at (spec \u00a75.1 / \u00a73.5). ``session`` is the trading\ndate; the frontend renders these as candlesticks and the volume histogram.",
+        "properties": {
+          "close": {
+            "title": "Close",
+            "type": "number"
+          },
+          "high": {
+            "title": "High",
+            "type": "number"
+          },
+          "low": {
+            "title": "Low",
+            "type": "number"
+          },
+          "open": {
+            "title": "Open",
+            "type": "number"
+          },
+          "session": {
+            "format": "date",
+            "title": "Session",
+            "type": "string"
+          },
+          "volume": {
+            "title": "Volume",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ],
+        "title": "Candle",
+        "type": "object"
+      },
+      "ChartFacts": {
+        "description": "The facts block beside the chart (spec \u00a75.1): the numbers the row deliberately\nleft off, read here where the trade decision is made.\n\nPopulated from the name's detection row (``base_len``, ``trigger``,\n``dist_adr``, ``stopw_adr``, ``adr``), its bars (``dollar_volume``, the \u00a74.1\nmedian-20d liquidity), its rank rows (``decile_ranks``, percentile per\nlookback) and the label cache (``sector``). ``None`` for the whole block when\nthe symbol has no detection tonight \u2014 the chart still draws, but there is no\nbase to describe.",
+        "properties": {
+          "adr": {
+            "title": "Adr",
+            "type": "number"
+          },
+          "base_len": {
+            "title": "Base Len",
+            "type": "integer"
+          },
+          "decile_ranks": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Decile Ranks",
+            "type": "object"
+          },
+          "dist_adr": {
+            "title": "Dist Adr",
+            "type": "number"
+          },
+          "dollar_volume": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dollar Volume"
+          },
+          "sector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sector"
+          },
+          "stopw_adr": {
+            "title": "Stopw Adr",
+            "type": "number"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "number"
+          }
+        },
+        "required": [
+          "base_len",
+          "trigger",
+          "dist_adr",
+          "stopw_adr",
+          "adr",
+          "dollar_volume",
+          "decile_ranks",
+          "sector"
+        ],
+        "title": "ChartFacts",
+        "type": "object"
+      },
+      "ChartResponse": {
+        "description": "One symbol's evidence bundle \u2014 the chart panel in a single call (spec \u00a75.1).\n\nCandles plus the daily MA set (SMA 10/20/50 and the 65 EMA, spec \u00a72) as line\nseries, and the facts block. ``session`` is the as-of published session, or\n``None`` when no run has published (an explicit empty state). The MA lines are\ncomputed over the full stored history and then sliced to the drawn window, so\nthe first drawn point already carries a full window behind it.",
+        "properties": {
+          "candles": {
+            "items": {
+              "$ref": "#/components/schemas/Candle"
+            },
+            "title": "Candles",
+            "type": "array"
+          },
+          "ema65": {
+            "items": {
+              "$ref": "#/components/schemas/MaPoint"
+            },
+            "title": "Ema65",
+            "type": "array"
+          },
+          "facts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChartFacts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          },
+          "sma10": {
+            "items": {
+              "$ref": "#/components/schemas/MaPoint"
+            },
+            "title": "Sma10",
+            "type": "array"
+          },
+          "sma20": {
+            "items": {
+              "$ref": "#/components/schemas/MaPoint"
+            },
+            "title": "Sma20",
+            "type": "array"
+          },
+          "sma50": {
+            "items": {
+              "$ref": "#/components/schemas/MaPoint"
+            },
+            "title": "Sma50",
+            "type": "array"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "market",
+          "symbol",
+          "session",
+          "candles",
+          "sma10",
+          "sma20",
+          "sma50",
+          "ema65",
+          "facts"
+        ],
+        "title": "ChartResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -262,6 +451,26 @@
           "shape_differential"
         ],
         "title": "IndustryStrength",
+        "type": "object"
+      },
+      "MaPoint": {
+        "description": "One point of a moving-average line series \u2014 the value at a session. The\nline skips the leading bars where the window has not yet filled, so a series\nis shorter than the candle series and starts later (spec \u00a74.2).",
+        "properties": {
+          "session": {
+            "format": "date",
+            "title": "Session",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "session",
+          "value"
+        ],
+        "title": "MaPoint",
         "type": "object"
       },
       "RegimeResponse": {
@@ -651,6 +860,54 @@
           }
         },
         "summary": "Get Candidates"
+      }
+    },
+    "/api/chart/{market}/{symbol}": {
+      "get": {
+        "operationId": "get_chart_api_chart__market___symbol__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "symbol",
+            "required": true,
+            "schema": {
+              "title": "Symbol",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Chart"
       }
     },
     "/api/regime/{market}": {

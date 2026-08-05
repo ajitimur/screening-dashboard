@@ -14,6 +14,10 @@ export type IndustryStrength = components["schemas"]["IndustryStrength"];
 export type RegimeResponse = components["schemas"]["RegimeResponse"];
 export type CandidatesResponse = components["schemas"]["CandidatesResponse"];
 export type Candidate = components["schemas"]["Candidate"];
+export type ChartResponse = components["schemas"]["ChartResponse"];
+export type Candle = components["schemas"]["Candle"];
+export type MaPoint = components["schemas"]["MaPoint"];
+export type ChartFacts = components["schemas"]["ChartFacts"];
 
 export async function fetchRuns(market: string): Promise<RunsResponse> {
   const resp = await fetch(`/api/runs/${market}`);
@@ -43,4 +47,10 @@ export async function fetchCandidates(market: string): Promise<CandidatesRespons
   const resp = await fetch(`/api/candidates/${market}`);
   if (!resp.ok) throw new Error(`GET /api/candidates/${market} → ${resp.status}`);
   return (await resp.json()) as CandidatesResponse;
+}
+
+export async function fetchChart(market: string, symbol: string): Promise<ChartResponse> {
+  const resp = await fetch(`/api/chart/${market}/${symbol}`);
+  if (!resp.ok) throw new Error(`GET /api/chart/${market}/${symbol} → ${resp.status}`);
+  return (await resp.json()) as ChartResponse;
 }

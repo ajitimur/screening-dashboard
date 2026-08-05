@@ -185,6 +185,78 @@ class CandidatesResponse(BaseModel):
     candidates: list[Candidate]
 
 
+class Candle(BaseModel):
+    """One OHLCV bar for the chart, **unadjusted** — real price levels the trigger
+    and stop rules are placed at (spec §5.1 / §3.5). ``session`` is the trading
+    date; the frontend renders these as candlesticks and the volume histogram."""
+
+    session: date
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int
+
+
+class MaPoint(BaseModel):
+    """One point of a moving-average line series — the value at a session. The
+    line skips the leading bars where the window has not yet filled, so a series
+    is shorter than the candle series and starts later (spec §4.2)."""
+
+    session: date
+    value: float
+
+
+class ChartFacts(BaseModel):
+    """The facts block beside the chart (spec §5.1): the numbers the row deliberately
+    left off, read here where the trade decision is made.
+
+    Populated from the name's detection row (``base_len``, ``trigger``,
+    ``dist_adr``, ``stopw_adr``, ``adr``), its bars (``dollar_volume``, the §4.1
+    median-20d liquidity), its rank rows (``decile_ranks``, percentile per
+    lookback) and the label cache (``sector``). ``None`` for the whole block when
+    the symbol has no detection tonight — the chart still draws, but there is no
+    base to describe.
+    """
+
+    base_len: int
+    trigger: float
+    # Distance from today's close up to the trigger, in ADR — "how soon" (§5.1).
+    dist_adr: float
+    # Stop width normalised to ADR: (trigger − cluster_low)/adr_abs (§4.6).
+    stopw_adr: float
+    adr: float
+    # Median unadjusted close × volume over 20 traded bars (§4.1). ``None`` if the
+    # name's bars could not supply it.
+    dollar_volume: float | None
+    # lookback -> percentile in [0, 1]; the five decile ranks (§4.3). A lookback
+    # the name is not ranked in (a recent listing) is simply absent from the map.
+    decile_ranks: dict[str, float]
+    # Yahoo/Morningstar GECS sector; ``None`` if the label was never fetched (§3.3).
+    sector: str | None
+
+
+class ChartResponse(BaseModel):
+    """One symbol's evidence bundle — the chart panel in a single call (spec §5.1).
+
+    Candles plus the daily MA set (SMA 10/20/50 and the 65 EMA, spec §2) as line
+    series, and the facts block. ``session`` is the as-of published session, or
+    ``None`` when no run has published (an explicit empty state). The MA lines are
+    computed over the full stored history and then sliced to the drawn window, so
+    the first drawn point already carries a full window behind it.
+    """
+
+    market: str
+    symbol: str
+    session: date | None
+    candles: list[Candle]
+    sma10: list[MaPoint]
+    sma20: list[MaPoint]
+    sma50: list[MaPoint]
+    ema65: list[MaPoint]
+    facts: ChartFacts | None
+
+
 class RegimeResponse(BaseModel):
     """The market regime banner's payload — **advisory only** (spec §4.9).
 

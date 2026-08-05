@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/chart/{market}/{symbol}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chart */
+        get: operations["get_chart_api_chart__market___symbol__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/regime/{market}": {
         parameters: {
             query?: never;
@@ -195,6 +212,90 @@ export interface components {
             /** Session */
             session: string | null;
         };
+        /**
+         * Candle
+         * @description One OHLCV bar for the chart, **unadjusted** — real price levels the trigger
+         *     and stop rules are placed at (spec §5.1 / §3.5). ``session`` is the trading
+         *     date; the frontend renders these as candlesticks and the volume histogram.
+         */
+        Candle: {
+            /** Close */
+            close: number;
+            /** High */
+            high: number;
+            /** Low */
+            low: number;
+            /** Open */
+            open: number;
+            /**
+             * Session
+             * Format: date
+             */
+            session: string;
+            /** Volume */
+            volume: number;
+        };
+        /**
+         * ChartFacts
+         * @description The facts block beside the chart (spec §5.1): the numbers the row deliberately
+         *     left off, read here where the trade decision is made.
+         *
+         *     Populated from the name's detection row (``base_len``, ``trigger``,
+         *     ``dist_adr``, ``stopw_adr``, ``adr``), its bars (``dollar_volume``, the §4.1
+         *     median-20d liquidity), its rank rows (``decile_ranks``, percentile per
+         *     lookback) and the label cache (``sector``). ``None`` for the whole block when
+         *     the symbol has no detection tonight — the chart still draws, but there is no
+         *     base to describe.
+         */
+        ChartFacts: {
+            /** Adr */
+            adr: number;
+            /** Base Len */
+            base_len: number;
+            /** Decile Ranks */
+            decile_ranks: {
+                [key: string]: number;
+            };
+            /** Dist Adr */
+            dist_adr: number;
+            /** Dollar Volume */
+            dollar_volume: number | null;
+            /** Sector */
+            sector: string | null;
+            /** Stopw Adr */
+            stopw_adr: number;
+            /** Trigger */
+            trigger: number;
+        };
+        /**
+         * ChartResponse
+         * @description One symbol's evidence bundle — the chart panel in a single call (spec §5.1).
+         *
+         *     Candles plus the daily MA set (SMA 10/20/50 and the 65 EMA, spec §2) as line
+         *     series, and the facts block. ``session`` is the as-of published session, or
+         *     ``None`` when no run has published (an explicit empty state). The MA lines are
+         *     computed over the full stored history and then sliced to the drawn window, so
+         *     the first drawn point already carries a full window behind it.
+         */
+        ChartResponse: {
+            /** Candles */
+            candles: components["schemas"]["Candle"][];
+            /** Ema65 */
+            ema65: components["schemas"]["MaPoint"][];
+            facts: components["schemas"]["ChartFacts"] | null;
+            /** Market */
+            market: string;
+            /** Session */
+            session: string | null;
+            /** Sma10 */
+            sma10: components["schemas"]["MaPoint"][];
+            /** Sma20 */
+            sma20: components["schemas"]["MaPoint"][];
+            /** Sma50 */
+            sma50: components["schemas"]["MaPoint"][];
+            /** Symbol */
+            symbol: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -224,6 +325,21 @@ export interface components {
             shares: {
                 [key: string]: number;
             };
+        };
+        /**
+         * MaPoint
+         * @description One point of a moving-average line series — the value at a session. The
+         *     line skips the leading bars where the window has not yet filled, so a series
+         *     is shorter than the candle series and starts later (spec §4.2).
+         */
+        MaPoint: {
+            /**
+             * Session
+             * Format: date
+             */
+            session: string;
+            /** Value */
+            value: number;
         };
         /**
          * RegimeResponse
@@ -417,6 +533,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CandidatesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chart_api_chart__market___symbol__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                market: string;
+                symbol: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChartResponse"];
                 };
             };
             /** @description Validation Error */

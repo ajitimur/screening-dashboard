@@ -8,6 +8,12 @@ in-app charts, top-decile leaderboards per lookback, sector/theme leadership + r
 market regime filter. The spec is detailed enough to hand to a build session — no production code
 is written during wayfinding.
 
+**Reached, 2026-08-05.** The spec is [`v1-spec.md`](v1-spec.md), assembled by
+[Assemble the v1 spec](issues/13-assemble-v1-spec.md). Every ticket on this map is closed and the
+way to the destination is clear; what remains is a build, not a decision. The **Not yet specified**
+section below is retained deliberately — it is the fog *beyond* this destination (validation above
+all), and each patch there would be a fresh effort with its own map, not a resumption of this one.
+
 ## Notes
 
 - **Domain**: equity momentum swing trading, Qullamaggie method. The canonical method reference is
@@ -130,6 +136,23 @@ is written during wayfinding.
 ## Decisions so far
 
 <!-- one line per resolved ticket: gist + link -->
+
+- **[Assemble the v1 spec](issues/13-assemble-v1-spec.md) — the destination, reached. The spec is
+  [`v1-spec.md`](v1-spec.md)**, ten sections, assembled from all 27 resolved tickets; a build
+  session no longer needs the map. Nothing new was decided — assembly turned out to be a
+  *reconciliation* job, because several decisions had been amended two or three times and the
+  current state of each had to be recovered from the amendments rather than the resolving ticket:
+  the detector is **not** what ticket 08 resolved (six of its decisions deleted or replaced by 17,
+  its stop gate gone, its `TRIGGERED` state unreachable), and the live rubric thresholds are
+  **ticket 27's**, not ticket 15's, whose table was fitted under the blind objective. Three things
+  the spec adds that no ticket had: the **glossary** (30 terms, several of which were being used
+  loosely across tickets), **30 acceptance criteria** — of which B1–B10 are figures a ticket
+  measured, making the first real run a regression test against the wayfinding, and D2 is the
+  instrument-filter spot-check ticket 05 asked for and nothing had owned since — and **one table of
+  every free number in v1** (43 rows, each marked live / frozen / fitted / unfitted / structural),
+  which the map had scattered across five tickets. The seven irrecoverable capture streams and the
+  `detector_version` column are stated as a build requirement in one place. No fog graduated and
+  nothing was ruled out of scope.
 
 - [Free EOD data sources for IDX](issues/01-idx-free-data-sources.md) — **yfinance `.JK`**, fallback a
   headless scrape of idx.co.id; Stockbit is ToS-barred and idx.co.id is Cloudflare-blocked. Universe

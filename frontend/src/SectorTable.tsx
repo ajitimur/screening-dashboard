@@ -25,6 +25,25 @@ function signedPct(value: number): string {
   return `${p > 0 ? "+" : ""}${p}pp`;
 }
 
+// The five per-lookback share cells, each with its k/n fragility badge (S4).
+// Shared by the sector and industry boards, which carry the same three fields.
+type ShareRow = Pick<SectorStrength, "shares" | "decile_counts" | "members">;
+
+function ShareCells({ row }: { row: ShareRow }) {
+  return (
+    <>
+      {LOOKBACKS.map((lb) => (
+        <td key={lb} className="share">
+          {pct(row.shares[lb])}{" "}
+          <span className="kn">
+            {row.decile_counts[lb]}/{row.members}
+          </span>
+        </td>
+      ))}
+    </>
+  );
+}
+
 /**
  * The sector strength and rotation board, plus the ranked-industry board
  * (spec §4.4 / ticket 07). All 11 sectors always render, even at 0% on every
@@ -130,14 +149,7 @@ export default function SectorTable({
               data-group-start={i === firstIneligible ? "ineligible" : undefined}
             >
               <th scope="row">{s.sector}</th>
-              {LOOKBACKS.map((lb) => (
-                <td key={lb} className="share">
-                  {pct(s.shares[lb])}{" "}
-                  <span className="kn">
-                    {s.decile_counts[lb]}/{s.members}
-                  </span>
-                </td>
-              ))}
+              <ShareCells row={s} />
               <td className="shape">{signedPct(s.shape_differential)}</td>
               <td
                 className={
@@ -189,14 +201,7 @@ function IndustryBoard({ data }: { data: SectorsResponse }) {
             <tr key={ind.industry}>
               <th scope="row">{ind.industry}</th>
               <td>{ind.sector}</td>
-              {LOOKBACKS.map((lb) => (
-                <td key={lb} className="share">
-                  {pct(ind.shares[lb])}{" "}
-                  <span className="kn">
-                    {ind.decile_counts[lb]}/{ind.members}
-                  </span>
-                </td>
-              ))}
+              <ShareCells row={ind} />
               <td className="shape">{signedPct(ind.shape_differential)}</td>
             </tr>
           ))}

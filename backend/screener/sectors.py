@@ -140,8 +140,8 @@ def sector_strengths(
         temporal: float | None = None
         if past_rows is not None:
             past_n = len(past_members.get(sector, ()))
-            past_share = _k(past_decile, sector, TEMPORAL_LOOKBACK) / past_n if past_n else 0.0
-            temporal = shares[TEMPORAL_LOOKBACK] - past_share
+            past_shares, _ = _shares(past_decile, sector, past_n)
+            temporal = shares[TEMPORAL_LOOKBACK] - past_shares[TEMPORAL_LOOKBACK]
         out.append(
             SectorStrength(
                 sector=sector,

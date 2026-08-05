@@ -60,8 +60,21 @@ function Workbench({ market }: { market: Market }) {
     );
   }
 
+  // The newest run attempt is quarantined when it failed the completeness or
+  // enumeration gate (spec §3.4 rules 7–8): the served `latest` session is then
+  // older than the last attempt, so the tab carries a stale banner. Runs arrive
+  // newest-first, so runs[0] is the last attempt.
+  const newest = runs.runs[0];
+  const stale = newest !== undefined && newest.status === "quarantined";
+
   return (
     <section aria-label={`${market} workbench`}>
+      {stale && (
+        <p role="status" className="quarantine-banner">
+          Tonight's {market} run was quarantined — showing the last good session{" "}
+          <time dateTime={runs.latest.session}>{runs.latest.session}</time>.
+        </p>
+      )}
       <p className="as-of">
         As of session <time dateTime={runs.latest.session}>{runs.latest.session}</time>
       </p>

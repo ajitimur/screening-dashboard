@@ -2,9 +2,10 @@
 
 The full pipeline is eleven stages (spec §7.4). Here it is just the two that
 write the record every later stage hangs off: resolve a universe, then write the
-run row — published, or quarantined if it resolved < ~99% of enumerated symbols
-(spec §3.4 rule 7 / acceptance A2). This is the "runs something" that Seam 1
-drives before asserting on rows.
+run row — published, or quarantined if too few enumerated symbols resolved
+(spec §3.4 rule 7 / acceptance A2) or the enumeration itself shrank materially
+from the last good run (rule 8). This is the "runs something" that Seam 1 drives
+before asserting on rows.
 """
 
 from __future__ import annotations
@@ -21,6 +22,15 @@ from .universe import rebuild_universe
 # behind a banner rather than published (spec §3.4 rule 7).
 RESOLUTION_FLOOR = 0.99
 
+# A run whose *enumeration* is materially smaller than the last good run's is
+# quarantined too (spec §3.4 rule 8). Per-symbol failures are countable against a
+# known denominator (RESOLUTION_FLOOR); a truncated enumeration moves the
+# denominator and would otherwise pass the completeness gate at 100%. Enumeration
+# counts breathe with real listings, so the floor is looser than the resolution
+# gate — a drop past 10% of the last good run is a failed pull, not a shrinking
+# exchange (~84 IDX / ~694 US names vanishing overnight).
+ENUMERATION_FLOOR = 0.90
+
 
 def run_market(
     store: Store,
@@ -36,8 +46,19 @@ def run_market(
     ``enumerated`` is the symbol list pulled from the listing files; ``resolved``
     is the subset that returned usable bars. The universe rows are appended only
     when the run publishes — a quarantined run must not replace good data.
+
+    A run publishes only if it clears *both* gates: enough of the enumerated
+    symbols resolved (rule 7), and the enumeration itself is not materially
+    smaller than the last good run's (rule 8). The enumeration baseline is the
+    last *published* run — a quarantined run must not lower the bar, or a slow
+    leak of shrinking pulls would each pass against the previous shrunk attempt.
     """
-    published = len(resolved) >= RESOLUTION_FLOOR * len(enumerated)
+    last_good = store.latest_run(market)
+    enumeration_ok = (
+        last_good is None
+        or len(enumerated) >= ENUMERATION_FLOOR * last_good.symbols_enumerated
+    )
+    published = enumeration_ok and len(resolved) >= RESOLUTION_FLOOR * len(enumerated)
     if published:
         store.append_universe(market, session, resolved)
     return store.append_run(

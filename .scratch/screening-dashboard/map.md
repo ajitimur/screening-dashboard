@@ -453,7 +453,8 @@ is written during wayfinding.
   population — but the deck resolves 1.00★, not 0.75★, so **the sign is the finding and the size is
   provisional**. The result is carried almost entirely by one path: `no_cluster` separates hard
   (−1.40★, 7 of 10 cards graded 1★) while **`line_not_drawable` does not separate at all** (−0.40★,
-  CI −1.22 to **+0.42**, below the eye's own 0.56★ noise floor, and 3 of its 10 cards graded 4★
+  CI −1.22 to **+0.42**, below the eye's own 0.56★ noise floor *(as it then stood; 0.46★ since
+  ticket 25 pooled the pairs)*, and 3 of its 10 cards graded 4★
   against a detection arm averaging only 3.20). That unresolved path graduated to
   [ticket 25](issues/25-the-line-not-drawable-path.md); the third path, `not_caught_up`, was never
   sampled. The ceiling moved **12 pairs → 18 and held at +0.831** (mean absolute difference 0.56★),

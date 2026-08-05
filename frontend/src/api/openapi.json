@@ -104,6 +104,108 @@
         "title": "BoardsResponse",
         "type": "object"
       },
+      "Candidate": {
+        "description": "One row of the candidate list \u2014 a detection made readable (spec \u00a75.1).\n\nFive columns off the detection row. ``score`` is the star score and the\nintended sort key, but it is a **placeholder** (``None``) until the rubric\nlands (ticket 39), so the list orders by ticker until then. ``dist_adr`` is\nthe distance to the trigger in ADR (``(trigger \u2212 close) / adr_abs``);\n``stopw_adr`` is the stop width in ADR (``(trigger \u2212 cluster_low) / adr_abs``,\nthe watchlist stop of \u00a74.6). The stop column **never filters** \u2014 instead the\naffordable sub-1\u00d7ADR minority is flagged (``affordable``), the inverse of\nmarking the ~92% unaffordable majority. ``industry`` is the theme layer\n(``None`` if the label was never fetched); ``breadth`` is the ``k/5`` badge, a\npersistence count and **not** a quality score.",
+        "properties": {
+          "affordable": {
+            "title": "Affordable",
+            "type": "boolean"
+          },
+          "breadth": {
+            "title": "Breadth",
+            "type": "integer"
+          },
+          "dist_adr": {
+            "title": "Dist Adr",
+            "type": "number"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Industry"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "stopw_adr": {
+            "title": "Stopw Adr",
+            "type": "number"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "score",
+          "dist_adr",
+          "stopw_adr",
+          "affordable",
+          "industry",
+          "breadth"
+        ],
+        "title": "Candidate",
+        "type": "object"
+      },
+      "CandidatesResponse": {
+        "description": "Tonight's candidate list for one market (spec \u00a75.1).\n\n``session`` is the as-of published session, ``None`` when no run has\npublished (an explicit empty state). ``ordered_by`` is ``\"ticker\"`` while the\nstar score is a placeholder and becomes ``\"score\"`` once the rubric lands \u2014 the\nUI reads it to state, honestly, that the score sort is not yet live.",
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/Candidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "ordered_by": {
+            "enum": [
+              "ticker",
+              "score"
+            ],
+            "title": "Ordered By",
+            "type": "string"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          }
+        },
+        "required": [
+          "market",
+          "session",
+          "ordered_by",
+          "candidates"
+        ],
+        "title": "CandidatesResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -510,6 +612,45 @@
           }
         },
         "summary": "Get Boards"
+      }
+    },
+    "/api/candidates/{market}": {
+      "get": {
+        "operationId": "get_candidates_api_candidates__market__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidatesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Candidates"
       }
     },
     "/api/regime/{market}": {

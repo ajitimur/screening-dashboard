@@ -146,6 +146,45 @@ class SectorsResponse(BaseModel):
     industries: list[IndustryStrength]
 
 
+class Candidate(BaseModel):
+    """One row of the candidate list — a detection made readable (spec §5.1).
+
+    Five columns off the detection row. ``score`` is the star score and the
+    intended sort key, but it is a **placeholder** (``None``) until the rubric
+    lands (ticket 39), so the list orders by ticker until then. ``dist_adr`` is
+    the distance to the trigger in ADR (``(trigger − close) / adr_abs``);
+    ``stopw_adr`` is the stop width in ADR (``(trigger − cluster_low) / adr_abs``,
+    the watchlist stop of §4.6). The stop column **never filters** — instead the
+    affordable sub-1×ADR minority is flagged (``affordable``), the inverse of
+    marking the ~92% unaffordable majority. ``industry`` is the theme layer
+    (``None`` if the label was never fetched); ``breadth`` is the ``k/5`` badge, a
+    persistence count and **not** a quality score.
+    """
+
+    symbol: str
+    score: float | None
+    dist_adr: float
+    stopw_adr: float
+    affordable: bool
+    industry: str | None
+    breadth: int
+
+
+class CandidatesResponse(BaseModel):
+    """Tonight's candidate list for one market (spec §5.1).
+
+    ``session`` is the as-of published session, ``None`` when no run has
+    published (an explicit empty state). ``ordered_by`` is ``"ticker"`` while the
+    star score is a placeholder and becomes ``"score"`` once the rubric lands — the
+    UI reads it to state, honestly, that the score sort is not yet live.
+    """
+
+    market: str
+    session: date | None
+    ordered_by: Literal["ticker", "score"]
+    candidates: list[Candidate]
+
+
 class RegimeResponse(BaseModel):
     """The market regime banner's payload — **advisory only** (spec §4.9).
 

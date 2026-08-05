@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/candidates/{market}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Candidates */
+        get: operations["get_candidates_api_candidates__market__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/regime/{market}": {
         parameters: {
             query?: never;
@@ -122,6 +139,59 @@ export interface components {
             boards: components["schemas"]["Board"][];
             /** Market */
             market: string;
+            /** Session */
+            session: string | null;
+        };
+        /**
+         * Candidate
+         * @description One row of the candidate list — a detection made readable (spec §5.1).
+         *
+         *     Five columns off the detection row. ``score`` is the star score and the
+         *     intended sort key, but it is a **placeholder** (``None``) until the rubric
+         *     lands (ticket 39), so the list orders by ticker until then. ``dist_adr`` is
+         *     the distance to the trigger in ADR (``(trigger − close) / adr_abs``);
+         *     ``stopw_adr`` is the stop width in ADR (``(trigger − cluster_low) / adr_abs``,
+         *     the watchlist stop of §4.6). The stop column **never filters** — instead the
+         *     affordable sub-1×ADR minority is flagged (``affordable``), the inverse of
+         *     marking the ~92% unaffordable majority. ``industry`` is the theme layer
+         *     (``None`` if the label was never fetched); ``breadth`` is the ``k/5`` badge, a
+         *     persistence count and **not** a quality score.
+         */
+        Candidate: {
+            /** Affordable */
+            affordable: boolean;
+            /** Breadth */
+            breadth: number;
+            /** Dist Adr */
+            dist_adr: number;
+            /** Industry */
+            industry: string | null;
+            /** Score */
+            score: number | null;
+            /** Stopw Adr */
+            stopw_adr: number;
+            /** Symbol */
+            symbol: string;
+        };
+        /**
+         * CandidatesResponse
+         * @description Tonight's candidate list for one market (spec §5.1).
+         *
+         *     ``session`` is the as-of published session, ``None`` when no run has
+         *     published (an explicit empty state). ``ordered_by`` is ``"ticker"`` while the
+         *     star score is a placeholder and becomes ``"score"`` once the rubric lands — the
+         *     UI reads it to state, honestly, that the score sort is not yet live.
+         */
+        CandidatesResponse: {
+            /** Candidates */
+            candidates: components["schemas"]["Candidate"][];
+            /** Market */
+            market: string;
+            /**
+             * Ordered By
+             * @enum {string}
+             */
+            ordered_by: "ticker" | "score";
             /** Session */
             session: string | null;
         };
@@ -316,6 +386,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BoardsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_candidates_api_candidates__market__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                market: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidatesResponse"];
                 };
             };
             /** @description Validation Error */

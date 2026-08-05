@@ -131,3 +131,87 @@ def test_regime_state_undefined_below_the_warmup(store: Store):
 
 def test_regime_unknown_market_is_404(store: Store):
     assert client_for(store).get("/api/regime/LSE").status_code == 404
+
+
+# -- /api/candidates/{market} (ticket 38, spec §4.5 / §5.1) -------------------
+
+
+def _candidates_store() -> Store:
+    """A store with a published US run and two detections — one tight (affordable)
+    stop, one wide — plus ranks and one industry label."""
+    from datetime import date, datetime
+
+    from screener.detection import DETECTOR_VERSION, Detection
+    from screener.ranks import Rank
+
+    store = Store.memory()
+    session = date(2026, 8, 5)
+    store.append_run(
+        "US", session, status="published",
+        symbols_enumerated=2, symbols_resolved=2,
+        created_at=datetime(2026, 8, 5, 22, 10),
+    )
+    store.append_universe("US", session, ["AAA", "ZZZ"])
+
+    def det(symbol, cluster_low, adr=0.02):
+        adr_abs = adr * 98.0
+        stop = 100.0 - cluster_low
+        return Detection(
+            symbol=symbol, session=session, detector_version=DETECTOR_VERSION,
+            trigger=100.0, stop=stop, stopw_adr=stop / adr_abs,
+            base_len=30, move_gain=103.0, adr=adr, close=98.0,
+            cluster_k=5, cluster_high=100.0, cluster_low=cluster_low,
+            cluster_range_adr=0.99, line_ok=True, touch_zones=2, overshoot_adr=0.0,
+            slope=-0.001, line_end=99.9, base_low=cluster_low,
+        )
+
+    # ZZZ: cluster_low 99.0 → stop 1.0 / adr_abs 1.96 ≈ 0.51 (affordable).
+    # AAA: cluster_low 95.0 → stop 5.0 / adr_abs 1.96 ≈ 2.55 (the majority).
+    store.append_detections("US", session, [det("AAA", 95.0), det("ZZZ", 99.0)])
+    store.append_ranks("US", session, [
+        Rank("AAA", "1m", 0.95, 1.2), Rank("AAA", "3m", 0.95, 1.1),
+    ])
+    store.upsert_label("US", "AAA", "Technology", "Semiconductors", session)
+    return store
+
+
+def test_candidates_endpoint_returns_ticker_ordered_five_column_rows():
+    store = _candidates_store()
+    try:
+        body = client_for(store).get("/api/candidates/US").json()
+        assert body["market"] == "US"
+        assert body["session"] == "2026-08-05"
+        # Ordered by ticker; the score sort is not yet live (ticket 39).
+        assert body["ordered_by"] == "ticker"
+        assert [c["symbol"] for c in body["candidates"]] == ["AAA", "ZZZ"]
+
+        aaa = body["candidates"][0]
+        assert aaa["score"] is None                 # placeholder until the rubric lands
+        assert aaa["industry"] == "Semiconductors"  # the theme layer
+        assert aaa["breadth"] == 2                   # top-decile in 2 of 5 lookbacks
+        assert abs(aaa["dist_adr"] - (100.0 - 98.0) / (0.02 * 98.0)) < 1e-9
+    finally:
+        store.close()
+
+
+def test_candidates_stop_column_flags_the_affordable_minority_and_filters_nothing():
+    store = _candidates_store()
+    try:
+        rows = client_for(store).get("/api/candidates/US").json()["candidates"]
+        assert len(rows) == 2  # the stop column never filters
+        by_sym = {c["symbol"]: c for c in rows}
+        assert by_sym["ZZZ"]["affordable"] is True   # sub-1×ADR, highlighted
+        assert by_sym["AAA"]["affordable"] is False  # the wide majority
+    finally:
+        store.close()
+
+
+def test_candidates_endpoint_is_empty_when_no_run_published(store: Store):
+    body = client_for(store).get("/api/candidates/US").json()
+    assert body == {
+        "market": "US", "session": None, "ordered_by": "ticker", "candidates": [],
+    }
+
+
+def test_candidates_unknown_market_is_404(store: Store):
+    assert client_for(store).get("/api/candidates/LSE").status_code == 404

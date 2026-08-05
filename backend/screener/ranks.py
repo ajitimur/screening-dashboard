@@ -85,6 +85,21 @@ def rank_table(members_bars: dict[str, list[Bar]], as_of: date) -> list[Rank]:
     return rows
 
 
+def breadth_counts(rows: list[Rank]) -> dict[str, int]:
+    """Each name's ``k/5`` breadth badge: the count of lookbacks it is currently
+    top-decile in (§4.3 row furniture / ticket 06 R11).
+
+    The same ``percentile >= TOP_DECILE`` test the decile gate runs — free to
+    compute. A name absent from a lookback contributes no row there and so is
+    simply not counted, the honest reading of ``k/5``. Shared by the boards' badge
+    and the candidate list, so there is exactly one definition of ``k/5``."""
+    counts: dict[str, int] = {}
+    for r in rows:
+        if r.percentile >= TOP_DECILE:
+            counts[r.symbol] = counts.get(r.symbol, 0) + 1
+    return counts
+
+
 def decile_gate(rows: list[Rank]) -> set[str]:
     """The union of the five top deciles: names top-decile in **any** lookback
     (§4.3 / ticket 06 R2). Any-of, not a composite — this is the setup-detection

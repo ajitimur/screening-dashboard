@@ -30,7 +30,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .indicators import LOOKBACKS
-from .ranks import TOP_DECILE, Rank
+from .ranks import Rank, breadth_counts
 
 # Every board is the top 30, constant in count (ticket 06 R4). Over-determined:
 # §1's "top 1–2% of gainers" is 20–39 names on the US universe, and IDX's natural
@@ -61,20 +61,6 @@ class Board:
 
     lookback: str
     rows: list[BoardRow]
-
-
-def _breadth(rows: list[Rank]) -> dict[str, int]:
-    """Each name's ``k/5``: the count of lookbacks it is currently top-decile in.
-
-    Free to compute — the same ``percentile >= TOP_DECILE`` test the decile gate
-    runs (ticket 06 R11). A name absent from a lookback contributes no row there
-    and so is simply not counted, which is the honest reading of ``k/5``.
-    """
-    counts: dict[str, int] = {}
-    for r in rows:
-        if r.percentile >= TOP_DECILE:
-            counts[r.symbol] = counts.get(r.symbol, 0) + 1
-    return counts
 
 
 def _board_rows(rows: list[Rank], lookback: str) -> list[Rank]:
@@ -112,7 +98,7 @@ def build_boards(
     carries ``None`` rather than a fabricated zero. On the very first session
     ``prev_rows`` is empty, so every row is correctly ``NEW``.
     """
-    breadth = _breadth(rows)
+    breadth = breadth_counts(rows)
     boards: list[Board] = []
     for lookback in LOOKBACKS:
         prev_members = {r.symbol for r in _board_rows(prev_rows, lookback)}

@@ -16,11 +16,13 @@ from fastapi.staticfiles import StaticFiles
 
 from . import MARKETS
 from .boards import board_symbols, build_boards
+from .candidates import build_candidates
 from .indicators import adr
 from .models import (
     Board,
     BoardRow,
     BoardsResponse,
+    CandidatesResponse,
     RegimeResponse,
     RunsResponse,
     SectorsResponse,
@@ -129,6 +131,35 @@ def create_app(store: Store | None = None) -> FastAPI:
             session=latest.session,
             sectors=sector_strengths(rows, sector_of, past_rows=past_rows),
             industries=industry_strengths(rows, industry_of, sector_of),
+        )
+
+    @app.get("/api/candidates/{market}", response_model=CandidatesResponse)
+    def get_candidates(market: str) -> CandidatesResponse:
+        market = market.upper()
+        if market not in MARKETS:
+            raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
+        latest = store.latest_run(market)
+        if latest is None:
+            # No published run yet — an explicit empty state, not a fabricated
+            # date. Ordering is still by ticker: the score sort is not yet live.
+            return CandidatesResponse(
+                market=market, session=None, ordered_by="ticker", candidates=[]
+            )
+        session = latest.session
+        # Compose the list from what the pipeline published for this session: the
+        # detection rows (base + trigger + stop), the rank table (the k/5 badge)
+        # and the label cache (the industry). The regime never enters — the list
+        # is identical in all three regime states (spec §4.9).
+        industry_of = {sym: label.industry for sym, label in store.labels(market).items()}
+        candidates = build_candidates(
+            store.detections(market, session),
+            store.ranks(market, session),
+            industry_of,
+        )
+        # Ordered by ticker until the star-score rubric lands (ticket 39); the UI
+        # states that the score sort is not yet live rather than inventing one.
+        return CandidatesResponse(
+            market=market, session=session, ordered_by="ticker", candidates=candidates
         )
 
     @app.get("/api/regime/{market}", response_model=RegimeResponse)

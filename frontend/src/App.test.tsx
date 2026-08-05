@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
 import type {
+  CandidatesResponse,
   RegimeResponse,
   RunRecord,
   RunsResponse,
@@ -17,9 +18,14 @@ function noRegime(market: string): RegimeResponse {
   return { market, session: null, state: null, posture: null, breadth: null };
 }
 
+function emptyCandidates(market: string): CandidatesResponse {
+  return { market, session: null, ordered_by: "ticker", candidates: [] };
+}
+
 // Route the mocked fetch by endpoint: /api/runs/* returns the run records,
-// /api/sectors/* returns the sector board and /api/regime/* the regime banner —
-// each empty/off by default so the run-focused tests need not supply either.
+// /api/sectors/* returns the sector board, /api/regime/* the regime banner and
+// /api/candidates/* the candidate list — each empty/off by default so the
+// run-focused tests need not supply any of them.
 function mockApi(
   runsByMarket: Record<string, RunsResponse>,
   regimeByMarket: Record<string, RegimeResponse> = {},
@@ -31,9 +37,11 @@ function mockApi(
       const market = url.split("/").pop()!.toUpperCase();
       const body = url.includes("/api/sectors/")
         ? (sectorsByMarket[market] ?? emptySectors(market))
-        : url.includes("/regime/")
-          ? (regimeByMarket[market] ?? noRegime(market))
-          : runsByMarket[market];
+        : url.includes("/api/candidates/")
+          ? emptyCandidates(market)
+          : url.includes("/regime/")
+            ? (regimeByMarket[market] ?? noRegime(market))
+            : runsByMarket[market];
       return { ok: true, json: async () => body } as Response;
     }),
   );
@@ -118,6 +126,9 @@ describe("the two market tabs", () => {
         }
         if (url.includes("/api/sectors/")) {
           return { ok: true, json: async () => emptySectors(market) } as Response;
+        }
+        if (url.includes("/api/candidates/")) {
+          return { ok: true, json: async () => emptyCandidates(market) } as Response;
         }
         return { ok: true, json: async () => runs(market, "2026-08-04") } as Response;
       }),

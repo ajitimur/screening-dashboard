@@ -6,6 +6,7 @@ import {
   type RunsResponse,
 } from "./api/client";
 import Boards from "./Boards";
+import CandidateList from "./CandidateList";
 import SectorTable from "./SectorTable";
 
 const MARKETS = ["IDX", "US"] as const;
@@ -117,6 +118,10 @@ function Workbench({ market }: { market: Market }) {
           Universe: <strong>{runs.universe_size}</strong> tradeable names
         </p>
       )}
+      {/* The candidate list — the only list in the app, tonight's detections
+          made readable (spec §5.1). Its own resource endpoint, ordered by ticker
+          until the star-score rubric lands; the regime never reorders it. */}
+      <CandidateList market={market} />
       {/* The sector board reads the same as-of session (spec §4.4). The regime
           note (S7) wires in once ticket 10's /api/regime banner lands. */}
       <SectorTable market={market} />

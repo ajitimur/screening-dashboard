@@ -12,6 +12,8 @@ export type SectorsResponse = components["schemas"]["SectorsResponse"];
 export type SectorStrength = components["schemas"]["SectorStrength"];
 export type IndustryStrength = components["schemas"]["IndustryStrength"];
 export type RegimeResponse = components["schemas"]["RegimeResponse"];
+export type CandidatesResponse = components["schemas"]["CandidatesResponse"];
+export type Candidate = components["schemas"]["Candidate"];
 
 export async function fetchRuns(market: string): Promise<RunsResponse> {
   const resp = await fetch(`/api/runs/${market}`);
@@ -35,4 +37,10 @@ export async function fetchRegime(market: string): Promise<RegimeResponse> {
   const resp = await fetch(`/api/regime/${market}`);
   if (!resp.ok) throw new Error(`GET /api/regime/${market} → ${resp.status}`);
   return (await resp.json()) as RegimeResponse;
+}
+
+export async function fetchCandidates(market: string): Promise<CandidatesResponse> {
+  const resp = await fetch(`/api/candidates/${market}`);
+  if (!resp.ok) throw new Error(`GET /api/candidates/${market} → ${resp.status}`);
+  return (await resp.json()) as CandidatesResponse;
 }

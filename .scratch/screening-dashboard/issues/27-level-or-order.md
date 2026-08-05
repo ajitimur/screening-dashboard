@@ -1,7 +1,7 @@
 # Does a 4★ have to mean 4★, or is the star number a label for a rank?
 
 Type: grilling
-Status: open
+Status: claimed
 Blocked by: —
 
 ## Question

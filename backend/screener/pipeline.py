@@ -14,6 +14,7 @@ from datetime import date, datetime
 
 from .bars import clean_bars, parse_bars
 from .models import RunRecord
+from .ranks import Rank, rank_table
 from .source import Source, resolve_market
 from .store import Store
 from .universe import rebuild_universe
@@ -101,6 +102,24 @@ def ingest_market_bars(
     return stored
 
 
+def rebuild_ranks(store: Store, market: str, session: date) -> list[Rank]:
+    """Pipeline stage: rank every universe member for ``session`` (spec §4.3).
+
+    Reads the session's published universe and each member's clean bars off the
+    store, computes the (name, lookback) percentile/raw-return table, and appends
+    it — pruning outside the rolling 2-year window. References are not members, so
+    they are never ranked. Returns the rank rows written.
+
+    Must run after the universe for ``session`` is published: it ranks exactly
+    the members that session recorded.
+    """
+    members = store.universe(market, session)
+    members_bars = {symbol: store.bars(market, symbol) for symbol in members}
+    rows = rank_table(members_bars, session)
+    store.append_ranks(market, session, rows)
+    return rows
+
+
 def run_market_universe(
     store: Store,
     source: Source,
@@ -116,10 +135,12 @@ def run_market_universe(
     they arrive (spec §3.1–3.4). The completeness gate is measured over
     *candidates* only — references (the index, ETFs) are enumerated but not part
     of the tradeable denominator (§3.4 rule 7). Below the floor the run is
-    quarantined and writes no universe, so a throttled pull cannot shrink good
-    data. Above it the universe is rebuilt from the freshly-ingested bars, with
-    the candidates that stayed unresolved carrying yesterday's classification
-    (§3.4 rule 6). ``now`` must be timezone-aware for the finality rule.
+    quarantined and writes no universe (and no ranks), so a throttled pull cannot
+    shrink good data. Above it the universe is rebuilt from the freshly-ingested
+    bars — with the candidates that stayed unresolved carrying yesterday's
+    classification (§3.4 rule 6) — and then ranked, so the session leaves the
+    shared rank substrate every downstream stage reads (§4.3). ``now`` must be
+    timezone-aware for the finality rule.
     """
     instruments = source.enumerate(market)
     status: dict[str, str] = {}
@@ -139,6 +160,7 @@ def run_market_universe(
         rebuild_universe(
             store, market, session, instruments=instruments, unresolved=unresolved
         )
+        rebuild_ranks(store, market, session)
     return store.append_run(
         market,
         session,

@@ -19,6 +19,7 @@ import duckdb
 
 from .bars import Bar
 from .models import RunRecord, RunStatus
+from .ranks import Rank
 
 # Bump when a derived-table definition changes. Detection rows will additionally
 # carry their own detector_version (spec §7.2); this is the store-level schema.
@@ -60,7 +61,36 @@ CREATE TABLE IF NOT EXISTS bars (
     volume     BIGINT NOT NULL,
     PRIMARY KEY (market, symbol, session)
 );
+
+-- The rank table: one row per (market, session, symbol, lookback) carrying the
+-- name's percentile and raw return — the shared "strong" substrate (spec §4.3).
+-- Unlike the other derived tables this one *discards*: a rolling 2-year window
+-- is pruned on each append (ticket 06 R5). Still append-only within a session —
+-- a written session is never rewritten.
+CREATE TABLE IF NOT EXISTS ranks (
+    market      TEXT   NOT NULL,
+    session     DATE   NOT NULL,
+    symbol      TEXT   NOT NULL,
+    lookback    TEXT   NOT NULL,
+    percentile  DOUBLE NOT NULL,
+    raw_return  DOUBLE NOT NULL,
+    PRIMARY KEY (market, session, symbol, lookback)
+);
 """
+
+# Rank history is kept on a rolling window this many years deep; older sessions
+# are pruned as each new one is appended (spec §4.3 / ticket 06 R5). At steady
+# state this always covers the 12m lookback twice over, so no feature outruns it.
+RANK_RETENTION_YEARS = 2
+
+
+def _years_before(session: date, years: int) -> date:
+    """``session`` shifted back whole ``years``, clamping 29 Feb to 28 Feb so a
+    leap-day session yields a valid cutoff."""
+    try:
+        return session.replace(year=session.year - years)
+    except ValueError:  # 29 Feb in a non-leap target year
+        return session.replace(year=session.year - years, day=28)
 
 
 class SessionExistsError(RuntimeError):
@@ -169,7 +199,37 @@ class Store:
         ).fetchall()
         return len(inserted)
 
+    def append_ranks(self, market: str, session: date, rows: list[Rank]) -> int:
+        """Append a session's rank rows, then prune outside the 2-year window.
+
+        Append-only within a session (a written session is never rewritten), but
+        the table as a whole discards: rows more than :data:`RANK_RETENTION_YEARS`
+        older than ``session`` are dropped for this market (spec §4.3). Pruning
+        keys off the session just written, so retention rolls forward with the
+        data and needs no wall clock.
+        """
+        self._guard_absent("ranks", market, session)
+        self._con.executemany(
+            "INSERT INTO ranks VALUES (?, ?, ?, ?, ?, ?)",
+            [[market, session, r.symbol, r.lookback, r.percentile, r.raw_return]
+             for r in rows],
+        )
+        cutoff = _years_before(session, RANK_RETENTION_YEARS)
+        self._con.execute(
+            "DELETE FROM ranks WHERE market = ? AND session < ?", [market, cutoff]
+        )
+        return len(rows)
+
     # -- reads -------------------------------------------------------------
+
+    def ranks(self, market: str, session: date) -> list[Rank]:
+        """A session's rank rows, ordered by symbol then lookback."""
+        rows = self._con.execute(
+            "SELECT symbol, lookback, percentile, raw_return FROM ranks "
+            "WHERE market = ? AND session = ? ORDER BY symbol, lookback",
+            [market, session],
+        ).fetchall()
+        return [Rank(*r) for r in rows]
 
     def bars(self, market: str, symbol: str) -> list[Bar]:
         """A symbol's stored bars, oldest session first."""

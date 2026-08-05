@@ -31,12 +31,13 @@ OVERFIT_TOL = 0.15
 
 
 def manifest():
-    """Decks A/C/D, plus deck E if it has been built. Two files so A3's graded string, which
-    indexes by position into deck3_manifest.csv, cannot be disturbed by adding a deck."""
+    """Decks A/C/D, plus decks E and F if they have been built. One file per deck so a graded
+    string, which indexes by position into its own manifest, cannot be disturbed by adding a deck."""
     mans = [pd.read_csv(os.path.join(HERE, "deck3_manifest.csv"))]
-    e = os.path.join(HERE, "deckE_manifest.csv")
-    if os.path.exists(e):
-        mans.append(pd.read_csv(e))
+    for extra in ("deckE_manifest.csv", "deckF_manifest.csv"):
+        p = os.path.join(HERE, extra)
+        if os.path.exists(p):
+            mans.append(pd.read_csv(p))
     return pd.concat(mans, ignore_index=True)
 
 

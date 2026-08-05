@@ -168,3 +168,32 @@ Unchanged from round 2 except where §1 changes the inputs:
   detector. `TIGHT_MULT` also directly sets the cluster's range ceiling, and therefore the
   distribution of k, which is now the ×2 tightness dimension. **Ticket 19 can move this round's
   primary signal**, and the two tickets are coupled in that order.
+
+---
+
+## 6. Amendment, recorded after deck A3 was graded
+
+**This is a post-hoc change and is labelled as one.** Deck A3's grades showed the orderliness
+dimension to be counterproductive on the split's base — the eye prefers higher churn/L, and the
+pre-registered one-sided cut responded by awarding the point to 99% of cards. §1 above did not
+anticipate that a dimension could fail by *direction* rather than by threshold.
+
+Two things were done about it, and they have different standing:
+
+1. **The optimiser was fixed** — a bug, not a rule change. The pre-registration says "minimised by
+   coordinate descent over a fixed grid"; coordinate descent did not reach the minimum of that
+   objective on that grid. It was replaced with an exhaustive search over the identical grid, same
+   objective, same tie-break. This removes researcher freedom rather than adding it, and it stands
+   without needing confirmation.
+
+2. **Orderliness was redefined as a band** — `ord_lo <= churn/L <= ord_hi` — on the trader's call.
+   This is a genuine change of functional form chosen after seeing the grades, and it carries a
+   mechanism: a synthetic control shows the gap between an orderly base and a gap-then-dead one
+   narrows from 2.9× at L=3 to 1.8× at L=14, so a one-sided cut hands the point to the lifeless
+   base. A band loses the point at both ends. **Its out-of-fold number on deck A3 is optimistic** —
+   cross-validation controls the threshold values, not the choice of form — so the band is a
+   hypothesis with fitted numbers, not a confirmed result.
+
+**Pre-registered for whatever round confirms it:** the band is credited only if it reproduces
+out-of-fold on grades collected *after* this document, at r >= +0.20, on the split's population.
+If it does not, orderliness is dropped and its ×2 redistributed.

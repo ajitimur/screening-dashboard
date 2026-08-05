@@ -158,3 +158,70 @@ the score is the default sort of the only list in the app.
 - **Per-market calibration** — deck C3 ungraded. Still zero graded IDX cards on any structure.
 - **The rejected candidates** — deck D3 ungraded. Ticket 11's obligation, unowned since ticket 09.
 - **The orderliness dimension** — needs a decision and then a fresh pre-registered test.
+
+---
+
+## Amendment: orderliness as a band — the numbers the trader adopted
+
+The trader took option 2 above. `rubric3.py` now scores orderliness as `ord_lo <= churn/L <=
+ord_hi`, losing the point at both ends. Re-fitted under the same pre-registered machinery:
+
+| | one-sided (pre-registered) | **band (adopted)** |
+| --- | --- | --- |
+| out-of-fold r | +0.159 | **+0.255** |
+| mean abs error | 1.15★ | **1.11★** |
+| within one star | 56% | **60%** |
+| bias | +0.10★ | **+0.04★** |
+| predicted SD | 0.65★ | **0.91★** |
+
+**+0.255 clears the 0.180 significance line** — the first time the score has agreed with the eye on
+the new structure. In-sample mae 0.99 against out-of-fold 1.11 is a 0.12 gap, inside the 0.15
+tolerance, so the fit is not overfitted by the pre-registered test.
+
+### The thresholds
+
+| threshold | fitted | fold spread | share awarded the point |
+| --- | --- | --- | --- |
+| tightness `cluster_k ≥` | **4** | 4–4 | 66% |
+| orderliness `ord_lo ≤ churn/L ≤ ord_hi` | **0.275 – 0.50** | 0.20–0.30 / 0.45–0.70 | **55%** |
+| dry-up `≤` | **0.90** | 0.85–1.10 | 33% |
+| base length `len_ok ≤` | **26** | 4–26 | 95% |
+| `ma_support`, SMA20 rising | — | — | 81% |
+
+`cluster_k` is now **stable across every fold** (4–4), where the one-sided fit ranged 4–7. The band
+splits **38% below / 55% inside / 7% above**, so it is the *lower* edge doing the work — exactly
+what the synthetic mechanism predicted, since the leak was toward quiet bases rather than
+disorderly ones.
+
+**Base length remains near-free at 95%** and its fold spread is the whole grid (4–26). It is the one
+dimension still fitted into a constant, and the honest reading is that on the split's base, length
+no longer discriminates — ticket 09's base-length problem has genuinely gone, taking the dimension's
+usefulness with it.
+
+### Calibration is monotone for the first time
+
+| predicted | n | mean grade |
+| --- | --- | --- |
+| < 2.5★ | 20 | 2.45 |
+| 2.5–3.0★ | 13 | 2.62 |
+| 3.0–3.5★ | 25 | 3.32 |
+| 3.5–4.0★ | 25 | 3.36 |
+| ≥ 4.0★ | 37 | 3.73 |
+
+Predicted SD is 0.91★ against the grades' 1.27★ — the score still under-disperses, but it is no
+longer nearly constant.
+
+**Boolean stands** (+0.255 vs continuous +0.191), and **the 4★ cut stands a third time**: ≥4.5★
+gains 9pp of precision for a third of the recall, short of the pre-registered 10pp-at-no-worse-recall
+bar.
+
+### What this result is, and is not
+
+The band was chosen **after** seeing deck A3. Cross-validation controls the threshold *values*; it
+cannot control the choice of functional form. So **+0.255 is optimistic and the band is a
+hypothesis with fitted numbers, not a confirmed result** — pre-registered in §6 of
+`PREREGISTRATION_R3.md` to be credited only if it reproduces at r ≥ +0.20 on grades collected after
+that document.
+
+And the standing rule is unchanged: **the test–retest ceiling is still unmeasured**, so no threshold
+here is final, and it is still unknown whether r = +0.255 is a weak rubric or a noisy target.

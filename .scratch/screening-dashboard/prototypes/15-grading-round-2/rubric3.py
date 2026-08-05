@@ -10,8 +10,17 @@ its dimensions change domain and one changes definition outright:
                     construction and the information sits in how many bars pack into it.
                     Tightness on this structure is a packing count, not a width.
 
-  orderliness (x2)  churn / L, unchanged in form, but over the split's base (median 14 bars)
-                    rather than min(L, 20) of D3's longest window (median 3).
+  orderliness (x2)  churn / L over the split's base, scored as a BAND rather than a one-sided
+                    cut. Round 3 found the one-sided form counterproductive on a ~14-bar base: the
+                    eye prefers higher churn/L, and the fit responded by awarding the point to 99%
+                    of cards. A synthetic control (bases of identical length and envelope differing
+                    only in orderliness) shows the quantity still measures disorder correctly at
+                    every length, so the sign is right and must NOT be flipped. What changes with
+                    length is the gap between an ORDERLY base and a GAP-THEN-DEAD one: 2.9x at
+                    L=3, 1.8x at L=14, 1.65x at L=30. Over a long base a low churn/L stops meaning
+                    "orderly" and starts meaning "quiet", so a one-sided cut hands the point to the
+                    lifeless base 3.4 warns about. A band loses the point at BOTH ends, which is
+                    what the mechanism implies. Adopted by the trader, ticket 15.
 
   base_length (x1)  same penalty, measured against the split's base.
 
@@ -22,14 +31,15 @@ its dimensions change domain and one changes definition outright:
 
   volume (x1)       dry-up, over the split's base.
 
-Free numbers fall from six to three: `cluster_k`, `orderliness`, `dryup`, plus the length band.
+Free numbers: `cluster_k`, `ord_lo`/`ord_hi`, `dryup`, plus the length band.
 """
 
 import numpy as np
 
 T3 = {
     "cluster_k": 5,      # ticket 17 R4's one length-free signal
-    "orderliness": 0.35,  # round 2's fitted value, carried in — domain has changed under it
+    "ord_lo": 0.275,      # the orderliness band. Below it the base is quiet rather than orderly;
+    "ord_hi": 0.60,       # above it, genuinely disorderly. Both ends lose the point.
     "dryup": 0.95,
     "len_ok": 14,        # the split's own median base
     "len_bad": 40,
@@ -83,10 +93,11 @@ def score3(sig, prior_move=None, sector_share=None, mode="boolean", T=None, hw=N
     if o is None:
         p["orderliness"] = 0.5
     elif mode == "boolean":
-        p["orderliness"] = 1.0 if o <= T["orderliness"] else 0.0
+        p["orderliness"] = 1.0 if T["ord_lo"] <= o <= T["ord_hi"] else 0.0
     else:
-        p["orderliness"] = _ramp(-o, -(T["orderliness"] + hw["orderliness"]),
-                                 -(T["orderliness"] - hw["orderliness"]))
+        # trapezoid: ramps in below the band, flat across it, ramps out above
+        p["orderliness"] = float(min(_ramp(o, T["ord_lo"] - hw["orderliness"], T["ord_lo"]),
+                                     _ramp(-o, -(T["ord_hi"] + hw["orderliness"]), -T["ord_hi"])))
 
     raw["prior_move"] = prior_move
     p["prior_move"] = None if prior_move is None else (
@@ -134,12 +145,13 @@ def score3(sig, prior_move=None, sector_share=None, mode="boolean", T=None, hw=N
 
 GRIDS = {
     "cluster_k": [3, 4, 5, 6, 7],
-    "orderliness": np.round(np.arange(0.20, 0.61, 0.025), 4).tolist(),
+    "ord_lo": np.round(np.arange(0.100, 0.301, 0.025), 4).tolist(),
+    "ord_hi": np.round(np.arange(0.350, 0.701, 0.05), 4).tolist(),
     "dryup": np.round(np.arange(0.55, 1.31, 0.05), 3).tolist(),
     "len_ok": list(range(4, 33, 2)),
     "len_bad": list(range(24, 65, 4)),
 }
-ORDER = ["cluster_k", "orderliness", "len_ok", "len_bad", "dryup"]
+ORDER = ["cluster_k", "ord_lo", "ord_hi", "len_ok", "len_bad", "dryup"]
 
 
 def _vector_predictor(rows, mode, hw=None):
@@ -189,14 +201,16 @@ def _vector_predictor(rows, mode, hw=None):
     def predict(T):
         if mode == "boolean":
             pt = np.where(np.isfinite(k), (k >= T["cluster_k"]).astype(float), 0.5)
-            po = np.where(np.isfinite(o), (o <= T["orderliness"]).astype(float), 0.5)
+            po = np.where(np.isfinite(o),
+                          ((o >= T["ord_lo"]) & (o <= T["ord_hi"])).astype(float), 0.5)
             pv = np.where(np.isfinite(du), (du <= T["dryup"]).astype(float), 0.5)
             pl = np.where(hasL, (L <= T["len_ok"]).astype(float), 0.0)
         else:
             pt = np.where(np.isfinite(k), ramp(k, T["cluster_k"] - hw["cluster_k"],
                                                T["cluster_k"] + hw["cluster_k"]), 0.5)
-            po = np.where(np.isfinite(o), ramp(-o, -(T["orderliness"] + hw["orderliness"]),
-                                               -(T["orderliness"] - hw["orderliness"])), 0.5)
+            po = np.where(np.isfinite(o),
+                          np.minimum(ramp(o, T["ord_lo"] - hw["orderliness"], T["ord_lo"]),
+                                     ramp(-o, -(T["ord_hi"] + hw["orderliness"]), -T["ord_hi"])), 0.5)
             pv = np.where(np.isfinite(du), ramp(-du, -(T["dryup"] + hw["dryup"]),
                                                 -(T["dryup"] - hw["dryup"])), 0.5)
             pl = np.where(hasL, ramp(-L, -float(T["len_bad"]), -float(T["len_ok"])), 0.0)
@@ -249,7 +263,7 @@ def fit(rows, mode="boolean", start=None, rounds=3, objective="mae"):
     from itertools import product
     for combo in product(*(GRIDS[k] for k in keys)):
         T = {**incumbent, **dict(zip(keys, combo))}
-        if T["len_bad"] <= T["len_ok"]:
+        if T["len_bad"] <= T["len_ok"] or T["ord_hi"] <= T["ord_lo"]:
             continue
         lv = loss_of(T)
         if lv < best - 1e-9:                     # ties break toward the incumbent

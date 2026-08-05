@@ -1,7 +1,7 @@
 # Second grading round: fix the star-score thresholds
 
 Type: prototype
-Status: claimed
+Status: resolved
 Blocked by: 17
 
 ## Question
@@ -268,3 +268,106 @@ weak or the target is noisy *is* the question. The 12 repeats live in decks C3 a
 carry per-market calibration (still zero graded IDX cards on any structure) and the rejected
 candidates (ticket 11's obligation, unowned since ticket 09). By the pre-registration no threshold is
 final until the ceiling is measured.
+
+---
+
+## Resolution
+
+**The rubric's structure is settled on ticket 17's base/cluster split, and its numbers are fitted
+and provisional.** Out-of-fold **r = +0.255** against the eye — the first time the score has cleared
+significance on this structure (|r| > 0.180 at n=120). Full working in
+[`ROUND3_RESULTS.md`](../prototypes/15-grading-round-2/ROUND3_RESULTS.md), method fixed in advance in
+[`PREREGISTRATION_R3.md`](../prototypes/15-grading-round-2/PREREGISTRATION_R3.md), grades in
+`grades3_A.txt`.
+
+### R1. Tightness is a packing count, not a width — and it is scorable
+
+D3's retained set is gone, so contraction has no domain. Every measure of *narrowness* fails on the
+population the rubric actually ranks; **cluster length k** is the only candidate that replicates
+across three populations (+0.327 mixed, **+0.196** on the fresh deck, both length-free). The cluster
+is *selected* to fit under `TIGHT_MULT × ADR`, so its width is spent by the selection and the
+information left is how many bars pack into it. Cluster churn measures the same object (r = 0.850
+with k). k clears the pre-registered +0.15 floor, so **ticket 17's R6 fallback does not fire** and
+the full split stands.
+
+### R2. The orderliness dimension needed a new shape, and it is now a band
+
+On a ~14-bar base the one-sided cut is counterproductive — the eye prefers higher churn/L, and the
+fit responded by awarding the point to 99% of cards. **It is not a sign error.** A synthetic control
+(bases of identical length and envelope differing only in orderliness) shows churn/L still measures
+disorder correctly at every length; what changes is the gap between an *orderly* base and a
+*gap-then-dead* one, narrowing 2.9× → **1.8×** → 1.65× as L goes 3 → 14 → 30. Over a long base a low
+churn/L stops meaning "orderly" and starts meaning "quiet", so the point leaks to the lifeless base
+§3.4 warns about. **Scored as a band, `0.275 ≤ churn/L ≤ 0.50`** — losing the point at both ends —
+on the trader's call. 38% of cards fall below the band, 7% above, so the lower edge is doing the
+work, exactly as the mechanism predicts.
+
+### R3. D10's MA distance is retired; only "SMA20 rising" survives
+
+The split's catch-up test already gates 100% of survivors, and the distance carries nothing once
+base length is controlled (partial r **+0.010**, p = 0.93) while correlating +0.606 with the gap
+that test already reads. The dimension keeps its ×1 and loses its threshold.
+
+### R4. The thresholds
+
+| dimension | weight | rule | share awarded |
+| --- | --- | --- | --- |
+| tightness | ×2 | `cluster_k ≥ 4` | 66% |
+| orderliness | ×2 | `0.275 ≤ churn/L ≤ 0.50` over the base | 55% |
+| prior move | ×1 | decile gate, `≥ 0.90` (fixed, ticket 06) | — |
+| base length | ×1 | `≤ 26` bars | 95% |
+| MA support | ×1 | SMA20 rising | 81% |
+| volume | ×1 | dry-up `≤ 0.90` | 33% |
+| sector | ×1 | leave-one-out share `≥ 0.10` (fixed, ticket 07) | — |
+| ADR | ×1 | `≥ 0.05` (fixed, §3.5) | — |
+
+**Boolean, not continuous** (+0.255 vs +0.191), by round 2's rule and for round 2's reason: ticket
+11 made this the default sort of the only list in the app, and a sort key you cannot audit is one
+you will not trust. **`cluster_k` is stable across every fold.** Calibration is **monotone for the
+first time** — mean grade 2.45 · 2.62 · 3.32 · 3.36 · 3.73 across predicted bands.
+
+**Base length is the one dimension still fitted into a constant** (95% awarded, fold spread the
+whole grid). Ticket 09's base-length problem has genuinely gone on this structure, and it took the
+dimension's usefulness with it.
+
+### R5. The 4★ cut stands, and precision at the trade line is 0.53
+
+Third time it has survived. ≥4.5★ buys 9pp of precision for a third of the recall, short of the
+pre-registered 10pp-at-no-worse-recall bar. Precision at the 4★ line is **0.53**, up from round 2's
+0.37 — roughly one name in two the machine calls tradeable is one the trader would. That is the
+number ticket 11 depends on.
+
+### R6. A defect in the fitting procedure, found and fixed
+
+Round 2 fitted by **coordinate descent**, and on these grades it does not reach the optimum of its
+own objective — mae 1.0875 where an exhaustive pass over the *identical* grid finds 1.0292. The
+point it settled on was degenerate: `cluster_k ≥ 3` awards the ×2 tightness point to 100% of cards
+(3 is the detector's minimum), so the fitter used the rubric's biggest weight as a bias knob and
+made the score nearly constant. Out-of-fold that read **+0.060**. Replaced with an exhaustive search
+over the same grid, objective and tie-break — a bug fix, not a rule change, since there is one global
+optimum and nothing to choose. **Round 2's published thresholds were re-checked from 60 random
+restarts and are unaffected**; the defect bites here because the split's domain flattens the loss
+surface.
+
+### R7. D13's partial-lock probe is de-scoped — the population has gone
+
+Over 2,244 accepted IDX detections, **98.1% have zero collapsed bars** and 1.8% are partially
+locked. A 26-per-arm probe cannot be drawn from that. Ticket 09 measured it on ~3-bar bases, where a
+single limit day is a third of the base; on a 14-bar base it is a fourteenth.
+
+### What this resolution does NOT settle
+
+Three obligations were carried by decks C3 and D3, which are **built and rendered but ungraded** by
+the trader's decision to stop after deck A3. They graduate to
+[ticket 20](20-confirm-the-band-and-measure-the-ceiling.md):
+
+- **The test–retest ceiling, unmeasured for the second round running.** Every r on this map is
+  against an unknown maximum, and at +0.255 the question of whether the rubric is weak or the target
+  is noisy is unanswered. By the pre-registration **no threshold above is final** until it is
+  measured.
+- **The band is a hypothesis with fitted numbers, not a confirmed result.** It was chosen after
+  seeing deck A3, so cross-validation controls its threshold *values* but not its functional form,
+  and +0.255 is optimistic. §6 of the pre-registration fixes the confirmation bar at r ≥ +0.20 on
+  grades collected afterwards.
+- **Per-market calibration and the rejected candidates.** Still zero graded IDX cards on any
+  structure; ticket 11's rejected-candidates obligation still unowned.

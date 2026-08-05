@@ -21,6 +21,8 @@ from screener.detection import (
     DETECTOR_VERSION,
     TOP_DECILE,
     Rank,
+    _churn_l,
+    _dryup,
     detect,
     detection_gate,
 )
@@ -122,6 +124,34 @@ def test_a_name_with_no_tight_cluster_is_not_a_detection():
     for h in (60, 55, 62, 54, 63, 56, 61):  # last bars swing ~15% of price
         hlc.append((h + 0.5, h - 0.5, h))
     assert detect("AAA", _bars(hlc), CAL[96]) is None
+
+
+# -- the star score's derived signals (spec §4.7) -----------------------------
+
+
+def test_detection_carries_the_star_score_signal_vector():
+    d = detect("AAA", _bars(_base_series()), CAL[104])
+    # churn/L over the 30-bar flat top: 30 unit ranges over a unit span ÷ 30 = 1.0.
+    assert abs(d.churn_l - 1.0) < 1e-9
+    # Constant volume → no dry-up (base median == pre-base median).
+    assert abs(d.dryup - 1.0) < 1e-9
+    assert isinstance(d.sma20_rising, bool)
+
+
+def test_churn_l_separates_smooth_drift_from_a_barcode():
+    # Barcode: 10 bars oscillating in [99, 100], span 1.0, per-bar range 1.0.
+    barcode_hi = [100.0] * 10
+    barcode_lo = [99.0] * 10
+    assert abs(_churn_l(barcode_hi, barcode_lo, 0, 9) - 1.0) < 1e-9
+    # Smooth drift up: same 10 bars, tight 0.2 ranges over a 2.0 net span.
+    drift_hi = [90.0 + 0.2 * i + 0.2 for i in range(10)]
+    drift_lo = [90.0 + 0.2 * i for i in range(10)]
+    assert _churn_l(drift_hi, drift_lo, 0, 9) < 0.2
+
+
+def test_dryup_is_base_volume_over_the_preceding_fifty_bars():
+    vol = [100] * 50 + [40] * 10   # a quiet base after a busy run-up
+    assert abs(_dryup(vol, 50, 59) - 0.4) < 1e-9
 
 
 # -- the decile gate reads only 1m / 3m / 6m ----------------------------------

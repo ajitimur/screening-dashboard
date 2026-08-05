@@ -48,6 +48,7 @@ from __future__ import annotations
 from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import date
+from statistics import median
 
 from .bars import Bar
 from .indicators import adr as _adr
@@ -84,6 +85,13 @@ MAX_OVERSHOOT_ADR = 1.0
 
 # Detection requires ≥ 80 bars of history and a positive ADR (spec §4.5).
 MIN_HISTORY = 80
+
+# The star score's derived signals (spec §4.7). Dry-up compares the base's median
+# volume to the 50 bars before it; "SMA20 rising" is §4.2's sign-only rising test
+# (X[t] > X[t−5]) on the 20-bar MA. Read here, scored in :mod:`.score`.
+DRYUP_LOOKBACK = 50
+SMA_SUPPORT = 20
+RISING_LAG = 5
 
 # The decile gate reads only 3 of the 5 ranking windows (spec §4.5 gates).
 DETECTION_LOOKBACKS = ("1m", "3m", "6m")
@@ -123,6 +131,11 @@ class Detection:
     slope: float            # the fitted envelope's slope, price per bar (≤ 0)
     line_end: float         # the fitted line at today; always ≤ trigger
     base_low: float
+    # -- the star score's derived signals (spec §4.7) — persisted so a corrected
+    # rubric replays backwards; scored in :mod:`.score`, never here.
+    churn_l: float          # (Σ base daily ranges ÷ base range) ÷ base_len; orderliness
+    sma20_rising: bool      # SMA20 rising, sign-only (X[t] > X[t−5]); MA support
+    dryup: float            # median base volume ÷ median volume of the 50 bars before it
 
 
 # -- pure geometry (numpy-free, so it is unit-tested without the network) ------
@@ -230,6 +243,37 @@ def _fit_envelope(
     return m, line_ok, zones, over_max, line_end
 
 
+def _churn_l(
+    high: list[float], low: list[float], base_start: int, as_of: int
+) -> float:
+    """Orderliness signal: ``(Σ daily ranges over the base ÷ base range) ÷ L``.
+
+    The sum of per-bar ranges relative to the base's net span, divided by base
+    length — a smooth drift runs low (~0.19), a barcode high (~0.62). Zero when
+    the base has no vertical span (every bar identical), which fails the band."""
+    span = max(high[base_start:as_of + 1]) - min(low[base_start:as_of + 1])
+    if span <= 0:
+        return 0.0
+    total = sum(high[t] - low[t] for t in range(base_start, as_of + 1))
+    base_len = as_of - base_start + 1
+    return total / span / base_len
+
+
+def _dryup(vol: list[int], base_start: int, as_of: int) -> float:
+    """Volume signal: median base volume ÷ median volume of the 50 bars before it.
+
+    Below 1.0 the base is quieter than the run-up that preceded it — the dry-up
+    §3.5 wants. ``1.0`` (neutral, no dry-up) when no bars precede the base, which
+    only happens for a base that starts at the very first bar."""
+    pre = vol[max(0, base_start - DRYUP_LOOKBACK):base_start]
+    if not pre:
+        return 1.0
+    pre_med = median(pre)
+    if pre_med <= 0:
+        return 1.0
+    return median(vol[base_start:as_of + 1]) / pre_med
+
+
 def _sma_close(close: list[float], as_of: int, window: int) -> float | None:
     """SMA of the **unadjusted** close over ``window`` traded bars ending at
     ``as_of``. Distinct from ``indicators.sma`` (adjusted close, for returns):
@@ -261,6 +305,7 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
     high = [b.high for b in bars]
     low = [b.low for b in bars]
     close = [b.close for b in bars]
+    vol = [b.volume for b in bars]
 
     a = _adr(bars[:idx + 1])
     if a is None or a <= 0:
@@ -302,6 +347,13 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
     trigger = cluster_high  # by identity — never max(line, high); the clamp is dead
     stop = trigger - cluster_low
     stopw_adr = stop / trigger / a if trigger > 0 else float("nan")
+
+    # The star score's three derived signals (spec §4.7), persisted on the row so
+    # a corrected rubric replays over history. SMA20 rising is sign-only: the MA
+    # today above the MA five bars back (§4.2's "rising").
+    s20 = _sma_close(close, idx, SMA_SUPPORT)
+    s20_prev = _sma_close(close, idx - RISING_LAG, SMA_SUPPORT)
+    sma20_rising = s20 is not None and s20_prev is not None and s20 > s20_prev
     return Detection(
         symbol=symbol,
         session=as_of,
@@ -323,6 +375,9 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
         slope=slope,
         line_end=line_end,
         base_low=min(low[base_start:idx + 1]),
+        churn_l=_churn_l(high, low, base_start, idx),
+        sma20_rising=sma20_rising,
+        dryup=_dryup(vol, base_start, idx),
     )
 
 

@@ -105,7 +105,7 @@
         "type": "object"
       },
       "Candidate": {
-        "description": "One row of the candidate list \u2014 a detection made readable (spec \u00a75.1).\n\nFive columns off the detection row. ``score`` is the star score and the\nintended sort key, but it is a **placeholder** (``None``) until the rubric\nlands (ticket 39), so the list orders by ticker until then. ``dist_adr`` is\nthe distance to the trigger in ADR (``(trigger \u2212 close) / adr_abs``);\n``stopw_adr`` is the stop width in ADR (``(trigger \u2212 cluster_low) / adr_abs``,\nthe watchlist stop of \u00a74.6). The stop column **never filters** \u2014 instead the\naffordable sub-1\u00d7ADR minority is flagged (``affordable``), the inverse of\nmarking the ~92% unaffordable majority. ``industry`` is the theme layer\n(``None`` if the label was never fetched); ``breadth`` is the ``k/5`` badge, a\npersistence count and **not** a quality score.",
+        "description": "One row of the candidate list \u2014 a detection made readable (spec \u00a75.1).\n\nFive columns off the detection row. ``score`` is the star score (0\u20135) and the\nsort key of the list; ``breakdown`` carries its eight-row rubric so the chart\npanel can reconstruct the arithmetic (spec \u00a74.7). ``dist_adr`` is the distance\nto the trigger in ADR (``(trigger \u2212 close) / adr_abs``); ``stopw_adr`` is the\nstop width in ADR (``(trigger \u2212 cluster_low) / adr_abs``, the watchlist stop\nof \u00a74.6). The stop column **never filters** \u2014 instead the affordable sub-1\u00d7ADR\nminority is flagged (``affordable``), the inverse of marking the ~92%\nunaffordable majority. ``industry`` is the theme layer (``None`` if the label\nwas never fetched); ``breadth`` is the ``k/5`` badge, a persistence count and\n**not** a quality score.\n\nNothing here marks a ``line_ok`` failure: the fit's quality is a **silent\ntiebreak** that orders the list but is never surfaced in the row (spec \u00a74.7).",
         "properties": {
           "affordable": {
             "title": "Affordable",
@@ -114,6 +114,13 @@
           "breadth": {
             "title": "Breadth",
             "type": "integer"
+          },
+          "breakdown": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreRow"
+            },
+            "title": "Breakdown",
+            "type": "array"
           },
           "dist_adr": {
             "title": "Dist Adr",
@@ -131,15 +138,8 @@
             "title": "Industry"
           },
           "score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score"
+            "title": "Score",
+            "type": "number"
           },
           "stopw_adr": {
             "title": "Stopw Adr",
@@ -153,6 +153,7 @@
         "required": [
           "symbol",
           "score",
+          "breakdown",
           "dist_adr",
           "stopw_adr",
           "affordable",
@@ -163,7 +164,7 @@
         "type": "object"
       },
       "CandidatesResponse": {
-        "description": "Tonight's candidate list for one market (spec \u00a75.1).\n\n``session`` is the as-of published session, ``None`` when no run has\npublished (an explicit empty state). ``ordered_by`` is ``\"ticker\"`` while the\nstar score is a placeholder and becomes ``\"score\"`` once the rubric lands \u2014 the\nUI reads it to state, honestly, that the score sort is not yet live.",
+        "description": "Tonight's candidate list for one market (spec \u00a75.1).\n\n``session`` is the as-of published session, ``None`` when no run has\npublished (an explicit empty state). ``ordered_by`` is ``\"score\"`` now that\nthe star-score rubric lands (ticket 39): the list sorts by star score\ndescending, with ``line_ok`` failures silently below equal-scored accepted\nnames. The field remains for the UI to read the order honestly.",
         "properties": {
           "candidates": {
             "items": {
@@ -420,6 +421,30 @@
           "universe_size"
         ],
         "title": "RunsResponse",
+        "type": "object"
+      },
+      "ScoreRow": {
+        "description": "One row of a candidate's star-score breakdown (spec \u00a74.7).\n\nEight of these reconstruct the score arithmetically next to the chart \u2014 the\ndimension's name, its weight (2 for tightness and orderliness, 1 for the rest)\nand whether it hit. ``n/10 \u2192 stars`` is ``sum(weight where hit) \u00f7 2``.",
+        "properties": {
+          "dimension": {
+            "title": "Dimension",
+            "type": "string"
+          },
+          "hit": {
+            "title": "Hit",
+            "type": "boolean"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dimension",
+          "weight",
+          "hit"
+        ],
+        "title": "ScoreRow",
         "type": "object"
       },
       "SectorStrength": {

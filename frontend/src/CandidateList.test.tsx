@@ -11,7 +11,8 @@ afterEach(() => {
 function candidate(symbol: string, over: Partial<Candidate> = {}): Candidate {
   return {
     symbol,
-    score: null,
+    score: 3.5,
+    breakdown: [],
     dist_adr: 1.0,
     stopw_adr: 1.3,
     affordable: false,
@@ -25,7 +26,7 @@ function list(over: Partial<CandidatesResponse> = {}): CandidatesResponse {
   return {
     market: "US",
     session: "2026-08-05",
-    ordered_by: "ticker",
+    ordered_by: "score",
     candidates: [candidate("AAA")],
     ...over,
   };
@@ -55,20 +56,39 @@ describe("the candidate list", () => {
     expect(headers.join("|")).toMatch(/5/);
   });
 
-  it("states the order is by ticker and the score sort is not yet live", async () => {
-    mockCandidates(list({ ordered_by: "ticker" }));
+  it("states the list is sorted by star score, highest first", async () => {
+    mockCandidates(list({ ordered_by: "score" }));
     render(<CandidateList market="US" />);
     const note = await screen.findByRole("note");
-    expect(note).toHaveTextContent(/ticker/i);
-    expect(note).toHaveTextContent(/score.*not.*(yet|live)|not yet live/i);
+    expect(note).toHaveTextContent(/score/i);
+    expect(note).toHaveTextContent(/highest|descending|first/i);
   });
 
-  it("shows the star score as a placeholder until the rubric lands", async () => {
-    mockCandidates(list({ candidates: [candidate("AAA", { score: null })] }));
+  it("renders the star score to one decimal — the sort key", async () => {
+    mockCandidates(list({ candidates: [candidate("AAA", { score: 4.5 })] }));
     render(<CandidateList market="US" />);
     const row = await screen.findByRole("row", { name: /AAA/ });
-    // No fabricated number — the score cell is an explicit placeholder.
-    expect(within(row).getByText("—")).toBeInTheDocument();
+    expect(within(row).getByText("4.5")).toBeInTheDocument();
+  });
+
+  it("renders candidates in the server's order and marks no line_ok failure", async () => {
+    // The server already sorted by score with the silent line_ok tiebreak; the
+    // component preserves that order and adds no marker of its own.
+    mockCandidates(
+      list({
+        candidates: [
+          candidate("TOP", { score: 5.0 }),
+          candidate("MID", { score: 3.0 }),
+        ],
+      }),
+    );
+    render(<CandidateList market="US" />);
+    const table = await screen.findByRole("table", { name: /US candidates/i });
+    const rows = within(table).getAllByRole("row").slice(1); // drop the header
+    expect(rows.map((r) => within(r).getByRole("rowheader").textContent)).toEqual([
+      "TOP",
+      "MID",
+    ]);
   });
 
   it("highlights the sub-1×ADR affordable minority and filters nothing", async () => {

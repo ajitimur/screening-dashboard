@@ -146,28 +146,33 @@ export interface components {
          * Candidate
          * @description One row of the candidate list — a detection made readable (spec §5.1).
          *
-         *     Five columns off the detection row. ``score`` is the star score and the
-         *     intended sort key, but it is a **placeholder** (``None``) until the rubric
-         *     lands (ticket 39), so the list orders by ticker until then. ``dist_adr`` is
-         *     the distance to the trigger in ADR (``(trigger − close) / adr_abs``);
-         *     ``stopw_adr`` is the stop width in ADR (``(trigger − cluster_low) / adr_abs``,
-         *     the watchlist stop of §4.6). The stop column **never filters** — instead the
-         *     affordable sub-1×ADR minority is flagged (``affordable``), the inverse of
-         *     marking the ~92% unaffordable majority. ``industry`` is the theme layer
-         *     (``None`` if the label was never fetched); ``breadth`` is the ``k/5`` badge, a
-         *     persistence count and **not** a quality score.
+         *     Five columns off the detection row. ``score`` is the star score (0–5) and the
+         *     sort key of the list; ``breakdown`` carries its eight-row rubric so the chart
+         *     panel can reconstruct the arithmetic (spec §4.7). ``dist_adr`` is the distance
+         *     to the trigger in ADR (``(trigger − close) / adr_abs``); ``stopw_adr`` is the
+         *     stop width in ADR (``(trigger − cluster_low) / adr_abs``, the watchlist stop
+         *     of §4.6). The stop column **never filters** — instead the affordable sub-1×ADR
+         *     minority is flagged (``affordable``), the inverse of marking the ~92%
+         *     unaffordable majority. ``industry`` is the theme layer (``None`` if the label
+         *     was never fetched); ``breadth`` is the ``k/5`` badge, a persistence count and
+         *     **not** a quality score.
+         *
+         *     Nothing here marks a ``line_ok`` failure: the fit's quality is a **silent
+         *     tiebreak** that orders the list but is never surfaced in the row (spec §4.7).
          */
         Candidate: {
             /** Affordable */
             affordable: boolean;
             /** Breadth */
             breadth: number;
+            /** Breakdown */
+            breakdown: components["schemas"]["ScoreRow"][];
             /** Dist Adr */
             dist_adr: number;
             /** Industry */
             industry: string | null;
             /** Score */
-            score: number | null;
+            score: number;
             /** Stopw Adr */
             stopw_adr: number;
             /** Symbol */
@@ -178,9 +183,10 @@ export interface components {
          * @description Tonight's candidate list for one market (spec §5.1).
          *
          *     ``session`` is the as-of published session, ``None`` when no run has
-         *     published (an explicit empty state). ``ordered_by`` is ``"ticker"`` while the
-         *     star score is a placeholder and becomes ``"score"`` once the rubric lands — the
-         *     UI reads it to state, honestly, that the score sort is not yet live.
+         *     published (an explicit empty state). ``ordered_by`` is ``"score"`` now that
+         *     the star-score rubric lands (ticket 39): the list sorts by star score
+         *     descending, with ``line_ok`` failures silently below equal-scored accepted
+         *     names. The field remains for the UI to read the order honestly.
          */
         CandidatesResponse: {
             /** Candidates */
@@ -295,6 +301,22 @@ export interface components {
             runs: components["schemas"]["RunRecord"][];
             /** Universe Size */
             universe_size: number | null;
+        };
+        /**
+         * ScoreRow
+         * @description One row of a candidate's star-score breakdown (spec §4.7).
+         *
+         *     Eight of these reconstruct the score arithmetically next to the chart — the
+         *     dimension's name, its weight (2 for tightness and orderliness, 1 for the rest)
+         *     and whether it hit. ``n/10 → stars`` is ``sum(weight where hit) ÷ 2``.
+         */
+        ScoreRow: {
+            /** Dimension */
+            dimension: string;
+            /** Hit */
+            hit: boolean;
+            /** Weight */
+            weight: number;
         };
         /**
          * SectorStrength

@@ -29,6 +29,7 @@ def _det(symbol, *, trigger=100.5, cluster_low=99.5, line_ok=True):
         cluster_k=7, cluster_high=trigger, cluster_low=cluster_low,
         cluster_range_adr=0.99, line_ok=line_ok, touch_zones=2, overshoot_adr=0.0,
         slope=-0.001, line_end=100.4, base_low=99.5,
+        churn_l=0.45, sma20_rising=True, dryup=0.90,
     )
 
 
@@ -44,6 +45,8 @@ def test_append_and_read_back_detection_rows(store: Store):
     assert bbb.trigger == 50.0 and bbb.cluster_low == 49.0
     assert bbb.line_ok is False
     assert bbb.detector_version == DETECTOR_VERSION
+    # The star score's derived signals round-trip too (spec §4.7).
+    assert bbb.churn_l == 0.45 and bbb.sma20_rising is True and bbb.dryup == 0.90
 
 
 def test_rewriting_a_session_of_detections_is_refused(store: Store):

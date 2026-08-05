@@ -110,6 +110,38 @@ def _shares(
     return shares, counts
 
 
+def leave_one_out_sector_shares(
+    rows: list[Rank],
+    sector_of: dict[str, str],
+    *,
+    lookback: str = TEMPORAL_LOOKBACK,
+) -> dict[str, float]:
+    """Each member's **leave-one-out** sector share in ``lookback`` (spec §4.4).
+
+    The star score's sector confirmation (§4.7): the share of a name's *other*
+    sector peers in the lookback's top decile, the candidate removed from both
+    numerator and denominator. The leave-one-out is load-bearing — the naive rule
+    fires 77–90% because a candidate inflates its own sector's share, making the
+    point nearly free; removing the self drops it to a discriminating ~52% on IDX.
+
+    Defaults to the 1m lookback (``TEMPORAL_LOOKBACK``, ticket 07). A symbol with
+    no sector label appears in no sector's membership and so is absent from the
+    result — the caller reads a missing key as a 0 share (no sector to confirm).
+    A lone member of its sector has no peers to leave in, so its share is ``0.0``.
+    """
+    members, decile = _aggregate(rows, sector_of)
+    shares: dict[str, float] = {}
+    for sector, symbols in members.items():
+        n = len(symbols)
+        top = decile.get(sector, {}).get(lookback, set())
+        k = len(top)
+        for symbol in symbols:
+            n_loo = n - 1
+            k_loo = k - (1 if symbol in top else 0)
+            shares[symbol] = k_loo / n_loo if n_loo > 0 else 0.0
+    return shares
+
+
 def sector_strengths(
     rows: list[Rank],
     sector_of: dict[str, str],

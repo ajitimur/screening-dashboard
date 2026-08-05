@@ -141,25 +141,29 @@ def create_app(store: Store | None = None) -> FastAPI:
         latest = store.latest_run(market)
         if latest is None:
             # No published run yet — an explicit empty state, not a fabricated
-            # date. Ordering is still by ticker: the score sort is not yet live.
+            # date. The order is by score, there is simply nothing to order.
             return CandidatesResponse(
-                market=market, session=None, ordered_by="ticker", candidates=[]
+                market=market, session=None, ordered_by="score", candidates=[]
             )
         session = latest.session
         # Compose the list from what the pipeline published for this session: the
-        # detection rows (base + trigger + stop), the rank table (the k/5 badge)
-        # and the label cache (the industry). The regime never enters — the list
-        # is identical in all three regime states (spec §4.9).
-        industry_of = {sym: label.industry for sym, label in store.labels(market).items()}
+        # detection rows (base + trigger + stop + the score's signal vector), the
+        # rank table (the k/5 badge, the prior-move percentile) and the label cache
+        # (the industry, and the sector for the score's leave-one-out share). The
+        # regime never enters — the list is identical in all three states (§4.9).
+        labels = store.labels(market)
+        industry_of = {sym: label.industry for sym, label in labels.items()}
+        sector_of = {sym: label.sector for sym, label in labels.items()}
         candidates = build_candidates(
             store.detections(market, session),
             store.ranks(market, session),
             industry_of,
+            sector_of,
         )
-        # Ordered by ticker until the star-score rubric lands (ticket 39); the UI
-        # states that the score sort is not yet live rather than inventing one.
+        # Sorted by star score descending, line_ok failures a silent tiebreak
+        # below equal-scored accepted names (spec §4.7); the UI reads ordered_by.
         return CandidatesResponse(
-            market=market, session=session, ordered_by="ticker", candidates=candidates
+            market=market, session=session, ordered_by="score", candidates=candidates
         )
 
     @app.get("/api/regime/{market}", response_model=RegimeResponse)

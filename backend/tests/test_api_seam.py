@@ -163,11 +163,16 @@ def _candidates_store() -> Store:
             cluster_k=5, cluster_high=100.0, cluster_low=cluster_low,
             cluster_range_adr=0.99, line_ok=True, touch_zones=2, overshoot_adr=0.0,
             slope=-0.001, line_end=99.9, base_low=cluster_low,
+            churn_l=0.45, sma20_rising=True, dryup=0.90,
         )
 
     # ZZZ: cluster_low 99.0 → stop 1.0 / adr_abs 1.96 ≈ 0.51 (affordable).
     # AAA: cluster_low 95.0 → stop 5.0 / adr_abs 1.96 ≈ 2.55 (the majority).
     store.append_detections("US", session, [det("AAA", 95.0), det("ZZZ", 99.0)])
+    # AAA is top-decile in 1m/3m (a prior-move point and a 2/5 breadth badge);
+    # ZZZ is in no decile. Both score tight+orderly+MA+volume; both miss base
+    # length (30), sector (lone member) and ADR (0.02) — AAA's prior-move point
+    # puts it a half-star ahead, so score, not ticker, decides the order.
     store.append_ranks("US", session, [
         Rank("AAA", "1m", 0.95, 1.2), Rank("AAA", "3m", 0.95, 1.1),
     ])
@@ -175,18 +180,24 @@ def _candidates_store() -> Store:
     return store
 
 
-def test_candidates_endpoint_returns_ticker_ordered_five_column_rows():
+def test_candidates_endpoint_returns_score_ordered_five_column_rows():
     store = _candidates_store()
     try:
         body = client_for(store).get("/api/candidates/US").json()
         assert body["market"] == "US"
         assert body["session"] == "2026-08-05"
-        # Ordered by ticker; the score sort is not yet live (ticket 39).
-        assert body["ordered_by"] == "ticker"
+        # Sorted by star score descending, now that the rubric lands (ticket 39).
+        assert body["ordered_by"] == "score"
         assert [c["symbol"] for c in body["candidates"]] == ["AAA", "ZZZ"]
 
         aaa = body["candidates"][0]
-        assert aaa["score"] is None                 # placeholder until the rubric lands
+        assert aaa["score"] == 3.5                   # prior move + tight + orderly + MA + volume
+        assert body["candidates"][1]["score"] == 3.0  # ZZZ misses the prior-move point
+        # The payload carries the eight-row breakdown that reconstructs the score.
+        assert len(aaa["breakdown"]) == 8
+        assert sum(r["weight"] for r in aaa["breakdown"] if r["hit"]) == 7
+        # Nothing marks the line_ok tiebreak — no such field on the row.
+        assert "line_ok" not in aaa
         assert aaa["industry"] == "Semiconductors"  # the theme layer
         assert aaa["breadth"] == 2                   # top-decile in 2 of 5 lookbacks
         assert abs(aaa["dist_adr"] - (100.0 - 98.0) / (0.02 * 98.0)) < 1e-9
@@ -209,7 +220,7 @@ def test_candidates_stop_column_flags_the_affordable_minority_and_filters_nothin
 def test_candidates_endpoint_is_empty_when_no_run_published(store: Store):
     body = client_for(store).get("/api/candidates/US").json()
     assert body == {
-        "market": "US", "session": None, "ordered_by": "ticker", "candidates": [],
+        "market": "US", "session": None, "ordered_by": "score", "candidates": [],
     }
 
 

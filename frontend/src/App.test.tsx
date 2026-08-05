@@ -19,7 +19,7 @@ function noRegime(market: string): RegimeResponse {
 }
 
 function emptyCandidates(market: string): CandidatesResponse {
-  return { market, session: null, ordered_by: "ticker", candidates: [] };
+  return { market, session: null, ordered_by: "score", candidates: [] };
 }
 
 // Route the mocked fetch by endpoint: /api/runs/* returns the run records,

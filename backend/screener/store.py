@@ -27,8 +27,9 @@ from .regime import FollowThrough
 # Bump when a derived-table definition changes. Detection rows additionally carry
 # their own detector_version column (spec §7.2); this is the store-level schema.
 # v2 adds the sector/industry label cache (spec §3.3); v3 the breakout
-# follow-through capture (spec §4.9); v4 the detections table (spec §4.5).
-SCHEMA_VERSION = 4
+# follow-through capture (spec §4.9); v4 the detections table (spec §4.5); v5
+# extends detections with the star score's three derived signals (spec §4.7).
+SCHEMA_VERSION = 5
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
@@ -136,6 +137,11 @@ CREATE TABLE IF NOT EXISTS detections (
     slope              DOUBLE  NOT NULL,
     line_end           DOUBLE  NOT NULL,
     base_low           DOUBLE  NOT NULL,
+    -- The star score's derived signals (spec §4.7), persisted so a corrected
+    -- rubric replays over history; the score itself is derived, never stored.
+    churn_l            DOUBLE  NOT NULL,
+    sma20_rising       BOOLEAN NOT NULL,
+    dryup              DOUBLE  NOT NULL,
     PRIMARY KEY (market, session, symbol)
 );
 """
@@ -330,12 +336,13 @@ class Store:
             return 0
         self._con.executemany(
             "INSERT INTO detections VALUES "
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 [market, session, d.symbol, d.detector_version, d.trigger, d.stop,
                  d.stopw_adr, d.base_len, d.move_gain, d.adr, d.close, d.cluster_k,
                  d.cluster_high, d.cluster_low, d.cluster_range_adr, d.line_ok,
-                 d.touch_zones, d.overshoot_adr, d.slope, d.line_end, d.base_low]
+                 d.touch_zones, d.overshoot_adr, d.slope, d.line_end, d.base_low,
+                 d.churn_l, d.sma20_rising, d.dryup]
                 for d in rows
             ],
         )
@@ -358,7 +365,7 @@ class Store:
             "SELECT symbol, detector_version, trigger, stop, stopw_adr, base_len, "
             "move_gain, adr, close, cluster_k, cluster_high, cluster_low, "
             "cluster_range_adr, line_ok, touch_zones, overshoot_adr, slope, "
-            "line_end, base_low FROM detections "
+            "line_end, base_low, churn_l, sma20_rising, dryup FROM detections "
             "WHERE market = ? AND session = ? ORDER BY symbol",
             [market, session],
         ).fetchall()
@@ -369,6 +376,7 @@ class Store:
                 close=r[8], cluster_k=r[9], cluster_high=r[10], cluster_low=r[11],
                 cluster_range_adr=r[12], line_ok=r[13], touch_zones=r[14],
                 overshoot_adr=r[15], slope=r[16], line_end=r[17], base_low=r[18],
+                churn_l=r[19], sma20_rising=r[20], dryup=r[21],
             )
             for r in rows
         ]

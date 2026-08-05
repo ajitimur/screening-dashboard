@@ -13,10 +13,10 @@ function adrMultiple(value: number): string {
  * stop width in ADR · industry · k/5 breadth.
  *
  * Two properties are load-bearing:
- * - The **star score is a placeholder** (`—`) until the rubric lands (ticket 39),
- *   so the list is **ordered by ticker** and says so, rather than inventing a
- *   temporary sort — sorting by distance to trigger was explicitly rejected
- *   (it puts a 2★ barcode above a 5★ base).
+ * - The list is **sorted by star score descending** (spec §4.7). At equal score a
+ *   name that failed the envelope fit (`line_ok`) sinks below the accepted ones —
+ *   a **silent** tiebreak the server applies and nothing here marks: no glyph, no
+ *   column, no chart annotation. The payload carries no `line_ok` field at all.
  * - The **stop column never filters**. It highlights the affordable sub-1×ADR
  *   minority instead of marking the ~92% unaffordable majority (spec §4.6).
  *
@@ -63,6 +63,11 @@ export default function CandidateList({ market }: { market: string }) {
           Ordered by ticker — the star score sort is not yet live.
         </p>
       )}
+      {data.ordered_by === "score" && (
+        <p role="note" className="sort-note">
+          Sorted by star score, highest first.
+        </p>
+      )}
       <table aria-label={`${market} candidates`}>
         <thead>
           <tr>
@@ -78,8 +83,8 @@ export default function CandidateList({ market }: { market: string }) {
           {data.candidates.map((c) => (
             <tr key={c.symbol}>
               <th scope="row">{c.symbol}</th>
-              {/* Placeholder until the rubric lands — never a fabricated number. */}
-              <td className="score">{c.score === null ? "—" : c.score.toFixed(1)}</td>
+              {/* The star score, 0–5 to one decimal; the sort key of the list. */}
+              <td className="score">{c.score.toFixed(1)}</td>
               <td className="distance">{adrMultiple(c.dist_adr)}</td>
               {/* Highlights the sub-1×ADR affordable minority; never a filter. */}
               <td className={c.affordable ? "stop affordable" : "stop"}>

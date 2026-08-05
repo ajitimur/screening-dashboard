@@ -92,6 +92,15 @@ is written during wayfinding.
   05's 1,966-name universe and scaled only for the date grid, while ticket 18's 7.0 digest rows is
   scaled for the universe — so the app's nightly list is nearer **19 → 30**, and the two figures the
   map has been quoting side by side were never on the same basis. Ratios survive; levels do not.
+  **Ticket 21 moved this risk off the dimensions and onto the fitter.** The two ×2 dimensions are not
+  unconfirmed — under a rank objective **orderliness is the strongest dimension on the map**
+  (partial ρ +0.365, ahead of `cluster_k`'s +0.233) and dropping it costs 62% of the rubric's ranking
+  power. What is broken is the instrument: `mae` produced **no stable threshold on any of five**
+  across 25 fits, and three tickets' worth of "the eye does not confirm this dimension" was measured
+  with it. The residual risk is now precise and it is a *decision*, not a measurement — **nothing on
+  this map can be fitted until [ticket 27](issues/27-level-or-order.md) says whether the star number
+  is a level or a label for a rank**, because the objective that passes the level guardrail produces
+  degenerate thresholds and the one that produces stable thresholds fails it by 0.01★.
 - **Standing property of the data layer** (found independently by tickets 01, 02 and 03): **Yahoo fails
   as silence.** Throttled requests return empty results — and for price history, the literal message
   "possibly delisted; no price data found". Every ingestion path must distinguish throttling from
@@ -628,6 +637,37 @@ is written during wayfinding.
   rows a night is too small to cut on a pessimistic proxy). **The measurement was put and declined** —
   trader's call — so every decision here is the conservative one under that ignorance, and the two owed
   numbers are parked as fog rather than ticketed. Ticket 19 R2's show-don't-filter was not re-litigated.
+
+- [The fitting objective does not identify the dimensions the eye is using](issues/21-the-fitting-objective-does-not-identify-the-dimensions.md)
+  — **mae cannot recover the band, and a rank objective walks straight back to it.** Same grid, same
+  exhaustive search, same 194 cards, only the loss changed: `mae` lands in the grid's corner
+  (`ord_lo` 0.10, `len_ok` 4) while **both** rank objectives return `ord_lo` 0.30 / `ord_hi` 0.60 /
+  `cluster_k` 5 — the trader's own `T3` to within one grid step, recovered from data. Under `mae`
+  **not one of five thresholds is stable across 25 fits**; under a rank objective three are, and
+  `ord_hi` lands on 0.60 in 25 of 25. Ticket 20's instability was the objective's. **And the rank
+  objective is still not adopted, by 0.01★**: `cindex` wins the primary criterion by **+0.111 median
+  out-of-fold ρ** and costs **+0.16★ mae against a pre-registered 0.15★ tolerance** — a rule not
+  relaxed after the fact, because this ticket exists precisely because one once was. What the near
+  miss means is that **the score is doing two jobs**: `mae` fits the *level* (stars printed),
+  `cindex` fits the *order* (the only list the app has). The two-stage fix was measured **post hoc**
+  and is not free — an isotonic level map restores mae to 0.93 but collapses predicted SD 1.24 → 0.44
+  and the ties cost ρ 0.326 → 0.233. So the ticket ends on a trader question, [ticket 27](issues/27-level-or-order.md),
+  and **every threshold on this map waits behind it**. Three further results: **ticket 20's drop of
+  orderliness must not proceed** — dropping the band costs **+0.143 ρ, 62% of the rubric's ranking
+  power**, and it is the strongest dimension on the map at partial ρ +0.365; **no thresholds are
+  published** (the surviving objective's pooled fit is the degenerate corner again on 366 cards, so
+  incumbent `T3` stands un-refitted, now with independent support); and **half the retired dimensions
+  were retired by a blind instrument** — `cluster_churn` +0.313, `density` +0.286, `narrowing_ratio`
+  +0.211, `ma_dist_adr` +0.183 (killed at Pearson partial r +0.010), plus `base_height_adr` at −0.290
+  that R6 §7's **own mis-written one-sided rule** recorded as correctly retired. Six candidates to
+  [ticket 28](issues/28-the-retired-dimensions.md). Two by-products: **all 366 graded cards pool** on
+  a rank criterion (the +0.30★ A3/E3 offset is invisible to it, and ticket 22's US/IDX pooling
+  survives a rank test), buying nothing until 27; and a **defect in the machinery** — `rubric3.fit`'s
+  fast path and `score3` disagree on every card with a missing `prior_move`/`sector_share`, i.e.
+  **every IDX card**, so the first fit to pool IDX would have optimised one rubric and reported
+  another. Nothing published is affected. Finally, a number to carry: `mae` scores median ρ +0.215
+  over 5 fold assignments where ticket 20's single assignment reported **+0.120** — no future
+  decision should rest on one fold split.
 
 ## Not yet specified
 

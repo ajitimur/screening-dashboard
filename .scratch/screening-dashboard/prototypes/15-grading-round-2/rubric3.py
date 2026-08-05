@@ -166,6 +166,14 @@ def _vector_predictor(rows, mode, hw=None, drop=()):
     An exhaustive grid search calls the objective ~20k times (boolean) or ~224k (continuous), and
     a per-row Python loop makes that minutes rather than seconds. `_assert_matches_score3` pins
     this to score3 so the speed-up cannot silently change the rubric.
+
+    KNOWN DIVERGENCE (ticket 21, OBJECTIVE_FINDINGS.md F0). The pin only covers rows whose
+    `prior_move` and `sector_share` are present. Where one is *NaN* rather than None -- which is
+    every IDX card, and is what a DataFrame round-trip produces -- score3 scores it ZERO and still
+    counts its weight (NaN >= x is False), while the branches below drop it from both total and
+    max. Nothing published is affected: every fit to date ran on deck A's US core. But a fit that
+    pools IDX would optimise one rubric and report another. Match score3 before pooling markets;
+    `objective6.Fast` does, and asserts it.
     """
     hw = {**DEFAULT_HALFWIDTH, **(hw or {})}
     n = len(rows)

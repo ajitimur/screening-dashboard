@@ -1,0 +1,89 @@
+populations: A3 n=120  E3 n=194  C3 n=52
+fast predictor pinned to score3 on every population (kept and orderliness-dropped)
+
+=== 1-2. the objectives, fitted and scored on E3 (R6 S2 primary criterion)
+  objective   median rho            range    mae  within1  pearson r
+  mae             +0.215  +0.130..+0.284   0.98      70%     +0.197
+  spearman        +0.315  +0.264..+0.331   1.14      61%     +0.299
+  cindex          +0.326  +0.260..+0.338   1.15      61%     +0.310
+
+  best challenger: cindex  gain +0.111 rho (needs >= +0.030)  mae cost +0.16 (guardrail 0.15)
+  -> cindex wins on rank but BREAKS THE LEVEL GUARDRAIL. mae stands.
+
+=== 4. threshold stability across the 25 fits (R6 S4)
+  mae:
+    cluster_k  mode 5      share 80%  range 3-7 (4 steps)  UNSTABLE
+    ord_lo     mode 0.1    share 92%  range 0.1-0.3 (8 steps)  UNSTABLE
+    ord_hi     mode 0.6    share 92%  range 0.45-0.6 (3 steps)  UNSTABLE
+    len_ok     mode 4      share 92%  range 4-24 (10 steps)  UNSTABLE
+    dryup      mode 0.85   share 64%  range 0.6-1.2 (12 steps)  UNSTABLE
+  spearman:
+    cluster_k  mode 5      share 80%  range 5-7 (2 steps)  stable
+    ord_lo     mode 0.3    share 96%  range 0.275-0.3 (1 steps)  stable
+    ord_hi     mode 0.6    share 100%  range 0.6-0.6 (0 steps)  stable
+    len_ok     mode 20     share 68%  range 4-26 (11 steps)  UNSTABLE
+    dryup      mode 0.85   share 48%  range 0.65-1.3 (13 steps)  UNSTABLE
+  cindex:
+    cluster_k  mode 5      share 84%  range 5-7 (2 steps)  stable
+    ord_lo     mode 0.3    share 88%  range 0.275-0.3 (1 steps)  stable
+    ord_hi     mode 0.6    share 100%  range 0.6-0.6 (0 steps)  stable
+    len_ok     mode 20     share 60%  range 4-26 (11 steps)  UNSTABLE
+    dryup      mode 0.85   share 52%  range 0.6-1.3 (14 steps)  UNSTABLE
+
+=== 3. poolability under the winning objective (R6 S3)
+  A3+E3     n=314  rho on E3 +0.198  vs E3-only +0.215  delta -0.017  -> POOL
+    stability of the pooled fit:
+    cluster_k  mode 7      share 76%  range 3-7 (4 steps)  UNSTABLE
+    ord_lo     mode 0.1    share 76%  range 0.1-0.3 (8 steps)  UNSTABLE
+    ord_hi     mode 0.7    share 72%  range 0.35-0.7 (7 steps)  UNSTABLE
+    len_ok     mode 26     share 56%  range 4-30 (13 steps)  UNSTABLE
+    dryup      mode 0.85   share 84%  range 0.65-0.9 (5 steps)  UNSTABLE
+  A3+E3+C3  n=366  rho on E3 +0.217  vs E3-only +0.215  delta +0.002  -> POOL
+    stability of the pooled fit:
+    cluster_k  mode 7      share 68%  range 3-7 (4 steps)  UNSTABLE
+    ord_lo     mode 0.1    share 68%  range 0.1-0.3 (8 steps)  UNSTABLE
+    ord_hi     mode 0.7    share 68%  range 0.35-0.7 (7 steps)  UNSTABLE
+    len_ok     mode 26     share 84%  range 4-26 (11 steps)  UNSTABLE
+    dryup      mode 0.9    share 52%  range 0.8-0.95 (3 steps)  UNSTABLE
+
+=== 5. regularisation toward the incumbent (R6 S5)
+  lambda 0      rho +0.215  mae 0.98
+  lambda 0.001  rho +0.231  mae 0.97
+  lambda 0.003  rho +0.227  mae 0.98
+  lambda 0.01   rho +0.211  mae 1.02
+  -> lambda = 0.001 ADOPTED (gain +0.016 >= 0.01)
+
+=== 6. orderliness, re-decided under the winning objective (R6 S6)
+  keep the band  rho +0.231  mae 0.97
+  drop it, x2 redistributed  rho +0.088  mae 1.03
+  keeping is worth +0.143 rho (needs >= +0.030); band stable: False
+    ord_lo     mode 0.1    share 84%  range 0.1-0.3 (8 steps)  UNSTABLE
+    ord_hi     mode 0.6    share 88%  range 0.45-0.6 (3 steps)  UNSTABLE
+  -> REAL BUT UNFITTABLE: the dimension carries signal the rubric cannot spend.
+     It goes to the trader as a question about form, not a threshold.
+
+=== 7. the retired dimensions, re-measured (R6 S7)
+  dimension            pooled       A3       E3   verdict
+  ma_dist_adr          +0.183   +0.144   +0.198   FLAGGED for reinstatement
+  narrow_cluster       -0.148   -0.169   -0.155   correctly retired
+  narrowing_ratio      +0.211   +0.201   +0.190   FLAGGED for reinstatement
+  sqrt_shortfall       -0.211   -0.156   -0.250   correctly retired
+  base_height_adr      -0.290   -0.270   -0.272   correctly retired
+  cluster_churn        +0.313   +0.236   +0.334   FLAGGED for reinstatement
+  density              +0.286   +0.228   +0.298   FLAGGED for reinstatement
+  cluster_k (incumbent)   +0.233   (context, not a candidate)
+  orderliness (incumbent)   +0.365   (context, not a candidate)
+
+  flagged: ['ma_dist_adr', 'narrowing_ratio', 'cluster_churn', 'density'] -> a new ticket if non-empty; R6 S7 forbids adopting here.
+
+=== published thresholds (winner, on the adopted population)
+  objective mae  lambda 0.001  population A3+E3+C3 (n=366)
+  {'cluster_k': 7, 'ord_lo': 0.1, 'ord_hi': 0.7, 'dryup': 0.9, 'len_ok': 26, 'len_bad': 40}   in-sample loss 0.9729
+  fold stability of this fit:
+    cluster_k  mode 7      share 56%  range 3-7 (4 steps)  UNSTABLE
+    ord_lo     mode 0.1    share 56%  range 0.1-0.3 (8 steps)  UNSTABLE
+    ord_hi     mode 0.7    share 64%  range 0.35-0.7 (7 steps)  UNSTABLE
+    len_ok     mode 26     share 68%  range 4-26 (11 steps)  UNSTABLE
+    dryup      mode 0.9    share 56%  range 0.8-0.95 (3 steps)  UNSTABLE
+
+  written: r6_result.json

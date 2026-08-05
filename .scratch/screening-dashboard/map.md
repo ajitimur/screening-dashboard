@@ -37,7 +37,11 @@ is written during wayfinding.
   with the trader's eye (r = −0.043), because both ×2 dimensions turned out to track **base length**,
   which §3.5 never names and the trader reads the opposite way. 08's zero-parameter property does not
   survive the correction — the count is now two. The structure is fixed; the numbers are not, and the
-  remainder is ticket 15.
+  remainder is ticket 15. **Ticket 16 reopened the structure below the score.** The trigger geometry and
+  the *window* it is computed over are both in question — D4's primary window is 3 bars on 52% of
+  detections — and D6 has stopped being a hard gate, which leaves D7's ×2 tightness dimension owing the
+  "narrow" half it had delegated to that gate. Ticket 17 carries all of it; ticket 15 is blocked behind
+  it, because a rubric calibrated on the current detector would be calibrated on a shape that may move.
 - **Standing property of the data layer** (found independently by tickets 01, 02 and 03): **Yahoo fails
   as silence.** Throttled requests return empty results — and for price history, the literal message
   "possibly delisted; no price data found". Every ingestion path must distinguish throttling from
@@ -235,6 +239,25 @@ is written during wayfinding.
   the exact rendering I5 ruled out. A conformance bug against a resolved decision, noted in
   [ticket 16](issues/16-trendline-fitting-envelope-vs-least-squares.md) alongside the fitting question the
   trader raised from the same charts.
+
+- [Trendline fitting: envelope or least squares?](issues/16-trendline-fitting-envelope-vs-least-squares.md) —
+  **the fit was the smallest of three levers, and the answer is mostly "not this ticket".** Ticket 09's
+  F3 is confirmed an artefact of where the line sits (already-breached **16.0% → 2.1%** under an
+  envelope, → 0.2% under q-scanner's clamp) — so D5's `min()` rule was not the culprit ticket 08
+  suspected. But the reference implementation **does not derive its trigger from the line at all**: it
+  clamps **up** to the cluster high where D5 clamps **down**, anchors on the trailing cluster, and stops
+  at the cluster low. That clamp binds on 82% of detections, making OLS and envelope numerically
+  identical where it applies. Underneath both, **D4's primary window is 3 bars on 52% of detections**, so
+  no fit means much where the trigger is computed — a degeneracy ticket 08 accepted knowingly for
+  tightness and MA proximity, whose defence does not carry to a line fit. **D6 is no longer a gate**
+  (trader's call: the stop is an entry-time judgement, not a screening criterion) — but that alone takes
+  the list from ~64 to **~314 US names a night**, because D6 was silently doing §3.4's looseness
+  auto-reject as well as §7's affordability test. The two are separated: stop width is shown and
+  sorted on, never cut; a looseness cut stays as a property of the **base**. Leaves **D7 owing its
+  "narrow" half**, which it had delegated to the gate. Ticket 11's I5 conformance bug fixed in
+  `chart16.py`. The eye question was **not** asked — a blind A/B deck is built but its cards inherit
+  the 3-bar median. Window and looseness cut graduated to
+  [ticket 17](issues/17-base-cluster-split.md).
 
 - [Alerting on the trigger level](issues/14-alerting-and-trigger-notification.md) — **v1 does not alert.**
   The nightly run writes **one dated Markdown digest per market** (`digests/<market>/<session>.md`) and that

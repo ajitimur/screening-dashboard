@@ -250,6 +250,7 @@ describe("the two market tabs", () => {
       sma20: [],
       sma50: [],
       ema65: [],
+      setup: null,
       facts: {
         base_len: 30,
         trigger: 100,

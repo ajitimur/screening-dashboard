@@ -89,3 +89,60 @@ def test_facts_are_none_without_a_detection():
     # base to describe, so the whole facts block is absent.
     chart = build_chart("US", "AAA", CAL[99], _bars(100), None, [], "Technology")
     assert chart.facts is None
+
+
+def test_setup_overlay_shades_base_and_cluster_and_draws_the_envelope():
+    # The setup drawn on the candles (spec §5.1 / ticket 41): the base shaded from
+    # its start to today, the cluster shaded inside it, the trigger/stop levels and
+    # the envelope as a line series.
+    bars = _bars(100, close=98.0, volume=1000)
+    det = _det("AAA", CAL[99], trigger=100.0, close=98.0, cluster_low=97.0, adr=0.02)
+    chart = build_chart(
+        "US", "AAA", CAL[99], bars, det, [], "Technology",
+        prior_move=True, sector_share=0.2,
+    )
+
+    s = chart.setup
+    assert s is not None
+    # base_len=30 ends today (CAL[99]), so it starts 30 bars back at CAL[70].
+    assert s.base_start == CAL[70]
+    # cluster_k=5 trailing bars: starts at CAL[95].
+    assert s.cluster_start == CAL[95]
+    # The two horizontal rules: trigger is the cluster high, stop is the cluster low.
+    assert s.trigger == 100.0
+    assert s.stop == 97.0
+    # The envelope is a line series over the base span, one point per base bar.
+    assert len(s.envelope) == det.base_len
+    assert s.envelope[0].session == CAL[70]
+    assert s.envelope[-1].session == CAL[99]
+    # A downward-sloping trendline: non-increasing over time, and by today (the
+    # last point) it sits at or below the trigger, so it never sets the trigger.
+    values = [p.value for p in s.envelope]
+    assert values == sorted(values, reverse=True)
+    assert s.envelope[-1].value <= det.trigger + 1e-9
+
+
+def test_setup_breakdown_reconstructs_the_star_score_arithmetically():
+    # The eight-row §4.7 breakdown sits with the chart and reconstructs the score:
+    # sum(weight where hit) ÷ 2 = stars.
+    bars = _bars(100, close=98.0, volume=1000)
+    det = _det("AAA", CAL[99])  # cluster_k=5, churn_l=0.45, sma20_rising, dryup=0.90
+    chart = build_chart(
+        "US", "AAA", CAL[99], bars, det, [], "Technology",
+        prior_move=True, sector_share=0.2,
+    )
+    s = chart.setup
+    assert s is not None
+    assert [d.dimension for d in s.breakdown] == [
+        "Tightness", "Orderliness", "Prior move", "Base length",
+        "MA support", "Volume", "Sector", "ADR",
+    ]
+    points = sum(d.weight for d in s.breakdown if d.hit)
+    assert s.score == points / 2
+
+
+def test_setup_is_none_without_a_detection():
+    # No base tonight — nothing to shade or break down, so the whole overlay is
+    # absent (the candles still draw).
+    chart = build_chart("US", "AAA", CAL[99], _bars(100), None, [], "Technology")
+    assert chart.setup is None

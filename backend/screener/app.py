@@ -18,6 +18,7 @@ from . import MARKETS
 from .boards import board_symbols, build_boards
 from .candidates import build_candidates
 from .chart import build_chart
+from .detection import detection_gate
 from .indicators import adr
 from .models import (
     Board,
@@ -33,6 +34,7 @@ from .regime import breadth, posture, regime_state
 from .sectors import (
     TEMPORAL_SESSIONS,
     industry_strengths,
+    leave_one_out_sector_shares,
     sector_strengths,
 )
 from .source import MARKET_INDEX
@@ -190,21 +192,36 @@ def create_app(store: Store | None = None) -> FastAPI:
         detection = None
         ranks_for_symbol: list = []
         sector = None
+        prior_move = False
+        sector_share = 0.0
         if latest is not None:
             # Scope to bars on or before the published session so a newer,
             # quarantined pull's bars never leak onto the chart (§4.9).
             bars = [b for b in bars if b.session <= session]
+            session_ranks = store.ranks(market, session)
             detection = next(
                 (d for d in store.detections(market, session) if d.symbol == symbol),
                 None,
             )
-            ranks_for_symbol = [
-                r for r in store.ranks(market, session) if r.symbol == symbol
-            ]
+            ranks_for_symbol = [r for r in session_ranks if r.symbol == symbol]
             label = store.label(market, symbol)
             sector = label.sector if label else None
+            if detection is not None:
+                # The setup overlay's breakdown needs the same two cross-sectional
+                # inputs the candidate list scores with (candidates.build_candidates):
+                # the prior-move decile gate and the leave-one-out 1m sector share,
+                # both off this session's rank table and labels (spec §4.7). Only a
+                # name with a base tonight is scored, so this is skipped otherwise.
+                sector_of = {
+                    sym: lab.sector for sym, lab in store.labels(market).items()
+                }
+                prior_move = symbol in detection_gate(session_ranks)
+                sector_share = leave_one_out_sector_shares(
+                    session_ranks, sector_of
+                ).get(symbol, 0.0)
         return build_chart(
-            market, symbol, session, bars, detection, ranks_for_symbol, sector
+            market, symbol, session, bars, detection, ranks_for_symbol, sector,
+            prior_move=prior_move, sector_share=sector_share,
         )
 
     @app.get("/api/regime/{market}", response_model=RegimeResponse)

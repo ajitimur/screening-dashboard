@@ -291,6 +291,21 @@ def test_chart_endpoint_returns_candles_ma_set_and_facts_in_one_call():
         assert f["dollar_volume"] == 98.0 * 1000  # median close×volume
         assert f["decile_ranks"] == {"1m": 0.95, "3m": 0.90}
         assert f["sector"] == "Technology"
+        # The setup overlay (ticket 41): base/cluster shading bounds, the two
+        # horizontal rules, the envelope line and the eight-row score breakdown.
+        s = body["setup"]
+        assert s["trigger"] == 100.0
+        assert s["stop"] == 97.0            # the cluster-low stop rule
+        assert s["cluster_start"] > s["base_start"]  # cluster sits inside the base
+        assert len(s["envelope"]) == 30     # one line point per base bar
+        assert [d["dimension"] for d in s["breakdown"]] == [
+            "Tightness", "Orderliness", "Prior move", "Base length",
+            "MA support", "Volume", "Sector", "ADR",
+        ]
+        points = sum(d["weight"] for d in s["breakdown"] if d["hit"])
+        assert s["score"] == points / 2
+        # Prior move scored: AAA clears the decile gate on 1m/3m (spec §4.7).
+        assert next(d["hit"] for d in s["breakdown"] if d["dimension"] == "Prior move")
     finally:
         store.close()
 
@@ -301,6 +316,7 @@ def test_chart_of_a_name_without_a_detection_still_draws_without_facts():
         body = client_for(store).get("/api/chart/US/BBB").json()
         assert len(body["candles"]) == 120
         assert body["facts"] is None  # no base tonight → nothing to describe
+        assert body["setup"] is None  # no base → nothing to shade or break down
     finally:
         store.close()
 

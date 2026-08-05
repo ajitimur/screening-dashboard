@@ -278,10 +278,11 @@ export interface components {
          * @description One symbol's evidence bundle — the chart panel in a single call (spec §5.1).
          *
          *     Candles plus the daily MA set (SMA 10/20/50 and the 65 EMA, spec §2) as line
-         *     series, and the facts block. ``session`` is the as-of published session, or
-         *     ``None`` when no run has published (an explicit empty state). The MA lines are
-         *     computed over the full stored history and then sliced to the drawn window, so
-         *     the first drawn point already carries a full window behind it.
+         *     series, the ``setup`` overlay (base/cluster shading, envelope, trigger/stop and
+         *     the §4.7 breakdown) and the facts block. ``session`` is the as-of published
+         *     session, or ``None`` when no run has published (an explicit empty state). The
+         *     MA lines are computed over the full stored history and then sliced to the drawn
+         *     window, so the first drawn point already carries a full window behind it.
          */
         ChartResponse: {
             /** Candles */
@@ -293,6 +294,7 @@ export interface components {
             market: string;
             /** Session */
             session: string | null;
+            setup: components["schemas"]["SetupOverlay"] | null;
             /** Sma10 */
             sma10: components["schemas"]["MaPoint"][];
             /** Sma20 */
@@ -483,6 +485,48 @@ export interface components {
             sectors: components["schemas"]["SectorStrength"][];
             /** Session */
             session: string | null;
+        };
+        /**
+         * SetupOverlay
+         * @description The setup drawn on top of the candles (spec §5.1 / §3.5 / ticket 41) — the
+         *     chart as *evidence for the score*, not merely a price chart.
+         *
+         *     - ``base_start`` / ``cluster_start`` are the first sessions of the base and of
+         *       the tight trailing cluster inside it; the frontend shades each region from
+         *       its start to the last candle (the base always ends today, §4.5).
+         *     - ``trigger`` (cluster high) and ``stop`` (cluster low) are the two horizontal
+         *       rules §7's affordability test is read off geometrically.
+         *     - ``envelope`` is the fitted upper line drawn **as a line series** so candles
+         *       pierce it in both directions — per §3.2 that is the correct picture and must
+         *       not be "fixed" in rendering. Anchored at the cluster's max-high bar with the
+         *       detection's non-positive slope, so it can never exceed the trigger.
+         *     - ``score`` (0–5 stars) and ``breakdown`` (the eight §4.7 dimensions, each with
+         *       its weight and hit) reconstruct the sort key arithmetically beside the chart.
+         *
+         *     ``None`` for the whole overlay when the name has no detection tonight — there
+         *     is no base to shade, no envelope to fit and no score to break down.
+         */
+        SetupOverlay: {
+            /**
+             * Base Start
+             * Format: date
+             */
+            base_start: string;
+            /** Breakdown */
+            breakdown: components["schemas"]["ScoreRow"][];
+            /**
+             * Cluster Start
+             * Format: date
+             */
+            cluster_start: string;
+            /** Envelope */
+            envelope: components["schemas"]["MaPoint"][];
+            /** Score */
+            score: number;
+            /** Stop */
+            stop: number;
+            /** Trigger */
+            trigger: number;
         };
         /** ValidationError */
         ValidationError: {

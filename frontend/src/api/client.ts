@@ -18,6 +18,8 @@ export type ChartResponse = components["schemas"]["ChartResponse"];
 export type Candle = components["schemas"]["Candle"];
 export type MaPoint = components["schemas"]["MaPoint"];
 export type ChartFacts = components["schemas"]["ChartFacts"];
+export type SetupOverlay = components["schemas"]["SetupOverlay"];
+export type ScoreRow = components["schemas"]["ScoreRow"];
 
 export async function fetchRuns(market: string): Promise<RunsResponse> {
   const resp = await fetch(`/api/runs/${market}`);

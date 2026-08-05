@@ -314,7 +314,7 @@
         "type": "object"
       },
       "ChartResponse": {
-        "description": "One symbol's evidence bundle \u2014 the chart panel in a single call (spec \u00a75.1).\n\nCandles plus the daily MA set (SMA 10/20/50 and the 65 EMA, spec \u00a72) as line\nseries, and the facts block. ``session`` is the as-of published session, or\n``None`` when no run has published (an explicit empty state). The MA lines are\ncomputed over the full stored history and then sliced to the drawn window, so\nthe first drawn point already carries a full window behind it.",
+        "description": "One symbol's evidence bundle \u2014 the chart panel in a single call (spec \u00a75.1).\n\nCandles plus the daily MA set (SMA 10/20/50 and the 65 EMA, spec \u00a72) as line\nseries, the ``setup`` overlay (base/cluster shading, envelope, trigger/stop and\nthe \u00a74.7 breakdown) and the facts block. ``session`` is the as-of published\nsession, or ``None`` when no run has published (an explicit empty state). The\nMA lines are computed over the full stored history and then sliced to the drawn\nwindow, so the first drawn point already carries a full window behind it.",
         "properties": {
           "candles": {
             "items": {
@@ -356,6 +356,16 @@
             ],
             "title": "Session"
           },
+          "setup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupOverlay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "sma10": {
             "items": {
               "$ref": "#/components/schemas/MaPoint"
@@ -391,6 +401,7 @@
           "sma20",
           "sma50",
           "ema65",
+          "setup",
           "facts"
         ],
         "title": "ChartResponse",
@@ -759,6 +770,58 @@
           "industries"
         ],
         "title": "SectorsResponse",
+        "type": "object"
+      },
+      "SetupOverlay": {
+        "description": "The setup drawn on top of the candles (spec \u00a75.1 / \u00a73.5 / ticket 41) \u2014 the\nchart as *evidence for the score*, not merely a price chart.\n\n- ``base_start`` / ``cluster_start`` are the first sessions of the base and of\n  the tight trailing cluster inside it; the frontend shades each region from\n  its start to the last candle (the base always ends today, \u00a74.5).\n- ``trigger`` (cluster high) and ``stop`` (cluster low) are the two horizontal\n  rules \u00a77's affordability test is read off geometrically.\n- ``envelope`` is the fitted upper line drawn **as a line series** so candles\n  pierce it in both directions \u2014 per \u00a73.2 that is the correct picture and must\n  not be \"fixed\" in rendering. Anchored at the cluster's max-high bar with the\n  detection's non-positive slope, so it can never exceed the trigger.\n- ``score`` (0\u20135 stars) and ``breakdown`` (the eight \u00a74.7 dimensions, each with\n  its weight and hit) reconstruct the sort key arithmetically beside the chart.\n\n``None`` for the whole overlay when the name has no detection tonight \u2014 there\nis no base to shade, no envelope to fit and no score to break down.",
+        "properties": {
+          "base_start": {
+            "format": "date",
+            "title": "Base Start",
+            "type": "string"
+          },
+          "breakdown": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreRow"
+            },
+            "title": "Breakdown",
+            "type": "array"
+          },
+          "cluster_start": {
+            "format": "date",
+            "title": "Cluster Start",
+            "type": "string"
+          },
+          "envelope": {
+            "items": {
+              "$ref": "#/components/schemas/MaPoint"
+            },
+            "title": "Envelope",
+            "type": "array"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "stop": {
+            "title": "Stop",
+            "type": "number"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "number"
+          }
+        },
+        "required": [
+          "base_start",
+          "cluster_start",
+          "trigger",
+          "stop",
+          "envelope",
+          "score",
+          "breakdown"
+        ],
+        "title": "SetupOverlay",
         "type": "object"
       },
       "ValidationError": {

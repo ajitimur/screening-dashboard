@@ -1,7 +1,7 @@
 # Fit the split's 22 parameters, or accept them as borrowed defaults
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: 15
 
 ## Question

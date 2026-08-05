@@ -74,7 +74,13 @@ def _num(v):
     return None if not np.isfinite(v) else v
 
 
-def score3(sig, prior_move=None, sector_share=None, mode="boolean", T=None, hw=None):
+def score3(sig, prior_move=None, sector_share=None, mode="boolean", T=None, hw=None, drop=()):
+    """`drop` names dimensions to remove entirely.
+
+    A dropped dimension contributes neither points nor weight, so the remaining dimensions are
+    renormalised over the smaller maximum — which is exactly what R3 section 6 means by "dropped
+    and its x2 redistributed". Default is empty, so nothing already fitted changes.
+    """
     T = {**T3, **(T or {})}
     hw = {**DEFAULT_HALFWIDTH, **(hw or {})}
     p, raw = {}, {}
@@ -135,7 +141,7 @@ def score3(sig, prior_move=None, sector_share=None, mode="boolean", T=None, hw=N
 
     total = max_total = 0.0
     for name, w in DIMS3:
-        if p.get(name) is None:
+        if name in drop or p.get(name) is None:
             continue
         total += w * p[name]
         max_total += w
@@ -154,7 +160,7 @@ GRIDS = {
 ORDER = ["cluster_k", "ord_lo", "ord_hi", "len_ok", "len_bad", "dryup"]
 
 
-def _vector_predictor(rows, mode, hw=None):
+def _vector_predictor(rows, mode, hw=None, drop=()):
     """A vectorised stand-in for score3 over a fixed row set — same arithmetic, one array pass.
 
     An exhaustive grid search calls the objective ~20k times (boolean) or ~224k (continuous), and
@@ -193,7 +199,11 @@ def _vector_predictor(rows, mode, hw=None):
             fixed_max[i] += 1
 
     hasL = np.isfinite(L)
-    max_total = fixed_max + 2 + 2 + 1 + hasL.astype(float)
+    w_tight = 0.0 if "tightness" in drop else 2.0
+    w_ord = 0.0 if "orderliness" in drop else 2.0
+    w_vol = 0.0 if "volume" in drop else 1.0
+    w_len = 0.0 if "base_length" in drop else 1.0
+    max_total = fixed_max + w_tight + w_ord + w_vol + w_len * hasL.astype(float)
 
     def ramp(x, lo, hi):
         return np.clip((x - lo) / (hi - lo), 0, 1)
@@ -214,20 +224,21 @@ def _vector_predictor(rows, mode, hw=None):
             pv = np.where(np.isfinite(du), ramp(-du, -(T["dryup"] + hw["dryup"]),
                                                 -(T["dryup"] - hw["dryup"])), 0.5)
             pl = np.where(hasL, ramp(-L, -float(T["len_bad"]), -float(T["len_ok"])), 0.0)
-        total = fixed_total + 2 * pt + 2 * po + pv + pl * hasL
+        total = (fixed_total + w_tight * pt + w_ord * po + w_vol * pv
+                 + w_len * pl * hasL)
         return total * 5.0 / max_total
 
     return predict
 
 
-def _assert_matches_score3(rows, mode, T):
-    v = _vector_predictor(rows, mode)(T)
-    s = np.array([score3(r["sig"], r["prior_move"], r["sector_share"], mode, T)["stars"]
+def _assert_matches_score3(rows, mode, T, drop=()):
+    v = _vector_predictor(rows, mode, drop=drop)(T)
+    s = np.array([score3(r["sig"], r["prior_move"], r["sector_share"], mode, T, drop=drop)["stars"]
                   for r in rows])
-    assert np.allclose(v, s, atol=1e-9), f"vector predictor diverged from score3 ({mode})"
+    assert np.allclose(v, s, atol=1e-9), f"vector predictor diverged from score3 ({mode}, {drop})"
 
 
-def fit(rows, mode="boolean", start=None, rounds=3, objective="mae"):
+def fit(rows, mode="boolean", start=None, rounds=3, objective="mae", drop=()):
     """Exhaustive search over GRIDS, minimising the pre-registered objective.
 
     Round 2 fitted by *coordinate descent* over the same grid, and on round 3's grades that search
@@ -247,12 +258,14 @@ def fit(rows, mode="boolean", start=None, rounds=3, objective="mae"):
     domain makes two dimensions nearly non-discriminating, which flattens the loss surface.
     """
     keys = list(ORDER)
+    if "orderliness" in drop:
+        keys = [k for k in keys if k not in ("ord_lo", "ord_hi")]
     if mode == "boolean":
         # len_bad is only read by the continuous ramps; leaving it free in boolean mode makes 11
         # identical copies of every grid point and lets an arbitrary tie decide it.
         keys = [k for k in keys if k != "len_bad"]
 
-    predict = _vector_predictor(rows, mode)
+    predict = _vector_predictor(rows, mode, drop=drop)
 
     def loss_of(T):
         e = predict(T) - np.array([r["eye"] for r in rows], float)

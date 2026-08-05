@@ -10,6 +10,15 @@
 > Round 3 code: `split_signals.py` · `split_tightness.py` · `split_diag.py` · `split_refit.py` ·
 > `rubric3.py` · `build_deck3.py` · `analyse3.py`. Everything needs pandas 3.x — the cached
 > pickles are written with its string dtype.
+>
+> **Deck E3 is the confirmation set, added by ticket 20.** A3 is graded and fitted; the
+> orderliness band it produced was chosen *after* seeing those grades, so R3 §6 requires it be
+> reproduced on fresh cards. C3 is IDX and D3 is half rejects, so neither can serve. `deck3_E.html`
+> is 194 fresh US cards on the split's accepted population — no card any other deck showed — plus
+> 12 repeats for the ceiling. Read **[`PREREGISTRATION_R4.md`](PREREGISTRATION_R4.md)** first; it
+> fixes the deck and the decision rule and was written before the deck was rendered. Built by
+> `build_deck_e.py`, analysed by `analyse3.py`'s section 8:
+> `analyse3.py A=<string> C=<string> D=<string> E=<string>`.
 
 
 Prototype for ticket [`15-star-score-second-grading-round.md`](../../issues/15-star-score-second-grading-round.md).

@@ -1,7 +1,7 @@
 # Confirm the orderliness band, and measure the ceiling every correlation is judged against
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: —
 
 ## Question
@@ -74,3 +74,55 @@ deck on the split's accepted population is what §1 actually requires. Size it f
 
 Needs **pandas 3.x** — the cached pickles use its string dtype; a `.venv` exists in the ticket-15
 worktree.
+
+## Progress — the confirmation deck is built, the grading is not done
+
+Everything this ticket needs that does not require the trader's eye is done. **The ticket stays
+open**: it resolves on grades, and an agent grading its own cards would not be evidence.
+
+**The caution in "What to do" was acted on.** Deck C3 is IDX and deck D3 is half rejects, so
+neither is a clean confirmation set for the band. The missing deck now exists:
+
+- **[`PREREGISTRATION_R4.md`](../prototypes/15-grading-round-2/PREREGISTRATION_R4.md)** — written
+  before a single E3 card was rendered. It adds no rules; it derives deck E3's size, sampling and
+  decision rule from R3 §2/§3/§6, and names the two places a choice was genuinely open
+  (stratification, and which of two candidate numbers decides) so they can be argued with now
+  rather than after the grades land.
+- **`deck3_E.html` — 194 fresh cards + 12 repeats.** US, the split's accepted population, same
+  gates, same bare renderer, same question as A3. Verified: **zero overlap** with any card A3, C3
+  or D3 showed, and its 12 repeats are drawn from A3 and are **disjoint** from the 12 hidden in
+  C3/D3. Band mix 38/38/42/38/38. Built by `build_deck_e.py` (seed 20).
+- **194** is R3 §2's own row for the r = +0.20 bar. At n = 120 the standard error on r near +0.25
+  is ~0.09 — wider than the gap between the estimate and the bar, so a 120-card confirmation could
+  not resolve its own threshold.
+- **The 12 extra repeats mean E3 measures the ceiling on its own**, so grading only this deck still
+  discharges obligation #2. With C3 and D3 too the pairs pool to 24.
+- **`analyse3.py` gained section 8**, which runs R4's decision rule; `rubric3.py` gained an additive
+  `drop=` argument so "orderliness dropped and its ×2 redistributed" is the real renormalised
+  rubric rather than a stand-in.
+
+**Verified, not assumed:**
+
+- `analyse3.py A=<grades3_A.txt>` reproduces ticket 15 exactly after the changes — r = +0.255,
+  mae 1.11, within-1 60%, and the identical six thresholds. The `drop=` plumbing moved nothing.
+- `analyse3.py --selftest` runs all eight sections end to end on synthetic grades, including E3.
+- The vectorised predictor is pinned to `score3` for both modes **and** both drop settings on both
+  decks, by the codebase's own `_assert_matches_score3`.
+- One real bug found and fixed on the way: the repeat cards carried A3's own `deck`/`card` labels
+  into the renderer, which silently reported deck A as 132 cards long. Caught by the length check.
+
+**Environment.** Needs pandas 3.x. The cache is a symlink to the ticket-15 worktree's; the
+interpreter used was `.claude/worktrees/wf-16-trendline-fit/.venv/bin/python`. A full run is ~2 min.
+
+### What is left, and it is only the grading
+
+| deck | cards | carries |
+| --- | --- | --- |
+| `deck3_E.html` | 206 | **the band's confirmation** (§1) · 12 repeats → ceiling |
+| `deck3_C.html` | 58 | IDX calibration · 12 locked cards (descriptive) · 6 repeats |
+| `deck3_D.html` | 46 | 20 rejects vs 20 detections · 6 repeats |
+
+Then `analyse3.py A=<grades3_A.txt> C=<string> D=<string> E=<string>`. Any deck may be omitted and
+is reported as unanswered. Any **prefix** of E3 is an unbiased sample — the cards are shuffled — so
+stopping early costs power, not honesty; below 120 graded it is reported as underpowered rather
+than as a verdict.

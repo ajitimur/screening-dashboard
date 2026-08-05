@@ -1,9 +1,10 @@
 """The pre-registered round-3 analysis. Runs the moment the grades arrive.
 
-    python analyse3.py A=<120 chars> [C=<58 chars>] [D=<46 chars>]
+    python analyse3.py A=<120 chars> [C=<58 chars>] [D=<46 chars>] [E=<206 chars>]
 
 Each argument is the export string from the matching deck: one character per card, '1'-'5', or '-'
-for ungraded. Everything it computes is fixed by PREREGISTRATION_R3.md; nothing here chooses a rule.
+for ungraded. Everything it computes is fixed by PREREGISTRATION_R3.md (sections 1-7) and
+PREREGISTRATION_R4.md (section 8); nothing here chooses a rule.
 
 Self-test:  python analyse3.py --selftest   (synthetic grades, end to end)
 """
@@ -29,8 +30,18 @@ K_PARTIAL_FLOOR = 0.15    # pre-registered: below this, tightness is declared un
 OVERFIT_TOL = 0.15
 
 
+def manifest():
+    """Decks A/C/D, plus deck E if it has been built. Two files so A3's graded string, which
+    indexes by position into deck3_manifest.csv, cannot be disturbed by adding a deck."""
+    mans = [pd.read_csv(os.path.join(HERE, "deck3_manifest.csv"))]
+    e = os.path.join(HERE, "deckE_manifest.csv")
+    if os.path.exists(e):
+        mans.append(pd.read_csv(e))
+    return pd.concat(mans, ignore_index=True)
+
+
 def load_cards(grades):
-    man = pd.read_csv(os.path.join(HERE, "deck3_manifest.csv"))
+    man = manifest()
     rows = []
     for deck, s in grades.items():
         sub = man[man.deck == deck].sort_values("card")
@@ -75,18 +86,18 @@ def stats(pred, eye):
             "bias": float((pred - eye).mean())}
 
 
-def cv(rows, mode="boolean", folds=5):
+def cv(rows, mode="boolean", folds=5, drop=()):
     idx = RNG.permutation(len(rows))
     pred = np.zeros(len(rows))
     picked = []
     for f in range(folds):
         te = set(idx[f::folds].tolist())
         tr = [rows[i] for i in idx if i not in te]
-        T, _ = fit(tr, mode)
+        T, _ = fit(tr, mode, drop=drop)
         picked.append(T)
         for i in te:
             pred[i] = score3(rows[i]["sig"], rows[i]["prior_move"], rows[i]["sector_share"],
-                             mode, T)["stars"]
+                             mode, T, drop=drop)["stars"]
     eye = np.array([r["eye"] for r in rows], float)
     return pred, eye, stats(pred, eye), picked
 
@@ -210,12 +221,71 @@ def main(grades):
         print("  not measured. Every correlation above is against an UNMEASURED ceiling,")
         print("  and by the pre-registration no threshold is final until it is.")
 
+    # ---- 8. the orderliness band's confirmation (PREREGISTRATION_R4.md)
+    band_confirmation(df, T_all)
+
+
+def r_se(r, n):
+    """Standard error of a correlation. The +0.20 bar is a point-estimate threshold, so the
+    distance from it is only meaningful next to this."""
+    return float((1 - r ** 2) / np.sqrt(max(n - 1, 1))) if np.isfinite(r) else np.nan
+
+
+def band_confirmation(df, T_a3):
+    e = df[(df.deck == "E") & df.split_ok & (df.tag == "confirm")]
+    print(f"\n=== 8. the orderliness band, on grades collected after R3 §6  "
+          f"(deck E cards graded: {len(e)})")
+    if len(e) < 60:
+        print("  deck E ungraded or too thin — the band remains a HYPOTHESIS WITH FITTED NUMBERS,")
+        print("  and ticket 15's +0.255 stays optimistic by R3 §6's own terms.")
+        return
+
+    rows = to_rows(e)
+
+    # the decision number: the identical 5-fold procedure, refit on E alone (R4 §5)
+    pred, eye, st, folds = cv(rows, "boolean")
+    se = r_se(st["r"], len(rows))
+    print(f"  DECISION  out-of-fold r {st['r']:+.3f} (se {se:.3f}, n={len(rows)})  "
+          f"mae {st['mae']:.2f}  within1 {st['within1']:.0%}")
+    credited = st["r"] >= 0.20
+    if len(rows) < 120:
+        print(f"  UNDERPOWERED — R4 §2 calls anything under 120 graded a report, not a verdict.")
+    print("  -> the band is CREDITED: it reproduces on cards it was not fitted to."
+          if credited else
+          "  -> the band FAILS its pre-registered bar. By R3 §6 orderliness is DROPPED and its x2\n"
+          "     redistributed. The refit without it is below.")
+
+    # descriptive, and deliberately not the decision number (R4 §5)
+    frozen = np.array([score3(r["sig"], r["prior_move"], r["sector_share"], "boolean",
+                              T_a3)["stars"] for r in rows])
+    fs = stats(frozen, eye)
+    print(f"  descriptive: A3's thresholds applied FROZEN, no refit — r {fs['r']:+.3f}  "
+          f"mae {fs['mae']:.2f}  bias {fs['bias']:+.2f}")
+
+    o = e.orderliness.to_numpy(float)
+    inside = (o >= T_a3["ord_lo"]) & (o <= T_a3["ord_hi"])
+    print(f"  descriptive: {inside.mean():.0%} of E cards fall inside A3's band "
+          f"[{T_a3['ord_lo']}, {T_a3['ord_hi']}]  (A3's failure mode was 99% inside a one-sided cut)")
+    pr = partial_r(o, e.eye.to_numpy(float), e.base_len.to_numpy(float))
+    print(f"  descriptive: orderliness partial r vs the eye, controlling base length: {pr:+.3f}")
+    for key in ("ord_lo", "ord_hi"):
+        vals = [T[key] for T in folds]
+        print(f"    {key:8s} fold spread {min(vals)}-{max(vals)}")
+
+    # what dropping it costs, reported whichever way the decision went (R4 §5)
+    pred_d, eye_d, st_d, _ = cv(rows, "boolean", drop=("orderliness",))
+    print(f"  orderliness DROPPED, x2 redistributed, refit on E: r {st_d['r']:+.3f}  "
+          f"mae {st_d['mae']:.2f}  within1 {st_d['within1']:.0%}")
+    print(f"  -> keeping the band is worth {st['r'] - st_d['r']:+.3f} r and "
+          f"{st_d['mae'] - st['mae']:+.2f} mae on E")
+
 
 def selftest():
     """End-to-end on synthetic grades, so the analysis is known-good before the real ones land."""
-    man = pd.read_csv(os.path.join(HERE, "deck3_manifest.csv"))
+    man = manifest()
     g = {}
-    for deck in ("A", "C", "D"):
+    decks = ("A", "C", "D", "E") if (man.deck == "E").any() else ("A", "C", "D")
+    for deck in decks:
         n = (man.deck == deck).sum()
         g[deck] = "".join(str(int(x)) for x in RNG.integers(1, 6, n))
     print(f"self-test with random grades: "

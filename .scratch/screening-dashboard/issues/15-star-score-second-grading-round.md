@@ -2,7 +2,7 @@
 
 Type: prototype
 Status: claimed
-Blocked by: —
+Blocked by: 16
 
 ## Question
 
@@ -57,11 +57,30 @@ Before treating any threshold as final, check it against the real universe from 
 
 ---
 
-## Progress — apparatus built, awaiting the grading round
+## Progress — deck A graded, decks B/C blocked on ticket 16
 
-The round is **designed, sized and built; it has not been graded.** This ticket is HITL by type and
-cannot resolve without the trader's grades, so the session stopped at the hand-off rather than
-standing in for the eye.
+**Deck A is graded (120 cards) and the thresholds are fitted.** Full working in
+[`ROUND2_RESULTS.md`](../prototypes/15-grading-round-2/ROUND2_RESULTS.md). Headline: the score now
+correlates with the eye at **r = +0.189 out-of-fold**, which clears significance (|r| > 0.181) for
+the first time on this map, against ticket 09's −0.043. Mean error 1.24★ → **1.04★**, within one
+star 44% → **67%**, generosity bias +0.74★ → **+0.25★**. Four of six thresholds moved and every move
+tightened: contraction 1.15 → **1.80**, MA distance 1.0 → **0.60**, `len_ok` 20 → **10**, dry-up
+0.85 → 0.95. **Boolean beats continuous** on the pre-registered rule. **The 4★ cut stays**, though
+≥3.5★ dominates it on both precision and recall and survives only because the rule demanded a 10pp
+precision gain to move it; at 4★ roughly one name in three the machine calls tradeable is one the
+trader would.
+
+**What is still open, and why.** Decks B and C are **blocked on
+[ticket 16](16-trendline-fitting-envelope-vs-least-squares.md)**. The trader's observation that the
+drawn triangle looks wrong turned out to reach the trigger: the boundaries are least-squares fits
+where the method wants an envelope, and that alone accounts for ticket 09's already-breached
+triggers (13.3% → 0.8%). Deck B's entire split is breached-vs-not off those triggers, so as built it
+would spend 52 graded cards probing an artefact. Both decks are rebuilt once ticket 16 picks a line.
+
+So this ticket still owes: **per-market calibration** (deck A is entirely US), **both carried-in
+probes**, the **test–retest ceiling** (the 12 repeats live in decks B and C, so the bound on every
+correlation above is still unmeasured), and **deck D's rejected candidates**, which is gradeable now
+— it draws bare candles and no fitted line touches it.
 
 Built in [`prototypes/15-grading-round-2/`](../prototypes/15-grading-round-2/):
 

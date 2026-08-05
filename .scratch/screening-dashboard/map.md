@@ -54,7 +54,11 @@ is written during wayfinding.
   cannot reach the trigger at all — the trigger is the cluster high by identity — so the drawing the
   trader endorsed 10 of 11 times and the level the screen fires on are **two separate objects**, and
   only the second is what ticket 19 will be fitting. This does not reopen the swap, but it narrows
-  what the endorsement covered.
+  what the endorsement covered. **Ticket 19 fitted neither, and found a third thing instead**: the
+  parameter it was sent to fit is a *risk* parameter, not a detection one, and on three independent
+  measurements **the trader's eye prefers the setups the trader's own §7 stop rule rejects**. The map's
+  standing risk is therefore no longer only that the two ×2 dimensions are unconfirmed — it is that the
+  score, the eye and the risk rule may not be measuring the same thing at all. Ticket 21 carries it.
 - **Standing property of the data layer** (found independently by tickets 01, 02 and 03): **Yahoo fails
   as silence.** Throttled requests return empty results — and for price history, the literal message
   "possibly delisted; no price data found". Every ingestion path must distinguish throttling from
@@ -409,6 +413,28 @@ is written during wayfinding.
   porting `renderChart.ts` from `~/Projects/q-scanner-v2`, whose remaining architecture was put as an
   explicit fork and **declined**.
 
+- [Fit the split's 22 parameters, or accept them as borrowed defaults](issues/19-fit-the-split-parameters.md) —
+  **nothing is fitted, and that is the answer.** Of 22 numbers **five can move anything**; three are
+  provably redundant and deleted (`MA_PROX_ADR` dead; `OVER_W`/`UNDER_W` are one *ratio* — measured
+  byte-identical lists; `MAX_OVERSHOOT_FRAC` catches 4.4% the ADR test misses; and the **prior-move floor
+  duplicates the decile gate**, which cuts 89.4% of what the floor passes against the floor's 7.7%).
+  `SLOPE_STEPS` converges at 25 of 800 steps and `K_MAX` moves the list −1.7% at 9 — frozen, not fitted.
+  The headline is that **`TIGHT_MULT` is not a detection parameter, it is the stop budget**: the cluster
+  spans ≤ `TIGHT_MULT`×ADR and the stop runs trigger→cluster-low, and against §7's 1×ADR cap **92% of the
+  nightly list is a no-trade**. Ticket 08 gated exactly this (D6); ticket 17 deleted the gate on an argument
+  about *form* that was never paired with this number. Restoring the gate was measured and **declined**: it
+  keeps only 8.5% of detections, skews survivors to high volatility (ADR 6%→10%, prior move 104%→177%), and
+  **removes 85% of ticket 15's graded cards — the ones that graded *higher*** (2.91 removed vs 2.44 kept).
+  That is one of three measurements all pointing the same way: **the eye prefers what the stop rule
+  rejects**. So §7 moves to the *display* — stop width is shown and sorted on, never filtered on — and
+  enforcement stays with the human at entry, where the real LOD stop is visible. Also: **one parameter set
+  serves both markets** (IDX tracks US to two decimals across the grid), D13's collapsed-bar hole stays
+  closed at 98.5%, ticket 18's reopen condition is **discharged** (none of `TIGHT_MULT`/`K_MIN`/`K_MAX`
+  moved), and ticket 17's 63% swing is restated: it was measured on the **ungated** list, and the decile
+  gate is the far stronger filter. What it could not settle became
+  [ticket 21](issues/21-should-the-score-know-about-the-stop.md) — the score sorts a list that is 92%
+  unaffordable, and the rubric has already learned to reward wide stops without anyone deciding it should.
+
 ## Not yet specified
 
 - **Validation / backtest.** How do we know the screen actually surfaces the right names? History depth
@@ -483,6 +509,16 @@ is written during wayfinding.
   gap. Any future study has to treat the week around a split or dividend as suspect — and because detection
   runs on those bars, some detections in that window are artefacts of the ingest path rather than of the
   tape.
+  **Ticket 19 left the cheapest question this patch has yet acquired, and it is not about the score.**
+  The eye prefers wide-stop setups; §7 forbids them; nobody knows which is right, and forward outcomes
+  can say. Unlike the star-band question (672 triggered setups per band, unaffordable) this one splits the
+  nightly list into two populations at a **fixed, known threshold** — inside or outside 1×ADR — at roughly
+  8%/92%, so the minority arm is the binding constraint rather than a per-band count. It is answerable the
+  moment there is forward history *provided the stop width is written with every detection*, which is a
+  free addition to ticket 12's A4 write path and irrecoverable afterwards — the same shape as the map's
+  other capture streams, and the seventh of them. Note the trap the answer has to survive: §7's real stop
+  is the entry-day LOD, not the cluster low, so a study on the proxy measures a quantity the trader never
+  actually risks. Ticket 21 owns the live half of this.
   <!-- "Alerting" graduated into ticket 14 and is now resolved: v1 does not alert; a per-market digest of
        real breaks only. See Decisions so far. -->
 - **Watchlist persistence and user state.** **Narrowed by ticket 12, not cleared.** The storage half is

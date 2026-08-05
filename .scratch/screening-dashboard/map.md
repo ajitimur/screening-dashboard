@@ -59,6 +59,13 @@ is written during wayfinding.
   measurements **the trader's eye prefers the setups the trader's own §7 stop rule rejects**. The map's
   standing risk is therefore no longer only that the two ×2 dimensions are unconfirmed — it is that the
   score, the eye and the risk rule may not be measuring the same thing at all. Ticket 21 carries it.
+  **Ticket 23 removed one branch of this risk for good.** The oldest live worry — that the whole
+  calibration might be running on the wrong population, because the names the detector *rejects*
+  could grade as well as the ones it surfaces — is now measured and false: rejects grade **−0.90★**
+  below detections. The score is calibrated on the right population. What survives is narrower and
+  named: **`line_not_drawable` is the one rejection path that does not separate from the accepted
+  names** (−0.40★, interval spanning zero, below the eye's own noise floor), so the residual risk is
+  a single rejection rule, not the population. Ticket 24 carries that.
 - **Standing property of the data layer** (found independently by tickets 01, 02 and 03): **Yahoo fails
   as silence.** Throttled requests return empty results — and for price history, the literal message
   "possibly delisted; no price data found". Every ingestion path must distinguish throttling from
@@ -392,9 +399,10 @@ is written during wayfinding.
 
 - [Confirm the orderliness band, and measure the ceiling every correlation is judged against](issues/20-confirm-the-band-and-measure-the-ceiling.md)
   — **the eye is reproducible and the rubric is weak, which is the opposite of what was feared.**
-  The **test–retest ceiling is +0.808** (12 pairs, mean absolute difference 0.58★), measured for the
+  The **test–retest ceiling is +0.808** (12 pairs, mean absolute difference 0.58★ — *ticket 23 later
+  took it to +0.831 on 18 pairs, so the number held*), measured for the
   first time after two rounds of going unmeasured, so R3 §2's "published against an unmeasured
-  ceiling" caveat is **discharged** — and every correlation on this map now reads against +0.81
+  ceiling" caveat is **discharged** — and every correlation on this map now reads against +0.83
   rather than an unknown maximum. That reframes ticket 15: **+0.255 is not a rubric against a noisy
   target but a weak rubric against a reproducible one**, capturing about a third of what is
   achievable, so closing that gap is the highest-value move left on the score. **The band FAILED its
@@ -415,7 +423,20 @@ is written during wayfinding.
   ground R3 refused round 2 on). The two carried obligations are ticketed rather than passed a fourth
   time: [ticket 22](issues/22-idx-per-market-calibration.md) and
   [ticket 23](issues/23-the-rejected-candidates.md), whose decks are already rendered and whose 12
-  further repeats would halve the ceiling's error.
+  further repeats would halve the ceiling's error. **Ticket 23 has since been graded and resolved.**
+
+- [What the detector throws away](issues/23-the-rejected-candidates.md) — **the split is keeping the
+  better names, and the obligation carried since ticket 11 is discharged in the detector's favour.**
+  On 46 bare cards, pooled rejects grade **−0.90★** below accepted detections (20 vs 20, 95% CI
+  −1.67 to −0.13), so the direction is established and the star score is calibrated on the *right*
+  population — but the deck resolves 1.00★, not 0.75★, so **the sign is the finding and the size is
+  provisional**. The result is carried almost entirely by one path: `no_cluster` separates hard
+  (−1.40★, 7 of 10 cards graded 1★) while **`line_not_drawable` does not separate at all** (−0.40★,
+  CI −1.22 to **+0.42**, below the eye's own 0.56★ noise floor, and 3 of its 10 cards graded 4★
+  against a detection arm averaging only 3.20). That unresolved path graduated to
+  [ticket 24](issues/24-the-line-not-drawable-path.md); the third path, `not_caught_up`, was never
+  sampled. The ceiling moved **12 pairs → 18 and held at +0.831** (mean absolute difference 0.56★),
+  so ticket 20's reading survives more data. Nothing else moved — deck D carries no A or E cards.
 
 - [Architecture and local runtime shape](issues/12-architecture-and-deployment.md) — **one DuckDB file,
   one command per market, and every derived table is dated rows.** A4 is the load-bearing one: universe
@@ -503,7 +524,8 @@ is written during wayfinding.
   rediscover and over-read. Whatever validation becomes possible needs to clear that bar before any
   claim about score quality is made from returns.
   **Ticket 20 sharpened that warning by removing one of its escape routes.** The test–retest ceiling
-  is **+0.808**, so the eye is reproducible to within half a star and "the grader is just noisy" is no
+  is **+0.831** (ticket 20 measured +0.808 on 12 pairs; ticket 23's repeats took it to 18 and it
+  held), so the eye is reproducible to within half a star and "the grader is just noisy" is no
   longer available as an explanation for an eye-versus-outcome disagreement. If a later study
   reproduces ticket 09's finding at a workable n, it is a **real disagreement between the eye and
   returns** — and the map has no rule for which one wins, because the eye is the arbiter only by

@@ -1,7 +1,7 @@
 # Is the detector throwing away setups you want?
 
 Type: prototype
-Status: claimed
+Status: resolved
 Blocked by: —
 
 ## Question
@@ -37,3 +37,39 @@ which arrived rather than reading a null as a pass.
 
 Carries **6 repeat pairs**, which with ticket 22's 6 would take ticket 20's test–retest ceiling from
 12 pairs to 24 and roughly halve its error.
+
+## Answer
+
+**No — the detector is not throwing away setups you want.** 46 bare cards graded; full write-up in
+[`DECK_D_RESULTS.md`](../prototypes/15-grading-round-2/DECK_D_RESULTS.md).
+
+**Pooled rejects grade −0.90★ below accepted detections** (n=20 vs 20, se 0.40, 95% CI −1.67 to
+−0.13). The interval excludes zero, so the direction is established. The deck was sized to resolve
+1.00★ and −0.90★ falls just inside that, so **the sign is the finding and the size is provisional**
+— a 0.75★ gap would have needed 33/arm. The obligation ticket 11 opened and tickets 09, 15 and 20
+each carried without discharging is **discharged here, in the detector's favour**: the star score is
+calibrated on the right population.
+
+**But the result is carried almost entirely by one of the two rejection paths.**
+
+| arm | n | mean eye | Δ vs detections | 95% CI |
+| --- | --- | --- | --- | --- |
+| accepted detections | 20 | 3.20 | — | — |
+| reject `no_cluster` | 10 | 1.80 | −1.40★ | −2.44 to −0.36 |
+| reject `line_not_drawable` | 10 | 2.80 | −0.40★ | −1.22 to **+0.42** |
+
+`no_cluster` earns its place — 7 of 10 cards graded 1★. `line_not_drawable` does not separate: its
+interval spans zero, −0.40★ is below the eye's own 0.56★ noise floor, and 3 of its 10 cards graded
+4★ against a detection arm that only reaches 3.20. **That path is unresolved, and n=10 could never
+have resolved it** — carried to [ticket 24](24-the-line-not-drawable-path.md). The third path,
+`not_caught_up`, was deliberately not sampled and remains unmeasured.
+
+**The ceiling moved 12 pairs → 18 and held**: test–retest **r = +0.831**, mean absolute difference
+0.56★ (ticket 20 measured +0.808 on 12). Deck C3 would take it to 24.
+
+Nothing else moved — deck D carries no A or E cards, so the tightness gate, the boolean/continuous
+choice, the 4★ cut and the orderliness band's failure all read exactly as ticket 20 left them.
+
+**Method note:** section 6 of `analyse3.py` printed per-arm means and stopped, with no contrast and
+no interval — a null would have read as a pass, the exact failure this ticket warned about. It now
+computes the pooled contrast against R3 §2's sizing and names which resolution arrived.

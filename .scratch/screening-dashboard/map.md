@@ -252,6 +252,29 @@ is written during wayfinding.
   nights still write the file**, so a missing file means a failed run — the map's "Yahoo fails as silence"
   property, bought for free.
 
+- [Architecture and local runtime shape](issues/12-architecture-and-deployment.md) — **one DuckDB file,
+  one command per market, and every derived table is dated rows.** A4 is the load-bearing one: universe
+  membership, ranks, sector shares, detections, scores and signal vectors are all keyed by
+  `(market, session, …)` and appended, which **collapses the map's six owed capture streams into the normal
+  write path** — the thing the app reads *is* the archive, so they cannot disagree, ticket 14's digest is
+  backfillable as it assumed, and ticket 15 can replay a corrected rubric backwards. Derived rows are
+  **written once and never rewritten** (rewriting after a rescale would inject look-ahead into the streams
+  that exist *because* they are unbiased), so backfill fills only absent sessions. The store is one file
+  because **the freeze tickets 08/09/15 need is then `cp`** — footprint measured at ~580 MB for 10y × 6,550
+  symbols, not estimated. The ingest set is the **enumerated** universe (~6,550, not 2,254) since liquidity
+  is measured *from* bars. Runs are **per market** per ticket 11's I1 — two `launchd` jobs (≥19:00 WIB,
+  ≥17:00 ET, firing on wake if missed) plus run-on-open, because a ~9-minute US pull does not fit §1's
+  10-minute budget. Missed sessions are **backfilled for everything derivable**; listing files and sector
+  labels are stamped as-of and never faked. **A3 is a stated defect, not a clean decision**: ingest is
+  incremental with a weekly full refresh and **no drift detector** — two repairs were put and declined
+  (a 20-bar overlap check costing *zero* extra requests, and an off-cycle refetch on reported actions) — so
+  for up to six days a corporate action leaves a **seam that reads as a real overnight gap**, which ticket
+  08's detector reads as price action. Bounded, self-healing, and the **cheapest of the map's four knowing
+  omissions to reverse**. Also: resource endpoints with the frontend composing, one repo with TS types
+  generated from OpenAPI, 10 years of history, and **lightweight-charts** — ticket 11's handed-down "how" —
+  porting `renderChart.ts` from `~/Projects/q-scanner-v2`, whose remaining architecture was put as an
+  explicit fork and **declined**.
+
 ## Not yet specified
 
 - **Validation / backtest.** How do we know the screen actually surfaces the right names? History depth
@@ -299,10 +322,25 @@ is written during wayfinding.
   against outcomes, because they were recorded rather than discarded. Validation therefore inherits a
   concrete first question — do type-2 crossings behave differently from type-1 ones? — which is cheaper
   than the star-band question the noise floor above makes nearly unaffordable.
+  **Ticket 12 made this patch tractable and then put one stain on it.** Tractable, because A4 lands all six
+  streams through a single dated, append-only write path from launch — the archive is no longer six
+  bolt-on captures but the thing the app itself reads, so it cannot quietly diverge from what was shown on
+  the night, and derived rows are never rewritten, so no rescale injects look-ahead. The stain is A3: with
+  no adjustment-drift detector, a name with a corporate action can carry up to **six days of seam
+  artefacts** in its stored bars, where the old and new adjustment bases meet and read as a real overnight
+  gap. Any future study has to treat the week around a split or dividend as suspect — and because detection
+  runs on those bars, some detections in that window are artefacts of the ingest path rather than of the
+  tape.
   <!-- "Alerting" graduated into ticket 14 and is now resolved: v1 does not alert; a per-market digest of
        real breaks only. See Decisions so far. -->
-- **Watchlist persistence and user state.** Whether the app remembers names you've marked, and what
-  storage that implies, waits on the architecture ticket.
+- **Watchlist persistence and user state.** **Narrowed by ticket 12, not cleared.** The storage half is
+  now trivial and needs no decision — it would be one more dated table in the same DuckDB file, and A4's
+  append-only shape already fits a mark-and-unmark log. What remains is a product question, and ticket 11
+  answered it *by omission*: its two-screen inventory contains no watchlist, no marking, and no user state
+  of any kind, and no endpoint was defined for one in ticket 12's A8. So v1 as currently specified does not
+  remember anything you do. Nobody has explicitly ruled it in or out, which is why this stays fog rather
+  than graduating — but it is now a one-session question, and it is the last patch on this map that is
+  cheap.
   <!-- "Chart rendering approach" cleared by ticket 11: I5 fixed what the chart draws (§2's MA set
        including the 65 EMA, the primary window only, both fitted lines as fits, trigger and base-low
        stop, volume with base bars distinguished). The remaining library choice is a pure architecture

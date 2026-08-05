@@ -124,6 +124,18 @@ class Detection:
     line_end: float         # the fitted line at today; always ≤ trigger
     base_low: float
 
+    @property
+    def dist_adr(self) -> float:
+        """Distance from today's close up to the trigger, in ADR — "how soon"
+        (§5.1). ``adr_abs = adr × close`` is ADR in price units; the distance is
+        that many average daily ranges below the trigger. ``nan`` if ADR is
+        non-positive (it never is on a stored detection, which required a positive
+        ADR to exist). The candidate row and the chart facts read the same figure."""
+        adr_abs = self.adr * self.close
+        if adr_abs <= 0:
+            return float("nan")
+        return (self.trigger - self.close) / adr_abs
+
 
 # -- pure geometry (numpy-free, so it is unit-tested without the network) ------
 

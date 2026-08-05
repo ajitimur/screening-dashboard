@@ -61,14 +61,10 @@ def _facts(
     chart still draws, but there is no base to describe."""
     if detection is None:
         return None
-    adr_abs = detection.adr * detection.close
-    dist_adr = (
-        (detection.trigger - detection.close) / adr_abs if adr_abs > 0 else float("nan")
-    )
     return ChartFacts(
         base_len=detection.base_len,
         trigger=detection.trigger,
-        dist_adr=dist_adr,
+        dist_adr=detection.dist_adr,
         stopw_adr=detection.stopw_adr,
         adr=detection.adr,
         dollar_volume=median_dollar_volume(bars),

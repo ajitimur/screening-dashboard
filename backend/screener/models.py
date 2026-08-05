@@ -13,6 +13,11 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+# The three-state market regime is defined and computed in the domain layer; the
+# API surface re-exports it so ``RegimeResponse.state`` shares one source of truth
+# (v1-spec §4.9).
+from .regime import RegimeState
+
 # A run either published its session or was quarantined behind a banner because
 # it resolved < ~99% of enumerated symbols (v1-spec §3.4 rule 7 / A2).
 RunStatus = Literal["published", "quarantined"]
@@ -139,3 +144,25 @@ class SectorsResponse(BaseModel):
     session: date | None
     sectors: list[SectorStrength]
     industries: list[IndustryStrength]
+
+
+class RegimeResponse(BaseModel):
+    """The market regime banner's payload — **advisory only** (spec §4.9).
+
+    Carries the three-state ``state``, its sizing posture in *words*, market
+    ``breadth`` (share of the universe above its own rising SMA10/20, displayed
+    and gating nothing), and the as-of ``session``. Two banners, one per market,
+    never combined into a global verdict. The regime never filters, reorders or
+    scores the candidate list — every field here is read and shown, none gates.
+
+    ``state`` is ``None`` when the regime is **undefined** (fewer than 25 index
+    bars) or no run has published; ``session`` is ``None`` only in the latter
+    case, which is how the banner tells "warming up" from "nothing yet". ``posture``
+    is ``None`` whenever ``state`` is.
+    """
+
+    market: str
+    session: date | None
+    state: RegimeState | None
+    posture: str | None
+    breadth: float | None

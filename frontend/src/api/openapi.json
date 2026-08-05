@@ -162,6 +162,74 @@
         "title": "IndustryStrength",
         "type": "object"
       },
+      "RegimeResponse": {
+        "description": "The market regime banner's payload \u2014 **advisory only** (spec \u00a74.9).\n\nCarries the three-state ``state``, its sizing posture in *words*, market\n``breadth`` (share of the universe above its own rising SMA10/20, displayed\nand gating nothing), and the as-of ``session``. Two banners, one per market,\nnever combined into a global verdict. The regime never filters, reorders or\nscores the candidate list \u2014 every field here is read and shown, none gates.\n\n``state`` is ``None`` when the regime is **undefined** (fewer than 25 index\nbars) or no run has published; ``session`` is ``None`` only in the latter\ncase, which is how the banner tells \"warming up\" from \"nothing yet\". ``posture``\nis ``None`` whenever ``state`` is.",
+        "properties": {
+          "breadth": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Breadth"
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "posture": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posture"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "FRIENDLY",
+                  "CHOPPY",
+                  "HOSTILE"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "required": [
+          "market",
+          "session",
+          "state",
+          "posture",
+          "breadth"
+        ],
+        "title": "RegimeResponse",
+        "type": "object"
+      },
       "RunRecord": {
         "description": "One row of the append-only ``runs`` table, keyed ``(market, session)``.",
         "properties": {
@@ -442,6 +510,45 @@
           }
         },
         "summary": "Get Boards"
+      }
+    },
+    "/api/regime/{market}": {
+      "get": {
+        "operationId": "get_regime_api_regime__market__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegimeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Regime"
       }
     },
     "/api/runs/{market}": {

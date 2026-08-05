@@ -57,3 +57,77 @@ def test_market_is_case_insensitive(seeded_store: Store):
 
 def test_unknown_market_is_404(store: Store):
     assert client_for(store).get("/api/runs/LSE").status_code == 404
+
+
+# -- /api/regime/{market} (ticket 36, spec §4.9) ------------------------------
+
+
+def _regime_store() -> Store:
+    """A store with a friendly IDX index and a universe of two members — one
+    riding above rising MAs, one flat — plus a published run."""
+    from datetime import date, datetime, timedelta
+
+    from screener.bars import Bar
+    from screener.pipeline import run_market
+
+    store = Store.memory()
+    cal = [date(2026, 6, 1) + timedelta(days=i) for i in range(30)]
+    session = cal[-1]
+
+    def bars(adj):
+        return [Bar(s, c, c + 1, c - 1, c, c, 1000) for s, c in zip(cal, adj)]
+
+    store.append_bars("IDX", "^JKSE", bars([100.0 + i for i in range(30)]))  # rising
+    store.append_bars("IDX", "UP", bars([100.0 + i for i in range(30)]))     # friendly
+    store.append_bars("IDX", "FLAT", bars([100.0] * 30))                     # not
+    # run_market writes the universe (= the resolved members) as it publishes.
+    run_market(
+        store, "IDX", session,
+        enumerated=["UP", "FLAT"], resolved=["UP", "FLAT"],
+        now=datetime(2026, 6, 30, 19, 30),
+    )
+    return store
+
+
+def test_regime_endpoint_reports_state_posture_breadth_and_session():
+    store = _regime_store()
+    try:
+        body = client_for(store).get("/api/regime/IDX").json()
+        assert body["market"] == "IDX"
+        assert body["session"] == "2026-06-30"
+        assert body["state"] == "FRIENDLY"          # the index is in a clean uptrend
+        assert body["posture"] == "full size"       # words, not a number
+        assert body["breadth"] == 0.5               # 1 of 2 members above rising MAs
+    finally:
+        store.close()
+
+
+def test_regime_endpoint_is_empty_when_no_run_published(store: Store):
+    body = client_for(store).get("/api/regime/US").json()
+    assert body == {
+        "market": "US", "session": None, "state": None,
+        "posture": None, "breadth": None,
+    }
+
+
+def test_regime_state_undefined_below_the_warmup(store: Store):
+    from datetime import date, datetime, timedelta
+
+    from screener.bars import Bar
+    from screener.pipeline import run_market
+
+    cal = [date(2026, 6, 1) + timedelta(days=i) for i in range(10)]  # < 25 bars
+    session = cal[-1]
+    store.append_bars("IDX", "^JKSE", [Bar(s, 100.0, 101.0, 99.0, 100.0, 100.0, 1000) for s in cal])
+    run_market(
+        store, "IDX", session, enumerated=["AAA"], resolved=["AAA"],
+        now=datetime(2026, 6, 10, 19, 30),
+    )
+    body = client_for(store).get("/api/regime/IDX").json()
+    assert body["session"] == "2026-06-10"
+    assert body["state"] is None        # undefined, not defaulted
+    assert body["posture"] is None      # an undefined regime advises nothing
+
+
+def test_regime_unknown_market_is_404(store: Store):
+    assert client_for(store).get("/api/regime/LSE").status_code == 404

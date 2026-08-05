@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { fetchRuns, type RunsResponse } from "./api/client";
+import {
+  fetchRegime,
+  fetchRuns,
+  type RegimeResponse,
+  type RunsResponse,
+} from "./api/client";
 import Boards from "./Boards";
 import SectorTable from "./SectorTable";
 
@@ -55,15 +60,22 @@ export default function App() {
 
 function Workbench({ market }: { market: Market }) {
   const [runs, setRuns] = useState<RunsResponse | null>(null);
+  const [regime, setRegime] = useState<RegimeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
     setRuns(null);
+    setRegime(null);
     setError(null);
     fetchRuns(market)
       .then((r) => live && setRuns(r))
       .catch((e) => live && setError(String(e)));
+    // The regime is its own resource endpoint (spec §7.5); the banner reads it
+    // independently and never gates what the rest of the workbench shows.
+    fetchRegime(market)
+      .then((r) => live && setRegime(r))
+      .catch(() => {});
     return () => {
       live = false;
     };
@@ -96,6 +108,7 @@ function Workbench({ market }: { market: Market }) {
           <time dateTime={runs.latest.session}>{runs.latest.session}</time>.
         </p>
       )}
+      {regime?.session && <RegimeBanner market={market} regime={regime} />}
       <p className="as-of">
         As of session <time dateTime={runs.latest.session}>{runs.latest.session}</time>
       </p>
@@ -107,6 +120,38 @@ function Workbench({ market }: { market: Market }) {
       {/* The sector board reads the same as-of session (spec §4.4). The regime
           note (S7) wires in once ticket 10's /api/regime banner lands. */}
       <SectorTable market={market} />
+    </section>
+  );
+}
+
+/**
+ * The persistent regime banner (spec §4.9). Advisory only: it carries state,
+ * the sizing posture in *words*, breadth and the as-of session date, and gates
+ * nothing — the candidate list is identical in all three states. Below 25 index
+ * bars the state is undefined (warming up), which carries no posture. One banner
+ * per market, never combined into a global verdict.
+ */
+function RegimeBanner({ market, regime }: { market: Market; regime: RegimeResponse }) {
+  const { state, posture, breadth, session } = regime;
+  const breadthPct = breadth === null ? null : `${Math.round(breadth * 100)}%`;
+  return (
+    <section
+      className="regime-banner"
+      data-state={state ?? "undefined"}
+      aria-label={`${market} regime`}
+    >
+      {state ? (
+        <>
+          Regime: <strong>{state}</strong> — {posture}
+        </>
+      ) : (
+        <>
+          Regime: <strong>undefined</strong> — warming up
+        </>
+      )}
+      {breadthPct !== null && <> · Breadth {breadthPct}</>}
+      {" · as of "}
+      <time dateTime={session ?? undefined}>{session}</time>
     </section>
   );
 }

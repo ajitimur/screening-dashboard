@@ -1,7 +1,7 @@
 # Assemble the v1 spec
 
 Type: grilling
-Status: open
+Status: claimed
 Blocked by: 06, 07, 08, 09, 10, 11, 12, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28
 
 ## Question

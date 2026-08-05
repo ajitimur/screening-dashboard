@@ -163,14 +163,17 @@ def _find_cluster(high: list[float], low: list[float], as_of: int, adr_abs: floa
     Returns ``(k, cluster_high, cluster_low, range_adr)`` for the first (largest)
     k that is tight enough, or ``None`` (``no_cluster``, a rejection).
     """
+    if adr_abs <= 0:
+        return None
     for k in range(K_MAX, K_MIN - 1, -1):
         lo = as_of - k + 1
         if lo < 0:
             continue
         ch = max(high[lo:as_of + 1])
         cl = min(low[lo:as_of + 1])
-        if adr_abs > 0 and (ch - cl) / adr_abs <= TIGHT_MULT:
-            return k, ch, cl, (ch - cl) / adr_abs
+        range_adr = (ch - cl) / adr_abs
+        if range_adr <= TIGHT_MULT:
+            return k, ch, cl, range_adr
     return None
 
 

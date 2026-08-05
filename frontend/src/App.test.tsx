@@ -48,6 +48,33 @@ describe("the two market tabs", () => {
     act(() => screen.getByRole("button", { name: "US" }).click());
     await waitFor(() => expect(screen.getByText("2026-08-05")).toBeInTheDocument());
   });
+
+  it("banners a quarantined latest run while serving the last good session", async () => {
+    // Newest run (08-05) quarantined; last published (08-04) keeps serving.
+    mockRuns({
+      IDX: {
+        market: "IDX",
+        latest: run("IDX", "2026-08-04"),
+        runs: [quarantined("IDX", "2026-08-05"), run("IDX", "2026-08-04")],
+      },
+      US: { market: "US", latest: null, runs: [] },
+    });
+    render(<App />);
+    // The stale banner is shown...
+    expect(await screen.findByRole("status")).toHaveTextContent(/quarantined|last good/i);
+    // ...and the served session is still the last good one, dated (banner + as-of).
+    expect(screen.getAllByText("2026-08-04").length).toBeGreaterThan(0);
+  });
+
+  it("shows no banner when the latest run published", async () => {
+    mockRuns({
+      IDX: { market: "IDX", latest: run("IDX", "2026-08-04"), runs: [run("IDX", "2026-08-04")] },
+      US: { market: "US", latest: null, runs: [] },
+    });
+    render(<App />);
+    expect(await screen.findByText("2026-08-04")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
 });
 
 function run(market: string, session: string): RunRecord {
@@ -59,4 +86,8 @@ function run(market: string, session: string): RunRecord {
     symbols_resolved: 100,
     created_at: `${session}T22:00:00`,
   };
+}
+
+function quarantined(market: string, session: string): RunRecord {
+  return { ...run(market, session), status: "quarantined", symbols_resolved: 50 };
 }

@@ -146,3 +146,66 @@ drops. The trader adopted it anyway on the strength of the geometry result. Refi
 the new structure is what makes that hard to reverse, so if this ticket finds tightness unscorable,
 say so loudly rather than working around it — ticket 17's R6 records a cheaper fallback that keeps
 this ticket's existing fit intact.
+
+---
+
+## Progress — the structure is settled on the new geometry; round 3 is rendered and waiting to be graded
+
+Measurement pass over the grades that already exist, re-measured on the split. Full working in
+[`REFIT_FINDINGS.md`](../prototypes/15-grading-round-2/REFIT_FINDINGS.md).
+
+**The ×2 tightness dimension is scorable, and it is a packing count rather than a width.** Every
+*narrowness* candidate fails on the population the rubric actually ranks (cluster range ÷ ADR
++0.100, narrowing +0.076, √-shortfall −0.115, base height −0.027, all partial on base length,
+none significant). **Cluster length k is the only measure that replicates** — partial r **+0.327**
+(p = 0.002) on the 81 split-accepted graded cards, +0.260 on deck A, +0.216 on ticket 17's fresh
+cards. The reason is structural: the cluster is *selected* to fit under `TIGHT_MULT × ADR`, so its
+width is spent by the selection and the information left is how many bars pack into it. Cluster
+churn measures the same object (r = 0.850 with k, +0.098 marginal) — **one new dimension, not two**.
+The eye rises monotonically in k and flattens at 6; the best boolean cut is **k ≥ 5**.
+
+**D10's MA distance is dropped and the dimension keeps its ×1.** The split's catch-up test already
+gates 100% of survivors, and the distance carries nothing once length is controlled (partial r
+**+0.010**, p = 0.93) while correlating +0.606 with the gap that test already reads. The half that
+does carry signal is **SMA20 rising** (r = +0.291), which costs no threshold. **Free numbers fall
+from six to four**: `cluster_k`, `orderliness`, `dryup`, and the length band. Structure is
+`rubric3.py`.
+
+**The thresholds cannot be fitted on the grades that exist, and this is the reason round 3 exists.**
+The two graded sets are **not poolable**: deck A was stratified on the old provisional score and
+ticket 17's deck was not, and on the *same* population they differ by **+0.69★, p = 0.044** —
+presentation and sampling moved together, so it cannot be untangled after the fact. Fitting anyway
+on the 81 gives out-of-fold **r = +0.007** against +0.179 in-sample, with the two sources
+disagreeing on four of five thresholds and `cluster_k` ranging over the whole grid fold to fold.
+Round 2's thresholds merely re-pointed at the new domain score **+0.221**, better than anything
+fitted. **No thresholds are published from this pass.** The one thing the fit does establish is
+that the k dimension earns its place: out-of-fold +0.059 with it against **−0.152** when tightness
+scores neutral.
+
+**D13's partial-lock probe is de-scoped from a powered probe to a descriptive subgroup.** Over 2,244
+accepted IDX detections, **98.1% have zero collapsed bars** and only 1.8% are partially locked — a
+26-per-arm split cannot be drawn from it. The base moving from ~3 bars to ~14 is what did it.
+
+**There are still zero graded IDX cards on any structure.** Round 2's deck A, round 2's ungraded
+deck C and ticket 17's deck are all US.
+
+### What is now waiting on the trader
+
+[`PREREGISTRATION_R3.md`](../prototypes/15-grading-round-2/PREREGISTRATION_R3.md) fixes the round in
+advance — including the trigger that would declare tightness unscorable (k's partial r below +0.15,
+sending ticket 17's R6 fallback back to the trader). `build_deck3.py` has rendered **224 cards, all
+bare**, which is the fix for round 2's confound:
+
+| deck | cards | question |
+| --- | --- | --- |
+| `deck3_A.html` | 120 | the core round — fits the four free numbers. **The one that must be finished.** |
+| `deck3_C.html` | 58 | IDX, asked for the first time: does it need its own thresholds? |
+| `deck3_D.html` | 46 | the detector's own rejects vs its detections — ticket 11's unowned obligation |
+
+12 repeats are hidden inside C3 and D3 for the **test–retest ceiling**, which has now gone
+unmeasured twice; by the pre-registration no threshold is final until it is measured.
+
+**To resume:** open `deck3_A.html`, grade, hit export, and run
+`analyse3.py A=<string> [C=<string>] [D=<string>]`. The analysis is verified end to end on synthetic
+grades (`analyse3.py --selftest`), so the numbers land the moment the grades do. Everything needs
+**pandas 3.x** — the cached pickles use its string dtype.

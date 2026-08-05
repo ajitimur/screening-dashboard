@@ -230,3 +230,21 @@ low (within 1.5 ADR on 94.2% of detections against 64.1%). Working in `hybrid.py
   which is the rendering the trader picked 10 of 11 times. `chart17.py` is the reference.
 - **Ticket 12 is unaffected.** Detections, signal vectors and scores are dated append-only rows; a
   changed detector writes different rows, not a different schema.
+
+## Correction — ticket 18
+
+**R3 records D5 as replaced by `max(line_at(t+1), cluster_high)`. It is replaced by
+`cluster_high`.** The `max()` is dead code: `fit_line` anchors the envelope at the cluster's max high
+and searches only non-positive slopes, so the extrapolated line can never exceed the value it is
+anchored to. Measured at **100.0% of 29,242 detections** — an identity, not a frequency, and it
+supersedes ticket 16's 82%.
+
+Consequences, all recorded on [ticket 18](18-digest-rule-under-the-clamped-trigger.md):
+
+- **Four of the 22 parameters cannot move the trigger.** The line-fit numbers (`OVER_W`, `UNDER_W`,
+  `SLOPE_STEPS`, `MAX_SLOPE_ADR`) affect only whether a detection exists, never where its level sits.
+  Ticket 19 should price them on that basis.
+- **`K_MIN`/`K_MAX` do double duty.** The cluster high is the trigger, so the k range is also the
+  digest's breakout lookback (18 R3) — fitting them on detection quality alone under-counts them.
+- **The knock-on to ticket 14 was understated.** It is not that the taxonomy is depopulated; two of its
+  three buckets are unreachable, and `TRIGGERED` cannot persist as a state at all (18 R2, R4).

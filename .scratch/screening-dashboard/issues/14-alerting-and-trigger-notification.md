@@ -192,3 +192,23 @@ decision — by design, not by omission. It tells you whether to open the chart.
   detection bug rather than a property — A2's exclusion of types 2 and 3 must be reopened.
 - **To ticket 13 (assemble v1 spec):** the notification layer is one artifact and one rule. It is the
   smallest section in the spec, and A4's principle is the part worth carrying forward verbatim.
+
+## Amendment — ticket 18
+
+[Ticket 18](18-digest-rule-under-the-clamped-trigger.md) reopened this under ticket 17's trigger, as
+the hand-off above required. **A1, A4, A5 and A6's principle are untouched; A2's taxonomy is gone and
+A3's justification is replaced.**
+
+- **A2 collapses to one rule.** The trigger is the cluster high (18 R1), which includes today's high,
+  so a detected name is never above its own level: types 2 and 3 are **unreachable**, not rare —
+  measured 0 and 2 in 29,242 detections against the 16.4% this ticket assumed. "Report only type 1"
+  and "report every crossing" are the same rule; A2 is now the second.
+- **A3 stands verbatim, for a different reason.** Its attribution argument is spent — the level cannot
+  descend below today's close. What it now buys is **recency**: `trigger_yesterday` exists only if the
+  name was detected yesterday. Accepted cost ~2.9 US rows/night of short-lapse resumers.
+- **A6 gains one column** — a repeat marker and last-reported date, because 18 R4 found `TRIGGERED`
+  cannot persist, so a name re-arms and can be reported again (20.6% of breaks within 20 sessions).
+- **The accepted cost in A2 is discharged.** Nothing is withheld on the D5-early-trigger grounds; 18
+  R3's lapse cost replaces it.
+- **The reopen condition is re-armed against ticket 19, not 15** — `TIGHT_MULT`/`K_MIN`/`K_MAX` define
+  the cluster, and the cluster high *is* the trigger.

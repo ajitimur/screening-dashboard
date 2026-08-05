@@ -273,3 +273,15 @@ one click from the row — not by the app deciding what you are allowed to see.
   3. Per I1, runs are **per market**, gated on that market's own session finality. There is no global
      nightly job producing one dashboard.
 - **Ticket 13 (assemble the v1 spec)** — screen inventory and nightly path above are the section it needs.
+
+## Amendment — ticket 18
+
+**I4's column 2 loses its state half: it carries the score alone, and the list is five columns, not
+six.** [Ticket 18](18-digest-rule-under-the-clamped-trigger.md) R4 found `TRIGGERED` is unreachable as
+a persistent state under ticket 17's trigger — every detected name is `WATCHING` by construction — so
+the state half would render one value for every row on every night.
+
+**I2 is reinforced rather than disturbed.** A "broke today" badge would carry real information and was
+declined for exactly the reason I2 gives: it is the diff-first surface, moved inside the app. The
+break keeps the single home ticket 14 gave it — the digest — which is the file you may ignore at no
+cost.

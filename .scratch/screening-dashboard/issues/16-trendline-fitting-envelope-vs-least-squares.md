@@ -151,3 +151,16 @@ to. `chart16.py` draws the primary window only, per I5.
 The eye question. `deck16.html` is built and verified (50 cards, blind A/B, seed 16) but was **not
 graded**: its cards inherit the 3-bar median, so it would ask the eye to choose between two lines
 through three points. It should be rebuilt over whatever window the successor ticket settles.
+
+## Correction — ticket 18
+
+**The 82% clamp-binding figure is superseded by 100%, and it is an identity rather than a
+frequency.** This ticket measured the clamp against ticket 08's window geometry, where the anchor is
+not the cluster's max high. Under the split as adopted, `fit_line` anchors at `high[argmax of the
+cluster's highs]` and searches only non-positive slopes, so `line_at(t+1) ≤ cluster_high` always —
+measured 100.0% of 29,242 detections. **The fitted line never sets the trigger.**
+
+Nothing this ticket decided turns out differently: the envelope was chosen over OLS on the drawing and
+on the validity gate, and both stand — the fit still gates detection through `line_ok` and is still
+what ticket 11's I5 draws. It simply never reaches the trigger. See
+[ticket 18](18-digest-rule-under-the-clamped-trigger.md) R1.

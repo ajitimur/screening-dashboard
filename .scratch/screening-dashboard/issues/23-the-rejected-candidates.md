@@ -1,7 +1,7 @@
 # Is the detector throwing away setups you want?
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: —
 
 ## Question

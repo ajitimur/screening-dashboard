@@ -257,6 +257,15 @@ class Store:
 
     # -- reads -------------------------------------------------------------
 
+    def rank_sessions(self, market: str) -> list[date]:
+        """Every session with rank rows, oldest first — the history the sector
+        board differences for its temporal delta (spec §4.4 / ticket 07 S3)."""
+        rows = self._con.execute(
+            "SELECT DISTINCT session FROM ranks WHERE market = ? ORDER BY session",
+            [market],
+        ).fetchall()
+        return [r[0] for r in rows]
+
     def ranks(self, market: str, session: date) -> list[Rank]:
         """A session's rank rows, ordered by symbol then lookback."""
         rows = self._con.execute(

@@ -14,6 +14,51 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "IndustryStrength": {
+        "description": "One ranked industry's shares (spec \u00a74.4 / ticket 07 S5).\n\nAn industry is ranked only at ``members \u2265 10`` \u2014 one rule, both markets,\nyielding many more rows on US than IDX. Industry *is* the theme layer (S1).",
+        "properties": {
+          "decile_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Decile Counts",
+            "type": "object"
+          },
+          "industry": {
+            "title": "Industry",
+            "type": "string"
+          },
+          "members": {
+            "title": "Members",
+            "type": "integer"
+          },
+          "sector": {
+            "title": "Sector",
+            "type": "string"
+          },
+          "shape_differential": {
+            "title": "Shape Differential",
+            "type": "number"
+          },
+          "shares": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Shares",
+            "type": "object"
+          }
+        },
+        "required": [
+          "industry",
+          "sector",
+          "members",
+          "shares",
+          "decile_counts",
+          "shape_differential"
+        ],
+        "title": "IndustryStrength",
+        "type": "object"
+      },
       "RunRecord": {
         "description": "One row of the append-only ``runs`` table, keyed ``(market, session)``.",
         "properties": {
@@ -104,6 +149,111 @@
         "title": "RunsResponse",
         "type": "object"
       },
+      "SectorStrength": {
+        "description": "One sector's leadership and rotation numbers (spec \u00a74.4 / ticket 07 S2\u2013S8).\n\n``shares`` carries the five per-lookback strengths \u2014 the share of this\nsector's members in that lookback's top decile, ``k/n``. ``members`` is\n``n`` (the sector's universe count) and ``decile_counts`` is ``k`` per\nlookback, so the UI can render the ``k/n`` fragility badge (S4).",
+        "properties": {
+          "decile_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Decile Counts",
+            "type": "object"
+          },
+          "delta_low_confidence": {
+            "title": "Delta Low Confidence",
+            "type": "boolean"
+          },
+          "members": {
+            "title": "Members",
+            "type": "integer"
+          },
+          "rotation_eligible": {
+            "title": "Rotation Eligible",
+            "type": "boolean"
+          },
+          "sector": {
+            "title": "Sector",
+            "type": "string"
+          },
+          "shape_differential": {
+            "title": "Shape Differential",
+            "type": "number"
+          },
+          "shares": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Shares",
+            "type": "object"
+          },
+          "temporal_delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temporal Delta"
+          }
+        },
+        "required": [
+          "sector",
+          "members",
+          "shares",
+          "decile_counts",
+          "shape_differential",
+          "temporal_delta",
+          "rotation_eligible",
+          "delta_low_confidence"
+        ],
+        "title": "SectorStrength",
+        "type": "object"
+      },
+      "SectorsResponse": {
+        "description": "The sector board and the ranked-industry board for one market (\u00a74.4).\n\n``sectors`` is always the full 11-sector axis, default-sorted by shape\ndifferential with the rotation-ineligible sectors grouped below (S4/S8).\n``industries`` carries only the ``members \u2265 10`` rows. ``session`` is the\nas-of published session, ``None`` when no run has published.",
+        "properties": {
+          "industries": {
+            "items": {
+              "$ref": "#/components/schemas/IndustryStrength"
+            },
+            "title": "Industries",
+            "type": "array"
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "sectors": {
+            "items": {
+              "$ref": "#/components/schemas/SectorStrength"
+            },
+            "title": "Sectors",
+            "type": "array"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          }
+        },
+        "required": [
+          "market",
+          "session",
+          "sectors",
+          "industries"
+        ],
+        "title": "SectorsResponse",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -189,6 +339,45 @@
           }
         },
         "summary": "Get Runs"
+      }
+    },
+    "/api/sectors/{market}": {
+      "get": {
+        "operationId": "get_sectors_api_sectors__market__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectorsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Sectors"
       }
     }
   }

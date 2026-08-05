@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchRuns, type RunsResponse } from "./api/client";
+import SectorTable from "./SectorTable";
 
 const MARKETS = ["IDX", "US"] as const;
 type Market = (typeof MARKETS)[number];
@@ -83,6 +84,9 @@ function Workbench({ market }: { market: Market }) {
           Universe: <strong>{runs.universe_size}</strong> tradeable names
         </p>
       )}
+      {/* The sector board reads the same as-of session (spec §4.4). The regime
+          note (S7) wires in once ticket 10's /api/regime banner lands. */}
+      <SectorTable market={market} />
     </section>
   );
 }

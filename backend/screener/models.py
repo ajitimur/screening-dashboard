@@ -9,7 +9,7 @@ frontend typecheck rather than surface as a runtime ``undefined``.
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -38,5 +38,5 @@ class RunsResponse(BaseModel):
     """
 
     market: str
-    latest: Optional[RunRecord]
+    latest: RunRecord | None
     runs: list[RunRecord]

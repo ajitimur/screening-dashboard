@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from pathlib import Path
-from typing import Optional
 
 import duckdb
 
@@ -148,7 +147,7 @@ class Store:
             for r in rows
         ]
 
-    def latest_run(self, market: str) -> Optional[RunRecord]:
+    def latest_run(self, market: str) -> RunRecord | None:
         """The last *published* run — the as-of session the tab renders."""
         for record in self.runs(market):
             if record.status == "published":

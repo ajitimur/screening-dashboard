@@ -101,3 +101,48 @@ Built in [`prototypes/15-grading-round-2/`](../prototypes/15-grading-round-2/):
 
 **To resume:** open `decks/deck_A.html`, grade, hit export, and run
 `analyse2.py grades.txt`.
+
+---
+
+## Re-scoped by ticket 17 — the structure under the rubric moved
+
+[Ticket 17](17-base-cluster-split.md) adopted the base/cluster split for detection as well as
+description, which changes what several of the fitted numbers above are measured over. **The deck A
+fit is not discarded — the method, the pre-registration and the boolean-beats-continuous result all
+stand — but four of its six thresholds now describe an object that no longer exists.**
+
+What moved:
+
+- **The contraction threshold (1.80) has no domain.** It is defined over D3's retained window set,
+  which ticket 17 deleted. Ticket 17 measured every candidate replacement and found that the ones
+  correlating with the eye are **base-length proxies that collapse to zero** under a length control
+  (working in [`contraction.py`](../prototypes/17-base-cluster/contraction.py)). The "narrow" half is
+  available as the cluster range in ADR but is **compressed by construction** — hard ceiling 1.50,
+  IQR 1.20–1.42, 16.9% pinned at the top. **So the open question is no longer "what threshold" but
+  whether the ×2 tightness dimension is scorable on this structure at all.** That is the largest
+  single risk this ticket now carries.
+- **Churn, dry-up and MA distance change domain** — they now measure a median 14-bar base rather than
+  a 3-bar window. `churn/L` normalisation still applies; the fitted cuts (0.35, 0.95, 0.60) do not
+  transfer and must be refitted. D10's MA distance additionally **overlaps the split's own MA
+  catch-up test**, so one of the two is redundant.
+- **`len_ok` 10 / `len_bad` 40 are measured against a different length.** The base is now 14 bars
+  median instead of 3, so the penalty band is no longer positioned where it was fitted.
+- **Deck B is moot, not merely blocked.** Its split is already-breached versus comfortably-above, and
+  already-breached is **0.2%** under the new clamped trigger (16.0% before). The carried-in D5 probe
+  is answered by ticket 17's R2 rather than by grading: the eye chose the clamped-trigger drawing
+  10 of 11 times.
+- **One new dimension arrives with evidence attached.** **Cluster length k** correlates with the eye
+  at partial r **+0.260** in-sample and **+0.218** on ticket 17's fresh grades, *free of base length*
+  — the only length-free signal either ticket found. It is already computed. Whether it earns a
+  §3.5 point or feeds tightness is this ticket's call.
+
+What is unaffected: deck C's IDX limit-lock probe, deck D's rejected candidates (still unowned,
+still gradeable, and now more valuable — ticket 17 changed which names are rejected), the
+test–retest ceiling, per-market calibration, and the caution about the reduced 650-name universe.
+
+**One inherited risk to state plainly.** Ticket 17's name-level comparison came back **null**
+(+0.40 stars, p = 0.298): the split's added names were not shown to be better than the ones it
+drops. The trader adopted it anyway on the strength of the geometry result. Refitting the rubric on
+the new structure is what makes that hard to reverse, so if this ticket finds tightness unscorable,
+say so loudly rather than working around it — ticket 17's R6 records a cheaper fallback that keeps
+this ticket's existing fit intact.

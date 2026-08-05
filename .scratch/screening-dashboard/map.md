@@ -42,6 +42,14 @@ is written during wayfinding.
   detections — and D6 has stopped being a hard gate, which leaves D7's ×2 tightness dimension owing the
   "narrow" half it had delegated to that gate. Ticket 17 carries all of it; ticket 15 is blocked behind
   it, because a rubric calibrated on the current detector would be calibrated on a shape that may move.
+  **Ticket 17 moved it.** The base/cluster split is adopted whole, so the shape ticket 15 must calibrate
+  on is the new one — and the risk did not so much move as *concentrate*: the ×2 tightness dimension now
+  has **no working definition at all**, because every candidate that correlates with the eye turns out to
+  be base length in disguise. The map has therefore spent three tickets (09, 15, 17) discovering the same
+  thing — **that the two ×2 dimensions §3.5 leans hardest on are the two the eye does not confirm** — and
+  ticket 15 is where it either gets scored or gets declared unscorable. The other half of the risk is
+  newer and blunter: the detector was swapped on a **null** name-level comparison, so the nightly list is
+  three-quarters new on the strength of a *drawing* preference rather than a *name* preference.
 - **Standing property of the data layer** (found independently by tickets 01, 02 and 03): **Yahoo fails
   as silence.** Throttled requests return empty results — and for price history, the literal message
   "possibly delisted; no price data found". Every ingestion path must distinguish throttling from
@@ -259,6 +267,33 @@ is written during wayfinding.
   the 3-bar median. Window and looseness cut graduated to
   [ticket 17](issues/17-base-cluster-split.md).
 
+- [Replace the window rule with a base/cluster split?](issues/17-base-cluster-split.md) — **yes, whole:
+  detection and description.** Ticket 16's reassurance that "the list lands where it already is" is true
+  of the count and **false of the contents** — the two detectors overlap on **26%** of picks (per night
+  US 21.3 vs 20.4 names, **5.5 shared**), so list length is the one property that cannot tell them apart.
+  The 75-card blind deck splits cleanly: on **the names** the split's picks beat the ones it drops by only
+  +0.40★, **p = 0.298** — null, and it would need ~140 cards an arm rather than 20; on **the drawing** the
+  trader picked the split's base+cluster **10 of 11** (p = 0.011) over a median 3-bar window against an
+  18-bar base, answering ticket 16's unasked question *against the window* rather than between the two
+  line fits. The session recommended taking the geometry only and keeping 08's search (measured: `08 +
+  a cluster ≤1.25×ADR` restores today's ~59 US/night for **one** parameter, leaving ticket 15's rubric
+  intact — kept in R6 as the cheap fallback); **the trader took the full split**, accepting that the list
+  changes by three quarters of its contents on a name-level result that did not clear significance, and
+  that refitting ticket 15 in between makes it hard to reverse. **D3, D4, D5, D9/D14 are deleted or
+  replaced** (trigger clamps *up* to the cluster high, stop moves to the cluster low and is bounded
+  ≤1.5×ADR by construction, so D6 is unnecessary rather than merely un-gated); §3.2's piercing, the
+  elimination of pivot detection, end-anchoring and D15 stand. **D7 is the open wound**: with the retained
+  set gone, every candidate tightness measure that correlates with the eye **collapses to zero under a
+  base-length control** — ticket 09's failure mode in new clothing — and the "narrow" half is compressed
+  by construction (ceiling 1.50, IQR 1.20–1.42), so whether the ×2 dimension is scorable at all is now
+  ticket 15's risk. **One new signal, the only length-free one either ticket found**: cluster length k,
+  partial r **+0.260** in-sample and **+0.218** out-of-sample. **The zero-parameter property is gone for
+  good — the bill is 22, none fitted**, and `TIGHT_MULT` alone swings the list **63%** (→ ticket 19). The
+  session also **corrected its own finding**: the split does *not* inherit ticket 09's base-length problem
+  (−0.375 in-sample did not reproduce, +0.029 on fresh grades — an artefact of deck A's population).
+  Knock-ons: ticket 11's I5 amended (the chart draws the base with the cluster shaded), ticket 15
+  re-scoped, ticket 14 reopened as ticket 18.
+
 - [Alerting on the trigger level](issues/14-alerting-and-trigger-notification.md) — **v1 does not alert.**
   The nightly run writes **one dated Markdown digest per market** (`digests/<market>/<session>.md`) and that
   is the whole notification layer — no notification, no push, no screen. A channel was rejected as ticket
@@ -351,7 +386,19 @@ is written during wayfinding.
   until there is forward history: the excluded types are exactly the population a later study can score
   against outcomes, because they were recorded rather than discarded. Validation therefore inherits a
   concrete first question — do type-2 crossings behave differently from type-1 ones? — which is cheaper
-  than the star-band question the noise floor above makes nearly unaffordable.
+  than the star-band question the noise floor above makes nearly unaffordable. *(Ticket 17 has since
+  narrowed this: type 3 is 0.2% rather than 16.4% under the new trigger, so the question survives mostly
+  as type-2 — carried to ticket 18.)*
+  **Ticket 17 left the sharpest question on this patch, and a dated one.** Its name-level comparison —
+  are the split's picks better than ticket 08's? — came back **+0.40★ at p = 0.298**, and it sized the
+  shortfall: **~140 cards per arm** against the 20 it graded, which is affordable in a way the
+  672-per-band outcome question is not. So the first thing forward history can settle is not "does the
+  score work" but **"was the detector swap an improvement"** — and the two populations are *already
+  distinguishable in the archive*, since ticket 12's A4 writes every detection as a dated row. The dating
+  is load-bearing here: detections recorded before the swap are under a different definition, and nothing
+  marks the boundary unless **the detector version is written alongside them**. That is a small, free
+  addition to the write path today and irrecoverable afterwards — the same shape as the map's other five
+  capture streams.
   **Ticket 12 made this patch tractable and then put one stain on it.** Tractable, because A4 lands all six
   streams through a single dated, append-only write path from launch — the archive is no longer six
   bolt-on captures but the thing the app itself reads, so it cannot quietly diverge from what was shown on

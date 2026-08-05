@@ -399,8 +399,9 @@ is written during wayfinding.
 
 - [Confirm the orderliness band, and measure the ceiling every correlation is judged against](issues/20-confirm-the-band-and-measure-the-ceiling.md)
   — **the eye is reproducible and the rubric is weak, which is the opposite of what was feared.**
-  The **test–retest ceiling is +0.808** (12 pairs, mean absolute difference 0.58★ — *ticket 23 later
-  took it to +0.831 on 18 pairs, so the number held*), measured for the
+  The **test–retest ceiling is +0.808** (12 pairs, mean absolute difference 0.58★ — *tickets 22 and
+  23 then each added 6 **disjoint** repeats in parallel, reading +0.854 and +0.831 on their own
+  18-pair sets, so the number held twice; the pooled **24-pair** figure is unmeasured*), measured for the
   first time after two rounds of going unmeasured, so R3 §2's "published against an unmeasured
   ceiling" caveat is **discharged** — and every correlation on this map now reads against +0.83
   rather than an unknown maximum. That reframes ticket 15: **+0.255 is not a rubric against a noisy
@@ -434,9 +435,31 @@ is written during wayfinding.
   (−1.40★, 7 of 10 cards graded 1★) while **`line_not_drawable` does not separate at all** (−0.40★,
   CI −1.22 to **+0.42**, below the eye's own 0.56★ noise floor, and 3 of its 10 cards graded 4★
   against a detection arm averaging only 3.20). That unresolved path graduated to
-  [ticket 24](issues/24-the-line-not-drawable-path.md); the third path, `not_caught_up`, was never
+  [ticket 25](issues/25-the-line-not-drawable-path.md); the third path, `not_caught_up`, was never
   sampled. The ceiling moved **12 pairs → 18 and held at +0.831** (mean absolute difference 0.56★),
   so ticket 20's reading survives more data. Nothing else moved — deck D carries no A or E cards.
+
+- [Does IDX need its own thresholds?](issues/22-idx-per-market-calibration.md) — **no: one threshold
+  set covers both markets**, and the reason is more interesting than the ruling. Both pre-registered
+  arms miss — mean residual **0.33★** against a 0.50★ bar, IDX-only fit **+0.125★** against 0.15★ —
+  and the near-miss on arm 2 was measured rather than eyeballed, per the ticket's own instruction to
+  treat a marginal result as a reason to wait: over 25 fold assignments the gain runs −0.077 to
+  +0.231, **median +0.058, clearing the bar 12% of the time**, while the IDX-only thresholds swing
+  `cluster_k` 3–6 and `len_ok` 4–26 across five folds. **There is nothing stable to split into** —
+  ticket 21's objective problem arriving in a third place. The substance: **the eye is far harsher on
+  IDX** (mean 2.35 vs 3.23, ≥4★ **15% vs 48%**, a 0.88★ level difference, nearly 3× arm 1's whole
+  residual gap) **and the pooled rubric already tracks it** — so the difference between the markets is
+  in the **population, not the calibration**, and IDX detections grade worse because they *are* worse
+  setups. The score also **does not degrade off its home market**: pooled and out-of-fold on IDX it
+  scores mae 0.913 / r **+0.298** against US's 1.11 / +0.255, better on the market it was not fitted
+  on. This one does **not** wait for ticket 21 — a rank objective is invariant to exactly the level
+  offset separating the markets, so it would make pooling more justified, not less. Two ride-alongs:
+  the **ceiling tightened to +0.854 on 18 pairs** (from +0.808 on 12, mean |difference| 0.58★ → 0.44★)
+  and moved **up**, so the rubric's ~+0.25 stays a real shortfall rather than a noise ceiling; and
+  **ticket 09's limit-day suspicion inverted** — locked bases were expected to grade high because
+  collapsed bars flatter both ×2 dimensions, and they grade **low** (1.75 on 12 cards vs 2.53 on 40
+  clean), descriptive only and staying that way, since 98.1% of accepted IDX detections have no
+  collapsed bars. **Zero graded IDX cards is no longer true of this map.**
 
 - [Architecture and local runtime shape](issues/12-architecture-and-deployment.md) — **one DuckDB file,
   one command per market, and every derived table is dated rows.** A4 is the load-bearing one: universe
@@ -524,8 +547,9 @@ is written during wayfinding.
   rediscover and over-read. Whatever validation becomes possible needs to clear that bar before any
   claim about score quality is made from returns.
   **Ticket 20 sharpened that warning by removing one of its escape routes.** The test–retest ceiling
-  is **+0.831** (ticket 20 measured +0.808 on 12 pairs; ticket 23's repeats took it to 18 and it
-  held), so the eye is reproducible to within half a star and "the grader is just noisy" is no
+  is **at least +0.83** (ticket 20 measured +0.808 on 12 pairs; tickets 22 and 23 each took it to 18
+  on disjoint repeat sets, reading +0.854 and +0.831 — the pooled 24-pair value is still owed), so
+  the eye is reproducible to within half a star and "the grader is just noisy" is no
   longer available as an explanation for an eye-versus-outcome disagreement. If a later study
   reproduces ticket 09's finding at a workable n, it is a **real disagreement between the eye and
   returns** — and the map has no rule for which one wins, because the eye is the arbiter only by

@@ -35,8 +35,8 @@ Sizing, from `PREREGISTRATION_R3.md` §2: 20 per arm resolves a **1.00★** diff
 a 0.75★ difference needs 33 per arm. So a clear result is readable and a marginal one is not — say
 which arrived rather than reading a null as a pass.
 
-Carries **6 repeat pairs**, which with ticket 22's 6 would take ticket 20's test–retest ceiling from
-12 pairs to 24 and roughly halve its error.
+Carries **6 repeat pairs**. Ticket 22's 6 landed independently and in parallel; the two repeat sets
+are **disjoint**, so together they take ticket 20's test–retest ceiling to **24 pairs**.
 
 ## Answer
 
@@ -61,11 +61,15 @@ calibrated on the right population.
 `no_cluster` earns its place — 7 of 10 cards graded 1★. `line_not_drawable` does not separate: its
 interval spans zero, −0.40★ is below the eye's own 0.56★ noise floor, and 3 of its 10 cards graded
 4★ against a detection arm that only reaches 3.20. **That path is unresolved, and n=10 could never
-have resolved it** — carried to [ticket 24](24-the-line-not-drawable-path.md). The third path,
+have resolved it** — carried to [ticket 25](25-the-line-not-drawable-path.md). The third path,
 `not_caught_up`, was deliberately not sampled and remains unmeasured.
 
 **The ceiling moved 12 pairs → 18 and held**: test–retest **r = +0.831**, mean absolute difference
-0.56★ (ticket 20 measured +0.808 on 12). Deck C3 would take it to 24.
+0.56★ (ticket 20 measured +0.808 on 12). **Ticket 22 did the same thing at the same time**, on a
+*disjoint* set of 6 repeats, reading **+0.854** (0.44★) on its own 18. Both are honest 18-pair
+measurements of the same quantity and they agree to within 0.02; neither is the pooled figure. The
+combined **24-pair ceiling is unmeasured**, and it is the number every correlation on this map should
+eventually be read against.
 
 Nothing else moved — deck D carries no A or E cards, so the tightness gate, the boolean/continuous
 choice, the 4★ cut and the orderliness band's failure all read exactly as ticket 20 left them.

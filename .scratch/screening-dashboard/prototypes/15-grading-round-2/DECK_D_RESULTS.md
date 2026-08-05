@@ -51,7 +51,7 @@ screen surfaces.
 So the pooled answer is honest but coarse. **The detector as a whole keeps better names; that is
 almost entirely `no_cluster`.** Whether `line_not_drawable` discards setups the trader wants is
 *not* answered here, and n=10 could never have answered it — resolving 0.75★ on that path alone
-needs 33/arm. Carried to [ticket 24](../../issues/24-the-line-not-drawable-path.md).
+needs 33/arm. Carried to [ticket 25](../../issues/25-the-line-not-drawable-path.md).
 
 The third path, `not_caught_up`, is 1.6% of bar-dates and was deliberately not sampled. It remains
 unmeasured.

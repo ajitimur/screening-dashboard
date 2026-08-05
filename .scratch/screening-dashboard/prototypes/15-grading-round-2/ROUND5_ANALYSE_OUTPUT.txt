@@ -1,0 +1,49 @@
+graded cards: 384  (deck A core, split-accepted: 120)
+
+=== 1. tightness gate — cluster k, partial r controlling base length: +0.196
+  clears the floor — k is the x2 tightness dimension.
+
+=== 2. thresholds
+  boolean     out-of-fold  r +0.255  mae 1.11  within1 60%  bias +0.04
+  continuous  out-of-fold  r +0.191  mae 1.13  within1 49%  bias +0.14
+  in-sample mae 0.99 vs out-of-fold 1.11  (gap +0.12, tolerance 0.15)
+  fitted thresholds: {'cluster_k': 4, 'ord_lo': 0.275, 'ord_hi': 0.5, 'dryup': 0.9, 'len_ok': 26, 'len_bad': 40}
+    cluster_k           4   fold spread 4-4
+    ord_lo          0.275   fold spread 0.2-0.3
+    ord_hi            0.5   fold spread 0.45-0.7
+    dryup             0.9   fold spread 0.85-1.1
+    len_ok             26   fold spread 4-26
+    len_bad            40   fold spread 40-40
+
+=== 3. boolean vs continuous: BOOLEAN (needs mae better by >=0.10 AND within-1 better)
+
+=== 4. the trade threshold, out-of-fold
+     cut     n  precision   recall
+     3.0    88       0.52     0.79
+     3.5    59       0.53     0.53
+     4.0    37       0.51     0.33
+     4.5    20       0.60     0.21
+
+=== 5. per-market  (IDX cards graded: 52)
+  mean residual: US +0.04  IDX -0.29  difference 0.33 (splits at 0.5)
+  -> one threshold set covers both markets, and that is the finding
+  partially limit-locked cards (n=12, 1.8% of the population — descriptive only): mean eye 1.75 vs 2.52 clean
+
+=== 6. what the detector threw away  (deck D cards graded: 0)
+  deck D ungraded — ticket 11's obligation still unowned.
+
+=== 7. test-retest ceiling  (repeat cards graded: 18)
+  n=18  test-retest r = +0.854  mean |difference| 0.44 stars
+  every r above should be read against this ceiling.
+
+=== 8. the orderliness band, on grades collected after R3 §6  (deck E cards graded: 194)
+  DECISION  out-of-fold r +0.120 (se 0.071, n=194)  mae 1.04  within1 65%
+  -> the band FAILS its pre-registered bar. By R3 §6 orderliness is DROPPED and its x2
+     redistributed. The refit without it is below.
+  descriptive: A3's thresholds applied FROZEN, no refit — r +0.240  mae 1.15  bias +0.07
+  descriptive: 43% of E cards fall inside A3's band [0.275, 0.5]  (A3's failure mode was 99% inside a one-sided cut)
+  descriptive: orderliness partial r vs the eye, controlling base length: +0.302
+    ord_lo   fold spread 0.1-0.3
+    ord_hi   fold spread 0.45-0.6
+  orderliness DROPPED, x2 redistributed, refit on E: r +0.068  mae 1.08  within1 55%
+  -> keeping the band is worth +0.052 r and +0.04 mae on E

@@ -232,3 +232,15 @@ class Store:
             [market, session],
         ).fetchall()
         return [r[0] for r in rows]
+
+    def universe_before(self, market: str, session: date) -> list[str]:
+        """Yesterday's membership: the universe of the most recent session
+        *strictly before* ``session``, or ``[]`` if none. This is what the
+        hysteresis band and sticky membership read as "yesterday" (spec §4.1)."""
+        latest = self._con.execute(
+            "SELECT max(session) FROM universe WHERE market = ? AND session < ?",
+            [market, session],
+        ).fetchone()[0]
+        if latest is None:
+            return []
+        return self.universe(market, latest)

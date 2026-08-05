@@ -71,6 +71,8 @@ export interface components {
             market: string;
             /** Runs */
             runs: components["schemas"]["RunRecord"][];
+            /** Universe Size */
+            universe_size: number | null;
         };
         /** ValidationError */
         ValidationError: {

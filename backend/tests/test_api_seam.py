@@ -33,6 +33,22 @@ def test_runs_endpoint_empty_state_when_no_run(store: Store):
     body = client_for(store).get("/api/runs/US").json()
     assert body["latest"] is None
     assert body["runs"] == []
+    assert body["universe_size"] is None
+
+
+def test_runs_endpoint_surfaces_tonights_universe_size(store: Store):
+    # The market tab shows tonight's universe size (ticket 31 acceptance).
+    from datetime import date, datetime
+
+    from screener.pipeline import run_market
+
+    run_market(
+        store, "IDX", date(2026, 8, 4),
+        enumerated=["AAA", "BBB", "CCC"], resolved=["AAA", "BBB", "CCC"],
+        now=datetime(2026, 8, 4, 19, 30),
+    )
+    body = client_for(store).get("/api/runs/IDX").json()
+    assert body["universe_size"] == 3
 
 
 def test_market_is_case_insensitive(seeded_store: Store):

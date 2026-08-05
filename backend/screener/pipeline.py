@@ -15,6 +15,7 @@ from .bars import clean_bars, parse_bars
 from .models import RunRecord
 from .source import Source, resolve_market
 from .store import Store
+from .universe import rebuild_universe
 
 # A run that resolved less than this share of enumerated symbols is quarantined
 # behind a banner rather than published (spec §3.4 rule 7).
@@ -77,6 +78,54 @@ def ingest_market_bars(
         if bars:
             stored[instrument.symbol] = store.append_bars(market, instrument.symbol, bars)
     return stored
+
+
+def run_market_universe(
+    store: Store,
+    source: Source,
+    market: str,
+    session: date,
+    *,
+    now: datetime,
+) -> RunRecord:
+    """The nightly per-market run: ingest bars, rebuild the universe, record it.
+
+    Enumerates the market, resolves every instrument once through the paced,
+    backed-off source, and persists each resolved symbol's clean bars the moment
+    they arrive (spec §3.1–3.4). The completeness gate is measured over
+    *candidates* only — references (the index, ETFs) are enumerated but not part
+    of the tradeable denominator (§3.4 rule 7). Below the floor the run is
+    quarantined and writes no universe, so a throttled pull cannot shrink good
+    data. Above it the universe is rebuilt from the freshly-ingested bars, with
+    the candidates that stayed unresolved carrying yesterday's classification
+    (§3.4 rule 6). ``now`` must be timezone-aware for the finality rule.
+    """
+    instruments = source.enumerate(market)
+    status: dict[str, str] = {}
+    for instrument in instruments:
+        resolution = source.resolve(instrument.symbol)
+        status[instrument.symbol] = resolution.status
+        if resolution.status == "resolved":
+            bars = clean_bars(parse_bars(resolution.bars), market, now)
+            if bars:
+                store.append_bars(market, instrument.symbol, bars)
+
+    candidates = [i.symbol for i in instruments if i.role == "candidate"]
+    resolved = [s for s in candidates if status[s] == "resolved"]
+    published = len(resolved) >= RESOLUTION_FLOOR * len(candidates)
+    if published:
+        unresolved = {s for s in candidates if status[s] != "resolved"}
+        rebuild_universe(
+            store, market, session, instruments=instruments, unresolved=unresolved
+        )
+    return store.append_run(
+        market,
+        session,
+        status="published" if published else "quarantined",
+        symbols_enumerated=len(candidates),
+        symbols_resolved=len(resolved),
+        created_at=now,
+    )
 
 
 def run_market_from_source(

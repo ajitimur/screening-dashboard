@@ -82,12 +82,24 @@
             },
             "title": "Runs",
             "type": "array"
+          },
+          "universe_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Universe Size"
           }
         },
         "required": [
           "market",
           "latest",
-          "runs"
+          "runs",
+          "universe_size"
         ],
         "title": "RunsResponse",
         "type": "object"

@@ -21,26 +21,29 @@ function mockRuns(byMarket: Record<string, RunsResponse>) {
 describe("the two market tabs", () => {
   it("renders the last run's as-of session date", async () => {
     mockRuns({
-      IDX: { market: "IDX", latest: run("IDX", "2026-08-04"), runs: [run("IDX", "2026-08-04")] },
-      US: { market: "US", latest: null, runs: [] },
+      IDX: runs("IDX", "2026-08-04"),
+      US: empty("US"),
     });
     render(<App />);
     expect(await screen.findByText("2026-08-04")).toBeInTheDocument();
   });
 
   it("shows an explicit empty state when no run exists", async () => {
-    mockRuns({
-      IDX: { market: "IDX", latest: null, runs: [] },
-      US: { market: "US", latest: null, runs: [] },
-    });
+    mockRuns({ IDX: empty("IDX"), US: empty("US") });
     render(<App />);
     expect(await screen.findByText(/No run yet for IDX/)).toBeInTheDocument();
   });
 
+  it("shows tonight's universe size", async () => {
+    mockRuns({ IDX: runs("IDX", "2026-08-04", 288), US: empty("US") });
+    render(<App />);
+    expect(await screen.findByText("288")).toBeInTheDocument();
+  });
+
   it("switches the as-of date when the US tab is selected", async () => {
     mockRuns({
-      IDX: { market: "IDX", latest: run("IDX", "2026-08-04"), runs: [run("IDX", "2026-08-04")] },
-      US: { market: "US", latest: run("US", "2026-08-05"), runs: [run("US", "2026-08-05")] },
+      IDX: runs("IDX", "2026-08-04"),
+      US: runs("US", "2026-08-05"),
     });
     render(<App />);
     expect(await screen.findByText("2026-08-04")).toBeInTheDocument();
@@ -49,6 +52,14 @@ describe("the two market tabs", () => {
     await waitFor(() => expect(screen.getByText("2026-08-05")).toBeInTheDocument());
   });
 });
+
+function runs(market: string, session: string, universe_size = 100): RunsResponse {
+  return { market, latest: run(market, session), runs: [run(market, session)], universe_size };
+}
+
+function empty(market: string): RunsResponse {
+  return { market, latest: null, runs: [], universe_size: null };
+}
 
 function run(market: string, session: string): RunRecord {
   return {

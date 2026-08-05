@@ -65,6 +65,10 @@ class Instrument(BaseModel):
     market: str
     symbol: str
     role: Role
+    # The security name, carried for the universe's instrument-type rule (spec
+    # §4.1 / ticket 05 D13). US comes from the Nasdaq listing files' "Security
+    # Name" column; IDX carries none (the screener guarantees common equity).
+    name: str = ""
 
 
 @dataclass(frozen=True)
@@ -121,18 +125,26 @@ def _parse_nasdaq_file(text: str) -> list[Instrument]:
     sym_i = col("Symbol", "ACT Symbol")
     etf_i = col("ETF")
     test_i = col("Test Issue")
+    name_i = col("Security Name")
 
     out: list[Instrument] = []
     for line in lines[1:]:
         fields = line.split("|")
         if fields[0].startswith("File Creation Time"):
             continue
-        if len(fields) <= max(sym_i, etf_i, test_i):
+        if len(fields) <= max(sym_i, etf_i, test_i, name_i):
             continue
         if fields[test_i].strip() == "Y":  # test issues are not real listings
             continue
         role: Role = "reference" if fields[etf_i].strip() == "Y" else "candidate"
-        out.append(Instrument(market="US", symbol=fields[sym_i].strip(), role=role))
+        out.append(
+            Instrument(
+                market="US",
+                symbol=fields[sym_i].strip(),
+                role=role,
+                name=fields[name_i].strip(),
+            )
+        )
     return out
 
 

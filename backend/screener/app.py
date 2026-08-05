@@ -49,10 +49,12 @@ def create_app(store: Store | None = None) -> FastAPI:
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
+        latest = store.latest_run(market)
         return RunsResponse(
             market=market,
-            latest=store.latest_run(market),
+            latest=latest,
             runs=store.runs(market),
+            universe_size=len(store.universe(market, latest.session)) if latest else None,
         )
 
     # FastAPI serves the built frontend so it is one process on one URL. Mounted

@@ -65,6 +65,11 @@ function Workbench({ market }: { market: Market }) {
       <p className="as-of">
         As of session <time dateTime={runs.latest.session}>{runs.latest.session}</time>
       </p>
+      {runs.universe_size !== null && (
+        <p className="universe-size">
+          Universe: <strong>{runs.universe_size}</strong> tradeable names
+        </p>
+      )}
     </section>
   );
 }

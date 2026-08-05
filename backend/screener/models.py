@@ -40,3 +40,6 @@ class RunsResponse(BaseModel):
     market: str
     latest: RunRecord | None
     runs: list[RunRecord]
+    # Tonight's tradeable universe size — the count of membership rows for the
+    # latest published session (spec §4.1). ``None`` when no run has published.
+    universe_size: int | None

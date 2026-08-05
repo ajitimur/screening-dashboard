@@ -17,8 +17,8 @@ import pytest
 
 from screener.pipeline import run_market_from_source
 from screener.source import (
-    RateLimitedError,
     Pacer,
+    RateLimitedError,
     Source,
     parse_idx_screener,
     parse_us_listings,
@@ -237,15 +237,11 @@ def test_run_market_from_source_records_enumerated_and_resolved_counts(store: St
 
 def test_run_quarantines_when_candidates_stay_unresolved(store: Store):
     instruments = {
-        "US": [
-            *(
-                parse_us_listings(
-                    "Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares\n"
-                    + "".join(f"S{i}|Corp {i}|Q|N|N|100|N|N\n" for i in range(100)),
-                    "ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol\n",
-                )
-            )
-        ]
+        "US": parse_us_listings(
+            "Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares\n"
+            + "".join(f"S{i}|Corp {i}|Q|N|N|100|N|N\n" for i in range(100)),
+            "ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol\n",
+        )
     }
     # 90 resolve, 10 stay silent -> below the 99% floor.
     responses = {f"S{i}": [["bar"]] for i in range(90)}

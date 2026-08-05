@@ -149,7 +149,10 @@ border-radius:6px;padding:8px;font:12px ui-monospace,monospace;display:none}
 JS = """
 const DECK=%DECK%, N=%N%;
 const KEY='wf15-'+DECK;
-let g=JSON.parse(localStorage.getItem(KEY)||'{}');
+// file:// origins can refuse localStorage; grading must work anyway, so every access is guarded
+function load(){try{return JSON.parse(localStorage.getItem(KEY)||'{}');}catch(e){return {};}}
+function save(v){try{localStorage.setItem(KEY,JSON.stringify(v));}catch(e){}}
+let g=load();
 let cur=0;
 const cards=[...document.querySelectorAll('.card')];
 function paint(){
@@ -162,7 +165,7 @@ function paint(){
   const n=Object.keys(g).length;
   document.getElementById('cnt').textContent=n;
   document.getElementById('pct').textContent=Math.round(100*n/N)+'%';
-  localStorage.setItem(KEY,JSON.stringify(g));
+  save(g);
 }
 function setg(i,v){
   const id=cards[i].dataset.cid;

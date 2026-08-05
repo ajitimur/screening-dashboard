@@ -455,7 +455,10 @@ border-radius:6px;padding:8px;font:12px ui-monospace,monospace;display:none}
 </div></main><div id='bar'><span>graded <b id='cnt'>0</b>/58 (<span id='pct'>0%</span>)</span><button id='exp'>export</button><button id='clr'>clear</button><textarea id='out' readonly></textarea></div><script>
 const DECK="B", N=58;
 const KEY='wf15-'+DECK;
-let g=JSON.parse(localStorage.getItem(KEY)||'{}');
+// file:// origins can refuse localStorage; grading must work anyway, so every access is guarded
+function load(){try{return JSON.parse(localStorage.getItem(KEY)||'{}');}catch(e){return {};}}
+function save(v){try{localStorage.setItem(KEY,JSON.stringify(v));}catch(e){}}
+let g=load();
 let cur=0;
 const cards=[...document.querySelectorAll('.card')];
 function paint(){
@@ -468,7 +471,7 @@ function paint(){
   const n=Object.keys(g).length;
   document.getElementById('cnt').textContent=n;
   document.getElementById('pct').textContent=Math.round(100*n/N)+'%';
-  localStorage.setItem(KEY,JSON.stringify(g));
+  save(g);
 }
 function setg(i,v){
   const id=cards[i].dataset.cid;

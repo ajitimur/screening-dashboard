@@ -407,7 +407,9 @@ is written during wayfinding.
   — **the eye is reproducible and the rubric is weak, which is the opposite of what was feared.**
   The **test–retest ceiling is +0.808** (12 pairs, mean absolute difference 0.58★ — *tickets 22 and
   23 then each added 6 **disjoint** repeats in parallel, reading +0.854 and +0.831 on their own
-  18-pair sets, so the number held twice; the pooled **24-pair** figure is unmeasured*), measured for the
+  18-pair sets, so the number held twice; ticket 25 then computed the owed **pooled 24-pair**
+  figure from the existing grades at no cost: **+0.855, mean |difference| 0.46★**, up again, so the
+  noise floor every result is read against tightens from 0.56★ to **0.46★***), measured for the
   first time after two rounds of going unmeasured, so R3 §2's "published against an unmeasured
   ceiling" caveat is **discharged** — and every correlation on this map now reads against +0.83
   rather than an unknown maximum. That reframes ticket 15: **+0.255 is not a rubric against a noisy
@@ -580,8 +582,8 @@ is written during wayfinding.
   rediscover and over-read. Whatever validation becomes possible needs to clear that bar before any
   claim about score quality is made from returns.
   **Ticket 20 sharpened that warning by removing one of its escape routes.** The test–retest ceiling
-  is **at least +0.83** (ticket 20 measured +0.808 on 12 pairs; tickets 22 and 23 each took it to 18
-  on disjoint repeat sets, reading +0.854 and +0.831 — the pooled 24-pair value is still owed), so
+  is **+0.855 on the pooled 24 pairs** (ticket 20 measured +0.808 on 12; tickets 22 and 23 each took
+  it to 18 on disjoint repeat sets, reading +0.854 and +0.831; ticket 25 pooled them), so
   the eye is reproducible to within half a star and "the grader is just noisy" is no
   longer available as an explanation for an eye-versus-outcome disagreement. If a later study
   reproduces ticket 09's finding at a workable n, it is a **real disagreement between the eye and

@@ -42,3 +42,49 @@ A 0.75★ target sits only just above single-grade noise, which is exactly why t
 **Not in scope here:** the third rejection path, `not_caught_up` (1.6% of bar-dates, never sampled).
 If the eye is being asked for another sitting anyway, decide deliberately whether to carry it —
 but it is a separate population and a separate question.
+
+## Comments
+
+**The deck is built and the rule is pre-registered. This ticket now needs a grading sitting.**
+
+Everything an agent can do without the eye is done:
+
+- **[`PREREGISTRATION_DECK_F.md`](../prototypes/15-grading-round-2/PREREGISTRATION_DECK_F.md)** —
+  written and committed *before* a card was rendered. Fixes the population, the size, the decision
+  rule and the remedy menu.
+- **`deckF.html`** — 105 bare cards, one sitting. 33 `line_not_drawable` / 33 detections /
+  33 `not_caught_up` / 6 repeats. Grade with `1`–`5`, hit **export**, paste the string back.
+- **`analyse_deckF.py F=<string>`** — runs the pre-registered rule mechanically and prints the
+  verdict, so the answer is not a judgement made after seeing the numbers.
+
+**Two things found while building it that change how this ticket's own premise reads.**
+
+1. **Deck D3's arms were not drawn from the same population, twice over.** `build_deck3.py` gates
+   and stratifies the detections arm (`population()`: `prior_move >= 0.90`, equal cards per
+   provisional band) and does neither for the rejects (`rejects()`: a random draw from
+   `has_base & move >= 25%`). Measured: only **6.7%** of the `line_not_drawable` pool clears the
+   decile the detections arm was 100% inside. Both confounds push the reject arm down, so the
+   **−0.40★ this ticket was opened on is an upper bound on how badly the path does** — the honest
+   estimate is nearer zero or above it. Deck F gates both arms identically, draws both at random,
+   and defines the reject arm as `tight & ~line_ok & caught_up` — failing on the line and nothing
+   else, which is also exactly the set that would join the list if the test were deleted.
+
+2. **The remedy is now priced.** Decile-gated, over 250 sampled nights: the US list is **5.98
+   names/night** as specified, and deleting `line_ok` takes it to **9.5 — a 59% increase**. The
+   path is 22.7% of the post-base pool, and it is not one test: ungated, 50% of its failures are
+   overshoot and 23% touches; *after* the decile gate the deck's own arm runs the other way, 48%
+   touches and 24% overshoot.
+
+**The third path is carried.** `not_caught_up` is in the deck as a secondary arm, at 33 cards, with
+no remedy pre-committed to it. It is worth 0.95 names/night (0.16× the list), which is small — but
+it reuses the same detections arm as its control at no extra cost, and it is the last unmeasured
+rejection path on the map. Leaving it out defers it a fourth time with no deck in sight.
+
+**Ride-along, no grading required: the pooled test–retest ceiling is measured.** The map recorded
++0.808 on 12 pairs and two disjoint 18-pair readings (+0.854, +0.831) with the pooled figure owed.
+`analyse3.py A= C= D= E=` over all 24 pairs gives **r = +0.855, mean |difference| 0.46★** — up
+again on more data. The noise floor every result on this map is read against therefore tightens
+from 0.56★ to **0.46★**, and deck F's decision rule was amended to it before any card was
+rendered — which *narrows* the band in which the remedy fires, the conservative direction.
+
+Deck F's 6 repeats will take the pool to 30 pairs.

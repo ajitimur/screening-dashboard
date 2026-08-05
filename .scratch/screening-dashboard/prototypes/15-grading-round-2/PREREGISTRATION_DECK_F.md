@@ -46,7 +46,8 @@ to survive anything, which is why it is here.
 **Deck F fixes both.** Every arm is drawn from the same gated population and differs in exactly one
 bit — the rejection path under test:
 
-- US only, `move_gain >= 25%`, **`prior_move >= 0.90`** (D15), from the same 2019-01 → 2023-06 sweep.
+- US only, `move_gain >= 25%`, **`prior_move >= 0.90`** (D15), from the same sweep every deck on
+  this map has drawn from (`split.pkl`; deck F's cards span 2017-05 → 2023-05).
 - **detections**: `tight & line_ok & caught_up`
 - **`line_not_drawable`**: `tight & ~line_ok & caught_up` — fails on the line and nothing else
 - **`not_caught_up`**: `tight & line_ok & ~caught_up` — fails on the catch-up test and nothing else
@@ -56,9 +57,15 @@ nightly list if the test were deleted, which is the counterfactual the remedy is
 
 **No stratification, either arm.** Deck D3 stratified detections by provisional band and drew
 rejects at random, which moves the two arms' means for a reason unrelated to the question. Deck F
-draws **at random from each population as it actually occurs**, at most 2 cards per symbol. The
-comparison is a mean-grade difference, so frequency-representative is the only sampling that makes
-the difference mean what it says. Band mix is recorded in the manifest and reported.
+draws **at random from each population as it actually occurs**, at most 2 cards per symbol
+**within an arm**. The comparison is a mean-grade difference, so frequency-representative is the
+only sampling that makes the difference mean what it says. Covariate mix is recorded in the
+manifest and reported.
+
+The cap is per arm rather than global on purpose: it exists so no one name dominates an arm, and a
+name that appears in two arms on two different dates is a mild within-name control rather than a
+flaw. As built, 14 symbols appear in more than one arm and no symbol has more than 2 cards in any
+single arm.
 
 **No card the eye has already seen.** Every `(symbol, end)` in `deck3_manifest.csv` or
 `deckE_manifest.csv` is excluded, except the deliberate repeats in §4.
@@ -124,6 +131,13 @@ sets (tickets 22 and 23), and notes the **pooled 24-pair figure is unmeasured**.
 no new grading at all — every grade already exists — so it is computed as a ride-along this
 session and reported before deck F is graded. Deck F's 6 take the pool to **30 pairs**.
 
+> **Amendment, made before any deck F card was rendered.** The pooled figure is now measured:
+> `analyse3.py A= C= D= E=` over all 24 pairs gives **test–retest r = +0.855, mean absolute
+> difference 0.46★**. It moved *up* on more data for the third time running. §5's noise-floor band
+> therefore reads **0.46★**, not the 0.56★ ticket 25 quoted from the 18-pair set. This narrows the
+> "indistinguishable" band and so makes the remedy in §6 *harder* to trigger, not easier — the
+> conservative direction — and it is fixed here, with no deck F grade in existence.
+
 ## 5. The decision rule — fixed now
 
 Primary comparison: **mean eye grade, `line_not_drawable` arm minus detections arm**, call it Δ,
@@ -132,7 +146,7 @@ with a two-sample 95% CI.
 | Δ (and its interval) | reading | consequence |
 | --- | --- | --- |
 | **CI entirely below 0** | the path rejects names the eye also rejects | `line_ok` **stands as specified**; ticket 23's discharge extends to it; nothing changes |
-| **CI contains 0 and \|Δ\| ≤ 0.56★** (the eye's own noise floor) | the path is **indistinguishable from what the screen surfaces** | this is a **finding, not a pass** — the remedy in §6 fires |
+| **CI contains 0 and \|Δ\| ≤ 0.46★** (the eye's own noise floor, §4) | the path is **indistinguishable from what the screen surfaces** | this is a **finding, not a pass** — the remedy in §6 fires |
 | **CI entirely above 0, or Δ > 0** | the path is discarding the **better** names | remedy fires, and `line_ok` is presumed wrong rather than merely unproven |
 
 Reported alongside, descriptive, none of them deciding: the grade distribution per arm; ≥4★ share
@@ -140,7 +154,7 @@ per arm; Δ controlling for base length; the secondary `not_caught_up` Δ; the b
 drawn; and the repeats' contribution to the ceiling.
 
 **The ceiling gates everything, as `PREREGISTRATION_R3.md` §2 already fixed.** A 0.75★ target sits
-only just above the 0.56★ single-grade noise floor, which is exactly why the arms are 33 and not 20.
+only just above the 0.46★ single-grade noise floor, which is exactly why the arms are 33 and not 20.
 
 ## 6. The remedy, named in advance
 
@@ -177,3 +191,28 @@ same discipline deck D3 kept.
   `MAX_OVERSHOOT_ADR`, `MAX_OVERSHOOT_FRAC` and the `OVER_W`/`UNDER_W` ratio all shape this path and
   none was fitted. Deck F asks whether the path as a whole is wrong, not what the six numbers
   should be.
+
+## 8. The deck as built — recorded before grading
+
+`build_deckF.py`, seed 25, 105 cards: 33 / 33 / 33 / 6, 84 distinct symbols, 2017-05-25 →
+2023-05-24, zero cards previously shown to the eye, arm membership verified against `split.pkl`.
+
+One thing the gate changed, worth naming now because §6's remedy 2 reads it. The failure mix inside
+the `line_not_drawable` arm is **not** the ungated population mix quoted in §3:
+
+| failure | ungated population | deck F's arm |
+| --- | --- | --- |
+| touches only | 23.1% | **48%** (16) |
+| overshoot only | 50.2% | 24% (8) |
+| both | 24.2% | 27% (9) |
+| `MAX_OVERSHOOT_FRAC` only | 2.5% | 0% |
+
+So D15's decile gate shifts the path's failures away from overshoot and toward touches. That is a
+fact about which names actually reach the list, not a sampling error, and the deck is right to
+carry the gated mix — but it means a remedy aimed at the overshoot test is being tested on 8 cards,
+which is descriptive only.
+
+The decile gate also **removes most of the base-length imbalance** §3 measured: ungated, the
+marginal population's median base is 22 bars against the accepted 14; in the gated deck it is
+**11 against 14**. The arms are closer on the covariate the eye was once suspected of reading than
+the raw funnel suggested.

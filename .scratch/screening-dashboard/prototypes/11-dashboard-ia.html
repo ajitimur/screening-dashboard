@@ -398,25 +398,53 @@ function buildBoards(mkt, seed0) {
 
 const BOARDS = { US: buildBoards('US', 9001), IDX: buildBoards('IDX', 4002) };
 
-/* ---------- sectors (ticket 07) ---------- */
+/* ---------- sectors (ticket 07) ----------
+   [name, n, shares by lookback, rank 20 sessions ago]
+   The 20-session window is ticket 07's existing temporal-delta window (S3),
+   inherited from §2/§3.5's 10/20-day horizon — NOT a second window invented here. */
 const SECTORS = {
   US: [
-    ['Technology',      139, [41.2,38.4,34.1,29.8,26.2]],
-    ['Industrials',     212, [24.1,22.8,19.4,18.2,17.1]],
-    ['Financial Services',188,[18.4,21.2,24.8,27.1,29.4]],
-    ['Consumer Cyclical',176, [12.1,14.4,18.2,21.4,22.8]],
-    ['Healthcare',      241, [ 9.2,11.4,13.8,16.2,18.4]],
-    ['Energy',           88, [ 6.8, 8.2,12.4,18.8,21.2]],
+    ['Technology',      139, [41.2,38.4,34.1,29.8,26.2], 3],
+    ['Industrials',     212, [24.1,22.8,19.4,18.2,17.1], 5],
+    ['Financial Services',188,[18.4,21.2,24.8,27.1,29.4], 1],
+    ['Consumer Cyclical',176, [12.1,14.4,18.2,21.4,22.8], 2],
+    ['Healthcare',      241, [ 9.2,11.4,13.8,16.2,18.4], 4],
+    ['Energy',           88, [ 6.8, 8.2,12.4,18.8,21.2], 6],
   ],
   IDX: [
-    ['Basic Materials',  38, [52.6,44.7,39.5,31.6,28.9]],
-    ['Energy',           31, [22.6,25.8,29.0,35.5,38.7]],
-    ['Utilities',        10, [30.0,20.0,10.0,10.0, 0.0]],
-    ['Industrials',      27, [14.8,11.1,11.1, 7.4, 7.4]],
-    ['Financial Services',44,[ 9.1,11.4,13.6,18.2,20.5]],
-    ['Consumer Cyclical', 35, [ 5.7, 8.6, 8.6,11.4,14.3]],
+    ['Basic Materials',  38, [52.6,44.7,39.5,31.6,28.9], 2],
+    ['Energy',           31, [22.6,25.8,29.0,35.5,38.7], 1],
+    ['Utilities',        10, [30.0,20.0,10.0,10.0, 0.0], 6],
+    ['Industrials',      27, [14.8,11.1,11.1, 7.4, 7.4], 4],
+    ['Financial Services',44,[ 9.1,11.4,13.6,18.2,20.5], 3],
+    ['Consumer Cyclical', 35, [ 5.7, 8.6, 8.6,11.4,14.3], 5],
   ],
 };
+
+/* rank today by 1m share, plus k = members in that decile (ticket 07 S4 shows k/n
+   on every row, and requires k ≥ 2 before a sector may top the rotation board) */
+function sectorRows(mkt) {
+  return SECTORS[mkt]
+    .map(([name, n, sh, prevRank]) => ({
+      name, n, sh, prevRank,
+      k: Math.round((sh[1] / 100) * n),
+      shape: sh[0] - sh[3],
+    }))
+    .sort((a, b) => b.sh[1] - a.sh[1])
+    .map((r, i) => ({ ...r, rank: i + 1, move: r.prevRank - (i + 1) }));
+}
+
+/* ▲2 / ▼1 / — , with the move muted when it rests on too few names to mean anything */
+function moveCell(r) {
+  if (r.move === 0) return '<span class="mut" style="font-size:11px">—</span>';
+  const thin = r.k < 2;
+  const cls = thin ? 'mut' : (r.move > 0 ? 'up' : 'dn');
+  const arrow = r.move > 0 ? '▲' : '▼';
+  const title = thin
+    ? `moved ${Math.abs(r.move)} on ${r.k} name${r.k === 1 ? '' : 's'} — quantization, not rotation`
+    : `${r.move > 0 ? 'up' : 'down'} ${Math.abs(r.move)} places vs 20 sessions ago`;
+  return `<span class="${cls}" style="font-size:11px" title="${title}">${arrow}${Math.abs(r.move)}${thin ? '<span style="opacity:.7">?</span>' : ''}</span>`;
+}
 
 /* ---------- score breakdown (§3.5) ---------- */
 function breakdown(c) {
@@ -852,7 +880,7 @@ function VariantC() {
   const r = REGIMES.find(x => x.market === tabC);
   const list = CANDS.filter(x => x.market === tabC);
   const c = CANDS[selC[tabC]];
-  const secs = SECTORS[tabC];
+  const secs = sectorRows(tabC);
 
   const tab = m => `<button data-pick="C:${m}" style="
       background:${m === tabC ? 'var(--panel)' : 'transparent'};
@@ -882,7 +910,7 @@ function VariantC() {
 
     <div style="margin:var(--s4) 0">${regimeBanner(r)}</div>
 
-    <div style="display:grid;grid-template-columns:1fr 1.5fr 0.9fr;gap:var(--s3);align-items:start">
+    <div style="display:grid;grid-template-columns:0.95fr 1.4fr 1.15fr;gap:var(--s3);align-items:start">
       <div class="card">
         <div style="padding:var(--s2) var(--s3);border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:var(--s2)">
           <span class="eyebrow">${tabC} setups</span>
@@ -920,16 +948,25 @@ function VariantC() {
             <span class="eyebrow">Sector rotation · ${tabC}</span>
           </div>
           <table class="grid" style="font-size:12px">
-            <thead><tr><th>Sector</th><th class="r">1m</th><th class="r" title="share(1w) − share(6m)">shape</th></tr></thead>
-            <tbody>${secs.map(([s, n, sh]) => {
-              const d = sh[0] - sh[3];
-              const isC = s === c.sector;
-              return `<tr class="${isC ? 'sel' : ''}">
-                <td>${s}<div style="font-size:10.5px" class="mut">n=${n}</div></td>
-                <td class="r num">${sh[1].toFixed(1)}%</td>
-                <td class="r num ${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}</td></tr>`;
-            }).join('')}</tbody>
+            <thead><tr>
+              <th style="width:16px">#</th>
+              <th title="rank change vs 20 sessions ago">Δ20d</th>
+              <th>Sector</th>
+              <th class="r" title="share of this sector's members in the 1m top decile">1m</th>
+              <th class="r" title="share(1w) − share(6m)">shape</th>
+            </tr></thead>
+            <tbody>${secs.map(r => `<tr class="${r.name === c.sector ? 'sel' : ''}">
+                <td class="num mut" style="padding-right:0">${r.rank}</td>
+                <td style="padding-left:5px">${moveCell(r)}</td>
+                <td>${r.name}<div style="font-size:10.5px" class="mut">${r.k}/${r.n} in decile</div></td>
+                <td class="r num">${r.sh[1].toFixed(1)}%</td>
+                <td class="r num ${r.shape >= 0 ? 'up' : 'dn'}">${r.shape >= 0 ? '+' : ''}${r.shape.toFixed(1)}</td>
+              </tr>`).join('')}</tbody>
           </table>
+          <div style="padding:var(--s2) var(--s3);border-top:1px solid var(--line-soft);font-size:10.5px" class="mut">
+            Δ20d is places moved since 20 sessions ago. A greyed <b>▲n?</b> rests on
+            fewer than 2 names — quantization, not rotation.
+          </div>
         </div>
       </div>
     </div>
@@ -939,9 +976,11 @@ function VariantC() {
       at a time and staleness is structural rather than a warning label. The list sorts by <b>star score</b>,
       not by proximity to the trigger. Six columns earn their place: ticker, score, distance to trigger,
       stop width vs 1×ADR, industry and the k/5 breadth badge — everything else lives in the chart panel.
-      Sector rotation sits beside the candidate because §3.5 makes sector a scoring input, not a report.
-      The decile leaderboards are a <b>peer tab, off the nightly path</b>, and there is <b>no rejected-candidates
-      view in v1</b>.
+      Sector rotation sits beside the candidate because §3.5 makes sector a scoring input, not a report,
+      and carries a <b>Δ20d rank-movement column</b> over ticket 07's existing 20-session window — greyed
+      with a <b>?</b> wherever the move rests on fewer than two names, which is routine on IDX and almost
+      never happens on US. The decile leaderboards are a <b>peer tab, off the nightly path</b>, and there
+      is <b>no rejected-candidates view in v1</b>.
     </p>
   </div>`;
 }

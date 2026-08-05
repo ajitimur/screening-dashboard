@@ -182,6 +182,39 @@ ticket 09, which is a prototype session where a human eye meets the computed sco
 that session should look at the *rejected* set, not only the accepted one. This is a hand-off, not a
 consolation: if 09 does not do it, nothing in v1 does.
 
+## Amendment — sector rank movement (I6a)
+
+Raised after the ticket was resolved: the sector table should show *movement* — if a sector used to rank
+3rd and is now 1st, say so.
+
+**Accepted.** The rotation table gains a **`Δ20d` rank-change column** — places moved, as `▲2` / `▼1` / `—`.
+
+Three things constrain how, and all three come from ticket 07 rather than from taste:
+
+1. **No new data and no new window.** Ticket 07 (S9) already persists nightly sector shares, so rank
+   history is derivable. The comparison is against **20 sessions ago** — reusing the window S3 already
+   established for the temporal delta, which S3 itself inherited from §2/§3.5's 10/20-day horizon rather
+   than inventing. Comparing against *last night* was rejected: it would be a second window, chosen for
+   no stated reason, on a series ticket 06 already showed is noisy night to night.
+
+2. **Rank movement does not replace the share columns, it joins them.** Ticket 07 (S3) chose share
+   deltas in percentage points deliberately, and rank discards magnitude — three sectors bunched within
+   0.4pp can reorder completely without anything happening. The shape differential stays the default sort;
+   `Δ20d` is a column beside it.
+
+3. **It is guarded for quantization, because on IDX it is mostly noise.** Ticket 07 (S4) measured one
+   name moving IDX Utilities' share by 10.0pp, against 0.3–1.7pp anywhere on US. So a rank arrow means
+   "leadership rotated" on US and often "one stock moved" on IDX. Every row already carries `k/n` per S4;
+   a move resting on `k < 2` is **greyed and marked `?`** rather than coloured, matching S4's existing rule
+   that `k ≥ 2` is required to top the rotation board.
+
+Measured against the prototype's fixtures, this is not hypothetical: IDX Utilities moves **6th → 3rd on
+2 names out of 10**, while every US move rests on 25–53 names. The column is honest on US and needs its
+guard on IDX — which is the same asymmetry ticket 07 found, surfacing again one layer up.
+
+**Nothing here changes ticket 07's model.** Rotation is still the two columns S3 defined; this is a third
+*presentation* of the same nightly share stream, which is ticket 11's remit.
+
 ## Screen inventory
 
 **1. Market workbench** — one per market, `IDX` and `US` as tabs.

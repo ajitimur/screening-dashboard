@@ -185,9 +185,13 @@ is written during wayfinding.
   fitted lines drawn *as fits* so candles pierce them per §3.2, trigger and base-low stop as rules, and
   volume dry-up but **no expansion** — it exists only at the break. The §3.5 breakdown sits adjacent
   because a sort key you cannot audit is one you will not trust. **Sector rotation is in the workbench**
-  (ticket 07 made it a scoring input, not a report); **the five leaderboards are a peer tab off the nightly
-  path**, since ticket 08's D15 already gates on decile membership so the boards re-read an input to a
-  filter that has already run. **No rejected-candidates view in v1** — overruled against a live
+  (ticket 07 made it a scoring input, not a report), and carries a **`Δ20d` rank-movement column** added by
+  amendment — no new data and no new window (ticket 07 S9 already persists nightly shares, and 20 sessions
+  is S3's own), joining rather than replacing the share deltas, and **greyed where the move rests on `k < 2`
+  names**: on the fixtures IDX Utilities moves 6th→3rd on **2 names of 10** while every US move rests on
+  25–53, so ticket 07's quantization asymmetry resurfaces one layer up. **The five leaderboards are a peer
+  tab off the nightly path**, since ticket 08's D15 already gates on decile membership so the boards
+  re-read an input to a filter that has already run. **No rejected-candidates view in v1** — overruled against a live
   counter-argument (a zero-parameter detector, never checked against a real chart, with three knowing
   omissions), so the inspection of the discarded set is handed to ticket 09 as the only place it can now
   happen.

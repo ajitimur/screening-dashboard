@@ -82,7 +82,8 @@ export interface paths {
         /** Get Runs */
         get: operations["get_runs_api_runs__market__get"];
         put?: never;
-        post?: never;
+        /** Trigger Run */
+        post: operations["trigger_run_api_runs__market__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -404,6 +405,24 @@ export interface components {
             symbols_resolved: number;
         };
         /**
+         * RunTriggerResponse
+         * @description The reply to a run-on-open ``POST /api/runs/{market}`` (spec §7.3).
+         *
+         *     ``triggered`` is true when this call started a run, false when one was
+         *     already in flight (run-on-open is single-flight — a second open joins the
+         *     running run rather than duplicating it). ``running`` is the market's state
+         *     after the call: true whenever a run is in flight, so the tab polls until it
+         *     clears and then reloads the now-complete session.
+         */
+        RunTriggerResponse: {
+            /** Market */
+            market: string;
+            /** Running */
+            running: boolean;
+            /** Triggered */
+            triggered: boolean;
+        };
+        /**
          * RunsResponse
          * @description Run records for one market, newest first.
          *
@@ -415,6 +434,16 @@ export interface components {
             latest: components["schemas"]["RunRecord"] | null;
             /** Market */
             market: string;
+            /**
+             * Run Due
+             * @default false
+             */
+            run_due: boolean;
+            /**
+             * Running
+             * @default false
+             */
+            running: boolean;
             /** Runs */
             runs: components["schemas"]["RunRecord"][];
             /** Universe Size */
@@ -693,6 +722,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trigger_run_api_runs__market__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                market: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunTriggerResponse"];
                 };
             };
             /** @description Validation Error */

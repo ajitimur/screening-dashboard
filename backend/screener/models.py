@@ -48,6 +48,28 @@ class RunsResponse(BaseModel):
     # Tonight's tradeable universe size — the count of membership rows for the
     # latest published session (spec §4.1). ``None`` when no run has published.
     universe_size: int | None
+    # Run-on-open (spec §7.3): ``run_due`` is true when the store's last final
+    # session is missing — the tab kicks a run on open. ``running`` is true while
+    # a run for this market is in flight, so the tab shows a progress state rather
+    # than a half-written session (the served ``latest`` stays the last published
+    # session throughout).
+    run_due: bool = False
+    running: bool = False
+
+
+class RunTriggerResponse(BaseModel):
+    """The reply to a run-on-open ``POST /api/runs/{market}`` (spec §7.3).
+
+    ``triggered`` is true when this call started a run, false when one was
+    already in flight (run-on-open is single-flight — a second open joins the
+    running run rather than duplicating it). ``running`` is the market's state
+    after the call: true whenever a run is in flight, so the tab polls until it
+    clears and then reloads the now-complete session.
+    """
+
+    market: str
+    triggered: bool
+    running: bool
 
 
 class BoardRow(BaseModel):

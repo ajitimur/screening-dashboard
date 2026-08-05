@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   fetchRegime,
   fetchRuns,
+  triggerRun,
   type RegimeResponse,
   type RunsResponse,
 } from "./api/client";
@@ -17,6 +18,11 @@ type Market = (typeof MARKETS)[number];
 // the top-level axis; the screen switches under it, carrying the same market.
 const SCREENS = ["Workbench", "Boards"] as const;
 type Screen = (typeof SCREENS)[number];
+
+// How often the tab re-checks a run it kicked on open (spec §7.3). A run is a
+// ~9-minute pull, so a slow cadence is plenty; the poll stops as soon as the run
+// lands (run_due and running both clear).
+const RUN_POLL_MS = 2500;
 
 /**
  * The two-market tab shell (spec §5.1). Each tab reads its as-of session date
@@ -72,12 +78,40 @@ function Workbench({ market }: { market: Market }) {
 
   useEffect(() => {
     let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     setRuns(null);
     setRegime(null);
     setError(null);
-    fetchRuns(market)
-      .then((r) => live && setRuns(r))
-      .catch((e) => live && setError(String(e)));
+
+    // Run-on-open (spec §7.3): if the tab's last final session is missing from
+    // the store, kick a run once and poll until it lands, so a forgotten night
+    // is not silently stale. The served session stays the last *published* one
+    // throughout — a run in progress never shows a half-written session.
+    let triggered = false;
+    const poll = async () => {
+      let r: RunsResponse;
+      try {
+        r = await fetchRuns(market);
+      } catch (e) {
+        if (live) setError(String(e));
+        return;
+      }
+      if (!live) return;
+      setRuns(r);
+      let keepPolling = r.running;
+      if (r.run_due && !r.running && !triggered) {
+        triggered = true;
+        try {
+          const t = await triggerRun(market);
+          keepPolling = t.running || t.triggered;
+        } catch {
+          keepPolling = false; // no coordinator (503) — serve the last published
+        }
+      }
+      if (keepPolling && live) timer = setTimeout(poll, RUN_POLL_MS);
+    };
+    poll();
+
     // The regime is its own resource endpoint (spec §7.5); the banner reads it
     // independently and never gates what the rest of the workbench shows.
     fetchRegime(market)
@@ -85,17 +119,29 @@ function Workbench({ market }: { market: Market }) {
       .catch(() => {});
     return () => {
       live = false;
+      if (timer) clearTimeout(timer);
     };
   }, [market]);
 
   if (error) return <p role="alert">Could not reach the backend: {error}</p>;
   if (!runs) return <p>Loading {market}…</p>;
 
+  // A run kicked on open (or a scheduled one) is in flight: show a progress
+  // state above whatever the last published session was (spec §7.3).
+  const progress = runs.running ? (
+    <p role="status" className="run-progress">
+      Running tonight's {market} pull — fetching the latest session…
+    </p>
+  ) : null;
+
   if (!runs.latest) {
-    // Explicit empty state — no run has published for this market yet.
+    // No run has published yet: either an in-progress first run (progress state)
+    // or an explicit empty state — never a fabricated date.
     return (
       <section aria-label={`${market} workbench`}>
-        <p className="empty-state">No run yet for {market}. Nothing to show tonight.</p>
+        {progress ?? (
+          <p className="empty-state">No run yet for {market}. Nothing to show tonight.</p>
+        )}
       </section>
     );
   }
@@ -109,6 +155,7 @@ function Workbench({ market }: { market: Market }) {
 
   return (
     <section aria-label={`${market} workbench`}>
+      {progress}
       {stale && (
         <p role="status" className="quarantine-banner">
           Tonight's {market} run was quarantined — showing the last good session{" "}

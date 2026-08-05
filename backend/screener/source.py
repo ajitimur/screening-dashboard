@@ -360,6 +360,13 @@ def _http_get(url: str) -> str:
         return response.read().decode("utf-8", errors="replace")
 
 
+def default_source() -> Source:
+    """The live source: the real Yahoo/Nasdaq client behind the pacing, backoff
+    and unresolved-not-absent policy (spec §3.3). What the scheduled run and
+    run-on-open drive; tests inject a fake :class:`Source` instead."""
+    return Source(YFinanceSourceClient())
+
+
 def resolve_market(source: Source, market: str) -> tuple[list[Instrument], list[Resolution]]:
     """Enumerate a market and resolve its candidates.
 

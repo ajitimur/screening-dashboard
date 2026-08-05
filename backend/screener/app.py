@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -28,9 +30,12 @@ from .models import (
     ChartResponse,
     RegimeResponse,
     RunsResponse,
+    RunTriggerResponse,
     SectorsResponse,
 )
 from .regime import breadth, posture, regime_state
+from .runner import RunManager
+from .schedule import run_is_due
 from .sectors import (
     TEMPORAL_SESSIONS,
     industry_strengths,
@@ -50,8 +55,23 @@ _FRONTEND_DIST = _REPO_ROOT / "frontend" / "dist"
 DEFAULT_DB_PATH = os.environ.get("SCREENER_DB", str(_REPO_ROOT / "data" / "screener.duckdb"))
 
 
-def create_app(store: Store | None = None) -> FastAPI:
-    """Build the app. Pass a ``store`` (e.g. a fixture) or let it open the file."""
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def create_app(
+    store: Store | None = None,
+    *,
+    run_manager: RunManager | None = None,
+    clock: Callable[[], datetime] = _utc_now,
+) -> FastAPI:
+    """Build the app. Pass a ``store`` (e.g. a fixture) or let it open the file.
+
+    ``run_manager`` drives run-on-open (spec §7.3): when present, opening a tab
+    whose last final session is missing kicks a background run via
+    ``POST /api/runs/{market}``. ``clock`` supplies ``now`` for the ``run_due``
+    finality decision — injectable so a test can pin the wall clock.
+    """
     owns_store = store is None
     store = store or Store.open(DEFAULT_DB_PATH)
 
@@ -72,11 +92,35 @@ def create_app(store: Store | None = None) -> FastAPI:
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
         latest = store.latest_run(market)
+        # Run-on-open (spec §7.3): the tab reads whether its last final session is
+        # missing (``run_due``) and whether a run is already in flight
+        # (``running``), so opening it kicks a run and shows a progress state
+        # without ever serving a half-written session — the served ``latest`` is
+        # the last *published* run throughout.
         return RunsResponse(
             market=market,
             latest=latest,
             runs=store.runs(market),
             universe_size=len(store.universe(market, latest.session)) if latest else None,
+            run_due=run_is_due(latest.session if latest else None, market, clock()),
+            running=run_manager.is_running(market) if run_manager else False,
+        )
+
+    @app.post("/api/runs/{market}", response_model=RunTriggerResponse)
+    def trigger_run(market: str) -> RunTriggerResponse:
+        market = market.upper()
+        if market not in MARKETS:
+            raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
+        if run_manager is None:
+            # No coordinator wired (e.g. a read-only deployment without a source);
+            # the tab falls back to showing the last published session unchanged.
+            raise HTTPException(status_code=503, detail="run trigger not configured")
+        # Single-flight: a second open mid-run joins the running run rather than
+        # starting a duplicate (spec §7.3). The tab polls /api/runs until running
+        # clears, then reloads the now-complete session.
+        triggered = run_manager.trigger(market)
+        return RunTriggerResponse(
+            market=market, triggered=triggered, running=run_manager.is_running(market)
         )
 
     @app.get("/api/boards/{market}", response_model=BoardsResponse)
@@ -262,4 +306,30 @@ def create_app(store: Store | None = None) -> FastAPI:
     return app
 
 
-app = create_app()
+def _default_run_manager() -> RunManager:
+    """The production run-on-open coordinator (spec §7.3).
+
+    Each triggered run opens its *own* store connection and the live source,
+    computes ``now`` in the market's timezone and runs the due session — off the
+    request thread, so the tab stays responsive and the write path never shares
+    the app's read connection. The same :func:`run_once` the scheduled job uses.
+    """
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from .bars import EXCHANGE
+    from .run import run_once
+    from .source import default_source
+
+    def runner(market: str) -> None:
+        now = datetime.now(ZoneInfo(EXCHANGE[market]["tz"]))
+        run_store = Store.open(DEFAULT_DB_PATH)
+        try:
+            run_once(run_store, default_source(), market, now=now)
+        finally:
+            run_store.close()
+
+    return RunManager(runner)
+
+
+app = create_app(run_manager=_default_run_manager())

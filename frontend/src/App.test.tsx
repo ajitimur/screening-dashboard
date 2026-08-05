@@ -110,8 +110,10 @@ describe("the two market tabs", () => {
         latest: run("IDX", "2026-08-04"),
         runs: [quarantined("IDX", "2026-08-05"), run("IDX", "2026-08-04")],
         universe_size: 100,
+        run_due: false,
+        running: false,
       },
-      US: { market: "US", latest: null, runs: [], universe_size: null },
+      US: { market: "US", latest: null, runs: [], universe_size: null, run_due: false, running: false },
     });
     render(<App />);
     // The stale banner is shown...
@@ -297,6 +299,59 @@ describe("the two market tabs", () => {
     expect(screen.getByRole("button", { name: "Workbench" })).toHaveAttribute("aria-current", "true");
   });
 
+  it("kicks a run on open when the last final session is missing, and shows progress", async () => {
+    // Run-on-open (spec §7.3): the tab opens on a store whose last final session
+    // is missing (run_due), POSTs to kick the run, shows a progress state while
+    // it is in flight, then serves the now-complete session.
+    vi.useFakeTimers();
+    const okJson = (body: unknown) => ({ ok: true, json: async () => body }) as Response;
+    const post = vi.fn();
+    let getCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, opts?: RequestInit) => {
+        if (url.includes("/api/runs/") && opts?.method === "POST") {
+          post();
+          return okJson({ market: "IDX", triggered: true, running: true });
+        }
+        if (url.includes("/api/runs/")) {
+          getCount += 1;
+          const base = { market: "IDX", runs: [], universe_size: 100 };
+          if (getCount === 1)
+            return okJson({ ...base, latest: run("IDX", "2026-08-04"), run_due: true, running: false });
+          if (getCount === 2)
+            return okJson({ ...base, latest: run("IDX", "2026-08-04"), run_due: true, running: true });
+          return okJson({ ...base, latest: run("IDX", "2026-08-05"), run_due: false, running: false });
+        }
+        if (url.includes("/api/sectors/")) return okJson(emptySectors("IDX"));
+        if (url.includes("/api/candidates/")) return okJson(emptyCandidates("IDX"));
+        if (url.includes("/regime/")) return okJson(noRegime("IDX"));
+        return okJson(emptySectors("IDX"));
+      }),
+    );
+    try {
+      render(<App />);
+      // The first look kicks the run.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(post).toHaveBeenCalledTimes(1);
+      // The next poll finds it in flight — the progress state shows.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+      expect(screen.getByRole("status")).toHaveTextContent(/Running tonight's IDX/i);
+      // The run lands: the fresh session is served and the progress state clears.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+      expect(screen.getByText("2026-08-05")).toBeInTheDocument();
+      expect(screen.queryByText(/Running tonight's IDX/i)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("shows no banner when the latest run published", async () => {
     mockRuns({
       IDX: {
@@ -304,8 +359,10 @@ describe("the two market tabs", () => {
         latest: run("IDX", "2026-08-04"),
         runs: [run("IDX", "2026-08-04")],
         universe_size: 100,
+        run_due: false,
+        running: false,
       },
-      US: { market: "US", latest: null, runs: [], universe_size: null },
+      US: { market: "US", latest: null, runs: [], universe_size: null, run_due: false, running: false },
     });
     render(<App />);
     expect(await screen.findByText("2026-08-04")).toBeInTheDocument();
@@ -314,11 +371,18 @@ describe("the two market tabs", () => {
 });
 
 function runs(market: string, session: string, universe_size = 100): RunsResponse {
-  return { market, latest: run(market, session), runs: [run(market, session)], universe_size };
+  return {
+    market,
+    latest: run(market, session),
+    runs: [run(market, session)],
+    universe_size,
+    run_due: false,
+    running: false,
+  };
 }
 
 function empty(market: string): RunsResponse {
-  return { market, latest: null, runs: [], universe_size: null };
+  return { market, latest: null, runs: [], universe_size: null, run_due: false, running: false };
 }
 
 function run(market: string, session: string): RunRecord {

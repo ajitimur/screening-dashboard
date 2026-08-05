@@ -598,6 +598,30 @@
         "title": "RunRecord",
         "type": "object"
       },
+      "RunTriggerResponse": {
+        "description": "The reply to a run-on-open ``POST /api/runs/{market}`` (spec \u00a77.3).\n\n``triggered`` is true when this call started a run, false when one was\nalready in flight (run-on-open is single-flight \u2014 a second open joins the\nrunning run rather than duplicating it). ``running`` is the market's state\nafter the call: true whenever a run is in flight, so the tab polls until it\nclears and then reloads the now-complete session.",
+        "properties": {
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "running": {
+            "title": "Running",
+            "type": "boolean"
+          },
+          "triggered": {
+            "title": "Triggered",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "market",
+          "triggered",
+          "running"
+        ],
+        "title": "RunTriggerResponse",
+        "type": "object"
+      },
       "RunsResponse": {
         "description": "Run records for one market, newest first.\n\n``latest`` is the last *published* run \u2014 the as-of session the tab renders.\nIt is ``None`` when no run has published yet, which the tab shows as an\nexplicit empty state rather than a blank or a fabricated date.",
         "properties": {
@@ -614,6 +638,16 @@
           "market": {
             "title": "Market",
             "type": "string"
+          },
+          "run_due": {
+            "default": false,
+            "title": "Run Due",
+            "type": "boolean"
+          },
+          "running": {
+            "default": false,
+            "title": "Running",
+            "type": "boolean"
           },
           "runs": {
             "items": {
@@ -1074,6 +1108,43 @@
           }
         },
         "summary": "Get Runs"
+      },
+      "post": {
+        "operationId": "trigger_run_api_runs__market__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunTriggerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trigger Run"
       }
     },
     "/api/sectors/{market}": {

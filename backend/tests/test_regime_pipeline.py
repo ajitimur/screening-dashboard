@@ -71,7 +71,7 @@ def test_capture_is_a_noop_before_a_full_trailing_window():
     store.close()
 
 
-def test_published_run_captures_follow_through(store: Store):
+def test_published_run_captures_follow_through(store: Store, tmp_path):
     session = CAL[-1]
     now = datetime(2026, 8, 20, 20, 0, tzinfo=WIB)
     instruments = [
@@ -88,7 +88,7 @@ def test_published_run_captures_follow_through(store: Store):
         rate_per_sec=1000, sleep=lambda s: None,
     )
 
-    record = run_market_universe(store, source, "IDX", session, now=now)
+    record = run_market_universe(store, source, "IDX", session, now=now, digests_dir=tmp_path)
     assert record.status == "published"
 
     rows = store.follow_through("IDX")

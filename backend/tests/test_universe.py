@@ -274,7 +274,7 @@ class FakeBarClient:
         return self._info.get(symbol, {})
 
 
-def test_run_market_universe_ingests_and_builds_a_liquid_universe(store: Store):
+def test_run_market_universe_ingests_and_builds_a_liquid_universe(store: Store, tmp_path):
     # A calendar of 25 final IDX sessions (well past the finality margin).
     sessions = CAL[:25]
     now = datetime(2026, 8, 20, 20, 0, tzinfo=WIB)  # long after the last session
@@ -292,7 +292,7 @@ def test_run_market_universe_ingests_and_builds_a_liquid_universe(store: Store):
     source = Source(FakeBarClient({"IDX": instruments}, bars, info),
                     rate_per_sec=1000, sleep=lambda s: None)
 
-    record = run_market_universe(store, source, "IDX", date(2026, 8, 20), now=now)
+    record = run_market_universe(store, source, "IDX", date(2026, 8, 20), now=now, digests_dir=tmp_path)
 
     assert record.status == "published"
     assert record.symbols_enumerated == 2  # two candidates; the index excluded

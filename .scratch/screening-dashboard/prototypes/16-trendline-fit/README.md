@@ -17,10 +17,12 @@ detections and no line means much over three points.
 | `compare.py` | re-fits all 31,553 detections over the **primary** window; writes `fit_compare.pkl` |
 | `analyse.py` | decomposes the D6 gate loss — is it real or a threshold artefact? |
 | `longest.py` | the same 2×2 over the **longest** valid window |
+| `nogate.py` | what the list looks like once D6 stops rejecting — the trader's call |
+| `split.py` | port of q-scanner's **base/cluster split**, measured against D2–D4 |
 | `chart16.py` | candles over the primary window only (per ticket 11's I5), both lines drawn |
 | `build_deck16.py` | renders `deck16.html` — 50 cards, blind A/B, seed 16 |
 
-Run order: `compare.py` → `analyse.py` → `longest.py` → `build_deck16.py`.
+Run order: `compare.py` → `analyse.py` → `longest.py` → `nogate.py` → `split.py` → `build_deck16.py`.
 Needs `pandas numpy` and ticket 09's cache.
 
 ## The deck

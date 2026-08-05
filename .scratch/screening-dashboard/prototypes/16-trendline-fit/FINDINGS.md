@@ -107,6 +107,77 @@ one base and a trigger from another, against ticket 11's I5. Given T4's numbers 
 relative to the drawn triangle because they belong to different windows. `chart16.py` draws the
 primary window only, per I5.
 
+## T6. D6 stops being a gate — and that alone is unaffordable
+
+**The trader's call:** the 1×ADR affordability test is an entry-time judgement, not a screening
+criterion. This is a scanner; its job is to surface setups, and the stop is decided when the trade
+is taken. D6 becomes a displayed quantity, never a hard cut.
+
+Correct in principle, but it cannot stand alone, because D6 was the only thing holding the list
+down. With nothing rejected on trigger-to-stop (`nogate.py`):
+
+| | US/night | IDX/night |
+| --- | --- | --- |
+| today, D6 gating | ~64 | ~12 |
+| D6 shown, not enforced | **~314** | **~47** |
+
+190,044 ungated detections against 31,553. Ticket 11 designed the nightly review around ~10
+minutes; a 314-name list is not that.
+
+Ticket 08's own words explain why: *"This gate is what §3.4's first auto-reject ('loose, wide-range
+consolidation') looks like in numbers."* **D6 was doing two jobs under one number** — §7
+affordability (entry-time, the trader's) and §3.4 looseness (screening, the app's). They were
+conflated because the same ratio measures both.
+
+**Resolution: separate them.** Stop width becomes a column and sort key, never a cut. A looseness
+cut stays, but expressed as a property of the *base* rather than of the trader's affordability.
+
+Knock-on: **D7 leans on D6 being a gate.** It scores tightness as only "narrowing", not "narrow",
+reasoning that narrowness *"is already pass/fail"* via D6. Remove the gate and "narrow" is captured
+nowhere, leaving the ×2 tightness dimension measuring half of what §3.5 asks. Whatever looseness cut
+replaces D6 has to restore it.
+
+## T7. q-scanner's base/cluster split supplies exactly that cut — measured
+
+Ported in `split.py` over 318,357 bar-dates. It is not a variant of D2–D4 but a different structure:
+the base runs from the **prior move's peak** to today (capped at 45 bars), and inside it a **3–7 bar
+trailing cluster spanning ≤ 1.5×ADR** must exist, sitting on a rising 10/20/50 MA.
+
+| funnel | share of bar-dates |
+| --- | --- |
+| base ≥ 3 bars | 75.1% |
+| tight 3–7 bar cluster | 34.8% |
+| caught up to the 10/20 | 32.3% |
+| drawable line (touch zones + bounded overshoot) | 18.2% |
+| all three | **17.0%** |
+
+Three properties fall out, and together they answer T4 and T6 at once:
+
+**1. The base becomes a shape you can fit a line to.** Median **14 bars** (IQR 8–22) against ticket
+08's 3. The envelope-vs-OLS question becomes meaningful for the first time.
+
+**2. The stop is bounded by construction — no affordability gate needed.** Trigger is
+`max(line, cluster_high)` and the stop is the cluster low, so trigger-to-stop cannot exceed the
+cluster's own range, which is *defined* as ≤ 1.5×ADR. Measured maximum across all 54,201 surviving
+detections: **1.499 ADR**. The tightness cut and the affordability question are the same object,
+expressed the way the trader asked for it — as a property of the base, not of their stop.
+
+**3. The list lands where it already is.** With q-scanner's own prior-move fallback (≥25% run-up):
+
+| prior-move floor | US/night | IDX/night |
+| --- | --- | --- |
+| none | 89.9 | 15.3 |
+| ≥ 25% | **62.6** | **11.0** |
+| ≥ 40% | 44.0 | 8.1 |
+| ≥ 60% | 29.3 | 6.2 |
+
+~63 US/night against today's ~64 — the same nightly volume, but with 14-bar bases, a structurally
+bounded stop, and no affordability gate doing hidden screening work.
+
+**Caveat:** this measures *structure* only — base length, cluster existence, line drawability, list
+length, stop width. It does not check that the setups it finds are the ones the eye wants, and no
+star rubric was re-derived. That comparison is unowned.
+
 ## What this leaves for the eye
 
 `deck16.html` (50 cards, blind A/B, seed 16) asks which line sits where you would draw it. It is

@@ -43,6 +43,7 @@ from datetime import date
 
 from .bars import Bar
 from .detection import Detection, detection_gate
+from .ranks import Rank
 from .score import star_score
 from .sectors import leave_one_out_sector_shares
 
@@ -73,7 +74,7 @@ class DigestBreak:
 def build_digest(
     yesterday_detections: list[Detection],
     today_bars: dict[str, Bar],
-    ranks_yesterday: list,
+    ranks_yesterday: list[Rank],
     industry_of: dict[str, str],
     sector_of: dict[str, str],
     last_reported: dict[str, date],

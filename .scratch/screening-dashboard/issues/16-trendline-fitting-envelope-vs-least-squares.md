@@ -151,5 +151,3 @@ to. `chart16.py` draws the primary window only, per I5.
 The eye question. `deck16.html` is built and verified (50 cards, blind A/B, seed 16) but was **not
 graded**: its cards inherit the 3-bar median, so it would ask the eye to choose between two lines
 through three points. It should be rebuilt over whatever window the successor ticket settles.
-
-Status: resolved

@@ -209,3 +209,62 @@ unmeasured twice; by the pre-registration no threshold is final until it is meas
 `analyse3.py A=<string> [C=<string>] [D=<string>]`. The analysis is verified end to end on synthetic
 grades (`analyse3.py --selftest`), so the numbers land the moment the grades do. Everything needs
 **pandas 3.x** — the cached pickles use its string dtype.
+
+---
+
+## Deck A3 graded — the score misses significance, and the orderliness dimension does not survive
+
+120 blind grades on the split's own population, all bare. Full working in
+[`ROUND3_RESULTS.md`](../prototypes/15-grading-round-2/ROUND3_RESULTS.md); grades in `grades3_A.txt`.
+
+**Out-of-fold r = +0.159**, against the **0.180** significance needs at n=120. Mean error 1.15★,
+within one star 56%, bias +0.10★. Round 2 reached +0.189 on the old structure with overlays. The
+populations are not comparable, but the summary is: **refitting on the new structure did not buy
+agreement with the eye.**
+
+**The pre-registered optimiser was broken, and that is worth stating first because every number
+depends on it.** Round 2 fitted by coordinate descent, and `rubric3.fit` inherited it. On these
+grades it **does not reach the optimum of its own objective** — mae 1.0875 where an exhaustive pass
+over the identical grid finds 1.0292 — and the point it settled on was degenerate: `cluster_k ≥ 3`
+awards the ×2 tightness point to 100% of cards, because 3 is the detector's minimum cluster length.
+With the ranking dimension off, the fitter used the rubric's biggest weight as a bias knob and made
+the score nearly constant (predicted SD 0.45★). Out-of-fold that read **+0.060**. Replacing the
+local search with an exhaustive one over the same grid and objective is a bug fix, not a rule
+change — there is one global optimum and nothing to choose. **Round 2's published thresholds were
+re-checked and are unaffected** (60 random restarts return the published optimum every time); the
+defect bites here because the split's domain flattens the loss surface.
+
+**Two dimensions have been fitted into constants.** The published thresholds award orderliness to
+**99%** of cards and base length to **95%**. The score now runs on tightness (15%), dry-up (27%) and
+the three fixed dimensions, with a predicted SD of 0.65★ against the grades' 1.27★.
+
+**The orderliness dimension does not survive the move to the split's base — and it must not simply
+be flipped.** The eye prefers *high* churn/L (r +0.184, partial +0.193; raw base churn partial
+**+0.353**; cluster churn +0.299), and mean grade rises 2.90 → 3.33 → 3.37 across quartiles of
+churn/L. But a synthetic control — bases of identical length and envelope differing only in
+orderliness — shows the quantity still measures disorder correctly at every length. What changes is
+the gap between *orderly* and *gap-then-dead*: 2.9× at L=3, **1.8× at L=14**, 1.65× at L=30. Over a
+long base, low churn/L stops meaning "orderly" and starts meaning "quiet", so the point drifts to
+exactly the lifeless base §3.4 warns about. Inverting the dimension would take out-of-fold r to
+**+0.241**, and is refused: it would be renaming a disorder measure, not correcting one. Three
+options — drop it, redefine it as a band (post-hoc in-sample +0.387), or replace it with cluster
+churn, which collapses §3.5's two ×2 dimensions into one measurement of packing. **This is a
+decision plus a fresh pre-registered test, and it is the ticket's remaining substance.**
+
+**Tightness clears its gate, but only just.** `cluster_k` partial r **+0.196**, above the +0.15
+floor that would have declared the ×2 dimension unscorable and sent ticket 17's R6 fallback back —
+**so the gate does not fire**. It is weaker than the +0.327 on the mixed cards and non-monotone in
+k. Two relatives measured on the same deck are stronger and length-free: cluster churn +0.299,
+density (k ÷ cluster range) +0.242.
+
+**The 4★ cut stands for the third time**, and precision now rises monotonically with the cut.
+**Precision at the trade line is 0.53**, up from round 2's 0.37 — roughly one name in two the
+machine calls tradeable is one the trader would, against one in three before. That is the one number
+that improved unambiguously, and it is the one ticket 11 cares about.
+
+**Still blocking resolution:** the **test–retest ceiling is unmeasured for the second round
+running** — every r above is against an unknown maximum, and at r ≈ 0.16–0.24 whether the rubric is
+weak or the target is noisy *is* the question. The 12 repeats live in decks C3 and D3, which also
+carry per-market calibration (still zero graded IDX cards on any structure) and the rejected
+candidates (ticket 11's obligation, unowned since ticket 09). By the pre-registration no threshold is
+final until the ceiling is measured.

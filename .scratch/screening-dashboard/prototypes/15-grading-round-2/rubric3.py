@@ -142,8 +142,123 @@ GRIDS = {
 ORDER = ["cluster_k", "orderliness", "len_ok", "len_bad", "dryup"]
 
 
+def _vector_predictor(rows, mode, hw=None):
+    """A vectorised stand-in for score3 over a fixed row set — same arithmetic, one array pass.
+
+    An exhaustive grid search calls the objective ~20k times (boolean) or ~224k (continuous), and
+    a per-row Python loop makes that minutes rather than seconds. `_assert_matches_score3` pins
+    this to score3 so the speed-up cannot silently change the rubric.
+    """
+    hw = {**DEFAULT_HALFWIDTH, **(hw or {})}
+    n = len(rows)
+    k = np.full(n, np.nan)
+    o = np.full(n, np.nan)
+    du = np.full(n, np.nan)
+    L = np.full(n, np.nan)
+    fixed_total = np.zeros(n)
+    fixed_max = np.zeros(n)
+
+    for i, r in enumerate(rows):
+        sig = r["sig"]
+        k[i] = _num(sig.get("cluster_k")) if _num(sig.get("cluster_k")) is not None else np.nan
+        o[i] = _num(sig.get("orderliness")) if _num(sig.get("orderliness")) is not None else np.nan
+        du[i] = _num(sig.get("dryup")) if _num(sig.get("dryup")) is not None else np.nan
+        L[i] = _num(sig.get("L_true")) if _num(sig.get("L_true")) is not None else np.nan
+        # threshold-independent dimensions, all weight 1
+        pm, ss = r["prior_move"], r["sector_share"]
+        if pm is not None:
+            fixed_total[i] += 1.0 if pm >= FIXED["prior_move"] else 0.0
+            fixed_max[i] += 1
+        rising = sig.get("sma20_rising")
+        fixed_total[i] += 0.5 if rising is None else (1.0 if rising else 0.0)
+        fixed_max[i] += 1
+        if ss is not None:
+            fixed_total[i] += 1.0 if ss >= FIXED["sector_share"] else 0.0
+            fixed_max[i] += 1
+        a = _num(sig.get("adr"))
+        if a is not None:
+            fixed_total[i] += 1.0 if a >= FIXED["adr"] else 0.0
+            fixed_max[i] += 1
+
+    hasL = np.isfinite(L)
+    max_total = fixed_max + 2 + 2 + 1 + hasL.astype(float)
+
+    def ramp(x, lo, hi):
+        return np.clip((x - lo) / (hi - lo), 0, 1)
+
+    def predict(T):
+        if mode == "boolean":
+            pt = np.where(np.isfinite(k), (k >= T["cluster_k"]).astype(float), 0.5)
+            po = np.where(np.isfinite(o), (o <= T["orderliness"]).astype(float), 0.5)
+            pv = np.where(np.isfinite(du), (du <= T["dryup"]).astype(float), 0.5)
+            pl = np.where(hasL, (L <= T["len_ok"]).astype(float), 0.0)
+        else:
+            pt = np.where(np.isfinite(k), ramp(k, T["cluster_k"] - hw["cluster_k"],
+                                               T["cluster_k"] + hw["cluster_k"]), 0.5)
+            po = np.where(np.isfinite(o), ramp(-o, -(T["orderliness"] + hw["orderliness"]),
+                                               -(T["orderliness"] - hw["orderliness"])), 0.5)
+            pv = np.where(np.isfinite(du), ramp(-du, -(T["dryup"] + hw["dryup"]),
+                                                -(T["dryup"] - hw["dryup"])), 0.5)
+            pl = np.where(hasL, ramp(-L, -float(T["len_bad"]), -float(T["len_ok"])), 0.0)
+        total = fixed_total + 2 * pt + 2 * po + pv + pl * hasL
+        return total * 5.0 / max_total
+
+    return predict
+
+
+def _assert_matches_score3(rows, mode, T):
+    v = _vector_predictor(rows, mode)(T)
+    s = np.array([score3(r["sig"], r["prior_move"], r["sector_share"], mode, T)["stars"]
+                  for r in rows])
+    assert np.allclose(v, s, atol=1e-9), f"vector predictor diverged from score3 ({mode})"
+
+
 def fit(rows, mode="boolean", start=None, rounds=3, objective="mae"):
-    """Coordinate descent, round 2's objective and tie-break rule, on the new free numbers."""
+    """Exhaustive search over GRIDS, minimising the pre-registered objective.
+
+    Round 2 fitted by *coordinate descent* over the same grid, and on round 3's grades that search
+    does not reach the optimum of its own objective: it returns mae 1.0875 where an exhaustive pass
+    over the identical grid finds 1.0292 — and the point it settles on is degenerate, awarding the
+    x2 tightness point to 100% of cards and collapsing the predicted-score SD to 0.45, which makes
+    the score nearly constant and destroys the ranking the app sorts on.
+
+    This is a defect in the optimiser, not a change of rule: same grid, same objective, same
+    tie-break toward the incumbent. An exhaustive search adds no researcher freedom — there is one
+    global optimum and nothing to choose — so it is strictly more faithful to the pre-registration
+    than a local search that lands wherever its start point leads.
+
+    `rubric2.fit` has the same shape, so round 2's published thresholds were re-checked: coordinate
+    descent from 60 random restarts finds the same optimum (mae 0.9750) as the published one, so
+    **round 2's numbers are not affected**. The defect bites here and not there because the split's
+    domain makes two dimensions nearly non-discriminating, which flattens the loss surface.
+    """
+    keys = list(ORDER)
+    if mode == "boolean":
+        # len_bad is only read by the continuous ramps; leaving it free in boolean mode makes 11
+        # identical copies of every grid point and lets an arbitrary tie decide it.
+        keys = [k for k in keys if k != "len_bad"]
+
+    predict = _vector_predictor(rows, mode)
+
+    def loss_of(T):
+        e = predict(T) - np.array([r["eye"] for r in rows], float)
+        return float(np.abs(e).mean()) if objective == "mae" else float((e ** 2).mean())
+
+    incumbent = dict(start or T3)
+    best_T, best = dict(incumbent), loss_of(incumbent)
+    from itertools import product
+    for combo in product(*(GRIDS[k] for k in keys)):
+        T = {**incumbent, **dict(zip(keys, combo))}
+        if T["len_bad"] <= T["len_ok"]:
+            continue
+        lv = loss_of(T)
+        if lv < best - 1e-9:                     # ties break toward the incumbent
+            best, best_T = lv, T
+    return best_T, best
+
+
+def fit_coordinate_descent(rows, mode="boolean", start=None, rounds=3, objective="mae"):
+    """Round 2's original local search, kept so the defect above stays reproducible."""
     T = dict(start or T3)
 
     def loss(Tc):

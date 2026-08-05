@@ -1,7 +1,7 @@
 # Replace the window rule with a base/cluster split?
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: 16
 
 ## Question

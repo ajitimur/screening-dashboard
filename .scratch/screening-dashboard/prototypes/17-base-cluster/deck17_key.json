@@ -1,0 +1,767 @@
+[
+ {
+  "card": 0,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "MKTX",
+  "date": "2018-11-14",
+  "end": 471,
+  "prior_move": 0.9573170731707317,
+  "adr": 0.029015468623887163
+ },
+ {
+  "card": 1,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "PFE",
+  "date": "2022-02-03",
+  "end": 1281,
+  "prior_move": 0.9568965517241379,
+  "adr": 0.02656754489511822
+ },
+ {
+  "card": 2,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "NVDA",
+  "date": "2017-08-29",
+  "end": 165,
+  "prior_move": 0.9850746268656716,
+  "adr": 0.02887068425914032
+ },
+ {
+  "card": 3,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "SPT",
+  "date": "2022-11-22",
+  "end": 741,
+  "prior_move": 0.9592760180995475,
+  "adr": 0.09265725474024313
+ },
+ {
+  "card": 4,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "LCID",
+  "date": "2021-12-31",
+  "end": 324,
+  "prior_move": 0.982532751091703,
+  "adr": 0.0904392724568032
+ },
+ {
+  "card": 5,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "PACB",
+  "date": "2020-10-26",
+  "end": 960,
+  "prior_move": 1.0,
+  "adr": 0.06803095153003791
+ },
+ {
+  "card": 6,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "ACAD",
+  "date": "2022-09-01",
+  "end": 1425,
+  "prior_move": 0.941747572815534,
+  "adr": 0.05129348646565307
+ },
+ {
+  "card": 7,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "AMKR",
+  "date": "2021-02-26",
+  "end": 1044,
+  "prior_move": 0.975,
+  "adr": 0.06593186617746119
+ },
+ {
+  "card": 8,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "WMS",
+  "date": "2021-12-27",
+  "end": 1254,
+  "prior_move": 0.9110169491525424,
+  "adr": 0.03543915108023486
+ },
+ {
+  "card": 9,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "BRBR",
+  "date": "2023-03-30",
+  "end": 867,
+  "prior_move": 0.9513274336283186,
+  "adr": 0.025363943077664285
+ },
+ {
+  "card": 10,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "STAA",
+  "date": "2023-01-24",
+  "end": 1524,
+  "prior_move": 0.9761904761904762,
+  "adr": 0.05886811220801005
+ },
+ {
+  "card": 11,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "FND",
+  "date": "2018-04-19",
+  "end": 246,
+  "prior_move": 0.9554140127388535,
+  "adr": 0.04077914351992534
+ },
+ {
+  "card": 12,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "LXRX",
+  "date": "2021-02-12",
+  "end": 1035,
+  "prior_move": 0.9871244635193133,
+  "adr": 0.09311341194060518
+ },
+ {
+  "card": 13,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "TSLA",
+  "date": "2020-04-09",
+  "end": 822,
+  "prior_move": 0.9895287958115183,
+  "adr": 0.10418395522494536
+ },
+ {
+  "card": 14,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "CELH",
+  "date": "2023-05-16",
+  "end": 1602,
+  "prior_move": 0.9954128440366973,
+  "adr": 0.04604484521927663
+ },
+ {
+  "card": 15,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "CHPT",
+  "date": "2021-01-14",
+  "end": 252,
+  "prior_move": 0.9627906976744186,
+  "adr": 0.09545838577563154
+ },
+ {
+  "card": 16,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "EDIT",
+  "date": "2018-06-13",
+  "end": 363,
+  "prior_move": 0.934640522875817,
+  "adr": 0.06547653348251933
+ },
+ {
+  "card": 17,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "PLNT",
+  "date": "2018-04-13",
+  "end": 321,
+  "prior_move": 0.9419354838709677,
+  "adr": 0.02391030287216871
+ },
+ {
+  "card": 18,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "PEN",
+  "date": "2023-05-19",
+  "end": 1605,
+  "prior_move": 0.9541284403669725,
+  "adr": 0.026660814787593412
+ },
+ {
+  "card": 19,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "SNAP",
+  "date": "2020-12-22",
+  "end": 960,
+  "prior_move": 0.9009433962264151,
+  "adr": 0.04709537869118381
+ },
+ {
+  "card": 20,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "VVV",
+  "date": "2019-08-27",
+  "end": 666,
+  "prior_move": 0.9122807017543859,
+  "adr": 0.021178619054727066
+ },
+ {
+  "card": 21,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "TXMD",
+  "date": "2018-06-18",
+  "end": 366,
+  "prior_move": 0.9490445859872612,
+  "adr": 0.0694090066952426
+ },
+ {
+  "card": 22,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "BLNK",
+  "date": "2020-07-27",
+  "end": 891,
+  "prior_move": 0.9887640449438202,
+  "adr": 0.1822594517734935
+ },
+ {
+  "card": 23,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "RNG",
+  "date": "2019-11-15",
+  "end": 723,
+  "prior_move": 0.9430379746835443,
+  "adr": 0.03997304940651693
+ },
+ {
+  "card": 24,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "KBH",
+  "date": "2017-07-21",
+  "end": 138,
+  "prior_move": 0.9699248120300752,
+  "adr": 0.02492452541448602
+ },
+ {
+  "card": 25,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "HRMY",
+  "date": "2022-12-09",
+  "end": 582,
+  "prior_move": 0.9712918660287081,
+  "adr": 0.03784697909611105
+ },
+ {
+  "card": 26,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "BAH",
+  "date": "2018-08-16",
+  "end": 408,
+  "prior_move": 0.9,
+  "adr": 0.017740954694346035
+ },
+ {
+  "card": 27,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "CMG",
+  "date": "2023-05-03",
+  "end": 1593,
+  "prior_move": 0.9909502262443439,
+  "adr": 0.01931865775781244
+ },
+ {
+  "card": 28,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "PTON",
+  "date": "2020-05-22",
+  "end": 165,
+  "prior_move": 0.9664804469273743,
+  "adr": 0.07074054694736555
+ },
+ {
+  "card": 29,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "ATKR",
+  "date": "2022-10-10",
+  "end": 1452,
+  "prior_move": 0.9238095238095239,
+  "adr": 0.040648009947959404
+ },
+ {
+  "card": 30,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "MRNA",
+  "date": "2021-08-26",
+  "end": 684,
+  "prior_move": 0.9907407407407407,
+  "adr": 0.09020024777078657
+ },
+ {
+  "card": 31,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "IPM",
+  "date": "2021-10-18",
+  "end": 873,
+  "prior_move": 1.0,
+  "adr": 0.3110434321897399
+ },
+ {
+  "card": 32,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "EDIT",
+  "date": "2021-08-26",
+  "end": 1170,
+  "prior_move": 0.9861111111111112,
+  "adr": 0.07621318837825669
+ },
+ {
+  "card": 33,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "ATKR",
+  "date": "2021-11-30",
+  "end": 1236,
+  "prior_move": 0.9527896995708155,
+  "adr": 0.04429558411970569
+ },
+ {
+  "card": 34,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "OXY",
+  "date": "2022-08-02",
+  "end": 1404,
+  "prior_move": 0.9711538461538461,
+  "adr": 0.039286336023532556
+ },
+ {
+  "card": 35,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "ATKR",
+  "date": "2023-02-23",
+  "end": 1545,
+  "prior_move": 0.990990990990991,
+  "adr": 0.03614336230798164
+ },
+ {
+  "card": 36,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "H",
+  "date": "2017-11-17",
+  "end": 222,
+  "prior_move": 0.92,
+  "adr": 0.018914003004489022
+ },
+ {
+  "card": 37,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "CHPT",
+  "date": "2020-12-17",
+  "end": 234,
+  "prior_move": 0.976303317535545,
+  "adr": 0.1459730925399175
+ },
+ {
+  "card": 38,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "STEM",
+  "date": "2021-03-19",
+  "end": 111,
+  "prior_move": 0.9558232931726908,
+  "adr": 0.1550580488393245
+ },
+ {
+  "card": 39,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "IGC",
+  "date": "2018-10-11",
+  "end": 447,
+  "prior_move": 1.0,
+  "adr": 0.2890871757596262
+ },
+ {
+  "card": 40,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "AMT",
+  "date": "2017-08-08",
+  "end": 150,
+  "prior_move": 0.9253731343283582,
+  "adr": 0.015437933180647612
+ },
+ {
+  "card": 41,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "QLYS",
+  "date": "2022-08-23",
+  "end": 1419,
+  "prior_move": 0.9400921658986175,
+  "adr": 0.039429681105737344
+ },
+ {
+  "card": 42,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "RRR",
+  "date": "2020-09-09",
+  "end": 927,
+  "prior_move": 0.9392265193370166,
+  "adr": 0.059588118708878014
+ },
+ {
+  "card": 43,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "BRBR",
+  "date": "2023-04-18",
+  "end": 879,
+  "prior_move": 0.9311926605504587,
+  "adr": 0.02609972085063138
+ },
+ {
+  "card": 44,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "NOG",
+  "date": "2021-10-26",
+  "end": 1212,
+  "prior_move": 0.9539170506912442,
+  "adr": 0.05917246636753626
+ },
+ {
+  "card": 45,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "PEN",
+  "date": "2019-06-19",
+  "end": 618,
+  "prior_move": 0.9743589743589743,
+  "adr": 0.030011895140699206
+ },
+ {
+  "card": 46,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "MTDR",
+  "date": "2020-05-11",
+  "end": 843,
+  "prior_move": 1.0,
+  "adr": 0.1726800078678981
+ },
+ {
+  "card": 47,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "RVTY",
+  "date": "2021-08-13",
+  "end": 1161,
+  "prior_move": 0.9120370370370371,
+  "adr": 0.026518066183759393
+ },
+ {
+  "card": 48,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "FND",
+  "date": "2017-12-26",
+  "end": 168,
+  "prior_move": 0.974025974025974,
+  "adr": 0.03226537553594078
+ },
+ {
+  "card": 49,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "HRMY",
+  "date": "2022-07-18",
+  "end": 480,
+  "prior_move": 0.9761904761904762,
+  "adr": 0.05604607068490371
+ },
+ {
+  "card": 50,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "YEXT",
+  "date": "2018-06-27",
+  "end": 303,
+  "prior_move": 0.9814814814814815,
+  "adr": 0.040328108482848235
+ },
+ {
+  "card": 51,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "CRK",
+  "date": "2021-11-16",
+  "end": 1227,
+  "prior_move": 0.9652173913043478,
+  "adr": 0.05405157981750945
+ },
+ {
+  "card": 52,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "SNAP",
+  "date": "2022-09-28",
+  "end": 1404,
+  "prior_move": 0.9186602870813397,
+  "adr": 0.061107545145246425
+ },
+ {
+  "card": 53,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "MELI",
+  "date": "2018-08-08",
+  "end": 402,
+  "prior_move": 0.9235668789808917,
+  "adr": 0.04345379510261136
+ },
+ {
+  "card": 54,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "ZS",
+  "date": "2020-04-30",
+  "end": 534,
+  "prior_move": 0.9428571428571428,
+  "adr": 0.051970846811469254
+ },
+ {
+  "card": 55,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "HQY",
+  "date": "2017-10-06",
+  "end": 192,
+  "prior_move": 0.9659863945578231,
+  "adr": 0.02947622276372174
+ },
+ {
+  "card": 56,
+  "section": "population",
+  "arm": "08 only",
+  "symbol": "TNDM",
+  "date": "2021-08-23",
+  "end": 1167,
+  "prior_move": 0.9154929577464789,
+  "adr": 0.031074912536427513
+ },
+ {
+  "card": 57,
+  "section": "population",
+  "arm": "shared",
+  "symbol": "TNDM",
+  "date": "2019-04-15",
+  "end": 573,
+  "prior_move": 0.9932885906040269,
+  "adr": 0.05565517687578468
+ },
+ {
+  "card": 58,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "KBH",
+  "date": "2020-06-23",
+  "end": 873,
+  "prior_move": 0.9484536082474226,
+  "adr": 0.06372967976076435
+ },
+ {
+  "card": 59,
+  "section": "population",
+  "arm": "split only",
+  "symbol": "COLD",
+  "date": "2019-02-15",
+  "end": 270,
+  "prior_move": 0.9808917197452229,
+  "adr": 0.019829120372771847
+ },
+ {
+  "card": 60,
+  "section": "geometry",
+  "symbol": "BHR",
+  "date": "2021-03-16",
+  "end": 1056,
+  "A": "t08",
+  "B": "split",
+  "t08_L": 3,
+  "split_L": 14
+ },
+ {
+  "card": 61,
+  "section": "geometry",
+  "symbol": "RENT",
+  "date": "2023-01-03",
+  "end": 297,
+  "A": "t08",
+  "B": "split",
+  "t08_L": 5,
+  "split_L": 13
+ },
+ {
+  "card": 62,
+  "section": "geometry",
+  "symbol": "SINT",
+  "date": "2020-04-08",
+  "end": 336,
+  "A": "split",
+  "B": "t08",
+  "t08_L": 3,
+  "split_L": 9
+ },
+ {
+  "card": 63,
+  "section": "geometry",
+  "symbol": "QNCX",
+  "date": "2019-10-08",
+  "end": 105,
+  "A": "split",
+  "B": "t08",
+  "t08_L": 5,
+  "split_L": 18
+ },
+ {
+  "card": 64,
+  "section": "geometry",
+  "symbol": "LFMD",
+  "date": "2020-11-02",
+  "end": 930,
+  "A": "split",
+  "B": "t08",
+  "t08_L": 8,
+  "split_L": 23
+ },
+ {
+  "card": 65,
+  "section": "geometry",
+  "symbol": "CELZ",
+  "date": "2019-05-31",
+  "end": 357,
+  "A": "split",
+  "B": "t08",
+  "t08_L": 5,
+  "split_L": 5
+ },
+ {
+  "card": 66,
+  "section": "geometry",
+  "symbol": "CNF",
+  "date": "2023-06-21",
+  "end": 1107,
+  "A": "t08",
+  "B": "split",
+  "t08_L": 3,
+  "split_L": 27
+ },
+ {
+  "card": 67,
+  "section": "geometry",
+  "symbol": "KOSS",
+  "date": "2019-05-02",
+  "end": 579,
+  "A": "split",
+  "B": "t08",
+  "t08_L": 3,
+  "split_L": 21
+ },
+ {
+  "card": 68,
+  "section": "geometry",
+  "symbol": "HFFG",
+  "date": "2021-06-01",
+  "end": 846,
+  "A": "t08",
+  "B": "split",
+  "t08_L": 7,
+  "split_L": 15
+ },
+ {
+  "card": 69,
+  "section": "geometry",
+  "symbol": "KOD",
+  "date": "2021-04-08",
+  "end": 630,
+  "A": "t08",
+  "B": "split",
+  "t08_L": 5,
+  "split_L": 40
+ },
+ {
+  "card": 70,
+  "section": "geometry",
+  "symbol": "HXL",
+  "date": "2019-10-25",
+  "end": 708,
+  "A": "split",
+  "B": "t08",
+  "t08_L": 3,
+  "split_L": 37
+ },
+ {
+  "card": 71,
+  "section": "geometry",
+  "symbol": "RDCM",
+  "date": "2019-12-04",
+  "end": 735,
+  "A": "split",
+  "B": "t08",
+  "t08_L": 3,
+  "split_L": 24
+ },
+ {
+  "card": 72,
+  "section": "geometry",
+  "symbol": "SCKT",
+  "date": "2021-01-07",
+  "end": 1005,
+  "A": "t08",
+  "B": "split",
+  "t08_L": 3,
+  "split_L": 17
+ },
+ {
+  "card": 73,
+  "section": "geometry",
+  "symbol": "WVVI",
+  "date": "2021-10-06",
+  "end": 1197,
+  "A": "t08",
+  "B": "split",
+  "t08_L": 3,
+  "split_L": 22
+ },
+ {
+  "card": 74,
+  "section": "geometry",
+  "symbol": "IT",
+  "date": "2020-06-26",
+  "end": 876,
+  "A": "t08",
+  "B": "split",
+  "t08_L": 3,
+  "split_L": 15
+ }
+]

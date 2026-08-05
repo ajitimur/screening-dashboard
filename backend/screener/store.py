@@ -157,12 +157,14 @@ class Store:
         """
         if not bars:
             return 0
-        rows = ",".join(["(?, ?, ?, ?, ?, ?, ?, ?, ?)"] * len(bars))
+        placeholders = ",".join(["(?, ?, ?, ?, ?, ?, ?, ?, ?)"] * len(bars))
         params: list = []
         for b in bars:
-            params += [market, symbol, b.session, b.open, b.high, b.low, b.close, b.adj_close, b.volume]
+            params.extend(
+                (market, symbol, b.session, b.open, b.high, b.low, b.close, b.adj_close, b.volume)
+            )
         inserted = self._con.execute(
-            f"INSERT INTO bars VALUES {rows} ON CONFLICT DO NOTHING RETURNING 1",
+            f"INSERT INTO bars VALUES {placeholders} ON CONFLICT DO NOTHING RETURNING 1",
             params,
         ).fetchall()
         return len(inserted)

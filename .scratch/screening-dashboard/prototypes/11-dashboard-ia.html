@@ -317,24 +317,86 @@ const REGIMES = [
   { market: 'US',  index: '^IXIC', state: 'CHOPPY',   posture: 'Reduced size', asOf: '2026-08-04 close (ET)', breadth: 44, fresh: false },
 ];
 
-/* ---------- leaderboards (ticket 06) ---------- */
+/* ---------- leaderboards (ticket 06) ----------
+   R3: five SEPARATE boards per market, never merged. R4: top 30, constant count.
+   R9: ranked on pure return. R10: no smoothing; new entrants carry a NEW marker.
+   R11: k/5 breadth badge. R12: "up ≥30% in 5d" is a FLAG on the 1w board, not a board.
+   R8: ADR does nothing by default — one toggle, off.                              */
 const LOOKBACKS = ['1w', '1m', '3m', '6m', '12m'];
-const BOARDS = {
-  US: {
-    '1w':  [['TSSI',41.2,1,true],['NBIS',33.8,1,true],['RKLB',28.4,0,false],['IONQ',24.1,1,false],['SMCI',22.7,0,false],['CLS',19.3,0,false]],
-    '1m':  [['NBIS',88.1,0,false],['TSSI',76.4,1,true],['APP',61.2,0,false],['RKLB',54.9,0,false],['CLS',48.2,0,false],['PLTR',39.4,0,false]],
-    '3m':  [['NBIS',214.3,0,false],['TSSI',188.0,0,false],['CLS',142.6,0,false],['APP',119.8,0,false],['RKLB',96.4,1,false],['PLTR',81.2,0,false]],
-    '6m':  [['APP',312.7,0,false],['CLS',241.1,0,false],['PLTR',198.4,0,false],['NBIS',176.2,0,false],['RKLB',144.8,0,false],['ONON',61.3,0,false]],
-    '12m': [['APP',618.4,0,false],['PLTR',441.2,0,false],['CLS',388.6,0,false],['NBIS',209.1,0,false],['HOOD',188.4,0,false],['RKLB',121.7,0,false]],
-  },
-  IDX: {
-    '1w':  [['BRMS.JK',22.4,1,true],['MDKA.JK',18.1,1,false],['TINS.JK',14.8,0,false],['ANTM.JK',12.2,0,false],['INCO.JK',9.4,0,false],['PTBA.JK',7.1,0,false]],
-    '1m':  [['BRMS.JK',64.8,0,false],['MDKA.JK',48.2,0,false],['ANTM.JK',41.1,0,false],['PTBA.JK',28.4,1,false],['TINS.JK',24.6,0,false],['INCO.JK',18.2,0,false]],
-    '3m':  [['ANTM.JK',118.4,0,false],['MDKA.JK',96.2,0,false],['BRMS.JK',88.7,0,false],['INCO.JK',54.1,0,false],['TINS.JK',44.8,0,false],['PTBA.JK',38.2,0,false]],
-    '6m':  [['ANTM.JK',186.2,0,false],['MDKA.JK',142.4,0,false],['INCO.JK',88.1,0,false],['BRMS.JK',76.4,0,false],['PTBA.JK',41.2,0,false],['TINS.JK',33.8,0,false]],
-    '12m': [['ANTM.JK',288.4,0,false],['MDKA.JK',196.1,0,false],['INCO.JK',124.8,0,false],['PTBA.JK',88.2,0,false],['BRMS.JK',71.4,0,false],['TINS.JK',52.1,0,false]],
-  },
+const BOARD_N = 30;
+
+const POOL = {
+  US: ['NBIS','TSSI','CLS','RKLB','APP','HOOD','ONON','PLTR','IONQ','SMCI','VRT','ANET','MU','AVGO',
+       'CRDO','ALAB','NVDA','COIN','MSTR','RDDT','ASTS','LUNR','OKLO','SMR','VST','TLN','GEV','PWR',
+       'NRG','HIMS','DUOL','TOST','AXON','CAVA','ELF','CELH','SEZL','AFRM','UPST','APLD'],
+  IDX: ['BRMS.JK','MDKA.JK','ANTM.JK','INCO.JK','PTBA.JK','TINS.JK','ADRO.JK','ITMG.JK','BRPT.JK',
+        'TPIA.JK','BREN.JK','CUAN.JK','AMMN.JK','PANI.JK','NCKL.JK','ESSA.JK','MEDC.JK','PGAS.JK',
+        'ELSA.JK','RAJA.JK','HRUM.JK','DEWA.JK','ENRG.JK','BUMI.JK','ARTO.JK','BUKA.JK','GOTO.JK',
+        'EMTK.JK','SMGR.JK','INTP.JK','ICBP.JK','MYOR.JK','KLBF.JK','UNTR.JK','ASII.JK','TLKM.JK',
+        'BBRI.JK','BMRI.JK','BBCA.JK','AKRA.JK'],
 };
+
+/* rough top-of-board magnitudes per lookback, and how much of the board turns over nightly */
+const LB_SPEC = {
+  '1w':  { top:  46, churn: 0.53 },
+  '1m':  { top:  92, churn: 0.20 },
+  '3m':  { top: 224, churn: 0.10 },
+  '6m':  { top: 330, churn: 0.07 },
+  '12m': { top: 640, churn: 0.03 },
+};
+
+/* The pool has to be much deeper than the 30 board slots, or every name lands on
+   every board and the k/5 badge reads 5/5 everywhere — ticket 06 measured only
+   3 of 1,964 US names leading all five windows. Pad with filler tickers. */
+function deepPool(mkt, seed) {
+  const r = rng(seed), out = POOL[mkt].slice();
+  const A = 'ABCDEFGHIJKLMNOPRSTUVWXYZ';
+  const target = mkt === 'US' ? 240 : 200;
+  while (out.length < target) {
+    const len = mkt === 'IDX' ? 4 : 3 + (r() < 0.4 ? 1 : 0);
+    let s = '';
+    for (let i = 0; i < len; i++) s += A[Math.floor(r() * A.length)];
+    const t = mkt === 'IDX' ? s + '.JK' : s;
+    if (!out.includes(t)) out.push(t);
+  }
+  return out;
+}
+
+function buildBoards(mkt, seed0) {
+  const pool = deepPool(mkt, seed0 + 500);
+  const adrOf = {};
+  const ra = rng(seed0 + 77);
+  pool.forEach(t => { adrOf[t] = 3.4 + ra() * 6.4; });
+
+  // ticket 08 gates candidates on top-decile membership, so every name in the
+  // workbench must plausibly appear on at least one board — bias their draws up.
+  const isCand = new Set(CANDS.filter(c => c.market === mkt).map(c => c.ticker));
+
+  const boards = {};
+  LOOKBACKS.forEach((lb, li) => {
+    const r = rng(seed0 + li * 31 + 5);
+    const spec = LB_SPEC[lb];
+    const rows = pool.map(t => {
+      const u = r();
+      const draw = isCand.has(t) ? Math.pow(u, 0.22) : u;
+      return { t, ret: spec.top * Math.pow(draw, 1.7), adr: adrOf[t] };
+    });
+    rows.sort((a, b) => b.ret - a.ret);
+    boards[lb] = rows.slice(0, BOARD_N).map(x => ({
+      ...x,
+      isNew: r() < spec.churn,
+      flag: lb === '1w' && x.ret >= 30,
+    }));
+  });
+
+  // R11 — k/5: how many of this market's five boards the name leads
+  const count = {};
+  LOOKBACKS.forEach(lb => boards[lb].forEach(x => { count[x.t] = (count[x.t] || 0) + 1; }));
+  LOOKBACKS.forEach(lb => boards[lb].forEach(x => { x.k = count[x.t]; }));
+  return boards;
+}
+
+const BOARDS = { US: buildBoards('US', 9001), IDX: buildBoards('IDX', 4002) };
 
 /* ---------- sectors (ticket 07) ---------- */
 const SECTORS = {
@@ -687,9 +749,9 @@ function VariantB() {
       <div class="scroll-x" style="padding:var(--s3);display:flex;gap:var(--s4)">
         ${LOOKBACKS.map(lb => `<div style="min-width:190px">
           <div class="eyebrow" style="margin-bottom:var(--s1)">US ${lb}</div>
-          <table class="grid" style="font-size:12px">${BOARDS.US[lb].slice(0, 5).map(([t, r, k, flag]) => `<tr>
-            <td><span class="tick">${t}</span>${flag ? ' <span class="pill new" style="font-size:9px;padding:1px 4px">30/5d</span>' : ''}</td>
-            <td class="r num up">+${r.toFixed(0)}%</td></tr>`).join('')}</table>
+          <table class="grid" style="font-size:12px">${BOARDS.US[lb].slice(0, 5).map(x => `<tr>
+            <td><span class="tick">${x.t}</span>${x.flag ? ' <span class="pill new" style="font-size:9px;padding:1px 4px">30/5d</span>' : ''}</td>
+            <td class="r num up">+${x.ret.toFixed(0)}%</td></tr>`).join('')}</table>
         </div>`).join('')}
         <div style="min-width:230px">
           <div class="eyebrow" style="margin-bottom:var(--s1)">US sector · share of 1m decile</div>
@@ -708,7 +770,85 @@ function VariantB() {
    sector context side by side, so the sector answer sits next to the name.
    ===================================================================== */
 let tabC = 'IDX', selC = { IDX: 8, US: 0 };
+let boardMkt = 'IDX', boardAdr = false;
+
+/* the Boards peer tab — five separate boards, 30 rows, off the nightly path */
+function BoardsScreen() {
+  const b = BOARDS[boardMkt];
+  const reg = REGIMES.find(x => x.market === boardMkt);
+
+  const board = lb => {
+    const rows = b[lb].slice();
+    if (boardAdr) rows.sort((x, y) => (y.ret / y.adr) - (x.ret / x.adr));
+    return `<div class="card" style="min-width:236px;flex:1">
+      <div style="padding:var(--s2) var(--s3);border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:var(--s2)">
+        <span class="eyebrow" style="font-size:12px;letter-spacing:.04em;color:var(--ink)">${lb}</span>
+        <span class="mut" style="font-size:11px;margin-left:auto">top ${BOARD_N}</span>
+      </div>
+      <table class="grid" style="font-size:12px">
+        <tbody>${rows.map((x, i) => `<tr>
+          <td class="num mut" style="width:22px;padding-right:0">${i + 1}</td>
+          <td><span class="tick">${x.t.replace('.JK', '')}</span>${
+            x.isNew ? ' <span class="pill new" style="font-size:8.5px;padding:0 3px;vertical-align:1px">new</span>' : ''}${
+            x.flag ? ' <span class="pill trig" style="font-size:8.5px;padding:0 3px;vertical-align:1px" title="up ≥30% in 5 days (§1 scan 1)">30/5d</span>' : ''}</td>
+          <td class="r num up">+${x.ret.toFixed(0)}%</td>
+          <td class="r num mut" style="font-size:11px">${boardAdr ? (x.ret / x.adr).toFixed(1) : x.k + '/5'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+  };
+
+  const mktBtn = m => `<button data-pick="BM:${m}" style="background:${m === boardMkt ? 'var(--accent)' : 'transparent'};
+    color:${m === boardMkt ? '#14181f' : 'var(--ink-3)'};border:1px solid ${m === boardMkt ? 'var(--accent)' : 'var(--line)'};
+    padding:3px 12px;border-radius:3px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer">${m}</button>`;
+
+  return `<div style="margin-top:var(--s4)">
+    <div style="display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s3);flex-wrap:wrap">
+      <h2 style="font-size:16px">Decile leaderboards</h2>
+      <div style="display:flex;gap:var(--s1)">${mktBtn('IDX')}${mktBtn('US')}</div>
+      <span class="mut" style="font-size:12px">showing ${reg.asOf}</span>
+      <label style="margin-left:auto;font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" data-toggle="adr" ${boardAdr ? 'checked' : ''}>
+        rank by return ÷ ADR
+      </label>
+    </div>
+
+    <div class="scroll-x" style="display:flex;gap:var(--s2);align-items:start;padding-bottom:var(--s3)">
+      ${LOOKBACKS.map(board).join('')}
+    </div>
+
+    <p class="note" style="margin-top:var(--s4);max-width:64ch">
+      <b>Five separate boards, never merged</b> (ticket 06 R3) — one per lookback, 30 rows each, ranked on
+      <b>pure return</b> with no volatility adjustment and no smoothing. The last column is the <b>k/5 breadth
+      badge</b>: how many of the five lookbacks that name leads. <b>new</b> marks a name that was not on this
+      board last night — the 1w board turns over roughly half its rows nightly and that is reported, not
+      smoothed. <b>30/5d</b> is §1's "up ≥30% in five days" as a flag on the 1w board rather than a sixth board.
+      The ADR toggle is <b>off by default and does nothing until you touch it</b> (R8).
+      <br><br>
+      This tab is <b>off the nightly path</b>: ticket 08 gates every candidate on top-decile membership
+      already, so anything here that matters has already become a candidate in the workbench.
+    </p>
+  </div>`;
+}
+
 function VariantC() {
+  if (tabC === 'BOARDS') {
+    return `<div class="shell">
+      <header style="display:flex;align-items:baseline;gap:var(--s4);margin-bottom:var(--s4)">
+        <h1 style="font-size:20px;letter-spacing:-0.02em">Screen</h1>
+        <span class="mut num">Wed 5 Aug 2026</span>
+      </header>
+      <div style="display:flex;gap:var(--s1);border-bottom:1px solid var(--line)">
+        ${['IDX', 'US'].map(m => `<button data-pick="C:${m}" style="background:transparent;border:1px solid transparent;
+          border-bottom-color:var(--line);margin-bottom:-1px;padding:var(--s2) var(--s5);border-radius:5px 5px 0 0;
+          font:inherit;color:var(--ink-3);cursor:pointer">${m} <span class="num" style="opacity:.6">${CANDS.filter(x => x.market === m).length}</span></button>`).join('')}
+        <button data-pick="C:BOARDS" style="background:var(--panel);border:1px solid var(--line);border-bottom-color:var(--panel);
+          margin-bottom:-1px;padding:var(--s2) var(--s5);border-radius:5px 5px 0 0;font:inherit;font-weight:700;
+          color:var(--ink);cursor:pointer">Boards</button>
+      </div>
+      ${BoardsScreen()}
+    </div>`;
+  }
   const r = REGIMES.find(x => x.market === tabC);
   const list = CANDS.filter(x => x.market === tabC);
   const c = CANDS[selC[tabC]];
@@ -732,9 +872,11 @@ function VariantC() {
 
     <div style="display:flex;gap:var(--s1);border-bottom:1px solid var(--line)">
       ${tab('IDX')}${tab('US')}
-      <span style="margin-left:var(--s5);align-self:center;padding-bottom:var(--s2)">
-        <a href="#" style="color:var(--ink-3);text-decoration:none;font-size:13px">Boards</a>
-        <span class="mut" style="font-size:11.5px;margin-left:var(--s2)">5 lookbacks × 2 markets — off the nightly path</span>
+      <button data-pick="C:BOARDS" style="background:transparent;border:1px solid transparent;
+        border-bottom-color:var(--line);margin-bottom:-1px;padding:var(--s2) var(--s5);
+        border-radius:5px 5px 0 0;font:inherit;color:var(--ink-3);cursor:pointer">Boards</button>
+      <span class="mut" style="margin-left:auto;align-self:center;padding-bottom:var(--s2);font-size:11.5px">
+        5 lookbacks × 2 markets — off the nightly path
       </span>
     </div>
 
@@ -852,12 +994,18 @@ document.addEventListener('keydown', e => {
 });
 
 document.addEventListener('click', e => {
+  if (e.target.dataset && e.target.dataset.toggle === 'adr') { boardAdr = e.target.checked; render(); return; }
   const el = e.target.closest('[data-pick]');
   if (!el) return;
   const [kind, val] = el.dataset.pick.split(':');
-  if (kind === 'B') { selB = +val; render(); }
-  if (kind === 'C') { tabC = val; render(); }
-  if (kind === 'P') { selC[tabC] = +val; render(); }
+  if (kind === 'B')  { selB = +val; render(); }
+  if (kind === 'C')  {
+    // arriving at Boards keeps you in the market you were already working
+    if (val === 'BOARDS' && tabC !== 'BOARDS') boardMkt = tabC;
+    tabC = val; render();
+  }
+  if (kind === 'P')  { selC[tabC] = +val; render(); }
+  if (kind === 'BM') { boardMkt = val; render(); }
 });
 
 window.addEventListener('resize', () => requestAnimationFrame(paintAll));

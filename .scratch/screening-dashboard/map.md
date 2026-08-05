@@ -344,8 +344,10 @@ is written during wayfinding.
   accepted IDX detections have zero collapsed bars, so the population ticket 09 sized it for is gone.
   **What it could not settle graduated to [ticket 20](issues/20-confirm-the-band-and-measure-the-ceiling.md)**:
   the band's confirmation, per-market calibration (**still zero graded IDX cards on any structure**),
-  the rejected candidates, and **the test–retest ceiling — unmeasured for the second round running**,
-  so by its own pre-registration none of the thresholds above is final.
+  the rejected candidates, and the **test–retest ceiling**. *(Ticket 20 has since measured the
+  ceiling at **+0.756**, mean self-disagreement 0.67★, on 6 repeats — so the rubric errs 1.7× as much
+  as the trader wobbles and captures about a third of the achievable correlation: **the target is not
+  noisy, the rubric is weak**. It also discharged ticket 11's rejected-candidates obligation.)*
 
 - [Architecture and local runtime shape](issues/12-architecture-and-deployment.md) — **one DuckDB file,
   one command per market, and every derived table is dated rows.** A4 is the load-bearing one: universe

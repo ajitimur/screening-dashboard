@@ -74,3 +74,40 @@ deck on the split's accepted population is what §1 actually requires. Size it f
 
 Needs **pandas 3.x** — the cached pickles use its string dtype; a `.venv` exists in the ticket-15
 worktree.
+
+---
+
+## Progress — deck D3 graded: the ceiling is measured and the rejects question is discharged
+
+46 cards graded (`prototypes/15-grading-round-2/grades3_D.txt`); working in
+[`ROUND3_RESULTS.md`](../prototypes/15-grading-round-2/ROUND3_RESULTS.md).
+
+**The ceiling is +0.756**, mean self-disagreement **0.67★**, on the 6 repeats hidden in deck D3.
+Above the 0.6 line, so the pre-registration's "provisional whatever they fit" trigger **does not
+fire** and ticket 15's thresholds are not automatically downgraded. **But n = 6 and the 95% CI runs
+[−0.144, +0.971]**, which includes zero — the correlation is a point estimate, not a settled number,
+and the mean absolute self-disagreement is the more robust of the two. The other 6 repeats are in
+deck C3, so firming this up is now one of the reasons to grade it.
+
+What it settles, provisionally: the rubric's out-of-fold error is **1.11★** against the trader's
+**0.67★** against himself, and its r of **+0.255** is about **a third** of the achievable +0.756.
+**The target is not so noisy that the rubric is near its ceiling — the rubric is weak, and there is
+real headroom.** That question has been open since ticket 09 and every correlation on this map has
+been reported without an answer to it.
+
+**Ticket 11's rejected-candidates obligation is discharged** — asked in ticket 11, handed to ticket
+09 which did not do it, re-rendered and ungraded in round 2, answered here. Rejects grade **1.00★
+worse** than detections (p = 0.015), so the detector is not discarding setups the trader wants. But
+the two paths differ sharply: **`no_cluster` −1.40★ (p = 0.009)** is emphatic, while
+**`line_not_drawable` −0.60★ (p = 0.19)** is not shown to be justified — and that is the filter
+ticket 17's F1 found drops **58.8%** of ticket 08's picks, the largest single behaviour change the
+detector swap introduced. Sized to catch a 1-star difference, so this is *"no 1-star effect"*, not
+*"no effect"*. **Six of ticket 19's 22 parameters are the line-validity numbers behind it**, which
+sharpens what that ticket should look at first.
+
+### Still open on this ticket
+
+- **The band confirmation**, untouched — it needs a fresh US deck on the split's accepted
+  population, since deck C3 is IDX and deck D3 is half rejects. Bar is r ≥ +0.20 out-of-fold.
+- **Per-market calibration** — deck C3 still ungraded, still zero graded IDX cards on any structure.
+- **Firming the ceiling** — the remaining 6 repeats are in deck C3.

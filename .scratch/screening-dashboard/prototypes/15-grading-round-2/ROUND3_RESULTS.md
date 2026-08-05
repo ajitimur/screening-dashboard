@@ -225,3 +225,67 @@ that document.
 
 And the standing rule is unchanged: **the test–retest ceiling is still unmeasured**, so no threshold
 here is final, and it is still unknown whether r = +0.255 is a weak rubric or a noisy target.
+
+---
+
+## Deck D3 graded — the ceiling, and what the detector throws away
+
+46 cards: 20 detections, 20 rejects split between the detector's two rejection paths, and 6 hidden
+repeats from deck A3. Grades in `grades3_D.txt`.
+
+### The detector is discarding worse setups than it keeps — mostly
+
+| card type | n | mean grade | ≥4★ | vs detections | p |
+| --- | --- | --- | --- | --- | --- |
+| detections | 20 | **3.30** | 45% | — | — |
+| reject: no cluster | 10 | **1.90** | 20% | **−1.40★** | **0.009** |
+| reject: line not drawable | 10 | **2.70** | 20% | −0.60★ | 0.19 |
+| all rejects | 20 | 2.30 | 20% | **−1.00★** | **0.015** |
+
+**Ticket 11's obligation is discharged** — first asked in ticket 11, handed to ticket 09 which did
+not do it, re-rendered and ungraded in round 2, and answered here. The detector is **not** throwing
+away setups the trader wants: its rejects grade a full star worse than its picks.
+
+But the two rejection paths are not equally justified, and the weaker one is the important one.
+**`no_cluster` is emphatic** (−1.40★, p = 0.009) — a base with no tight trailing cluster really is
+not a setup. **`line_not_drawable` is not shown to be justified at all** (−0.60★, p = 0.19), and
+ticket 17's F1 found line drawability is what drops **58.8%** of ticket 08's picks — the largest
+single behaviour change the new detector introduced. So the biggest thing the detector swap changed
+is the filter with the weakest evidence behind it, and six of ticket 19's 22 parameters are the
+line-validity numbers that implement it.
+
+At n = 10 per arm the round is sized to catch a 1-star difference, not a 0.6-star one, so this is
+reported as *"no 1-star effect"* rather than as *"no effect"* — as the pre-registration requires.
+
+### The ceiling, measured at last — and the rubric is weak rather than the target noisy
+
+Six repeats, graded blind inside deck D3 after having been graded in deck A3:
+
+| | deck A3 → deck D3 |
+| --- | --- |
+| MKSI | 4 → 2 |
+| EHC | 3 → 4 |
+| AGO | 4 → 4 |
+| TULP | 1 → 1 |
+| CRWD | 3 → 2 |
+| CAKE | 5 → 5 |
+
+**test–retest r = +0.756**, mean self-disagreement **0.67★**. Above the 0.6 line, so the
+pre-registration's "provisional whatever they fit" trigger **does not fire**.
+
+**The n is 6 and the 95% CI on that r runs [−0.144, +0.971]**, which includes zero — so the
+correlation is a point estimate, not a settled number. The mean absolute self-disagreement of 0.67★
+is the more robust of the two statistics, being a mean of six differences rather than a correlation
+over six points. The other six repeats live in deck C3.
+
+What it buys, with that caveat attached:
+
+- The rubric's out-of-fold error is **1.11★** against the trader's **0.67★** disagreement with
+  himself — so **the rubric errs about 1.7× as much as the target wobbles**.
+- The rubric's r of **+0.255** against a ceiling of **+0.756** is roughly **a third of the
+  achievable correlation**.
+
+This answers the question that has been open since ticket 09 and that every correlation on this map
+has been reported without: **the target is not so noisy that the current agreement is near the
+ceiling. The rubric is weak, and there is real headroom above it.** The map can stop hedging every
+r against an unknown maximum, and start measuring against +0.756.

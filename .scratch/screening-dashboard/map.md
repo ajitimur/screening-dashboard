@@ -101,6 +101,13 @@ is written during wayfinding.
   this map can be fitted until [ticket 27](issues/27-level-or-order.md) says whether the star number
   is a level or a label for a rank**, because the objective that passes the level guardrail produces
   degenerate thresholds and the one that produces stable thresholds fails it by 0.01★.
+  **Ticket 27 answered it and the fitter is unblocked**: the star is a label for a rank plus its cut
+  points, nothing reads the magnitude, so the guardrail falls and `cindex` is adopted. What is left
+  of this risk is much smaller than it has been at any point since ticket 09 — the rubric publishes
+  thresholds again for the first time since ticket 15, the trade line *improved* under the swap
+  (precision 0.47 → 0.49 with recall 0.26 → 0.40), and the ×2 dimensions are no longer in doubt: the
+  question is now which *additional* dimensions the blind instrument wrongly retired (ticket 28), not
+  whether the ones in the rubric are real.
 - **Standing property of the data layer** (found independently by tickets 01, 02 and 03): **Yahoo fails
   as silence.** Throttled requests return empty results — and for price history, the literal message
   "possibly delisted; no price data found". Every ingestion path must distinguish throttling from
@@ -669,6 +676,34 @@ is written during wayfinding.
   over 5 fold assignments where ticket 20's single assignment reported **+0.120** — no future
   decision should rest on one fold split.
 
+- [Does a 4★ have to mean 4★, or is the star number a label for a rank?](issues/27-level-or-order.md)
+  — **a label for a rank plus its cut points, so the guardrail falls and the fitter is unblocked.**
+  Every consumer of the score was traced before the question was put, and **nothing reads the
+  magnitude**: the watchlist reads *order* (it is the sort key), §3.5's trading rule and ticket 15
+  R5's trade line read *cut points*, and §7/§8 read **nothing** — ticket 24 made the score
+  stop-blind, §8 is out of scope, and ticket 10's regime posture is advisory words. A card at 3.2
+  and one at 3.4 differ nowhere unless one crosses 4. That is exactly the escape clause ticket 21
+  pre-registered, so **`cindex` is adopted** — the rule was not relaxed after the fact, it was found
+  to have been measuring the wrong object. **§3.5's `points ÷ 2` mapping stands unchanged** —
+  trader's call, no isotonic stage, no separately fitted boundaries, **no new tunable** — and
+  splitting the sort key from the printed label was put and declined. The number that choice left
+  open was measured rather than assumed, and **the trade line improves**: out-of-fold `cindex` beats
+  `mae` on precision (**0.49 vs 0.47**) *and* recall (**0.40 vs 0.26**), calling 50 names against 35,
+  so the worry behind the guardrail does not materialise where the level is actually read. It also
+  emerged that **nothing gates on the cut** (ticket 11's I3 refused a star floor; ticket 18's digest
+  excludes new 4–5★), making the 4★ line a label rather than a gate. **Three thresholds are
+  published — `cluster_k` 5, `ord_lo` 0.30, `ord_hi` 0.60 — the first since ticket 15**, and because
+  `T3` already carried two of them, **adopting the rank objective moves exactly one published number
+  by one grid step**. `len_ok` and `dryup` stay at `T3` on R6 §4's own finding that they are unfitted
+  at this n; taking them would buy ~+0.019 ρ with two numbers that range across half their grid
+  between folds. **The fitting pool becomes 432** — ticket 21's 366 plus deck F's detections and its
+  `line_not_drawable` arm, now live since ticket 26 demoted that rule to a tiebreak, excluding the
+  still-gated `not_caught_up` arm and 6 duplicate repeats. Two corrections to ticket 21: **`ord_hi`
+  0.60 vs 0.70 was never a disagreement** (0 of 194 E3 and 1 of 366 pooled cards lie between them —
+  the region is empty), which also qualifies its 25-of-25 stability as partly an empty upper tail.
+  Ticket 11 needs **no** amendment, and **ticket 28 unblocks** with the pool, the published three and
+  the `rubric3` NaN defect it must keep fixed now that IDX cards are in.
+
 ## Not yet specified
 
 - **Validation / backtest.** How do we know the screen actually surfaces the right names? History depth
@@ -842,6 +877,17 @@ is written during wayfinding.
   ticket 12's ingest makes the real number free to compute the day it exists. What would sharpen it
   into a ticket is a decision that actually turns on list length: a cap, a star floor, or any
   reading-cost argument, none of which v1 currently contains.
+- **The rubric runs cold, and nothing currently notices.** Found by
+  [ticket 27](issues/27-level-or-order.md): the machine prints ≥4★ for **25.3%** of E3 cards where
+  the eye grades 32.0% (pooled, 19.1% against 35.0%) — a level bias of −0.24★ to −0.31★ that
+  **inverts** round 2's generosity problem (+0.74★, later +0.25★). It is not caused by adopting a
+  rank objective; the incumbent `T3` does the same thing at 28.9%/24.0%, and it is the direct,
+  accepted consequence of keeping §3.5's `÷ 2` mapping while fitting on order. It is fog rather than
+  a ticket because **nothing in v1 gates on the cut** — ticket 11's I3 refused a star floor as a
+  tunable and ticket 18's digest excludes new 4–5★ setups — so the 4★ line is a label and its recall
+  is descriptive. What would sharpen it into a ticket is any decision that makes the cut load-bearing:
+  a star floor on the list, a digest rule that fires on a band, or a sizing posture computed from the
+  score rather than read off it. All three are currently ruled out, and each would reopen this.
 - **Survivorship bias.** Yahoo's screener enumerates only live names, so delisted history is not
   discoverable. Harmless for nightly scanning, potentially fatal for any backtest — folds into the
   validation patch above once that takes shape.

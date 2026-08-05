@@ -38,11 +38,33 @@ care about the sign of its correlation; the sign only sets which way the point i
 rule to read |ρ| in this round's pre-registration** and re-screen everything, including candidates
 already dismissed on one-sided grounds.
 
-**Why it is blocked on [ticket 27](27-level-or-order.md).** Adding or swapping a dimension is a
-fitting decision, and ticket 21 established there is no usable fitter until the level-versus-order
-question is settled: under `mae` every threshold on 366 cards is degenerate and unstable, so a fit
-that "adds churn" would be measuring nothing. Once 26 answers, this is a re-fit over grades that
-already exist — **no grading sitting is required**, all 430 cards are collected.
+**Why it was blocked on [ticket 27](27-level-or-order.md) — now resolved, so this is takeable.**
+Adding or swapping a dimension is a fitting decision, and ticket 21 established there is no usable
+fitter until the level-versus-order question is settled: under `mae` every threshold on 366 cards is
+degenerate and unstable, so a fit that "adds churn" would be measuring nothing. This is a re-fit over
+grades that already exist — **no grading sitting is required**.
+
+**What ticket 27 hands down:**
+
+- **The objective is `cindex`.** The mae guardrail fell, because nothing in v1 reads the star as a
+  magnitude. Fit on order.
+- **The baseline is the published three** — `cluster_k` 5, `ord_lo` 0.30, `ord_hi` 0.60 — with
+  `len_ok` 14 and `dryup` 0.95 held at `T3`, both **deliberately unfitted** at this n. A candidate
+  dimension is judged against that set, not against the full `cindex` five.
+- **The pool is 432 cards**: ticket 21's 366 (A3 + E3 + C3) plus deck F's 33 detections and 33
+  `line_not_drawable`, excluding its 33 `not_caught_up` (still gated out, so the rubric would learn
+  to rank names the app never shows) and its 6 A3 repeats. **Loading deck F's grades is work this
+  ticket owns** — `objective6.load_cards` reads `grades3_{A,C,D,E}.txt`, and deck F's grades live in
+  `DECK_F_RESULTS.md` / `analyse_deckF.py`.
+- **Keep `rubric3`'s fast-path/`score3` NaN fix live.** The pool now contains IDX cards, which are
+  exactly what expose the disagreement, and `objective6.Fast` asserts the match before computing.
+- **`ord_hi`'s stability is partly an artefact**: 0 of 194 E3 and 1 of 366 pooled cards lie in
+  (0.60, 0.70], so its 25-of-25 modal share reflects an empty upper tail. Do not read it as the
+  best-tested threshold on the map.
+- §3.5's `÷ 2` mapping is fixed, so **adding a dimension changes what every printed star means** —
+  the points total is renormalised over a larger maximum. Ticket 15's warning that one completed ×1
+  dimension once reversed the top two bands applies with full force, and ticket 27 measured the
+  rubric already running cold at the 4★ line (25.3% against the eye's 32.0%).
 
 **Pre-register before fitting**, in the deck3 style: how much out-of-fold ρ an added dimension must
 buy to earn its place (ticket 15's history is that added dimensions reorder the top bands), whether

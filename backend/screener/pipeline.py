@@ -2,9 +2,10 @@
 
 The full pipeline is eleven stages (spec §7.4). Here it is just the two that
 write the record every later stage hangs off: resolve a universe, then write the
-run row — published, or quarantined if it resolved < ~99% of enumerated symbols
-(spec §3.4 rule 7 / acceptance A2). This is the "runs something" that Seam 1
-drives before asserting on rows.
+run row — published, or quarantined if too few enumerated symbols resolved
+(spec §3.4 rule 7 / acceptance A2) or the enumeration itself shrank materially
+from the last good run (rule 8). This is the "runs something" that Seam 1 drives
+before asserting on rows.
 """
 
 from __future__ import annotations

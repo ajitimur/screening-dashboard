@@ -130,10 +130,17 @@ def ceiling(df):
           "`analyse3.py A= C= D= E=` (reads +0.855 / 0.46★ at 24).")
 
 
-def verdict(primary):
+def verdict(primary, n_thin):
     print("\n=== 5. the pre-registered verdict  (PREREGISTRATION_DECK_F.md §5)\n")
     if primary is None:
         print("  not gradable yet.")
+        return
+    if n_thin < POWERED_AT:
+        print(f"  NO VERDICT — {n_thin} cards graded in the thinner primary arm, {POWERED_AT} "
+              "required.")
+        print("  §2 fixed this in advance: below that, the result is reported as underpowered")
+        print("  and not as a verdict. Grade more of the deck — it is shuffled, so any prefix")
+        print("  is an unbiased sample.")
         return
     d, (lo, hi) = primary
     if hi < 0:
@@ -176,7 +183,8 @@ def main(grades):
         print("    two comparisons share one control arm — a nominal 0.05 here is not a discovery.")
     failure_modes(df)
     ceiling(df)
-    verdict(primary)
+    verdict(primary, min((df.tag == "detection").sum(),
+                         (df.tag == "line_not_drawable").sum()))
 
 
 if __name__ == "__main__":

@@ -11,9 +11,11 @@ before asserting on rows.
 from __future__ import annotations
 
 from datetime import date, datetime
+from pathlib import Path
 
 from .bars import clean_bars, parse_bars
 from .detection import Detection, detect, detection_gate
+from .digest import build_digest, render_digest
 from .labels import select_fetches
 from .models import RunRecord
 from .ranks import Rank, rank_table
@@ -21,6 +23,12 @@ from .regime import index_broke_out
 from .source import MARKET_INDEX, Source, resolve_market
 from .store import Store
 from .universe import rebuild_universe
+
+# Where the nightly digest files land: data/digests/<market>/<session>.md, one
+# dated Markdown file per market per session (spec §6 / §7.5). Resolved from this
+# file so it is stable regardless of the process's working directory.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_DIGESTS_DIR = _REPO_ROOT / "data" / "digests"
 
 # A run that resolved less than this share of enumerated symbols is quarantined
 # behind a banner rather than published (spec §3.4 rule 7).
@@ -173,6 +181,54 @@ def rebuild_detections(store: Store, market: str, session: date) -> list[Detecti
     return rows
 
 
+def write_digest(
+    store: Store,
+    market: str,
+    session: date,
+    *,
+    digests_dir: Path = DEFAULT_DIGESTS_DIR,
+) -> Path:
+    """Pipeline stage 10: write the dated digest file for ``session`` (spec §6).
+
+    Reads **yesterday's** detections (the setups carrying a ``trigger_yesterday``)
+    and each of their bars on ``session`` off the store, reports every name whose
+    today close cleared its yesterday trigger, and renders one dated Markdown file
+    at ``digests_dir/<market>/<session>.md``. The score is derived from yesterday's
+    detection and rank table exactly as the list derives it; the repeat marker
+    reads the reported-break archive. The reported breaks are then persisted so a
+    later night can mark them repeats.
+
+    Membership consults **neither the score nor the stop nor ``line_ok``** — only
+    ``close_today > trigger_yesterday``. An empty night still writes the file with
+    an explicit no-breaks line, so a *missing* file means the run failed. Returns
+    the path written. Called after the run's detections are in the store.
+    """
+    yesterday = store.detections_before(market, session)
+    today_bars = {}
+    for det in yesterday:
+        bar = next(
+            (b for b in store.bars(market, det.symbol) if b.session == session), None
+        )
+        if bar is not None:
+            today_bars[det.symbol] = bar
+    ranks_yesterday = store.ranks(market, yesterday[0].session) if yesterday else []
+    labels = store.labels(market)
+    industry_of = {sym: label.industry for sym, label in labels.items()}
+    sector_of = {sym: label.sector for sym, label in labels.items()}
+    last_reported = store.digest_reports_before(market, session)
+
+    breaks = build_digest(
+        yesterday, today_bars, ranks_yesterday, industry_of, sector_of, last_reported
+    )
+    store.append_digest_breaks(market, session, [b.symbol for b in breaks])
+
+    market_dir = digests_dir / market
+    market_dir.mkdir(parents=True, exist_ok=True)
+    path = market_dir / f"{session.isoformat()}.md"
+    path.write_text(render_digest(market, session, breaks))
+    return path
+
+
 def run_market_universe(
     store: Store,
     source: Source,
@@ -180,6 +236,7 @@ def run_market_universe(
     session: date,
     *,
     now: datetime,
+    digests_dir: Path = DEFAULT_DIGESTS_DIR,
 ) -> RunRecord:
     """The nightly per-market run: ingest bars, rebuild the universe, record it.
 
@@ -198,7 +255,9 @@ def run_market_universe(
     cache is kept warm too — new members block, a rolling 1/30th of the rest
     refresh (§3.3, stage 7) — and the index's breakout follow-through is captured,
     the forward, unbiased regime record that is never displayed or gated (§4.9).
-    ``now`` must be timezone-aware for the finality rule.
+    Finally the digest is written: yesterday's breaks made into one dated Markdown
+    file, the whole notification layer, so a *missing* file means a failed run
+    (§6). ``now`` must be timezone-aware for the finality rule.
     """
     instruments = source.enumerate(market)
     status: dict[str, str] = {}
@@ -222,6 +281,10 @@ def run_market_universe(
         rebuild_detections(store, market, session)
         refresh_labels(store, source, market, members, session)
         capture_follow_through(store, market, session)
+        # Stage 10: the digest — yesterday's breaks made into one dated file, the
+        # whole notification layer (spec §6). Written only on a published run, so a
+        # quarantined pull leaves no digest and a *missing* file means a failed run.
+        write_digest(store, market, session, digests_dir=digests_dir)
     return store.append_run(
         market,
         session,

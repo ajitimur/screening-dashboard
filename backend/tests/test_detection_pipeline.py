@@ -98,7 +98,7 @@ def test_an_ungated_universe_detects_nothing(store: Store):
     assert store.detections("IDX", SESSION) == []
 
 
-def test_run_market_universe_wires_in_detection(store: Store):
+def test_run_market_universe_wires_in_detection(store: Store, tmp_path):
     # The 30-bar fake publishes a universe and ranks but has too little history to
     # detect, so the stage runs and writes an empty session rather than crashing —
     # proving detection is wired into the nightly run.
@@ -127,6 +127,6 @@ def test_run_market_universe_wires_in_detection(store: Store):
             return {}
 
     source = Source(FakeBarClient(), rate_per_sec=1000, sleep=lambda s: None)
-    record = run_market_universe(store, source, "IDX", session, now=now)
+    record = run_market_universe(store, source, "IDX", session, now=now, digests_dir=tmp_path)
     assert record.status == "published"
     assert store.detections("IDX", session) == []  # wired, nothing to detect

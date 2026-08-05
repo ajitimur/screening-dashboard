@@ -28,8 +28,9 @@ from .regime import FollowThrough
 # their own detector_version column (spec §7.2); this is the store-level schema.
 # v2 adds the sector/industry label cache (spec §3.3); v3 the breakout
 # follow-through capture (spec §4.9); v4 the detections table (spec §4.5); v5
-# extends detections with the star score's three derived signals (spec §4.7).
-SCHEMA_VERSION = 5
+# extends detections with the star score's three derived signals (spec §4.7); v6
+# the digest_breaks table — the reported-break record behind the repeat marker (§6).
+SCHEMA_VERSION = 6
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
@@ -142,6 +143,18 @@ CREATE TABLE IF NOT EXISTS detections (
     churn_l            DOUBLE  NOT NULL,
     sma20_rising       BOOLEAN NOT NULL,
     dryup              DOUBLE  NOT NULL,
+    PRIMARY KEY (market, session, symbol)
+);
+
+-- Reported breaks: one row per (market, session, symbol) the digest reported that
+-- night (spec §6). Append-only and dated like every derived stream — the record
+-- behind the repeat marker, so "last reported" reads off the archive rather than
+-- re-parsing yesterday's Markdown. The digest file is the human view; this is the
+-- machine one. An empty night writes no rows (as a quiet detection night does).
+CREATE TABLE IF NOT EXISTS digest_breaks (
+    market   TEXT NOT NULL,
+    session  DATE NOT NULL,
+    symbol   TEXT NOT NULL,
     PRIMARY KEY (market, session, symbol)
 );
 """
@@ -348,6 +361,25 @@ class Store:
         )
         return len(rows)
 
+    def append_digest_breaks(
+        self, market: str, session: date, symbols: list[str]
+    ) -> int:
+        """Record a session's reported breaks. Raises on a rewrite; empty is fine.
+
+        Append-only and dated (spec §7.2): the reported-break record is written
+        once so the repeat marker reads a stable archive. An empty ``symbols`` — an
+        empty night — still marks the session as recorded (via the guard) but
+        writes no rows, exactly as a quiet detection night does.
+        """
+        self._guard_absent("digest_breaks", market, session)
+        if not symbols:
+            return 0
+        self._con.executemany(
+            "INSERT INTO digest_breaks VALUES (?, ?, ?)",
+            [[market, session, s] for s in symbols],
+        )
+        return len(symbols)
+
     # -- reads -------------------------------------------------------------
 
     def rank_sessions(self, market: str) -> list[date]:
@@ -380,6 +412,33 @@ class Store:
             )
             for r in rows
         ]
+
+    def detections_before(self, market: str, session: date) -> list[Detection]:
+        """Yesterday's detections: the rows of the most recent session *strictly
+        before* ``session``, or ``[]`` if none. This is what the digest reads as
+        the setups whose ``trigger_yesterday`` today's close is tested against —
+        the rule's recency requirement made concrete (spec §6)."""
+        latest = self._con.execute(
+            "SELECT max(session) FROM detections WHERE market = ? AND session < ?",
+            [market, session],
+        ).fetchone()[0]
+        if latest is None:
+            return []
+        return self.detections(market, latest)
+
+    def digest_reports_before(self, market: str, session: date) -> dict[str, date]:
+        """Each symbol's most recent reported break *strictly before* ``session``.
+
+        The repeat marker's source (spec §6): a symbol present here was reported on
+        the returned date, so tonight's break carries ``↺ last reported <date>``. A
+        symbol absent from the map is a first-time break. Today's own session is
+        excluded, so the digest never reports itself as a repeat of itself."""
+        rows = self._con.execute(
+            "SELECT symbol, max(session) FROM digest_breaks "
+            "WHERE market = ? AND session < ? GROUP BY symbol",
+            [market, session],
+        ).fetchall()
+        return {r[0]: r[1] for r in rows}
 
     def ranks(self, market: str, session: date) -> list[Rank]:
         """A session's rank rows, ordered by symbol then lookback."""

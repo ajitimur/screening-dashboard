@@ -41,7 +41,7 @@ class FakeBarClient:
         return self._info.get(symbol, {})
 
 
-def test_run_market_universe_leaves_a_rank_row_per_member(store: Store):
+def test_run_market_universe_leaves_a_rank_row_per_member(store: Store, tmp_path):
     session = CAL[-1]
     now = datetime(2026, 8, 20, 20, 0, tzinfo=WIB)
     instruments = [
@@ -58,7 +58,7 @@ def test_run_market_universe_leaves_a_rank_row_per_member(store: Store):
         rate_per_sec=1000, sleep=lambda s: None,
     )
 
-    record = run_market_universe(store, source, "IDX", session, now=now)
+    record = run_market_universe(store, source, "IDX", session, now=now, digests_dir=tmp_path)
     assert record.status == "published"
 
     ranks = store.ranks("IDX", session)

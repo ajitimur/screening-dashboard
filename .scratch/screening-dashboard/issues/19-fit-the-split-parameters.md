@@ -244,3 +244,26 @@ carried forward.
 - **To ticket 20:** R2's finding that the eye prefers what §7 rejects sharpens what the rubric is
   being confirmed *on*. No blocking dependency — 20 confirms the band on cards already rendered.
 - **To ticket 21 (new):** whether the score and the digest should know about the stop at all.
+
+---
+
+## Amendment — ticket 24
+
+[Ticket 24](24-should-the-score-know-about-the-stop.md) corrects two things in R2. Neither disturbs
+R2's decision (show, sort, never filter), which was not re-litigated.
+
+- **The two eye measurements are one.** "Grade rises monotonically with cluster looseness
+  (2.54 → 2.75 → 2.94)" and "the cards a §7 gate would remove graded 2.91 against 2.44 kept" are the
+  same scalar binned two ways — three bins versus a cut at 1.0 — because `stop_adr` **is** the
+  cluster's range in ADR by identity (`trigger = cluster_high` per ticket 18, stop runs to the
+  cluster low). So "the eye and the stop rule disagree on every measurement taken" rests on **one**
+  measurement, at r = +0.140, p = 0.286, on a population entirely selected under 1.5 — not on
+  independent corroboration. The sign is unchanged; the weight behind it is not.
+- **The 92% may be an artefact of the ruler.** §7's stated default stop is the **low of the breakout
+  day**, which is a *daily* bar and therefore visible EOD — the cluster low is a floor §7 never
+  names, and it sits a full cluster-height and several sessions lower. R2's "the screen cannot see
+  §7's stop" is true of a name still in its base and **false of one that has just broken out**. The
+  distribution of `(entry − breakout_day_low) / ADR` is unmeasured (put to the trader in ticket 24
+  and declined) and parked in the map's Not yet specified.
+
+R1's classification, R3–R5 and the hand-offs stand unchanged.

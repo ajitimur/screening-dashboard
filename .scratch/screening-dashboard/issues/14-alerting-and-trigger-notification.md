@@ -212,3 +212,18 @@ A3's justification is replaced.**
   R3's lapse cost replaces it.
 - **The reopen condition is re-armed against ticket 19, not 15** — `TIGHT_MULT`/`K_MIN`/`K_MAX` define
   the cluster, and the cluster high *is* the trigger.
+
+## Amendment — ticket 24
+
+[Ticket 24](24-should-the-score-know-about-the-stop.md) R3 changes one column's definition in A6 and
+nothing else. The digest rule, its membership and A4's governing principle are untouched: membership
+still consults neither the score nor the stop.
+
+- **The stop column is computed from the breakout day's low, not the cluster low.** §7's default stop
+  is the low of the day you enter and §6 puts the entry on the breakout day — which is a *daily* bar,
+  already ingested at the moment the digest renders. So the digest can print §7's actual stop for
+  free, while the watchlist (whose names have not broken out) can only ever carry the cluster-low
+  proxy. The two surfaces therefore show **different** stops, deliberately.
+- **The column is not marked.** No no-trade flag, because the base rate under the corrected ruler is
+  unmeasured — parked in the map's Not yet specified. If it is ever measured and §7 turns out to bind
+  rarely, marking becomes worth doing and this amendment reopens.

@@ -52,23 +52,36 @@ def run_once(
     )
 
 
-def main(argv: list[str] | None = None) -> int:
-    """CLI: ``screener.run <MARKET>``. Opens the file-backed store, builds the
-    live source and runs the due session for one market."""
+def run_live(market: str) -> RunRecord | None:
+    """Wire the real store and source and run ``market``'s due session.
+
+    Opens the file-backed store and the live source, computes ``now`` in the
+    market's own timezone, and runs the due session — the single production path
+    shared by the scheduled CLI and run-on-open (:class:`screener.runner.RunManager`).
+    Each call owns its store connection, so a background run never shares the
+    app's read connection. Returns the :class:`RunRecord`, or ``None`` when
+    nothing was due.
+    """
     from .app import DEFAULT_DB_PATH
     from .source import default_source
 
+    now = datetime.now(ZoneInfo(EXCHANGE[market]["tz"]))
+    store = Store.open(DEFAULT_DB_PATH)
+    try:
+        return run_once(store, default_source(), market, now=now)
+    finally:
+        store.close()
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI: ``screener.run <MARKET>``. Runs the due session for one market
+    against the live store and source."""
     args = sys.argv[1:] if argv is None else argv
     if len(args) != 1 or args[0].upper() not in EXCHANGE:
         print("usage: python -m screener.run <IDX|US>", file=sys.stderr)
         return 2
     market = args[0].upper()
-    now = datetime.now(ZoneInfo(EXCHANGE[market]["tz"]))
-    store = Store.open(DEFAULT_DB_PATH)
-    try:
-        record = run_once(store, default_source(), market, now=now)
-    finally:
-        store.close()
+    record = run_live(market)
     if record is None:
         print(f"{market}: already current, no run")
     else:

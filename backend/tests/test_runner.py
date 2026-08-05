@@ -75,11 +75,8 @@ def test_a_failed_run_is_recorded_and_the_market_is_runnable_again():
 
     assert manager.status("IDX") == "failed"
     assert manager.is_running("IDX") is False
-    # A failed run does not wedge the market — it can be retried.
-    ran: list[str] = []
-    manager2 = RunManager(lambda m: ran.append(m))
-    # (a fresh manager for the retry path is fine; the point is failure clears
-    # the running flag, which trigger checks)
+    # A failed run does not wedge the market: the running flag was cleared, so
+    # trigger accepts a retry (which booms again — still not wedged).
     assert manager.trigger("IDX") is True
     manager.join("IDX")
-    assert manager.status("IDX") == "failed"  # boom again, still not wedged
+    assert manager.status("IDX") == "failed"

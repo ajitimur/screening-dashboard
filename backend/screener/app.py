@@ -309,27 +309,14 @@ def create_app(
 def _default_run_manager() -> RunManager:
     """The production run-on-open coordinator (spec §7.3).
 
-    Each triggered run opens its *own* store connection and the live source,
-    computes ``now`` in the market's timezone and runs the due session — off the
-    request thread, so the tab stays responsive and the write path never shares
-    the app's read connection. The same :func:`run_once` the scheduled job uses.
+    Drives :func:`screener.run.run_live` off the request thread — the same live
+    run the scheduled CLI performs, so a run-on-open and a scheduled run are
+    byte-for-byte the same work. Each run owns its store connection, so the tab
+    stays responsive and the write path never shares the app's read connection.
     """
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
+    from .run import run_live
 
-    from .bars import EXCHANGE
-    from .run import run_once
-    from .source import default_source
-
-    def runner(market: str) -> None:
-        now = datetime.now(ZoneInfo(EXCHANGE[market]["tz"]))
-        run_store = Store.open(DEFAULT_DB_PATH)
-        try:
-            run_once(run_store, default_source(), market, now=now)
-        finally:
-            run_store.close()
-
-    return RunManager(runner)
+    return RunManager(run_live)
 
 
 app = create_app(run_manager=_default_run_manager())

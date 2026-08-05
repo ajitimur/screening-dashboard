@@ -105,10 +105,10 @@ def test_a_run_in_progress_never_serves_a_half_written_session(store: Store):
     store.append_universe("IDX", date(2026, 8, 5), ["AAA", "BBB"])  # half-written
 
     app = create_app(store=store, clock=lambda: FIXED_NOW)
-    body = app_runs = TestClient(app).get("/api/runs/IDX").json()
+    body = TestClient(app).get("/api/runs/IDX").json()
     # The served as-of session is still the last *published* one, not the
     # in-flight one whose derived rows are already on disk.
     assert body["latest"]["session"] == "2026-08-04"
     assert body["universe_size"] == 100  # the published session's universe
     # ...and it is flagged run_due, so the tab shows the run is still needed.
-    assert app_runs["run_due"] is True
+    assert body["run_due"] is True

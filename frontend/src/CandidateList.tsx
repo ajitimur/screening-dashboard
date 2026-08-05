@@ -1,20 +1,10 @@
 import { useEffect, useState } from "react";
-import {
-  fetchCandidates,
-  type Candidate,
-  type CandidatesResponse,
-} from "./api/client";
+import { fetchCandidates, type CandidatesResponse } from "./api/client";
 
-// §7's 1×ADR affordability cap: the backend flags the sub-1×ADR minority and the
-// column highlights it. About 92% of rows sit above it (median 1.28×), so a flag
-// on the failures would fire on nearly every row — the useful form is the inverse
-// (spec §4.6). The value lives on the row (`affordable`); this is copy only.
-function stopWidth(c: Candidate): string {
-  return `${c.stopw_adr.toFixed(2)}×`;
-}
-
-function distance(c: Candidate): string {
-  return `${c.dist_adr.toFixed(2)}×`;
+// Both ADR columns — distance to trigger and stop width — read as a multiple of
+// one average daily range, e.g. "1.28×" (spec §5.1 / §4.6).
+function adrMultiple(value: number): string {
+  return `${value.toFixed(2)}×`;
 }
 
 /**
@@ -90,9 +80,10 @@ export default function CandidateList({ market }: { market: string }) {
               <th scope="row">{c.symbol}</th>
               {/* Placeholder until the rubric lands — never a fabricated number. */}
               <td className="score">{c.score === null ? "—" : c.score.toFixed(1)}</td>
-              <td className="distance">{distance(c)}</td>
+              <td className="distance">{adrMultiple(c.dist_adr)}</td>
+              {/* Highlights the sub-1×ADR affordable minority; never a filter. */}
               <td className={c.affordable ? "stop affordable" : "stop"}>
-                {stopWidth(c)}
+                {adrMultiple(c.stopw_adr)}
               </td>
               <td className="industry">{c.industry ?? "—"}</td>
               <td className="breadth">{c.breadth}/5</td>

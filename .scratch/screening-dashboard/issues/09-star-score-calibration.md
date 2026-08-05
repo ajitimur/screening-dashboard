@@ -1,7 +1,7 @@
 # Star score calibration
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: 08
 
 ## Question

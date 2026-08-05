@@ -199,6 +199,7 @@ def main(grades):
         for tag, g in d.groupby("tag"):
             print(f"  {tag:28s} n={len(g):3d}  mean eye {g.eye.mean():.2f}  "
                   f">=4 star {(g.eye >= 4).mean():.0%}")
+        rejects_verdict(d)
     else:
         print("  deck D ungraded — ticket 11's obligation still unowned.")
 
@@ -223,6 +224,55 @@ def main(grades):
 
     # ---- 8. the orderliness band's confirmation (PREREGISTRATION_R4.md)
     band_confirmation(df, T_all)
+
+
+def rejects_verdict(d):
+    """The pre-registered contrast for deck D: pooled rejects vs detections.
+
+    R3 §2 sizes a two-group mean-grade difference at 19/arm for 1.00 stars and 33/arm for 0.75.
+    Deck D carries 20 vs 20, so a 1.00-star gap is resolvable here and a 0.75-star gap is not —
+    which is why a null has to be reported as "underpowered for 0.75" rather than as a pass.
+    """
+    rej = d[d.tag.str.startswith("reject:")].eye.to_numpy(float)
+    det = d[d.tag == "detection"].eye.to_numpy(float)
+    if len(rej) < 5 or len(det) < 5:
+        print("  arms too thin to contrast.")
+        return
+    delta = float(rej.mean() - det.mean())
+    se = float(np.sqrt(rej.var(ddof=1) / len(rej) + det.var(ddof=1) / len(det)))
+    lo, hi = delta - 1.96 * se, delta + 1.96 * se
+    print(f"\n  CONTRAST  pooled rejects (n={len(rej)}) minus detections (n={len(det)}): "
+          f"{delta:+.2f} stars  (se {se:.2f}, 95% CI {lo:+.2f} to {hi:+.2f})")
+
+    powered = min(len(rej), len(det)) >= 19
+    if abs(delta) >= 1.00 and lo * hi > 0:
+        print("  -> A CLEAR RESULT at the size this deck was built for.")
+        print(f"     Rejects grade {'HIGHER' if delta > 0 else 'LOWER'} than what the detector surfaces.")
+        if delta > 0:
+            print("     The screen is discarding setups the trader wants: the star score is")
+            print("     calibrated on the wrong population, and the split's rejection paths")
+            print("     have to be reopened before any threshold is called final.")
+        else:
+            print("     The split is keeping the better names. The obligation carried since")
+            print("     ticket 11 is discharged in the detector's favour.")
+    elif lo * hi > 0:
+        print(f"  -> a difference smaller than 1.00 star, but the interval excludes zero. "
+              f"Rejects grade {'HIGHER' if delta > 0 else 'LOWER'}.")
+        print("     R3 §2 wants 33/arm to resolve 0.75 reliably, so treat the SIZE as provisional")
+        print("     and the DIRECTION as real.")
+    else:
+        print("  -> NULL, and it must not be read as a pass. This deck resolves a 1.00-star gap;")
+        print(f"     a 0.75-star gap needs 33/arm and it has {min(len(rej), len(det))}.")
+        print("     What is established: no gap of 1.00 stars or more in either direction."
+              if powered else
+              "     Even the 1.00-star gap is underpowered here — this arrived UNRESOLVED.")
+        print(f"     Anything inside {lo:+.2f} to {hi:+.2f} remains live.")
+
+    # the per-path read, descriptive: 10/arm resolves nothing on its own
+    for path, g in d[d.tag.str.startswith("reject:")].groupby("tag"):
+        v = g.eye.to_numpy(float)
+        print(f"  descriptive (n={len(v)}, underpowered alone): {path} minus detections "
+              f"{v.mean() - det.mean():+.2f} stars")
 
 
 def r_se(r, n):

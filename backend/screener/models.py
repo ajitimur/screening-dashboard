@@ -13,13 +13,14 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+# The three-state market regime is defined and computed in the domain layer; the
+# API surface re-exports it so ``RegimeResponse.state`` shares one source of truth
+# (v1-spec §4.9).
+from .regime import RegimeState
+
 # A run either published its session or was quarantined behind a banner because
 # it resolved < ~99% of enumerated symbols (v1-spec §3.4 rule 7 / A2).
 RunStatus = Literal["published", "quarantined"]
-
-# The three-state market regime, from one index per market (v1-spec §4.9). The
-# two named states are not complements — CHOPPY is the residual.
-RegimeState = Literal["FRIENDLY", "CHOPPY", "HOSTILE"]
 
 
 class RunRecord(BaseModel):

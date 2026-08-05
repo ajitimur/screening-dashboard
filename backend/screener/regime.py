@@ -47,6 +47,8 @@ SLOPE_LOOKBACK = 5
 # index bars in total. Below this the state is undefined, not defaulted (§4.9).
 REGIME_WARMUP = SMA_SLOW + SLOPE_LOOKBACK
 
+# The three states, defined here where they are computed; the API layer
+# (``models.RegimeResponse``) re-exports this so there is one source of truth.
 RegimeState = Literal["FRIENDLY", "CHOPPY", "HOSTILE"]
 
 # The sizing posture each state carries — **words, never a computed position

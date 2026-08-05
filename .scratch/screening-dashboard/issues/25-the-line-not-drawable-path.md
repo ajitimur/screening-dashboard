@@ -1,7 +1,7 @@
 # Does the `line_not_drawable` rejection path discard setups you want?
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: —
 
 ## Question

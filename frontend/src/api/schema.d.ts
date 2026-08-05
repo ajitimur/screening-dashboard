@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/regime/{market}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Regime */
+        get: operations["get_regime_api_regime__market__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{market}": {
         parameters: {
             query?: never;
@@ -29,6 +46,33 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * RegimeResponse
+         * @description The market regime banner's payload — **advisory only** (spec §4.9).
+         *
+         *     Carries the three-state ``state``, its sizing posture in *words*, market
+         *     ``breadth`` (share of the universe above its own rising SMA10/20, displayed
+         *     and gating nothing), and the as-of ``session``. Two banners, one per market,
+         *     never combined into a global verdict. The regime never filters, reorders or
+         *     scores the candidate list — every field here is read and shown, none gates.
+         *
+         *     ``state`` is ``None`` when the regime is **undefined** (fewer than 25 index
+         *     bars) or no run has published; ``session`` is ``None`` only in the latter
+         *     case, which is how the banner tells "warming up" from "nothing yet". ``posture``
+         *     is ``None`` whenever ``state`` is.
+         */
+        RegimeResponse: {
+            /** Breadth */
+            breadth: number | null;
+            /** Market */
+            market: string;
+            /** Posture */
+            posture: string | null;
+            /** Session */
+            session: string | null;
+            /** State */
+            state: ("FRIENDLY" | "CHOPPY" | "HOSTILE") | null;
         };
         /**
          * RunRecord
@@ -96,6 +140,37 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_regime_api_regime__market__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                market: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegimeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_runs_api_runs__market__get: {
         parameters: {
             query?: never;

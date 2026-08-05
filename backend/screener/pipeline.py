@@ -16,7 +16,8 @@ from .bars import clean_bars, parse_bars
 from .labels import select_fetches
 from .models import RunRecord
 from .ranks import Rank, rank_table
-from .source import Source, resolve_market
+from .regime import index_broke_out
+from .source import MARKET_INDEX, Source, resolve_market
 from .store import Store
 from .universe import rebuild_universe
 
@@ -121,6 +122,27 @@ def rebuild_ranks(store: Store, market: str, session: date) -> list[Rank]:
     return rows
 
 
+def capture_follow_through(store: Store, market: str, session: date) -> bool | None:
+    """Pipeline stage: record the index's breakout follow-through for ``session``.
+
+    Reads the market index's clean bars up to ``session`` and appends one
+    follow-through row — whether the index closed to a new trailing-window high,
+    and its close (spec §4.9). Returns ``None`` (and writes nothing) before a full
+    trailing window of index bars exists. This is captured **from the first run**
+    and is **never displayed or gated**: it is the only unbiased regime signal,
+    recorded forward and irrecoverable if not started at launch. Appended only on
+    a published run, so a quarantined run leaves no forward record.
+    """
+    index_bars = [
+        b for b in store.bars(market, MARKET_INDEX[market]) if b.session <= session
+    ]
+    broke = index_broke_out(index_bars)
+    if broke is None:
+        return None
+    store.append_follow_through(market, session, broke, index_bars[-1].adj_close)
+    return broke
+
+
 def run_market_universe(
     store: Store,
     source: Source,
@@ -142,8 +164,9 @@ def run_market_universe(
     classification (§3.4 rule 6) — then ranked, so the session leaves the shared
     rank substrate every downstream stage reads (§4.3). Once the membership is
     known the label cache is kept warm too — new members block, a rolling 1/30th
-    of the rest refresh (§3.3, stage 7). ``now`` must be timezone-aware for the
-    finality rule.
+    of the rest refresh (§3.3, stage 7) — and the index's breakout follow-through
+    is captured, the forward, unbiased regime record that is never displayed or
+    gated (§4.9). ``now`` must be timezone-aware for the finality rule.
     """
     instruments = source.enumerate(market)
     status: dict[str, str] = {}
@@ -165,6 +188,7 @@ def run_market_universe(
         )
         rebuild_ranks(store, market, session)
         refresh_labels(store, source, market, members, session)
+        capture_follow_through(store, market, session)
     return store.append_run(
         market,
         session,

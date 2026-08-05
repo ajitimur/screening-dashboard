@@ -1,21 +1,36 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
-import type { RunRecord, RunsResponse } from "./api/client";
+import type { RegimeResponse, RunRecord, RunsResponse } from "./api/client";
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
 
-function mockRuns(byMarket: Record<string, RunsResponse>) {
+function noRegime(market: string): RegimeResponse {
+  return { market, session: null, state: null, posture: null, breadth: null };
+}
+
+function mockApi(
+  runsByMarket: Record<string, RunsResponse>,
+  regimeByMarket: Record<string, RegimeResponse> = {},
+) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
       const market = url.split("/").pop()!.toUpperCase();
-      return { ok: true, json: async () => byMarket[market] } as Response;
+      const body = url.includes("/regime/")
+        ? (regimeByMarket[market] ?? noRegime(market))
+        : runsByMarket[market];
+      return { ok: true, json: async () => body } as Response;
     }),
   );
+}
+
+// Most tests do not care about the regime banner; default it off (session null).
+function mockRuns(byMarket: Record<string, RunsResponse>) {
+  mockApi(byMarket);
 }
 
 describe("the two market tabs", () => {
@@ -68,6 +83,72 @@ describe("the two market tabs", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(/quarantined|last good/i);
     // ...and the served session is still the last good one, dated (banner + as-of).
     expect(screen.getAllByText("2026-08-04").length).toBeGreaterThan(0);
+  });
+
+  it("shows the regime banner: state, sizing posture in words, breadth and as-of date", async () => {
+    mockApi(
+      { IDX: runs("IDX", "2026-08-04"), US: empty("US") },
+      {
+        IDX: {
+          market: "IDX",
+          session: "2026-08-04",
+          state: "FRIENDLY",
+          posture: "full size",
+          breadth: 0.5,
+        },
+      },
+    );
+    render(<App />);
+    const banner = await screen.findByLabelText(/IDX regime/i);
+    expect(banner).toHaveTextContent(/FRIENDLY/);
+    expect(banner).toHaveTextContent(/full size/); // words, not a number
+    expect(banner).toHaveTextContent(/50%/); // breadth, displayed
+    expect(banner).toHaveTextContent("2026-08-04"); // the as-of session date
+  });
+
+  it("shows a hostile regime with the sit-out posture", async () => {
+    mockApi(
+      { IDX: runs("IDX", "2026-08-04"), US: empty("US") },
+      {
+        IDX: {
+          market: "IDX",
+          session: "2026-08-04",
+          state: "HOSTILE",
+          posture: "sit out",
+          breadth: 0.1,
+        },
+      },
+    );
+    render(<App />);
+    const banner = await screen.findByLabelText(/IDX regime/i);
+    expect(banner).toHaveTextContent(/HOSTILE/);
+    expect(banner).toHaveTextContent(/sit out/);
+  });
+
+  it("shows an undefined regime as warming up, with no posture", async () => {
+    mockApi(
+      { IDX: runs("IDX", "2026-08-04"), US: empty("US") },
+      {
+        IDX: {
+          market: "IDX",
+          session: "2026-08-04",
+          state: null,
+          posture: null,
+          breadth: null,
+        },
+      },
+    );
+    render(<App />);
+    const banner = await screen.findByLabelText(/IDX regime/i);
+    expect(banner).toHaveTextContent(/undefined|warming up/i);
+    expect(banner).not.toHaveTextContent(/full size|reduced|sit out/);
+  });
+
+  it("shows no regime banner before any run has published", async () => {
+    mockApi({ IDX: empty("IDX"), US: empty("US") });
+    render(<App />);
+    await screen.findByText(/No run yet for IDX/);
+    expect(screen.queryByLabelText(/IDX regime/i)).not.toBeInTheDocument();
   });
 
   it("shows no banner when the latest run published", async () => {

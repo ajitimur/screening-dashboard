@@ -17,6 +17,10 @@ from pydantic import BaseModel
 # it resolved < ~99% of enumerated symbols (v1-spec §3.4 rule 7 / A2).
 RunStatus = Literal["published", "quarantined"]
 
+# The three-state market regime, from one index per market (v1-spec §4.9). The
+# two named states are not complements — CHOPPY is the residual.
+RegimeState = Literal["FRIENDLY", "CHOPPY", "HOSTILE"]
+
 
 class RunRecord(BaseModel):
     """One row of the append-only ``runs`` table, keyed ``(market, session)``."""
@@ -43,3 +47,25 @@ class RunsResponse(BaseModel):
     # Tonight's tradeable universe size — the count of membership rows for the
     # latest published session (spec §4.1). ``None`` when no run has published.
     universe_size: int | None
+
+
+class RegimeResponse(BaseModel):
+    """The market regime banner's payload — **advisory only** (spec §4.9).
+
+    Carries the three-state ``state``, its sizing posture in *words*, market
+    ``breadth`` (share of the universe above its own rising SMA10/20, displayed
+    and gating nothing), and the as-of ``session``. Two banners, one per market,
+    never combined into a global verdict. The regime never filters, reorders or
+    scores the candidate list — every field here is read and shown, none gates.
+
+    ``state`` is ``None`` when the regime is **undefined** (fewer than 25 index
+    bars) or no run has published; ``session`` is ``None`` only in the latter
+    case, which is how the banner tells "warming up" from "nothing yet". ``posture``
+    is ``None`` whenever ``state`` is.
+    """
+
+    market: str
+    session: date | None
+    state: RegimeState | None
+    posture: str | None
+    breadth: float | None

@@ -21,11 +21,13 @@ from .bars import Bar
 from .labels import Label
 from .models import RunRecord, RunStatus
 from .ranks import Rank
+from .regime import FollowThrough
 
 # Bump when a derived-table definition changes. Detection rows will additionally
 # carry their own detector_version (spec §7.2); this is the store-level schema.
-# v2 adds the sector/industry label cache (spec §3.3).
-SCHEMA_VERSION = 2
+# v2 adds the sector/industry label cache (spec §3.3); v3 the breakout
+# follow-through capture (spec §4.9).
+SCHEMA_VERSION = 3
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
@@ -77,6 +79,18 @@ CREATE TABLE IF NOT EXISTS ranks (
     percentile  DOUBLE NOT NULL,
     raw_return  DOUBLE NOT NULL,
     PRIMARY KEY (market, session, symbol, lookback)
+);
+
+-- Breakout follow-through: one row per (market, session) recording whether the
+-- market's index closed to a new trailing-window high, and its close (spec §4.9).
+-- Append-only and dated like the streams above; captured nightly from the first
+-- run as the forward, unbiased regime record, and never displayed or gated.
+CREATE TABLE IF NOT EXISTS follow_through (
+    market       TEXT    NOT NULL,
+    session      DATE    NOT NULL,
+    broke_out    BOOLEAN NOT NULL,
+    index_close  DOUBLE  NOT NULL,
+    PRIMARY KEY (market, session)
 );
 
 -- The sector/industry label cache: the one *incremental* derived table (spec
@@ -236,6 +250,21 @@ class Store:
         )
         return len(rows)
 
+    def append_follow_through(
+        self, market: str, session: date, broke_out: bool, index_close: float
+    ) -> None:
+        """Append one session's breakout-follow-through row (spec §4.9).
+
+        Append-only and dated: a session already captured is never rewritten, so
+        the forward record cannot be reshaped after the fact. Raises
+        :class:`SessionExistsError` on a rewrite.
+        """
+        self._guard_absent("follow_through", market, session)
+        self._con.execute(
+            "INSERT INTO follow_through VALUES (?, ?, ?, ?)",
+            [market, session, broke_out, index_close],
+        )
+
     def upsert_label(
         self, market: str, symbol: str, sector: str, industry: str, as_of: date
     ) -> None:
@@ -265,6 +294,16 @@ class Store:
             [market, session],
         ).fetchall()
         return [Rank(*r) for r in rows]
+
+    def follow_through(self, market: str) -> list[FollowThrough]:
+        """A market's breakout-follow-through rows, oldest session first — the
+        forward record read to measure whether a break continued (spec §4.9)."""
+        rows = self._con.execute(
+            "SELECT session, broke_out, index_close FROM follow_through "
+            "WHERE market = ? ORDER BY session",
+            [market],
+        ).fetchall()
+        return [FollowThrough(*r) for r in rows]
 
     def bars(self, market: str, symbol: str) -> list[Bar]:
         """A symbol's stored bars, oldest session first."""

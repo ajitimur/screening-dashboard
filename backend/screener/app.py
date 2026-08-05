@@ -15,7 +15,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
 from . import MARKETS
-from .models import RunsResponse
+from .models import RegimeResponse, RunsResponse
+from .regime import breadth, posture, regime_state
+from .source import MARKET_INDEX
 from .store import Store
 
 # Repo root, resolved from …/backend/screener/app.py — so the file path and the
@@ -55,6 +57,36 @@ def create_app(store: Store | None = None) -> FastAPI:
             latest=latest,
             runs=store.runs(market),
             universe_size=len(store.universe(market, latest.session)) if latest else None,
+        )
+
+    @app.get("/api/regime/{market}", response_model=RegimeResponse)
+    def get_regime(market: str) -> RegimeResponse:
+        market = market.upper()
+        if market not in MARKETS:
+            raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
+        latest = store.latest_run(market)
+        if latest is None:
+            # No published run yet — nothing to advise, and the banner stays off.
+            return RegimeResponse(
+                market=market, session=None, state=None, posture=None, breadth=None
+            )
+        as_of = latest.session
+        # Evaluate on the last closed (published) session: filter to bars on or
+        # before it, so a newer quarantined pull's bars never leak in (§4.9).
+        index_bars = [
+            b for b in store.bars(market, MARKET_INDEX[market]) if b.session <= as_of
+        ]
+        members = store.universe(market, as_of)
+        members_bars = {
+            s: [b for b in store.bars(market, s) if b.session <= as_of] for s in members
+        }
+        state = regime_state(index_bars)
+        return RegimeResponse(
+            market=market,
+            session=as_of,
+            state=state,
+            posture=posture(state),
+            breadth=breadth(members_bars),
         )
 
     # FastAPI serves the built frontend so it is one process on one URL. Mounted

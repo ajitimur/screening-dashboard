@@ -1,7 +1,7 @@
 # Does IDX need its own thresholds?
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: —
 
 ## Question

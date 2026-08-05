@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 .scratch/screening-dashboard/prototypes/*/cache
 .scratch/screening-dashboard/prototypes/*/out
+.scratch/screening-dashboard/prototypes/*/venv

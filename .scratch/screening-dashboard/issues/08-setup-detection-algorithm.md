@@ -355,3 +355,22 @@ Beyond its own scope, three items land on it from here:
 1. **D5's trigger rule** — the min-of-two is the decision most likely to look wrong against real charts.
 2. **D13's limit-day flattery** — whether locked IDX bars manufacture false five-star setups in practice.
 3. **D11's half-measured volume dimension** — whether dry-up alone carries §3.5's volume point.
+
+## Amendment — ticket 18
+
+**D1 is amended: detection emits a base, not a state.** Ticket 17 recorded the
+`WATCHING`→`TRIGGERED` transition as surviving the split. The *transition* does; the **state** does
+not. Under ticket 17's trigger the level is the trailing cluster's max high, a window that includes
+today, so `trigger_t ≥ high_t ≥ close_t` for every detection — a detected name is never above its own
+trigger. Measured over 1,051 breaks: 55.0% are still detected the next night and **100% of those are
+back below their new level**, because the cluster rolls forward to swallow the breakout bar.
+
+So a **break** is an event against `(market, symbol, session)`, defined by ticket 14's A3
+(`close_today > trigger_yesterday`), and `WATCHING` is the only state a detection can be in. Ticket
+12 is unaffected — detections are already dated rows carrying their trigger, so the event is derivable
+from rows that exist. See [ticket 18](18-digest-rule-under-the-clamped-trigger.md) R4.
+
+**D5's successor is `cluster_high`, not `max(line, cluster_high)`** — the fitted line is anchored at
+the cluster's max high with slopes constrained ≤ 0, so it can never exceed it. The open question
+listed above ("D5's trigger rule is the decision most likely to look wrong") is therefore now a
+question about the cluster parameters, which is ticket 19's. See 18 R1.

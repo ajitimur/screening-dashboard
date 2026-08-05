@@ -56,3 +56,23 @@ parameters against a score that is itself being refitted would chase a moving ta
 **Do not re-litigate** the adoption of the split itself — that is [ticket 17](17-base-cluster-split.md),
 decided against a measured null on the name-level comparison and a decisive eye result on the
 geometry. This ticket prices and tunes what was adopted.
+
+## Added scope — ticket 18
+
+[Ticket 18](18-digest-rule-under-the-clamped-trigger.md) found the trigger is `cluster_high` by
+identity — the fitted line is anchored at the cluster's max high and searched over non-positive
+slopes, so it can never set the level (100.0% of 29,242 detections). Two consequences for this
+ticket's sweep:
+
+- **Four of the 22 parameters cannot move the trigger.** `OVER_W`, `UNDER_W`, `SLOPE_STEPS` and
+  `MAX_SLOPE_ADR` affect only whether a detection *exists* (via `line_ok`) and what the chart draws,
+  never where the level sits. Price them on that basis rather than as trigger parameters. Worth
+  asking directly whether the anchor-plus-non-positive-slope construction is intended, since it makes
+  the line's contribution to the trigger unreachable by design rather than by tuning.
+- **`K_MIN`/`K_MAX` do double duty.** The cluster high is the trigger, so the k range is also the
+  digest's breakout lookback — ticket 18 R3 measured the effective lookback at median 4, mean 4.37
+  (k=3 on 37.3% of detections). Fitting k on detection quality alone under-counts what it moves:
+  it also sets how far price must travel to be reported at all.
+
+`TIGHT_MULT` was already this ticket's headline at a 63% swing in list length; note that it swings
+the digest by the same mechanism, since it is what selects the cluster whose high is the level.

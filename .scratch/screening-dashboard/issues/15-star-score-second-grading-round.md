@@ -146,3 +146,23 @@ drops. The trader adopted it anyway on the strength of the geometry result. Refi
 the new structure is what makes that hard to reverse, so if this ticket finds tightness unscorable,
 say so loudly rather than working around it — ticket 17's R6 records a cheaper fallback that keeps
 this ticket's existing fit intact.
+
+## Note from ticket 18 — the carried-in D5 probe is void
+
+The "D5's trigger rule (09 D10)" item above is stale in both its numbers and its premise. Ticket 17
+already flagged the already-breached share as 0.2% rather than 16.4%;
+[ticket 18](18-digest-rule-under-the-clamped-trigger.md) found the reason and it is structural:
+
+- **D5 no longer exists.** Its successor is `cluster_high`, not `max(line, cluster_high)` — the
+  fitted line is anchored at the cluster's max high and searched over non-positive slopes, so it can
+  never set the trigger. Measured 100.0% of 29,242 detections, verified as an identity.
+- **"Already breached" is unreachable, not rare.** The cluster window includes today, so
+  `trigger ≥ high ≥ close` for every detection. Measured 2 events in 29,242, all cache artefacts.
+
+So there is no already-breached population to select a deck on, and **the probe should be dropped
+rather than re-run**. 09 D10's underlying question — does the eye like where the trigger sits? — is
+still open, but it is now a question about the cluster parameters and belongs to
+[ticket 19](19-fit-the-split-parameters.md), which owns `TIGHT_MULT`/`K_MIN`/`K_MAX`.
+
+Nothing else in this ticket is affected: the rubric sets the star column and the sort, and ticket 18
+recorded that the digest's membership consults neither.

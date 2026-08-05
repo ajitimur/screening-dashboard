@@ -50,6 +50,11 @@ is written during wayfinding.
   ticket 15 is where it either gets scored or gets declared unscorable. The other half of the risk is
   newer and blunter: the detector was swapped on a **null** name-level comparison, so the nightly list is
   three-quarters new on the strength of a *drawing* preference rather than a *name* preference.
+  **Ticket 18 found the swapped geometry is simpler than either 16 or 17 recorded it**: the fitted line
+  cannot reach the trigger at all — the trigger is the cluster high by identity — so the drawing the
+  trader endorsed 10 of 11 times and the level the screen fires on are **two separate objects**, and
+  only the second is what ticket 19 will be fitting. This does not reopen the swap, but it narrows
+  what the endorsement covered.
 - **Standing property of the data layer** (found independently by tickets 01, 02 and 03): **Yahoo fails
   as silence.** Throttled requests return empty results — and for price history, the literal message
   "possibly delisted; no price data found". Every ingestion path must distinguish throttling from
@@ -315,7 +320,41 @@ is written during wayfinding.
   accretion. Rows carry I4's decision columns plus close, yesterday's trigger and % through: **a pointer,
   never enough to trade from**, since §7's affordability is read off the chart geometrically. **Empty
   nights still write the file**, so a missing file means a failed run — the map's "Yahoo fails as silence"
-  property, bought for free.
+  property, bought for free. *(A2's three-way taxonomy and A3's attribution argument are superseded by
+  ticket 18 below: the rule and the artifact stand, the reasoning under them does not, and the 16.4%
+  born-triggered figure is void.)*
+
+- [What does the digest report when the trigger no longer descends?](issues/18-digest-rule-under-the-clamped-trigger.md) —
+  **ticket 14's rule survives whole and its taxonomy does not, because two of its three buckets turn
+  out to be unreachable rather than rare.** The finding underneath is an identity, not a measurement:
+  the envelope is anchored at the cluster's max high and searched over non-positive slopes only, so
+  **the fitted line can never exceed the cluster high and the `max()` clamp is dead code** — the
+  trigger *is* the cluster high, at 100.0% of 29,242 detections, superseding ticket 16's 82% and
+  correcting ticket 17's R3. Ticket 16's envelope-vs-OLS work is not wasted but never reaches the
+  trigger; it gates `line_ok` and draws the chart. Because the cluster window **includes today**,
+  `trigger ≥ high ≥ close` always, so a detected name is never above its own level: type 2 measured
+  **0** and type 3 **2 in 29,242** against the 16.4% ticket 14 assumed. "Report only type 1" and
+  "report every crossing" are therefore the same rule, and **A2 becomes the second** — the taxonomy was
+  scaffolding under A4's principle, and the rule stands unmoved when it comes down. **A3 survives
+  verbatim with its justification swapped**: attribution is spent, and what the yesterday-comparison
+  now buys is **recency** — and it means something more literal, since `trigger_yesterday` is the
+  highest high of the k bars ending yesterday, making the digest **a k-bar closing breakout** where k
+  is the tightness test's pick (median 4). Its cost is the lapsed resumers it cannot see: closing that
+  hole takes US from **7.0 to 31.0 rows a night** against a level a median 13 sessions old at +4.92%,
+  so ~2.9 US rows/night of 2–3 session lapses are knowingly withheld — **and the session withdrew its
+  own defence** that these are merely deferred (only 8.6% surface within 5 sessions). That replaces
+  ticket 14's accepted cost, which is **discharged**: nothing is withheld on D5's early-trigger grounds
+  now. **The break is an event, not a state** — the cluster rolls forward to swallow the breakout bar,
+  so 100% of names still detected the night after a break are back below their new level, which amends
+  **08's D1** and costs **11's I4** its state column (five columns, not six), while I2 is reinforced:
+  the break keeps its single home in the file you may ignore. That re-arming lets one name be reported
+  twice, so **every break is reported and repeats are marked**, not suppressed — they land at a
+  *higher* price (median +1.10%, 0.7% lower), and both suppression rules were declined, the
+  parameter-free one for silently withholding a second, higher break. Volume **~7.0 US / 0.9 IDX per
+  night** (upper bound, no decile gate). **The reopen condition is re-armed against ticket 19, not 15**:
+  `TIGHT_MULT`/`K_MIN`/`K_MAX` define the cluster and the cluster high is the trigger, so no *rule*
+  here depends on them and every *number* does. First scan on this map to run **consecutive daily
+  bars** — every prior ticket's 1-in-3 grid could not see a night-over-night transition at all.
 
 - [Architecture and local runtime shape](issues/12-architecture-and-deployment.md) — **one DuckDB file,
   one command per market, and every derived table is dated rows.** A4 is the load-bearing one: universe
@@ -386,9 +425,15 @@ is written during wayfinding.
   until there is forward history: the excluded types are exactly the population a later study can score
   against outcomes, because they were recorded rather than discarded. Validation therefore inherits a
   concrete first question — do type-2 crossings behave differently from type-1 ones? — which is cheaper
-  than the star-band question the noise floor above makes nearly unaffordable. *(Ticket 17 has since
-  narrowed this: type 3 is 0.2% rather than 16.4% under the new trigger, so the question survives mostly
-  as type-2 — carried to ticket 18.)*
+  than the star-band question the noise floor above makes nearly unaffordable. **Ticket 18 voided that
+  question rather than narrowing it**: type 2 measures **0** and type 3 **2 in 29,242 detections**,
+  because the trigger is the cluster high and the cluster includes today, so neither population exists
+  to be scored. What replaces it is the population ticket 18 knowingly withholds — the ~2.9 US rows a
+  night of names that lapse out of detection for 2–3 sessions and return above their old level. They
+  are recorded (dated detection rows under ticket 12's A4), they are break-shaped (+0.78% / +1.18%
+  above the stale level), and only 8.6% are reported by any later route within 5 sessions. That is now
+  **the cheapest outcome question this map has**, and unlike the star-band question it does not need
+  hundreds of samples per cell to answer.
   **Ticket 17 left the sharpest question on this patch, and a dated one.** Its name-level comparison —
   are the split's picks better than ticket 08's? — came back **+0.40★ at p = 0.298**, and it sized the
   shortfall: **~140 cards per arm** against the 20 it graded, which is affordable in a way the

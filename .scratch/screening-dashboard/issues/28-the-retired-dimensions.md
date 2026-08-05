@@ -1,7 +1,7 @@
 # Six dimensions were retired by an instrument that has since been shown blind
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: 27
 
 ## Question

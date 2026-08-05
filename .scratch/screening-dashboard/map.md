@@ -108,6 +108,20 @@ is written during wayfinding.
   (precision 0.47 → 0.49 with recall 0.26 → 0.40), and the ×2 dimensions are no longer in doubt: the
   question is now which *additional* dimensions the blind instrument wrongly retired (ticket 28), not
   whether the ones in the rubric are real.
+  **Ticket 28 closed it, and the answer was none.** The risk that has run through this map since
+  ticket 09 — that the rubric is the wrong shape — is **discharged**: all six retired dimensions
+  were re-screened under the corrected |ρ| rule on the largest pool the map has (432 cards) and
+  under the objective that finally works, and **not one bought a tenth of its bar**. The strongest,
+  `cluster_churn`, beats `cluster_k` on partial ρ by +0.337 to +0.261 and buys **+0.001** out-of-fold
+  ρ when swapped into its seat. The reason retires the screening rule along with the candidates:
+  **the rubric does not consume a dimension, it consumes a threshold on one**, so a boolean cut
+  extracts nearly the same information from any monotone re-expression of the same quantity — and
+  partial ρ, which scores continuous ordering, was never the currency the fit spends. So `mae`'s
+  blindness and the screen's mis-denomination **cancel**: the dimensions the blind instrument
+  retired are the ones a working objective also declines. Ticket 27's three thresholds reproduce
+  independently and stably on the enlarged pool. What survives is not a doubt about the rubric but
+  the plain shortfall ticket 20 named: **+0.292 out-of-fold against a +0.846 ceiling**, about a third
+  of what the eye makes achievable, and nothing on this map has moved it.
 - **Standing property of the data layer** (found independently by tickets 01, 02 and 03): **Yahoo fails
   as silence.** Throttled requests return empty results — and for price history, the literal message
   "possibly delisted; no price data found". Every ingestion path must distinguish throttling from
@@ -703,6 +717,38 @@ is written during wayfinding.
   the region is empty), which also qualifies its 25-of-25 stability as partly an empty upper tail.
   Ticket 11 needs **no** amendment, and **ticket 28 unblocks** with the pool, the published three and
   the `rubric3` NaN defect it must keep fixed now that IDX cards are in.
+
+- [Six dimensions were retired by an instrument that has since been shown blind](issues/28-the-retired-dimensions.md)
+  — **none of them come back, because the table that opened the ticket was denominated in a currency
+  the rubric cannot spend.** `cluster_churn` beats the incumbent `cluster_k` on partial ρ by
+  **+0.337 to +0.261** — wider than the gap that raised the question — and swapping it into the ×2
+  tightness seat and refitting on all 432 cards buys **+0.001 out-of-fold ρ** against a +0.030 bar.
+  The reason generalises past this ticket: **the rubric does not consume a dimension, it consumes a
+  threshold on one**, so a boolean cut extracts nearly the same information from any monotone
+  re-expression of the same quantity, and partial ρ — which scores *continuous* ordering — is not
+  what the fit spends. R6 §7's flagging rule was therefore never evidence of a missing dimension, so
+  **`mae`'s blindness and the screen's mis-denomination cancel**: the dimensions the blind instrument
+  retired are the ones a working objective also declines. **The six were never six** — from their
+  mutual correlation alone (eye-free, so it cannot dredge) they are **two families shadowing the two
+  incumbents**: packing around `cluster_k` (`cluster_churn` +0.829, `density` +0.916) and shape
+  around `orderliness` (`narrowing_ratio` +0.921, `base_height_adr` −0.952, `ma_dist_adr` +0.831),
+  every shape member also running |ρ| 0.27–0.82 with base length. Nothing was ever an *addition*;
+  both swaps lost, and controlling the incumbents as well as length makes **two candidates reverse
+  sign** (`base_height_adr` −0.235 → +0.119, `narrowing_ratio` +0.183 → −0.168). **The |ρ| fix was
+  correct and changed nothing** — it admits `base_height_adr`, which then scores −0.031 ρ as a swap,
+  i.e. actively worse, because a single cut on height cannot replace the band; a bug fix that
+  vindicated the buggy conclusion. `ma_dist_adr` fails the +0.15 floor outright on the bigger pool.
+  **The bar was never binding**: every candidate threshold is unstable, and adding one *destabilises
+  thresholds that were stable* (`ord_lo` 64% → 48%, `cluster_k` 88% → 60%). **Ticket 27's three
+  reproduce independently and stably on 432** (`cluster_k` 5 / `ord_lo` 0.30 / `ord_hi` 0.60), at
+  out-of-fold ρ **+0.292** — so ticket 20's shortfall against the +0.846 ceiling is unmoved and is
+  now the only thing left on the score. Ride-alongs: the 4★ line reads **precision 0.53 / recall
+  0.28**, matching ticket 15 R5; the rubric **runs colder at scale** (≥4★ on 18.3% against the eye's
+  35.2%, fog since nothing gates on the cut); `ord_hi`'s empty tail is barely filled by deck F
+  (1 of 366 → 5 of 432), so 27's caveat stands; and **deck F's inclusion did not distort the fit** —
+  the machine grades `line_not_drawable` −0.14★ against the eye's −0.12★ and ranks that arm no worse
+  than the accepted one, independent support for ticket 26's silent tiebreak. **This was the last
+  open decision on the map.**
 
 ## Not yet specified
 

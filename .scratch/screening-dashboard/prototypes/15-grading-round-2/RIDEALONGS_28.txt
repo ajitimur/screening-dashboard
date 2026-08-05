@@ -1,0 +1,13 @@
+=== A. ord_hi's upper tail — is 0.60 stable, or just untested? (ticket 27's flag)
+  366 (ticket 21/27)     n in (0.60,0.70] =   1 of 366   above 0.70: 0
+  432 (with deck F)      n in (0.60,0.70] =   5 of 432   above 0.70: 2
+  -> the region ord_hi 0.60 vs 0.70 would separate is still essentially empty.
+
+=== B. the 4-star line on 432, out-of-fold (ticket 27 read 0.49/0.40 on E3)
+  precision median 0.53  recall 0.28  n called 79 of 432   eye>=4: 152
+  rubric prints >=4 on 18.3% vs eye's 35.2%  -> still running cold (ticket 27's carried finding)
+
+=== C. does fitting ON deck F change ticket 26's null for line_not_drawable?
+  machine: detections 2.62  line_not_drawable 2.48  delta -0.14*   (ticket 26 eye -0.12, machine -0.03)
+  eye    : detections 2.97  line_not_drawable 2.85  delta -0.12*
+  rubric-vs-eye rho on F3: detections +0.300  lnd +0.336

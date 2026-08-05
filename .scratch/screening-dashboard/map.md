@@ -229,6 +229,29 @@ is written during wayfinding.
   happen — **and ticket 09 did not do it**: its deck graded detections, not rejects, so that obligation
   is currently unowned and belongs on ticket 15.
 
+- [Alerting on the trigger level](issues/14-alerting-and-trigger-notification.md) — **v1 does not alert.**
+  The nightly run writes **one dated Markdown digest per market** (`digests/<market>/<session>.md`) and that
+  is the whole notification layer — no notification, no push, no screen. A channel was rejected as ticket
+  11's I2 reversed by the back door: an EOD app can only fire after the close, so an alert is the
+  diff-first landing screen I2 already refused, delivered outside the app. The digest **stores nothing new**
+  — ticket 08's D1 transitions are already persisted for ticket 10 — so it is a *rendering*, backfillable
+  over history rather than only forward. **Only real breaks are reported**, which ticket 09's D10 forced:
+  98.3% of triggers are the fitted line, so the level falls nightly and "crossed" splits three ways —
+  price rose through it (**reported**), the line descended to meet a flat name (**not**), or the name was
+  born triggered (16.4%, **not**). Types 2 and 3 stay computed and persisted, never rendered; reporting the
+  arrival of a level 08's D5 *designed* to descend is reporting a parameter choice back to yourself. The
+  accepted cost is that if D5's early trigger is right, v1 withholds the earliest signal it produces —
+  **so if ticket 15 revisits D5, this reopens.** A break is fixed as **`close_today > trigger_yesterday`**
+  (08 D1 never fixed which quantity crosses): comparing to yesterday's level makes the crossing survive
+  holding the line still, which is exact attribution with **no new parameter**. The durable output is a
+  rule — **the digest carries only what the app structurally cannot show you** — which admits the break
+  (I2 left it homeless) and excludes new 4–5★ setups (already top of the star-sorted list, and a threshold
+  would be the layer's first tunable). It also means the digest cannot grow into an alerting layer by
+  accretion. Rows carry I4's decision columns plus close, yesterday's trigger and % through: **a pointer,
+  never enough to trade from**, since §7's affordability is read off the chart geometrically. **Empty
+  nights still write the file**, so a missing file means a failed run — the map's "Yahoo fails as silence"
+  property, bought for free.
+
 ## Not yet specified
 
 - **Validation / backtest.** How do we know the screen actually surfaces the right names? History depth
@@ -269,8 +292,15 @@ is written during wayfinding.
   which at n=27 means nothing on its own but is exactly the kind of result a later study will
   rediscover and over-read. Whatever validation becomes possible needs to clear that bar before any
   claim about score quality is made from returns.
-  <!-- "Alerting" graduated into ticket 14: ticket 08 defined a stable trigger level per detected setup,
-       which is the thing an alert hangs on. It is now a channel-and-threshold decision, not fog. -->
+  **Ticket 14 added a sixth stream and a named hypothesis.** Its A2 excludes two of the three crossing
+  types from the digest — line-descent crossings and the 16.4% born triggered — while still persisting
+  them. That is a claim that neither is actionable, and like ticket 08's three omissions it is untestable
+  until there is forward history: the excluded types are exactly the population a later study can score
+  against outcomes, because they were recorded rather than discarded. Validation therefore inherits a
+  concrete first question — do type-2 crossings behave differently from type-1 ones? — which is cheaper
+  than the star-band question the noise floor above makes nearly unaffordable.
+  <!-- "Alerting" graduated into ticket 14 and is now resolved: v1 does not alert; a per-market digest of
+       real breaks only. See Decisions so far. -->
 - **Watchlist persistence and user state.** Whether the app remembers names you've marked, and what
   storage that implies, waits on the architecture ticket.
   <!-- "Chart rendering approach" cleared by ticket 11: I5 fixed what the chart draws (§2's MA set

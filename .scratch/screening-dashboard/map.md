@@ -55,17 +55,23 @@ is written during wayfinding.
   trader endorsed 10 of 11 times and the level the screen fires on are **two separate objects**, and
   only the second is what ticket 19 will be fitting. This does not reopen the swap, but it narrows
   what the endorsement covered. **Ticket 19 fitted neither, and found a third thing instead**: the
-  parameter it was sent to fit is a *risk* parameter, not a detection one, and on three independent
-  measurements **the trader's eye prefers the setups the trader's own §7 stop rule rejects**. The map's
-  standing risk is therefore no longer only that the two ×2 dimensions are unconfirmed — it is that the
-  score, the eye and the risk rule may not be measuring the same thing at all. Ticket 21 carries it.
-  **Ticket 23 removed one branch of this risk for good.** The oldest live worry — that the whole
+  parameter it was sent to fit is a *risk* parameter, not a detection one, and on what it recorded as three
+  independent measurements **the trader's eye prefers the setups the trader's own §7 stop rule rejects**.
+  The map's standing risk is therefore no longer only that the two ×2 dimensions are unconfirmed — it is
+  that the score, the eye and the risk rule may not be measuring the same thing at all. **Ticket 24 shrank
+  that risk without measuring anything new.** Stop width *is* the cluster's height by identity, so §7's cap
+  and §3.5's ×2 tightness dimension read **one ruler, not two** — which collapses ticket 19's "three
+  independent measurements" into **one**, at r = +0.140, p = 0.286, on a population entirely selected under
+  1.5. And the cluster-low stop is a floor §7 never names: §7's stated default is the **breakout day's low**,
+  a *daily* quantity, so the 92% figure may be an artefact of the ruler rather than a disagreement. That
+  measurement is named, cheap, and knowingly unrun — parked below.
+  **Ticket 23 removed a different branch of this risk for good.** The oldest live worry — that the whole
   calibration might be running on the wrong population, because the names the detector *rejects*
   could grade as well as the ones it surfaces — is now measured and false: rejects grade **−0.90★**
   below detections. The score is calibrated on the right population. What survives is narrower and
   named: **`line_not_drawable` is the one rejection path that does not separate from the accepted
   names** (−0.40★, interval spanning zero, below the eye's own noise floor), so the residual risk is
-  a single rejection rule, not the population. Ticket 24 carries that.
+  a single rejection rule, not the population. Ticket 25 carries that.
 - **Standing property of the data layer** (found independently by tickets 01, 02 and 03): **Yahoo fails
   as silence.** Throttled requests return empty results — and for price history, the literal message
   "possibly delisted; no price data found". Every ingestion path must distinguish throttling from
@@ -503,8 +509,35 @@ is written during wayfinding.
   closed at 98.5%, ticket 18's reopen condition is **discharged** (none of `TIGHT_MULT`/`K_MIN`/`K_MAX`
   moved), and ticket 17's 63% swing is restated: it was measured on the **ungated** list, and the decile
   gate is the far stronger filter. What it could not settle became
-  [ticket 21](issues/21-should-the-score-know-about-the-stop.md) — the score sorts a list that is 92%
+  [ticket 24](issues/24-should-the-score-know-about-the-stop.md) — the score sorts a list that is 92%
   unaffordable, and the rubric has already learned to reward wide stops without anyone deciding it should.
+
+- [Should the star score and the digest know about the stop?](issues/24-should-the-score-know-about-the-stop.md)
+  — **no, because "stop width" is not a risk quantity — it is the cluster's height, by identity.** The
+  trigger is the cluster high (ticket 18) and the stop runs to the cluster low, so `stop_adr` **is** the
+  cluster's range in ADR — the *narrowness* measure [ticket 15](issues/15-star-score-second-grading-round.md)
+  already retired, because the cluster is selected to fit under `TIGHT_MULT × ADR` and its width is spent
+  by the selection. Two things follow. **§7's cap and §3.5's ×2 tightness dimension are one ruler**, so the
+  "eye vs rubric" and "eye vs stop rule" tensions the map recorded separately are one tension — and ticket
+  19's *three independent measurements* are **one**, the same scalar binned two ways, at **r = +0.140,
+  p = 0.286** on a population every member of which was selected under 1.5. **The score therefore learns
+  nothing about the stop** — no dimension, no penalty, no tiebreak (ticket 19 R2's sortable column already
+  serves that). The ticket's own premise that the rubric "has already learned to reward wide stops" is
+  **unproven and mis-routed**: ticket 15's ×2 tightness is **cluster length k**, a bar count, not a width —
+  but k and stop width move together across ticket 19's grid, so k may **buy its bars by spending range**.
+  The grid cannot say, because it moves the cap; the within-setting sign is genuinely unknown. So the
+  decision rests on the stronger reason — **do not add a penalty that may be fighting k, the one dimension
+  on this map that replicates.** **The bigger finding is that part 3 was never an intraday question**: §7's
+  stated default stop is the **low of the breakout day**, a *daily* bar, known at the close that renders the
+  digest — so the cluster low is a floor §7 never names, and **ticket 19's "92% are no-trades" may be an
+  artefact of the ruler, not a disagreement with the eye.** Hence the split: the **watchlist** shows
+  `trigger − cluster_low` (pre-break, nothing better exists), the **digest** shows `entry − breakout_day_low`
+  (§7's actual rule, free — no new data, parameter or capture stream), and **neither marks a no-trade** —
+  the watchlist because a flag firing on 92% is not a flag, the digest because the base rate under the
+  corrected ruler is unmeasured. Digest *membership* still ignores the stop entirely (18 R5 stands; ~7.0 US
+  rows a night is too small to cut on a pessimistic proxy). **The measurement was put and declined** —
+  trader's call — so every decision here is the conservative one under that ignorance, and the two owed
+  numbers are parked as fog rather than ticketed. Ticket 19 R2's show-don't-filter was not re-litigated.
 
 ## Not yet specified
 
@@ -599,7 +632,24 @@ is written during wayfinding.
   free addition to ticket 12's A4 write path and irrecoverable afterwards — the same shape as the map's
   other capture streams, and the seventh of them. Note the trap the answer has to survive: §7's real stop
   is the entry-day LOD, not the cluster low, so a study on the proxy measures a quantity the trader never
-  actually risks. Ticket 21 owns the live half of this.
+  actually risks. Ticket 24 owns the live half of this.
+  **Ticket 24 then took the trap away and left two measurements in its place.** The proxy problem is not
+  "the screen cannot see §7's stop" — it is that the screen measures from the **wrong low**. §7 names three
+  stops and only two are intraday: the **breakout day's low** is a daily bar, visible at the close that
+  renders the digest. So the map owes two numbers, both pure computation on daily bars, both needing the
+  same fresh pull, neither needing a human — **put to the trader and declined this session**, and parked
+  here rather than ticketed because neither blocks the spec:
+  1. **Does §7 actually bind?** Distribution of `(entry − breakout_day_low) / ADR` over detected breaks,
+     against the 1×ADR cap. If most land inside, **there was never an eye-versus-§7 disagreement** —
+     ticket 19's headline 92% was the ruler, and what it would change downstream is a marking rule: the
+     digest could then legitimately flag no-trades, which ticket 24 R3 declined to do for want of this
+     base rate.
+  2. **Does k spend range to buy bars?** Correlation of cluster length k with stop width at fixed
+     `TIGHT_MULT = 1.5`, across names. If strongly positive, the rubric's ×2 tightness dimension is
+     partly a **stop-width preference** wearing a bar count's clothes — which would make ticket 24 R2's
+     "do not fight k" argument a statement about §7 rather than about geometry.
+  A residual trap survives even measurement 1: §6 usually enters on the opening range, so the breakout-day
+  low is itself a proxy — but it errs **narrow-to-wide**, the safe direction, unlike the cluster low.
   <!-- "Alerting" graduated into ticket 14 and is now resolved: v1 does not alert; a per-market digest of
        real breaks only. See Decisions so far. -->
 - **Watchlist persistence and user state.** **Narrowed by ticket 12, not cleared.** The storage half is

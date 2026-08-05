@@ -310,4 +310,4 @@ Nothing about the column's presence or position changes. Two things about its tr
   check free, not to pre-empt it.
 
 Whether the *sort* should also know about the stop is not settled here — that is
-[ticket 21](21-should-the-score-know-about-the-stop.md). I4's sort key remains the star score.
+[ticket 24](24-should-the-score-know-about-the-stop.md). I4's sort key remains the star score.

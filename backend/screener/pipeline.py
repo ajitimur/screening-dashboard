@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
+from .bars import clean_bars, parse_bars
 from .models import RunRecord
 from .source import Source, resolve_market
 from .store import Store
@@ -46,6 +47,36 @@ def run_market(
         symbols_resolved=len(resolved),
         created_at=now,
     )
+
+
+def ingest_market_bars(
+    store: Store,
+    source: Source,
+    market: str,
+    *,
+    now: datetime,
+) -> dict[str, int]:
+    """Pipeline stages 2–3: ingest every enumerated symbol's bars, hygienic.
+
+    For each instrument (candidates *and* references — the index rides the same
+    ingest path, spec §3.1) the bars are resolved through the paced, backed-off
+    source, parsed, then cleaned: zero-volume phantoms dropped and non-final
+    sessions discarded (spec §3.4 rules 1–2). Each symbol's clean bars are
+    persisted the moment they resolve, so a pull killed partway leaves every
+    already-persisted symbol — and the other market's completed pull — intact
+    (spec §3.3). ``now`` must be timezone-aware for the finality rule.
+
+    Returns the count of bars newly stored per symbol.
+    """
+    stored: dict[str, int] = {}
+    for instrument in source.enumerate(market):
+        resolution = source.resolve(instrument.symbol)
+        if resolution.status != "resolved":
+            continue  # silence is unresolved, not absent — nothing to ingest
+        bars = clean_bars(parse_bars(resolution.bars), market, now)
+        if bars:
+            stored[instrument.symbol] = store.append_bars(market, instrument.symbol, bars)
+    return stored
 
 
 def run_market_from_source(

@@ -260,6 +260,10 @@ class YFinanceSourceClient:
             raise
         if frame is None or frame.empty:
             return []  # silence — surfaced as unresolved, never absent
+        # A single-symbol download can still carry a MultiIndex column axis
+        # (field, symbol); flatten to the bare field names parse_bars expects.
+        if frame.columns.nlevels > 1:
+            frame = frame.droplevel(1, axis=1)
         return frame.reset_index().to_dict("records")
 
     def _screen_idx(self) -> list[str]:

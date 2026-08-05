@@ -17,6 +17,7 @@ from pathlib import Path
 
 import duckdb
 
+from .bars import Bar
 from .models import RunRecord, RunStatus
 
 # Bump when a derived-table definition changes. Detection rows will additionally
@@ -42,6 +43,22 @@ CREATE TABLE IF NOT EXISTS universe (
     session  DATE NOT NULL,
     symbol   TEXT NOT NULL,
     PRIMARY KEY (market, session, symbol)
+);
+
+-- Clean EOD bars, both series (spec §3.5), keyed (market, symbol, session).
+-- Appended incrementally as each symbol resolves and never rewritten (§7.2);
+-- the observed set of sessions IS the exchange calendar (§3.4 rule 4).
+CREATE TABLE IF NOT EXISTS bars (
+    market     TEXT   NOT NULL,
+    symbol     TEXT   NOT NULL,
+    session    DATE   NOT NULL,
+    open       DOUBLE NOT NULL,
+    high       DOUBLE NOT NULL,
+    low        DOUBLE NOT NULL,
+    close      DOUBLE NOT NULL,  -- unadjusted, for dollar volume
+    adj_close  DOUBLE NOT NULL,  -- adjusted, for everything geometric
+    volume     BIGINT NOT NULL,
+    PRIMARY KEY (market, symbol, session)
 );
 """
 
@@ -126,7 +143,60 @@ class Store:
         )
         return len(symbols)
 
+    def append_bars(self, market: str, symbol: str, bars: list[Bar]) -> int:
+        """Append a symbol's clean bars, committed the moment the call returns.
+
+        Bars are written once and never rewritten (spec §7.2): a session already
+        present for this ``(market, symbol)`` is left untouched, so an
+        incremental pass that overlaps stored history is a safe no-op rather than
+        a rescale. Persisting per symbol is what lets a killed second-market pull
+        leave the first market's finished bars intact (spec §3.3).
+
+        Returns the number of rows newly inserted (``RETURNING`` counts exactly
+        the rows a conflict did not skip — no extra scan of stored history).
+        """
+        if not bars:
+            return 0
+        rows = ",".join(["(?, ?, ?, ?, ?, ?, ?, ?, ?)"] * len(bars))
+        params: list = []
+        for b in bars:
+            params += [market, symbol, b.session, b.open, b.high, b.low, b.close, b.adj_close, b.volume]
+        inserted = self._con.execute(
+            f"INSERT INTO bars VALUES {rows} ON CONFLICT DO NOTHING RETURNING 1",
+            params,
+        ).fetchall()
+        return len(inserted)
+
     # -- reads -------------------------------------------------------------
+
+    def bars(self, market: str, symbol: str) -> list[Bar]:
+        """A symbol's stored bars, oldest session first."""
+        rows = self._con.execute(
+            "SELECT session, open, high, low, close, adj_close, volume "
+            "FROM bars WHERE market = ? AND symbol = ? ORDER BY session",
+            [market, symbol],
+        ).fetchall()
+        return [Bar(*r) for r in rows]
+
+    def last_session(self, market: str, symbol: str) -> date | None:
+        """The symbol's most recent stored session, for incremental appends,
+        or ``None`` if it has no bars yet (spec §3.6)."""
+        # max() is an aggregate: fetchone() is always a one-tuple, (None,) when
+        # the symbol has no bars yet.
+        return self._con.execute(
+            "SELECT max(session) FROM bars WHERE market = ? AND symbol = ?",
+            [market, symbol],
+        ).fetchone()[0]
+
+    def sessions(self, market: str) -> list[date]:
+        """The market's observed exchange calendar: the union of bar dates
+        across every symbol, oldest first (spec §3.4 rule 4). No holiday table
+        is ever consulted — a gap simply has no bars."""
+        rows = self._con.execute(
+            "SELECT DISTINCT session FROM bars WHERE market = ? ORDER BY session",
+            [market],
+        ).fetchall()
+        return [r[0] for r in rows]
 
     def runs(self, market: str) -> list[RunRecord]:
         """All run records for a market, newest session first."""

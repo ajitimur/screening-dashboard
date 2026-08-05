@@ -14,6 +14,7 @@ questions they *don't* settle are what the grading session is for.
 | US sweep | 2019-01 → 2023-06, every 3rd bar → **24,664 detections** |
 | IDX slice | 77 names, 2017 → 2024 → **6,946 detections** |
 | Median eligible names/date | 180 (after ticket 05's $20M dollar-volume floor) |
+| Sector coverage | 650 of 650 names, 1 UNKNOWN — ticket 03's 99.7% claim holds |
 
 **Honest limits, not fixable here.** The universe is a 650-name sample, not ticket 05's 1,966, so
 decile boundaries are approximations; and it is survivorship-biased (Nasdaq Trader lists only live
@@ -114,23 +115,31 @@ Forward outcomes modelled per §7 as closely as EOD allows: entry at the trigger
 next 10 bars to cross it, stop at the base low, 30-bar hold, result in **R**. Restricted to detections
 passing D15's decile gate (1,241 detections, 1,063 triggered).
 
-| boolean stars | n | trig % | mean R | win % |
-| --- | --- | --- | --- | --- |
-| ≤1.5 | 129 | 89.9 | 0.232 | 21.6 |
-| 2 | 455 | 88.4 | 0.099 | 19.4 |
-| 3 | 276 | 84.8 | 0.193 | 22.6 |
-| **4** | 325 | 81.8 | **0.494** | **26.7** |
-| 5 | 56 | 80.4 | 0.444 | 17.8 |
+| boolean stars | n | trig % | mean R | win % | R>2 % |
+| --- | --- | --- | --- | --- | --- |
+| ≤1.5 | 229 | 90.0 | 0.022 | 18.9 | 16.0 |
+| 2 | 404 | 86.9 | 0.253 | 21.4 | 15.1 |
+| 3 | 283 | 86.2 | 0.144 | 22.5 | 13.9 |
+| 4 | 292 | 80.5 | 0.438 | 25.1 | 19.1 |
+| **5** | 33 | 81.8 | **1.187** | **25.9** | **25.9** |
 
-The 4★ band is the best on both mean R and win rate, which is weak support for §3.5's *"trade 4–5
-stars"* line. But **the 5★ band is indistinguishable from it** — n=56, and the standard error on a
-band mean at that size is **0.41R**, larger than the entire spread across bands.
+The top two bands are the best on mean R, win rate and big-winner rate, which supports §3.5's
+*"trade 4–5 stars"* line. But **the 5★ band cannot be distinguished from the 4★ one**: n=33, the
+standard error on a band mean at that size is **0.48R**, and the 4★→5★ gap is **1.41 SE**.
+
+**How unstable that top band is, is itself the finding.** These numbers were first computed while the
+sector data was still downloading, so the sector dimension was mostly unmeasurable. On that run the
+4★ band led (0.494R) and the 5★ band came in *below* it (0.444R, 17.8% win, n=56). Adding one ×1
+dimension re-sorted the top of the scale and flipped the ordering. A bucket that small is not
+measuring anything stable — which reinforces rather than weakens the conclusion below.
 
 Per-dimension, mean R by quintile is **non-monotone for every one of the eight dimensions**. Quintile
-SE is 0.189R, so the 0.2–0.8R spreads are 1–4 SE: not pure noise, but no clean story either.
+SE is 0.19R, so the 0.2–0.8R spreads are 1–4 SE: not pure noise, but no clean story either. The two
+quantities with the widest spread are *not* scored dimensions at all — the retained-set size (0.74)
+and base length (0.34), both of which ticket 08 deliberately leaves out of the score.
 
 **To resolve a 0.3R difference between bands at 2 SE you would need ~672 triggered setups per band.**
-We have 56 at five stars. So the outcome data cannot settle the weights, the thresholds, or the
+We have 33 at five stars. So the outcome data cannot settle the weights, the thresholds, or the
 boolean-vs-continuous question. **The eye is the arbiter** — which is what this ticket said, now with a
 number attached to why.
 
@@ -182,3 +191,14 @@ routinely different objects, which is a chart-and-eye question, not a maths one.
 4. **F6** — do the partial-lock IDX charts look like real setups to you, or like artefacts?
 5. **F7** — should the chart's trigger key off the 3-bar primary window or the visible base?
 6. Booleans or continuous sub-scores — F5 says outcomes can't decide it, so it is a judgement call.
+
+## F8. Ticket 07's leave-one-out sector rule behaves as designed
+
+Sector confirmation is measurable for **99.9%** of detections (650 of 650 names resolved a sector,
+1 UNKNOWN — consistent with ticket 03's 99.7% coverage claim). The leave-one-out share on 1m has
+median 0.091, and the ≥10% gate passes **47.2%** of all detections and **53.9%** of decile-gated ones.
+
+That is the behaviour ticket 07 was aiming for. 07 rejected the naive (non-leave-one-out) rule
+because it fires 77–90% of the time, making the point nearly free; at ~50% the dimension actually
+discriminates. Nothing to change here — recorded because it is the one dimension inherited from
+another ticket that this prototype could check independently, and it holds up.

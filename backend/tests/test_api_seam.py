@@ -226,3 +226,88 @@ def test_candidates_endpoint_is_empty_when_no_run_published(store: Store):
 
 def test_candidates_unknown_market_is_404(store: Store):
     assert client_for(store).get("/api/candidates/LSE").status_code == 404
+
+
+# -- /api/chart/{market}/{symbol} (ticket 40, spec §5.1) ----------------------
+
+
+def _chart_store() -> Store:
+    """A published US run with one detected name (AAA) carrying bars, a detection,
+    ranks and a sector label, plus a bare name (BBB) with bars but no detection."""
+    from datetime import date, datetime, timedelta
+
+    from screener.bars import Bar
+    from screener.detection import DETECTOR_VERSION, Detection
+    from screener.ranks import Rank
+
+    store = Store.memory()
+    session = date(2026, 8, 5)
+    cal = [date(2026, 1, 1) + timedelta(days=i) for i in range(120)]
+    store.append_bars("US", "AAA", [Bar(s, 98.0, 99.0, 97.0, 98.0, 98.0, 1000) for s in cal])
+    store.append_bars("US", "BBB", [Bar(s, 50.0, 51.0, 49.0, 50.0, 50.0, 2000) for s in cal])
+    store.append_run(
+        "US", session, status="published",
+        symbols_enumerated=2, symbols_resolved=2,
+        created_at=datetime(2026, 8, 5, 22, 10),
+    )
+    store.append_universe("US", session, ["AAA", "BBB"])
+    adr_val = 0.02
+    stop = 100.0 - 97.0
+    store.append_detections("US", session, [Detection(
+        symbol="AAA", session=session, detector_version=DETECTOR_VERSION,
+        trigger=100.0, stop=stop, stopw_adr=stop / (adr_val * 98.0),
+        base_len=30, move_gain=103.0, adr=adr_val, close=98.0,
+        cluster_k=5, cluster_high=100.0, cluster_low=97.0, cluster_range_adr=0.99,
+        line_ok=True, touch_zones=2, overshoot_adr=0.0, slope=-0.001,
+        line_end=99.9, base_low=97.0,
+        churn_l=0.45, sma20_rising=True, dryup=0.90,
+    )])
+    store.append_ranks("US", session, [
+        Rank("AAA", "1m", 0.95, 1.2), Rank("AAA", "3m", 0.90, 1.1),
+    ])
+    store.upsert_label("US", "AAA", "Technology", "Semiconductors", session)
+    return store
+
+
+def test_chart_endpoint_returns_candles_ma_set_and_facts_in_one_call():
+    store = _chart_store()
+    try:
+        body = client_for(store).get("/api/chart/US/AAA").json()
+        assert body["market"] == "US"
+        assert body["symbol"] == "AAA"
+        assert body["session"] == "2026-08-05"
+        # Candles and the four MA lines — the daily set (spec §2).
+        assert len(body["candles"]) == 120
+        assert body["candles"][-1]["close"] == 98.0
+        for line in ("sma10", "sma20", "sma50", "ema65"):
+            assert len(body[line]) > 0
+        # The facts block reconstructed from the detection row.
+        f = body["facts"]
+        assert f["base_len"] == 30
+        assert f["trigger"] == 100.0
+        assert abs(f["dist_adr"] - (100.0 - 98.0) / (0.02 * 98.0)) < 1e-9
+        assert abs(f["stopw_adr"] - (100.0 - 97.0) / (0.02 * 98.0)) < 1e-9
+        assert f["adr"] == 0.02
+        assert f["dollar_volume"] == 98.0 * 1000  # median close×volume
+        assert f["decile_ranks"] == {"1m": 0.95, "3m": 0.90}
+        assert f["sector"] == "Technology"
+    finally:
+        store.close()
+
+
+def test_chart_of_a_name_without_a_detection_still_draws_without_facts():
+    store = _chart_store()
+    try:
+        body = client_for(store).get("/api/chart/US/BBB").json()
+        assert len(body["candles"]) == 120
+        assert body["facts"] is None  # no base tonight → nothing to describe
+    finally:
+        store.close()
+
+
+def test_chart_unknown_symbol_is_404(store: Store):
+    assert client_for(store).get("/api/chart/US/NOPE").status_code == 404
+
+
+def test_chart_unknown_market_is_404(store: Store):
+    assert client_for(store).get("/api/chart/LSE/AAA").status_code == 404

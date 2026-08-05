@@ -124,4 +124,20 @@ describe("the candidate list", () => {
     render(<CandidateList market="US" />);
     expect(await screen.findByText(/no candidates/i)).toBeInTheDocument();
   });
+
+  it("selects a row's ticker on click, so the chart panel can swap", async () => {
+    mockCandidates(list({ candidates: [candidate("AAA"), candidate("BBB")] }));
+    const onSelect = vi.fn();
+    render(<CandidateList market="US" onSelect={onSelect} selected={null} />);
+    const ticker = await screen.findByRole("button", { name: "BBB" });
+    ticker.click();
+    expect(onSelect).toHaveBeenCalledWith("BBB");
+  });
+
+  it("marks the selected row", async () => {
+    mockCandidates(list({ candidates: [candidate("AAA"), candidate("BBB")] }));
+    render(<CandidateList market="US" selected="BBB" />);
+    const row = await screen.findByRole("row", { name: /BBB/ });
+    expect(row).toHaveAttribute("aria-selected", "true");
+  });
 });

@@ -137,6 +137,18 @@ class Detection:
     sma20_rising: bool      # SMA20 rising, sign-only (X[t] > X[t−5]); MA support
     dryup: float            # median base volume ÷ median volume of the 50 bars before it
 
+    @property
+    def dist_adr(self) -> float:
+        """Distance from today's close up to the trigger, in ADR — "how soon"
+        (§5.1). ``adr_abs = adr × close`` is ADR in price units; the distance is
+        that many average daily ranges below the trigger. ``nan`` if ADR is
+        non-positive (it never is on a stored detection, which required a positive
+        ADR to exist). The candidate row and the chart facts read the same figure."""
+        adr_abs = self.adr * self.close
+        if adr_abs <= 0:
+            return float("nan")
+        return (self.trigger - self.close) / adr_abs
+
 
 # -- pure geometry (numpy-free, so it is unit-tested without the network) ------
 

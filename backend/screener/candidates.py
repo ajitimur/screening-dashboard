@@ -48,18 +48,6 @@ from .sectors import leave_one_out_sector_shares
 AFFORDABLE_ADR = 1.0
 
 
-def _dist_adr(det: Detection) -> float:
-    """Distance from today's close up to the trigger, in ADR — "how soon" (§5.1).
-
-    ``adr_abs = adr × close`` is ADR in price units; the distance is that many
-    average daily ranges below the trigger. ``nan`` if ADR is non-positive (it
-    never is on a stored detection, which required a positive ADR to exist)."""
-    adr_abs = det.adr * det.close
-    if adr_abs <= 0:
-        return float("nan")
-    return (det.trigger - det.close) / adr_abs
-
-
 def build_candidates(
     detections: list[Detection],
     ranks: list[Rank],
@@ -101,7 +89,7 @@ def build_candidates(
                     symbol=det.symbol,
                     score=stars,
                     breakdown=[ScoreRow(**vars(d)) for d in breakdown],
-                    dist_adr=_dist_adr(det),
+                    dist_adr=det.dist_adr,
                     stopw_adr=det.stopw_adr,
                     affordable=det.stopw_adr <= AFFORDABLE_ADR,
                     industry=industry_of.get(det.symbol),

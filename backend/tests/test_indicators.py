@@ -21,7 +21,10 @@ from screener.indicators import (
     adr_abs,
     anchor_date,
     calendar_return,
+    ema_series,
+    median_dollar_volume,
     sma,
+    sma_series,
 )
 
 
@@ -81,6 +84,52 @@ def test_sma_uses_adjusted_not_unadjusted_close():
 
 def test_sma_needs_a_full_window_else_none():
     assert sma(_series(CAL[:4]), 5) is None
+
+
+# -- MA series and the 65 EMA for the chart panel (§4.2 / §5.1, ticket 40) ----
+
+
+def test_sma_series_is_the_rolling_mean_none_until_the_window_fills():
+    # A rolling window over closes: None until `window` values exist, then the
+    # trailing mean at each index. Values climb 1..5, window 3.
+    values = [1.0, 2.0, 3.0, 4.0, 5.0]
+    assert sma_series(values, 3) == [None, None, 2.0, 3.0, 4.0]
+
+
+def test_sma_series_matches_the_point_sma_at_the_last_bar():
+    # The series' last point equals indicators.sma over the same window — one
+    # definition of a moving average, computed for every bar rather than the last.
+    bars = [_bar(CAL[i], adj_close=float(i + 1)) for i in range(10)]
+    closes = [b.adj_close for b in bars]
+    assert sma_series(closes, 10)[-1] == sma(bars, 10)
+
+
+def test_ema_series_seeds_on_the_first_window_and_then_smooths():
+    # Seeded by the SMA of the first `window` values; None before it fills.
+    values = [float(i + 1) for i in range(5)]  # 1..5
+    series = ema_series(values, 3)
+    assert series[0] is None and series[1] is None
+    assert series[2] == 2.0  # SMA(1,2,3) seed at the first full window
+    # α = 2/(3+1) = 0.5; next = 0.5·4 + 0.5·2 = 3.0, then 0.5·5 + 0.5·3 = 4.0.
+    assert series[3] == 3.0
+    assert series[4] == 4.0
+
+
+def test_ema_series_is_all_none_below_the_window():
+    assert ema_series([1.0, 2.0], 3) == [None, None]
+
+
+def test_median_dollar_volume_is_the_median_over_the_trailing_window():
+    # dollar_volume = unadjusted close × volume; median over the last ADR_WINDOW
+    # traded bars. Closes 1..25 at volume 1 → dollar volumes 1..25; the median of
+    # the trailing 20 (values 6..25) is (15+16)/2 = 15.5.
+    bars = [_bar(CAL[i], close=float(i + 1)) for i in range(25)]
+    bars = [Bar(b.session, b.open, b.high, b.low, b.close, b.adj_close, 1) for b in bars]
+    assert median_dollar_volume(bars) == 15.5
+
+
+def test_median_dollar_volume_is_none_without_bars():
+    assert median_dollar_volume([]) is None
 
 
 # -- calendar-anchored returns (§4.2 / ticket 06 R7) --------------------------

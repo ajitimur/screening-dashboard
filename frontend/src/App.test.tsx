@@ -3,11 +3,27 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
 import type {
   CandidatesResponse,
+  ChartResponse,
   RegimeResponse,
   RunRecord,
   RunsResponse,
   SectorsResponse,
 } from "./api/client";
+
+// The chart panel drives a canvas jsdom cannot render; stub the library so the
+// workbench-level interaction test can mount it (its data is asserted in
+// ChartPanel.test.tsx). Harmless for the tests that never select a row.
+vi.mock("lightweight-charts", () => ({
+  createChart: () => ({
+    addSeries: () => ({ setData: () => {} }),
+    priceScale: () => ({ applyOptions: () => {} }),
+    timeScale: () => ({ fitContent: () => {} }),
+    remove: () => {},
+  }),
+  CandlestickSeries: "Candlestick",
+  LineSeries: "Line",
+  HistogramSeries: "Histogram",
+}));
 
 afterEach(() => {
   cleanup();
@@ -205,6 +221,79 @@ describe("the two market tabs", () => {
     render(<App />);
     await screen.findByText(/No run yet for IDX/);
     expect(screen.queryByLabelText(/IDX regime/i)).not.toBeInTheDocument();
+  });
+
+  it("swaps the chart panel when a candidate row is clicked, and nothing else navigates", async () => {
+    const oneCandidate: CandidatesResponse = {
+      market: "IDX",
+      session: "2026-08-04",
+      ordered_by: "score",
+      candidates: [
+        {
+          symbol: "AAA",
+          score: 3.5,
+          breakdown: [],
+          dist_adr: 1.0,
+          stopw_adr: 1.3,
+          affordable: false,
+          industry: "Semiconductors",
+          breadth: 2,
+        },
+      ],
+    };
+    const chartOf = (symbol: string): ChartResponse => ({
+      market: "IDX",
+      symbol,
+      session: "2026-08-04",
+      candles: [{ session: "2026-08-04", open: 1, high: 2, low: 0.5, close: 1.5, volume: 100 }],
+      sma10: [],
+      sma20: [],
+      sma50: [],
+      ema65: [],
+      facts: {
+        base_len: 30,
+        trigger: 100,
+        dist_adr: 1.02,
+        stopw_adr: 1.53,
+        adr: 0.02,
+        dollar_volume: 1_000_000,
+        decile_ranks: { "1m": 0.95 },
+        sector: "Technology",
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/api/candidates/"))
+          return { ok: true, json: async () => oneCandidate } as Response;
+        if (url.includes("/api/chart/")) {
+          const symbol = url.split("/").pop()!;
+          return { ok: true, json: async () => chartOf(symbol) } as Response;
+        }
+        if (url.includes("/api/sectors/")) {
+          const market = url.split("/").pop()!.toUpperCase();
+          return { ok: true, json: async () => emptySectors(market) } as Response;
+        }
+        if (url.includes("/regime/")) {
+          const market = url.split("/").pop()!.toUpperCase();
+          return { ok: true, json: async () => noRegime(market) } as Response;
+        }
+        const market = url.split("/").pop()!.toUpperCase();
+        return { ok: true, json: async () => runs(market, "2026-08-04") } as Response;
+      }),
+    );
+    render(<App />);
+    // Before a click the panel prompts for a selection.
+    expect(await screen.findByText(/select a candidate/i)).toBeInTheDocument();
+
+    act(() => screen.getByRole("button", { name: "AAA" }).click());
+
+    // The chart panel swapped to AAA...
+    expect(await screen.findByRole("heading", { name: "AAA" })).toBeInTheDocument();
+    expect(await screen.findByLabelText("facts")).toBeInTheDocument();
+    // ...and nothing else navigated: still the IDX market, still the Workbench.
+    expect(screen.getByRole("button", { name: "IDX" })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("button", { name: "Workbench" })).toHaveAttribute("aria-current", "true");
   });
 
   it("shows no banner when the latest run published", async () => {

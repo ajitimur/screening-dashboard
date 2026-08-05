@@ -7,6 +7,7 @@ import {
 } from "./api/client";
 import Boards from "./Boards";
 import CandidateList from "./CandidateList";
+import ChartPanel from "./ChartPanel";
 import SectorTable from "./SectorTable";
 
 const MARKETS = ["IDX", "US"] as const;
@@ -63,6 +64,11 @@ function Workbench({ market }: { market: Market }) {
   const [runs, setRuns] = useState<RunsResponse | null>(null);
   const [regime, setRegime] = useState<RegimeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The one interaction: the selected candidate whose chart the panel shows
+  // (spec §5.3). Cleared when the market changes — a symbol belongs to a market.
+  const [selected, setSelected] = useState<string | null>(null);
+
+  useEffect(() => setSelected(null), [market]);
 
   useEffect(() => {
     let live = true;
@@ -120,8 +126,11 @@ function Workbench({ market }: { market: Market }) {
       )}
       {/* The candidate list — the only list in the app, tonight's detections
           made readable (spec §5.1). Its own resource endpoint, sorted by star
-          score descending (spec §4.7); the regime never reorders it. */}
-      <CandidateList market={market} />
+          score descending (spec §4.7); the regime never reorders it.
+          Clicking a row selects it; only the chart panel swaps (spec §5.3). */}
+      <CandidateList market={market} selected={selected} onSelect={setSelected} />
+      {/* The chart panel beside the list: click a row, see its chart (§5.1). */}
+      <ChartPanel market={market} symbol={selected} />
       {/* The sector board reads the same as-of session (spec §4.4). The regime
           note (S7) wires in once ticket 10's /api/regime banner lands. */}
       <SectorTable market={market} />

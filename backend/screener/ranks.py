@@ -72,7 +72,7 @@ def rank_table(members_bars: dict[str, list[Bar]], as_of: date) -> list[Rank]:
     """
     rows: list[Rank] = []
     for lookback in LOOKBACKS:
-        returns = {}
+        returns: dict[str, float] = {}
         for symbol, bars in members_bars.items():
             r = calendar_return(bars, as_of, lookback)
             if r is not None:

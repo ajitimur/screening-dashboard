@@ -8,6 +8,7 @@ dependencies = [
     "uvicorn[standard]",
     "duckdb",
     "pydantic>=2",
+    "yfinance",
 ]
 
 [project.optional-dependencies]

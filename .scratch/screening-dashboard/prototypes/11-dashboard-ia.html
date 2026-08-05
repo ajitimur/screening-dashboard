@@ -1,0 +1,869 @@
+<title>Nightly screen — IA prototype (ticket 11)</title>
+
+<!--
+  THROWAWAY PROTOTYPE — wayfinder ticket 11 (dashboard information architecture).
+  Three structurally different answers to "what do you see when you open this app,
+  and what is the ten-minute nightly path through it?", switchable from the bar at
+  the bottom. All data is fabricated but shaped to the real emitted interfaces of
+  tickets 06, 07, 08 and 10. Not production code. Do not promote as-is.
+-->
+
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --ground:      #f6f7f9;
+    --panel:       #ffffff;
+    --panel-2:     #f0f2f5;
+    --line:        #dde1e8;
+    --line-soft:   #eaedf2;
+    --ink:         #161a21;
+    --ink-2:       #4a5361;
+    --ink-3:       #7b8494;
+
+    --accent:      #b47714;
+    --accent-soft: #f3e3c4;
+    --up:          #17795a;
+    --down:        #bf3b39;
+    --flat:        #7b8494;
+
+    --candle-up:   #17795a;
+    --candle-dn:   #bf3b39;
+    --grid:        #e6e9ee;
+
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #0d1015;
+      --panel:       #14181f;
+      --panel-2:     #1a1f28;
+      --line:        #262d38;
+      --line-soft:   #1e242d;
+      --ink:         #e6e9ef;
+      --ink-2:       #a3adbd;
+      --ink-3:       #6e7887;
+
+      --accent:      #e0a53c;
+      --accent-soft: #3a2e15;
+      --up:          #3fbc8a;
+      --down:        #e2645f;
+      --flat:        #6e7887;
+
+      --candle-up:   #3fbc8a;
+      --candle-dn:   #e2645f;
+      --grid:        #212832;
+    }
+  }
+
+  :root[data-theme="light"] {
+    --ground: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f5;
+    --line: #dde1e8; --line-soft: #eaedf2;
+    --ink: #161a21; --ink-2: #4a5361; --ink-3: #7b8494;
+    --accent: #b47714; --accent-soft: #f3e3c4;
+    --up: #17795a; --down: #bf3b39; --flat: #7b8494;
+    --candle-up: #17795a; --candle-dn: #bf3b39; --grid: #e6e9ee;
+  }
+  :root[data-theme="dark"] {
+    --ground: #0d1015; --panel: #14181f; --panel-2: #1a1f28;
+    --line: #262d38; --line-soft: #1e242d;
+    --ink: #e6e9ef; --ink-2: #a3adbd; --ink-3: #6e7887;
+    --accent: #e0a53c; --accent-soft: #3a2e15;
+    --up: #3fbc8a; --down: #e2645f; --flat: #6e7887;
+    --candle-up: #3fbc8a; --candle-dn: #e2645f; --grid: #212832;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0 0 76px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * { box-sizing: border-box; }
+
+  h1, h2, h3, h4 { margin: 0; font-weight: 600; text-wrap: balance; }
+
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .tick { font-family: var(--mono); font-weight: 600; letter-spacing: -0.01em; }
+
+  .eyebrow {
+    font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600;
+  }
+
+  .shell { max-width: 1500px; margin: 0 auto; padding: var(--s5) var(--s5) 0; }
+
+  /* ---------- prototype switcher ---------- */
+  #switcher {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 999; display: flex; align-items: center; gap: 2px;
+    background: var(--ink); color: var(--ground);
+    border-radius: 999px; padding: 5px;
+    box-shadow: 0 6px 28px rgba(0,0,0,.28);
+    font-size: 12.5px;
+  }
+  #switcher button {
+    background: none; border: 0; color: inherit; cursor: pointer;
+    font: inherit; padding: 5px 11px; border-radius: 999px; line-height: 1;
+  }
+  #switcher button:hover { background: rgba(128,128,128,.28); }
+  #switcher button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #switcher .label { padding: 0 12px; font-weight: 600; white-space: nowrap; }
+  #switcher .label small { font-weight: 400; opacity: .62; margin-left: 7px; }
+
+  /* ---------- shared atoms ---------- */
+  .stars { color: var(--accent); letter-spacing: 1px; font-size: 13px; white-space: nowrap; }
+  .stars .off { color: var(--ink-3); opacity: .35; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 2.5px 7px; border-radius: 3px; white-space: nowrap;
+  }
+  .pill.trig  { background: var(--accent); color: #14181f; }
+  .pill.watch { background: var(--panel-2); color: var(--ink-2); border: 1px solid var(--line); }
+  .pill.new   { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .pill.drift { background: transparent; color: var(--ink-3); border: 1px dashed var(--line); }
+
+  .up { color: var(--up); }
+  .dn { color: var(--down); }
+  .mut { color: var(--ink-3); }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  }
+
+  table.grid { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.grid th {
+    text-align: left; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; padding: 7px 9px;
+    border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  table.grid td { padding: 7px 9px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+  table.grid tr:last-child td { border-bottom: 0; }
+  table.grid td.r, table.grid th.r { text-align: right; }
+  table.grid tbody tr.sel { background: var(--accent-soft); }
+  table.grid tbody tr[data-pick] { cursor: pointer; }
+  table.grid tbody tr[data-pick]:hover { background: var(--panel-2); }
+
+  .scroll-x { overflow-x: auto; }
+
+  /* ---------- regime banner ---------- */
+  .regime {
+    display: flex; align-items: baseline; gap: var(--s4);
+    padding: var(--s3) var(--s4);
+    border: 1px solid var(--line); border-left-width: 4px; border-radius: 5px;
+    background: var(--panel); flex-wrap: wrap;
+  }
+  .regime.FRIENDLY { border-left-color: var(--up); }
+  .regime.CHOPPY   { border-left-color: var(--accent); }
+  .regime.HOSTILE  { border-left-color: var(--down); }
+  .regime .mkt { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+  .regime .state { font-family: var(--mono); font-weight: 700; font-size: 13px; letter-spacing: 0.04em; }
+  .regime.FRIENDLY .state { color: var(--up); }
+  .regime.CHOPPY   .state { color: var(--accent); }
+  .regime.HOSTILE  .state { color: var(--down); }
+  .regime .posture { color: var(--ink-2); font-size: 13px; }
+  .regime .meta { margin-left: auto; color: var(--ink-3); font-size: 12px; }
+
+  canvas { display: block; width: 100%; }
+
+  .breakdown { font-size: 12.5px; }
+  .breakdown .row {
+    display: grid; grid-template-columns: 1fr auto auto;
+    gap: var(--s3); padding: 5px 0; border-bottom: 1px solid var(--line-soft);
+    align-items: baseline;
+  }
+  .breakdown .row:last-child { border-bottom: 0; }
+  .breakdown .dim { color: var(--ink-2); }
+  .breakdown .w { color: var(--ink-3); font-family: var(--mono); font-size: 11px; }
+  .breakdown .pt { font-family: var(--mono); font-weight: 700; min-width: 28px; text-align: right; }
+  .breakdown .pt.on { color: var(--accent); }
+  .breakdown .pt.off { color: var(--ink-3); opacity: .5; }
+  .breakdown .total {
+    display: flex; justify-content: space-between; padding-top: var(--s2); margin-top: var(--s2);
+    border-top: 1px solid var(--line); font-weight: 600;
+  }
+
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px var(--s3); font-size: 12.5px; }
+  .kv dt { color: var(--ink-3); }
+  .kv dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  .note {
+    font-size: 12px; color: var(--ink-3); line-height: 1.55;
+    border-left: 2px solid var(--line); padding-left: var(--s3);
+  }
+  .note b { color: var(--ink-2); font-weight: 600; }
+</style>
+
+<div id="app"></div>
+
+<div id="switcher" role="group" aria-label="Prototype variant switcher">
+  <button type="button" data-step="-1" aria-label="Previous variant">←</button>
+  <span class="label" id="sw-label"></span>
+  <button type="button" data-step="1" aria-label="Next variant">→</button>
+</div>
+
+<script>
+/* =====================================================================
+   THROWAWAY PROTOTYPE — ticket 11. Fabricated data, real shapes.
+   ===================================================================== */
+
+/* ---------- seeded rng so charts are stable across renders ---------- */
+function rng(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+/* ---------- synthetic bars: momentum leg, then a contracting base ---------- */
+function genBars(seed, adr, L, drift) {
+  const r = rng(seed);
+  const n = 110, bars = [];
+  let px = 100;
+  for (let i = 0; i < n; i++) {
+    const inBase = i >= n - L;
+    let vol;
+    if (inBase) {
+      // contraction: range shrinks toward the last bar
+      const t = (i - (n - L)) / Math.max(1, L - 1);
+      vol = adr * (0.85 - 0.45 * t) / 100;
+      px *= 1 + (r() - 0.5) * vol * 0.9;
+    } else {
+      const legStrength = i > n - L - 45 ? drift : drift * 0.25;
+      vol = adr / 100;
+      px *= 1 + legStrength + (r() - 0.5) * vol * 1.5;
+    }
+    const o = px * (1 + (r() - 0.5) * vol * 0.4);
+    const c = px * (1 + (r() - 0.5) * vol * 0.4);
+    const h = Math.max(o, c) * (1 + r() * vol * 0.55);
+    const l = Math.min(o, c) * (1 - r() * vol * 0.55);
+    const base = 1_000_000 * (0.8 + r() * 0.5);
+    bars.push({ o, h, l, c, v: inBase ? base * (0.45 - 0.15 * r()) : base * (1 + r() * 0.9) });
+  }
+  return bars;
+}
+
+function sma(bars, len, key = 'c') {
+  const out = new Array(bars.length).fill(null);
+  let sum = 0;
+  for (let i = 0; i < bars.length; i++) {
+    sum += bars[i][key];
+    if (i >= len) sum -= bars[i - len][key];
+    if (i >= len - 1) out[i] = sum / len;
+  }
+  return out;
+}
+
+/* least-squares fit over the base highs / lows (ticket 08's triangle test) */
+function fit(bars, L, key) {
+  const start = bars.length - L, pts = [];
+  for (let i = start; i < bars.length; i++) pts.push([i, bars[i][key]]);
+  const n = pts.length;
+  const mx = pts.reduce((a, p) => a + p[0], 0) / n;
+  const my = pts.reduce((a, p) => a + p[1], 0) / n;
+  let num = 0, den = 0;
+  for (const [x, y] of pts) { num += (x - mx) * (y - my); den += (x - mx) ** 2; }
+  const m = den ? num / den : 0;
+  return { m, b: my - m * mx };
+}
+
+/* ---------- the universe of fake candidates ---------- */
+const RAW = [
+  // mkt, ticker, name, sector, industry, stars, state, L, adr, dv, k5, ranks, conf, stopVsAdr, distPct, seed, drift
+  ['US','NBIS','Nebius Group','Technology','Information Technology Services',5,'TRIGGERED',6,7.4,'$412M',4,[7,3,2,11,null],true,0.68,+0.4,1101,0.011],
+  ['US','TSSI','TSS Inc','Technology','Information Technology Services',5,'NEW',4,9.1,'$58M',3,[null,5,4,9,null],true,0.55,-1.9,1102,0.014],
+  ['US','CLS','Celestica','Technology','Electronic Components',4,'WATCHING',9,5.2,'$688M',5,[22,14,8,6,4],true,0.81,-3.1,1103,0.008],
+  ['US','RKLB','Rocket Lab','Industrials','Aerospace & Defense',4,'NEW',5,6.8,'$734M',3,[null,18,12,21,null],true,0.74,-2.4,1104,0.010],
+  ['US','APP','AppLovin','Technology','Software — Application',4,'WATCHING',12,5.9,'$1.4B',4,[41,9,6,3,2],true,0.62,-4.8,1105,0.009],
+  ['US','HOOD','Robinhood Markets','Financial Services','Capital Markets',3,'WATCHING',7,5.5,'$1.1B',4,[16,11,19,14,null],false,0.93,-2.2,1106,0.007],
+  ['US','ONON','On Holding','Consumer Cyclical','Footwear & Accessories',3,'DRIFT',15,4.3,'$298M',2,[null,null,27,24,null],false,0.88,-0.6,1107,0.004],
+  ['US','PLTR','Palantir','Technology','Software — Infrastructure',3,'WATCHING',11,4.9,'$3.2B',3,[null,24,17,8,5],true,0.79,-5.4,1108,0.006],
+  ['IDX','BRMS.JK','Bumi Resources Minerals','Basic Materials','Other Industrial Metals & Mining',5,'TRIGGERED',5,8.2,'Rp 41B',4,[3,2,6,9,null],true,0.51,+1.1,2101,0.013],
+  ['IDX','MDKA.JK','Merdeka Copper Gold','Basic Materials','Gold',4,'NEW',4,5.7,'Rp 88B',3,[null,7,5,12,null],true,0.66,-1.4,2102,0.010],
+  ['IDX','ANTM.JK','Aneka Tambang','Basic Materials','Gold',4,'WATCHING',8,5.1,'Rp 210B',4,[11,6,4,7,3],true,0.72,-2.8,2103,0.008],
+  ['IDX','INCO.JK','Vale Indonesia','Basic Materials','Other Industrial Metals & Mining',3,'WATCHING',10,4.6,'Rp 64B',2,[null,null,14,11,null],true,0.86,-3.6,2104,0.006],
+  ['IDX','PTBA.JK','Bukit Asam','Energy','Thermal Coal',3,'DRIFT',13,4.1,'Rp 52B',2,[null,21,18,null,null],false,0.91,-0.9,2105,0.004],
+  ['IDX','TINS.JK','Timah','Basic Materials','Other Industrial Metals & Mining',2,'WATCHING',6,6.3,'Rp 33B',1,[null,null,29,null,null],true,0.97,-4.1,2106,0.005],
+];
+
+const CANDS = RAW.map((r, i) => {
+  const [market, ticker, name, sector, industry, stars, state, L, adr, dv, k5, ranks, conf, stopVsAdr, distPct, seed, drift] = r;
+  const bars = genBars(seed, adr, L, drift);
+  const last = bars[bars.length - 1].c;
+  const hi = fit(bars, L, 'h');
+  const lo = fit(bars, L, 'l');
+  const flatMax = Math.max(...bars.slice(-L).map(b => b.h));
+  const sloped = hi.m * (bars.length - 1) + hi.b;
+  const trigger = Math.min(flatMax, sloped);
+  return {
+    id: i, market, ticker, name, sector, industry, stars, state, L, adr, dv, k5, ranks, conf,
+    stopVsAdr, distPct, bars, last, hi, lo, trigger, flatMax, sloped,
+    baseLow: Math.min(...bars.slice(-L).map(b => b.l)),
+  };
+});
+
+/* ---------- regimes (ticket 10) ---------- */
+const REGIMES = [
+  { market: 'IDX', index: '^JKSE', state: 'FRIENDLY', posture: 'Full size', asOf: '2026-08-05 close (WIB)', breadth: 61, fresh: true },
+  { market: 'US',  index: '^IXIC', state: 'CHOPPY',   posture: 'Reduced size', asOf: '2026-08-04 close (ET)', breadth: 44, fresh: false },
+];
+
+/* ---------- leaderboards (ticket 06) ---------- */
+const LOOKBACKS = ['1w', '1m', '3m', '6m', '12m'];
+const BOARDS = {
+  US: {
+    '1w':  [['TSSI',41.2,1,true],['NBIS',33.8,1,true],['RKLB',28.4,0,false],['IONQ',24.1,1,false],['SMCI',22.7,0,false],['CLS',19.3,0,false]],
+    '1m':  [['NBIS',88.1,0,false],['TSSI',76.4,1,true],['APP',61.2,0,false],['RKLB',54.9,0,false],['CLS',48.2,0,false],['PLTR',39.4,0,false]],
+    '3m':  [['NBIS',214.3,0,false],['TSSI',188.0,0,false],['CLS',142.6,0,false],['APP',119.8,0,false],['RKLB',96.4,1,false],['PLTR',81.2,0,false]],
+    '6m':  [['APP',312.7,0,false],['CLS',241.1,0,false],['PLTR',198.4,0,false],['NBIS',176.2,0,false],['RKLB',144.8,0,false],['ONON',61.3,0,false]],
+    '12m': [['APP',618.4,0,false],['PLTR',441.2,0,false],['CLS',388.6,0,false],['NBIS',209.1,0,false],['HOOD',188.4,0,false],['RKLB',121.7,0,false]],
+  },
+  IDX: {
+    '1w':  [['BRMS.JK',22.4,1,true],['MDKA.JK',18.1,1,false],['TINS.JK',14.8,0,false],['ANTM.JK',12.2,0,false],['INCO.JK',9.4,0,false],['PTBA.JK',7.1,0,false]],
+    '1m':  [['BRMS.JK',64.8,0,false],['MDKA.JK',48.2,0,false],['ANTM.JK',41.1,0,false],['PTBA.JK',28.4,1,false],['TINS.JK',24.6,0,false],['INCO.JK',18.2,0,false]],
+    '3m':  [['ANTM.JK',118.4,0,false],['MDKA.JK',96.2,0,false],['BRMS.JK',88.7,0,false],['INCO.JK',54.1,0,false],['TINS.JK',44.8,0,false],['PTBA.JK',38.2,0,false]],
+    '6m':  [['ANTM.JK',186.2,0,false],['MDKA.JK',142.4,0,false],['INCO.JK',88.1,0,false],['BRMS.JK',76.4,0,false],['PTBA.JK',41.2,0,false],['TINS.JK',33.8,0,false]],
+    '12m': [['ANTM.JK',288.4,0,false],['MDKA.JK',196.1,0,false],['INCO.JK',124.8,0,false],['PTBA.JK',88.2,0,false],['BRMS.JK',71.4,0,false],['TINS.JK',52.1,0,false]],
+  },
+};
+
+/* ---------- sectors (ticket 07) ---------- */
+const SECTORS = {
+  US: [
+    ['Technology',      139, [41.2,38.4,34.1,29.8,26.2]],
+    ['Industrials',     212, [24.1,22.8,19.4,18.2,17.1]],
+    ['Financial Services',188,[18.4,21.2,24.8,27.1,29.4]],
+    ['Consumer Cyclical',176, [12.1,14.4,18.2,21.4,22.8]],
+    ['Healthcare',      241, [ 9.2,11.4,13.8,16.2,18.4]],
+    ['Energy',           88, [ 6.8, 8.2,12.4,18.8,21.2]],
+  ],
+  IDX: [
+    ['Basic Materials',  38, [52.6,44.7,39.5,31.6,28.9]],
+    ['Energy',           31, [22.6,25.8,29.0,35.5,38.7]],
+    ['Utilities',        10, [30.0,20.0,10.0,10.0, 0.0]],
+    ['Industrials',      27, [14.8,11.1,11.1, 7.4, 7.4]],
+    ['Financial Services',44,[ 9.1,11.4,13.6,18.2,20.5]],
+    ['Consumer Cyclical', 35, [ 5.7, 8.6, 8.6,11.4,14.3]],
+  ],
+};
+
+/* ---------- score breakdown (§3.5) ---------- */
+function breakdown(c) {
+  const on = {
+    tight:  c.stars >= 4,
+    order:  c.stars >= 4 || c.state === 'TRIGGERED',
+    prior:  true,
+    hl:     c.stars >= 3,
+    ma:     c.stopVsAdr < 0.85,
+    vol:    c.stars >= 3,
+    sector: c.conf,
+    adr:    parseFloat(c.adr) >= 5,
+  };
+  return [
+    ['Tightness — range narrowing vs √L baseline', 2, on.tight],
+    ['Orderliness — churn ratio', 2, on.order],
+    ['Prior move — top decile 1m/3m/6m', 1, on.prior],
+    ['Higher lows intact', 1, on.hl],
+    ['MA catch-up — 10/20 risen to price', 1, on.ma],
+    ['Volume dry-up in the base', 1, on.vol],
+    ['Sector confirmation — LOO share ≥ 10%', 1, on.sector],
+    ['ADR ≥ 5%', 1, on.adr],
+  ];
+}
+
+/* ---------- chart ---------- */
+function drawChart(cv, c, opts = {}) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = opts.height || 260;
+  if (!W) return;
+  cv.width = W * dpr; cv.height = H * dpr;
+  cv.style.height = H + 'px';
+  const x = cv.getContext('2d');
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.clearRect(0, 0, W, H);
+
+  const cs = getComputedStyle(document.documentElement);
+  const CU = cs.getPropertyValue('--candle-up').trim();
+  const CD = cs.getPropertyValue('--candle-dn').trim();
+  const GR = cs.getPropertyValue('--grid').trim();
+  const AC = cs.getPropertyValue('--accent').trim();
+  const I3 = cs.getPropertyValue('--ink-3').trim();
+
+  const show = opts.bars || 70;
+  const all = c.bars, n = all.length;
+  const from = Math.max(0, n - show);
+  const seg = all.slice(from);
+
+  const volH = Math.round(H * 0.18);
+  const priceH = H - volH - 6;
+  const padR = 46;
+  const plotW = W - padR;
+
+  const hiV = Math.max(...seg.map(b => b.h)) * 1.015;
+  const loV = Math.min(...seg.map(b => b.l)) * 0.985;
+  const Y = v => priceH - ((v - loV) / (hiV - loV)) * priceH;
+  const X = i => (i / seg.length) * plotW + (plotW / seg.length) * 0.5;
+  const bw = Math.max(1.5, (plotW / seg.length) * 0.62);
+
+  // base shading
+  const baseFrom = seg.length - c.L;
+  x.fillStyle = AC; x.globalAlpha = 0.07;
+  x.fillRect(X(baseFrom) - bw, 0, plotW - X(baseFrom) + bw, priceH);
+  x.globalAlpha = 1;
+
+  // gridlines
+  x.strokeStyle = GR; x.lineWidth = 1;
+  for (let g = 0; g <= 3; g++) {
+    const yy = Math.round((priceH / 3) * g) + 0.5;
+    x.beginPath(); x.moveTo(0, yy); x.lineTo(plotW, yy); x.stroke();
+  }
+
+  // moving averages
+  const m10 = sma(all, 10), m20 = sma(all, 20), m50 = sma(all, 50);
+  const line = (arr, col, w) => {
+    x.strokeStyle = col; x.lineWidth = w; x.globalAlpha = .75; x.beginPath();
+    let started = false;
+    for (let i = 0; i < seg.length; i++) {
+      const v = arr[from + i]; if (v == null) continue;
+      const px = X(i), py = Y(v);
+      if (!started) { x.moveTo(px, py); started = true; } else x.lineTo(px, py);
+    }
+    x.stroke(); x.globalAlpha = 1;
+  };
+  line(m50, I3, 1);
+  line(m20, AC, 1.4);
+  line(m10, I3, 1);
+
+  // candles
+  seg.forEach((b, i) => {
+    const up = b.c >= b.o;
+    x.strokeStyle = up ? CU : CD; x.fillStyle = up ? CU : CD; x.lineWidth = 1;
+    const cx = Math.round(X(i)) + 0.5;
+    x.beginPath(); x.moveTo(cx, Y(b.h)); x.lineTo(cx, Y(b.l)); x.stroke();
+    const top = Y(Math.max(b.o, b.c)), bot = Y(Math.min(b.o, b.c));
+    x.fillRect(cx - bw / 2, top, bw, Math.max(1, bot - top));
+  });
+
+  // fitted triangle over the base (ticket 08)
+  const fitLine = (f, dash) => {
+    x.save(); x.setLineDash(dash); x.strokeStyle = AC; x.lineWidth = 1.4;
+    x.beginPath();
+    const i0 = baseFrom, i1 = seg.length - 1;
+    x.moveTo(X(i0), Y(f.m * (from + i0) + f.b));
+    x.lineTo(X(i1), Y(f.m * (from + i1) + f.b));
+    x.stroke(); x.restore();
+  };
+  fitLine(c.hi, []); fitLine(c.lo, [3, 3]);
+
+  // trigger level
+  x.save(); x.setLineDash([2, 4]); x.strokeStyle = AC; x.lineWidth = 1;
+  x.beginPath(); x.moveTo(0, Y(c.trigger)); x.lineTo(plotW + 4, Y(c.trigger)); x.stroke(); x.restore();
+  x.fillStyle = AC; x.font = '600 10px ' + cs.getPropertyValue('--mono');
+  x.fillText('TRIG', plotW + 6, Y(c.trigger) + 3);
+
+  // base low / stop
+  x.save(); x.setLineDash([1, 3]); x.strokeStyle = I3; x.lineWidth = 1;
+  x.beginPath(); x.moveTo(X(baseFrom) - bw, Y(c.baseLow)); x.lineTo(plotW + 4, Y(c.baseLow)); x.stroke(); x.restore();
+  x.fillStyle = I3; x.fillText('STOP', plotW + 6, Y(c.baseLow) + 3);
+
+  // volume
+  const vmax = Math.max(...seg.map(b => b.v));
+  seg.forEach((b, i) => {
+    const h = (b.v / vmax) * volH;
+    const inBase = i >= baseFrom;
+    x.fillStyle = inBase ? AC : I3;
+    x.globalAlpha = inBase ? 0.5 : 0.28;
+    x.fillRect(X(i) - bw / 2, H - h, bw, h);
+  });
+  x.globalAlpha = 1;
+}
+
+/* redraw every visible canvas */
+function paintAll() {
+  document.querySelectorAll('canvas[data-cand]').forEach(cv => {
+    const c = CANDS[+cv.dataset.cand];
+    drawChart(cv, c, { height: +cv.dataset.h || 260, bars: +cv.dataset.n || 70 });
+  });
+}
+
+/* ---------- small html helpers ---------- */
+const esc = s => String(s).replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
+const stars = n => `<span class="stars" aria-label="${n} of 5 stars">${'★'.repeat(n)}<span class="off">${'★'.repeat(5 - n)}</span></span>`;
+const statePill = s => ({
+  TRIGGERED: '<span class="pill trig">Triggered</span>',
+  NEW:       '<span class="pill new">New setup</span>',
+  WATCHING:  '<span class="pill watch">Watching</span>',
+  DRIFT:     '<span class="pill drift">Line drift</span>',
+}[s]);
+const signed = v => `<span class="num ${v >= 0 ? 'up' : 'dn'}">${v >= 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+const k5 = k => `<span class="num mut" title="top decile in ${k} of 5 lookbacks">${k}/5</span>`;
+
+function regimeBanner(r) {
+  return `<div class="regime ${r.state}">
+    <span class="mkt">${r.market}</span>
+    <span class="state">${r.state}</span>
+    <span class="posture">${r.posture}</span>
+    <span class="meta">breadth <b class="num">${r.breadth}%</b> · ${r.index} · showing ${r.asOf}${r.fresh ? '' : ' · <span class="mut">session in progress, next run tonight</span>'}</span>
+  </div>`;
+}
+
+function breakdownHtml(c) {
+  const rows = breakdown(c);
+  const total = rows.reduce((a, [, w, on]) => a + (on ? w : 0), 0);
+  return `<div class="breakdown">
+    ${rows.map(([d, w, on]) => `<div class="row">
+      <span class="dim">${d}</span>
+      <span class="w">×${w}</span>
+      <span class="pt ${on ? 'on' : 'off'}">${on ? w : 0}</span>
+    </div>`).join('')}
+    <div class="total"><span>${total} / 10 → ${(total / 2).toFixed(1)} stars</span>${stars(c.stars)}</div>
+  </div>`;
+}
+
+function factsHtml(c) {
+  return `<dl class="kv">
+    <dt>Base length</dt><dd>${c.L} sessions</dd>
+    <dt>Trigger</dt><dd>${c.trigger.toFixed(2)} <span class="mut">(${c.sloped < c.flatMax ? 'sloped line' : 'flat high'})</span></dd>
+    <dt>Distance</dt><dd>${c.distPct >= 0 ? '+' : ''}${c.distPct.toFixed(1)}%</dd>
+    <dt>Stop</dt><dd>${(c.stopVsAdr).toFixed(2)}× ADR <span class="mut">at base low</span></dd>
+    <dt>ADR(20)</dt><dd>${c.adr.toFixed(1)}%</dd>
+    <dt>$ volume</dt><dd>${c.dv}</dd>
+    <dt>Decile</dt><dd>${c.k5}/5 ${c.ranks.map((r, i) => r ? `<span class="mut">${LOOKBACKS[i]}#${r}</span>` : '').filter(Boolean).join(' ')}</dd>
+    <dt>Sector</dt><dd style="font-family:var(--sans)">${c.sector} <span class="mut">· ${c.industry}</span></dd>
+  </dl>`;
+}
+
+/* =====================================================================
+   VARIANT A — "Tonight": a run-sheet you finish.
+   Landing is a DIFF, not a list. Sections are ordered by what has
+   changed since last night. Two markets stacked (IDX closes first).
+   Leaderboards and sectors are demoted to a separate "Reference" area.
+   ===================================================================== */
+function VariantA() {
+  const byState = s => CANDS.filter(c => c.state === s);
+  const sect = (title, sub, list, openFirst) => {
+    if (!list.length) return '';
+    return `<section style="margin-top:var(--s6)">
+      <div style="display:flex;align-items:baseline;gap:var(--s3);margin-bottom:var(--s3)">
+        <h2 style="font-size:17px">${title}</h2>
+        <span class="num" style="color:var(--accent);font-weight:700">${list.length}</span>
+        <span class="mut" style="font-size:12.5px">${sub}</span>
+      </div>
+      ${list.map((c, i) => cardA(c, openFirst && i === 0)).join('')}
+    </section>`;
+  };
+
+  const cardA = (c, open) => `<details class="card" style="margin-bottom:var(--s2)" ${open ? 'open' : ''}>
+    <summary style="display:flex;align-items:center;gap:var(--s3);padding:var(--s3) var(--s4);cursor:pointer;list-style:none">
+      <span class="tick" style="font-size:15px;min-width:78px">${c.ticker}</span>
+      ${stars(c.stars)}
+      <span class="mut" style="font-size:12.5px;flex:1;overflow:hidden;text-overflow:ellipsis">${c.name} · ${c.industry}</span>
+      <span class="num" style="font-size:12.5px">${c.distPct >= 0 ? '+' : ''}${c.distPct.toFixed(1)}% to trig</span>
+      <span class="num mut" style="font-size:12.5px">${c.stopVsAdr.toFixed(2)}× ADR stop</span>
+      <span class="pill watch">${c.market}</span>
+    </summary>
+    <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:var(--s5);padding:0 var(--s4) var(--s4)">
+      <div><canvas data-cand="${c.id}" data-h="240"></canvas></div>
+      <div>${breakdownHtml(c)}<div style="height:var(--s4)"></div>${factsHtml(c)}</div>
+    </div>
+  </details>`;
+
+  return `<div class="shell">
+    <header style="display:flex;align-items:baseline;gap:var(--s4);margin-bottom:var(--s4)">
+      <h1 style="font-size:22px;letter-spacing:-0.02em">Tonight</h1>
+      <span class="mut num">Wed 5 Aug 2026</span>
+      <span class="mut" style="margin-left:auto;font-size:12.5px">est. 6 min · 4 things changed</span>
+    </header>
+
+    <div style="display:grid;gap:var(--s2)">${REGIMES.map(regimeBanner).join('')}</div>
+
+    ${sect('Triggered overnight', 'crossed the level since the last run — act or discard', byState('TRIGGERED'), true)}
+    ${sect('New setups, 4–5★', 'entered the watch state tonight', byState('NEW').filter(c => c.stars >= 4), false)}
+    ${sect('Line drifted down to price', 'the trigger fell to meet a base that did not move — weaker event', byState('DRIFT'), false)}
+
+    <section style="margin-top:var(--s6)">
+      <details>
+        <summary style="cursor:pointer;font-weight:600;font-size:15px">
+          Still watching, unchanged <span class="num mut">${byState('WATCHING').length}</span>
+        </summary>
+        <div style="margin-top:var(--s3)">${byState('WATCHING').map(c => cardA(c, false)).join('')}</div>
+      </details>
+    </section>
+
+    <section style="margin-top:var(--s6);padding-top:var(--s4);border-top:1px solid var(--line)">
+      <div class="eyebrow" style="margin-bottom:var(--s2)">Reference — not part of the nightly path</div>
+      <div style="display:flex;gap:var(--s3);flex-wrap:wrap">
+        <a href="#" class="card" style="padding:var(--s3) var(--s4);text-decoration:none;color:var(--ink)">Decile leaderboards <span class="mut">10 boards</span></a>
+        <a href="#" class="card" style="padding:var(--s3) var(--s4);text-decoration:none;color:var(--ink)">Sector rotation <span class="mut">2 markets</span></a>
+        <a href="#" class="card" style="padding:var(--s3) var(--s4);text-decoration:none;color:var(--ink)">Rejected tonight <span class="mut">216 names</span></a>
+      </div>
+      <p class="note" style="margin-top:var(--s4);max-width:62ch">
+        <b>The claim:</b> the nightly job is a queue you can finish, not a dataset you browse.
+        Everything on this page changed since last night; anything that didn't is one fold down.
+        Leaderboards and sector rotation are weekly reading, not nightly, so they leave the main path entirely.
+      </p>
+    </section>
+  </div>`;
+}
+
+/* =====================================================================
+   VARIANT B — "Console": one dense screen, no navigation.
+   Master list left (both markets, one table), chart + score right,
+   regime as a thin strip, reference tables in a bottom drawer.
+   ===================================================================== */
+let selB = 0;
+function VariantB() {
+  const c = CANDS[selB];
+  const rows = CANDS.map(x => `<tr data-pick="B:${x.id}" class="${x.id === selB ? 'sel' : ''}">
+    <td><span class="tick">${x.ticker}</span></td>
+    <td>${stars(x.stars)}</td>
+    <td>${statePill(x.state)}</td>
+    <td class="r num">${x.distPct >= 0 ? '+' : ''}${x.distPct.toFixed(1)}</td>
+    <td class="r num">${x.stopVsAdr.toFixed(2)}</td>
+    <td class="r num">${x.adr.toFixed(1)}</td>
+    <td class="r">${k5(x.k5)}</td>
+    <td class="r num mut">${x.L}</td>
+    <td class="mut" style="font-size:12px">${x.industry}</td>
+  </tr>`).join('');
+
+  return `<div style="height:calc(100vh - 76px);display:flex;flex-direction:column;padding:var(--s3) var(--s3) 0;gap:var(--s2)">
+    <div style="display:flex;gap:var(--s2);align-items:stretch">
+      ${REGIMES.map(r => `<div class="regime ${r.state}" style="flex:1;padding:var(--s2) var(--s3);gap:var(--s3)">
+        <span class="mkt" style="font-size:13px">${r.market}</span>
+        <span class="state" style="font-size:12px">${r.state}</span>
+        <span class="posture" style="font-size:12px">${r.posture}</span>
+        <span class="meta" style="font-size:11px">br ${r.breadth}% · ${r.asOf}${r.fresh ? '' : ' · stale'}</span>
+      </div>`).join('')}
+      <div class="card" style="display:flex;align-items:center;padding:0 var(--s3);gap:var(--s3);font-size:12px">
+        <span class="mut">setups</span><span class="num" style="font-weight:700">${CANDS.length}</span>
+        <span class="mut">triggered</span><span class="num" style="font-weight:700;color:var(--accent)">${CANDS.filter(x => x.state === 'TRIGGERED').length}</span>
+      </div>
+    </div>
+
+    <div style="flex:1;display:grid;grid-template-columns:1.15fr 1fr;gap:var(--s2);min-height:0">
+      <div class="card" style="display:flex;flex-direction:column;min-height:0">
+        <div style="padding:var(--s2) var(--s3);border-bottom:1px solid var(--line);display:flex;gap:var(--s3);align-items:center">
+          <span class="eyebrow">All setups · both markets</span>
+          <span class="mut" style="font-size:11.5px;margin-left:auto">j / k to move · sort by any column</span>
+        </div>
+        <div style="overflow:auto;flex:1">
+          <table class="grid">
+            <thead><tr>
+              <th>Ticker</th><th>Score</th><th>State</th><th class="r">Δtrig</th>
+              <th class="r">Stop</th><th class="r">ADR</th><th class="r">k/5</th><th class="r">L</th><th>Industry</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="display:flex;flex-direction:column;min-height:0;overflow:auto">
+        <div style="padding:var(--s3);border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:var(--s3)">
+          <span class="tick" style="font-size:17px">${c.ticker}</span>
+          ${stars(c.stars)} ${statePill(c.state)}
+          <span class="mut" style="font-size:12px;margin-left:auto">${c.market} · ${c.sector}</span>
+        </div>
+        <div style="padding:var(--s3)"><canvas data-cand="${c.id}" data-h="250"></canvas></div>
+        <div style="padding:0 var(--s3) var(--s3);display:grid;grid-template-columns:1fr 1fr;gap:var(--s4)">
+          <div>${breakdownHtml(c)}</div>
+          <div>${factsHtml(c)}</div>
+        </div>
+      </div>
+    </div>
+
+    <details class="card" style="flex:0 0 auto;margin-bottom:var(--s3)">
+      <summary style="padding:var(--s2) var(--s3);cursor:pointer;font-size:12.5px;font-weight:600">
+        Leaderboards &amp; sector rotation <span class="mut" style="font-weight:400">— drawer, same screen</span>
+      </summary>
+      <div class="scroll-x" style="padding:var(--s3);display:flex;gap:var(--s4)">
+        ${LOOKBACKS.map(lb => `<div style="min-width:190px">
+          <div class="eyebrow" style="margin-bottom:var(--s1)">US ${lb}</div>
+          <table class="grid" style="font-size:12px">${BOARDS.US[lb].slice(0, 5).map(([t, r, k, flag]) => `<tr>
+            <td><span class="tick">${t}</span>${flag ? ' <span class="pill new" style="font-size:9px;padding:1px 4px">30/5d</span>' : ''}</td>
+            <td class="r num up">+${r.toFixed(0)}%</td></tr>`).join('')}</table>
+        </div>`).join('')}
+        <div style="min-width:230px">
+          <div class="eyebrow" style="margin-bottom:var(--s1)">US sector · share of 1m decile</div>
+          <table class="grid" style="font-size:12px">${SECTORS.US.slice(0, 5).map(([s, n, sh]) => `<tr>
+            <td>${s}</td><td class="r num">${sh[1].toFixed(1)}%</td>
+            <td class="r num ${sh[0] - sh[3] >= 0 ? 'up' : 'dn'}">${sh[0] - sh[3] >= 0 ? '+' : ''}${(sh[0] - sh[3]).toFixed(1)}</td></tr>`).join('')}</table>
+        </div>
+      </div>
+    </details>
+  </div>`;
+}
+
+/* =====================================================================
+   VARIANT C — "Market workbench": market is the top-level axis.
+   Tabs per market; inside, three columns — candidates, chart, and
+   sector context side by side, so the sector answer sits next to the name.
+   ===================================================================== */
+let tabC = 'IDX', selC = { IDX: 8, US: 0 };
+function VariantC() {
+  const r = REGIMES.find(x => x.market === tabC);
+  const list = CANDS.filter(x => x.market === tabC);
+  const c = CANDS[selC[tabC]];
+  const secs = SECTORS[tabC];
+
+  const tab = m => `<button data-pick="C:${m}" style="
+      background:${m === tabC ? 'var(--panel)' : 'transparent'};
+      border:1px solid ${m === tabC ? 'var(--line)' : 'transparent'};
+      border-bottom-color:${m === tabC ? 'var(--panel)' : 'var(--line)'};
+      margin-bottom:-1px;padding:var(--s2) var(--s5);border-radius:5px 5px 0 0;
+      font:inherit;font-weight:${m === tabC ? 700 : 400};color:${m === tabC ? 'var(--ink)' : 'var(--ink-3)'};
+      cursor:pointer">
+      ${m} <span class="num" style="opacity:.6">${CANDS.filter(x => x.market === m).length}</span>
+    </button>`;
+
+  return `<div class="shell">
+    <header style="display:flex;align-items:baseline;gap:var(--s4);margin-bottom:var(--s4)">
+      <h1 style="font-size:20px;letter-spacing:-0.02em">Screen</h1>
+      <span class="mut num">Wed 5 Aug 2026</span>
+    </header>
+
+    <div style="display:flex;gap:var(--s1);border-bottom:1px solid var(--line)">
+      ${tab('IDX')}${tab('US')}
+      <span style="margin-left:var(--s5);align-self:center;padding-bottom:var(--s2)">
+        <a href="#" style="color:var(--ink-3);text-decoration:none;font-size:13px">Boards</a>
+        <span class="mut" style="font-size:11.5px;margin-left:var(--s2)">5 lookbacks × 2 markets — off the nightly path</span>
+      </span>
+    </div>
+
+    <div style="margin:var(--s4) 0">${regimeBanner(r)}</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1.5fr 0.9fr;gap:var(--s3);align-items:start">
+      <div class="card">
+        <div style="padding:var(--s2) var(--s3);border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:var(--s2)">
+          <span class="eyebrow">${tabC} setups</span>
+          <span class="mut" style="font-size:11px;margin-left:auto">sorted by score</span>
+        </div>
+        <table class="grid">
+          <thead><tr>
+            <th>Name</th><th class="r">Score</th><th class="r" title="distance to trigger">Δtrig</th>
+            <th class="r" title="implied stop width vs 1×ADR">Stop</th><th class="r" title="top decile in k of 5 lookbacks">k/5</th>
+          </tr></thead>
+          <tbody>${list.slice().sort((a, b) => b.stars - a.stars).map(x => `<tr data-pick="P:${x.id}" class="${x.id === c.id ? 'sel' : ''}">
+            <td><div><span class="tick">${x.ticker.replace('.JK', '')}</span></div>
+                <div style="font-size:11px" class="mut">${x.industry}</div></td>
+            <td class="r">${stars(x.stars)}<div style="font-size:11px" class="mut">${x.state.toLowerCase()}</div></td>
+            <td class="r num" style="font-size:12px">${x.distPct >= 0 ? '+' : ''}${x.distPct.toFixed(1)}%</td>
+            <td class="r num" style="font-size:12px">${x.stopVsAdr.toFixed(2)}×</td>
+            <td class="r">${k5(x.k5)}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>
+
+      <div class="card" style="padding:var(--s3)">
+        <div style="display:flex;align-items:baseline;gap:var(--s3);margin-bottom:var(--s2)">
+          <span class="tick" style="font-size:16px">${c.ticker}</span>${stars(c.stars)}${statePill(c.state)}
+        </div>
+        <canvas data-cand="${c.id}" data-h="270"></canvas>
+        <div style="margin-top:var(--s3);display:grid;grid-template-columns:1fr 1fr;gap:var(--s4)">
+          <div>${breakdownHtml(c)}</div><div>${factsHtml(c)}</div>
+        </div>
+      </div>
+
+      <div style="display:grid;gap:var(--s3)">
+        <div class="card">
+          <div style="padding:var(--s2) var(--s3);border-bottom:1px solid var(--line)">
+            <span class="eyebrow">Sector rotation · ${tabC}</span>
+          </div>
+          <table class="grid" style="font-size:12px">
+            <thead><tr><th>Sector</th><th class="r">1m</th><th class="r" title="share(1w) − share(6m)">shape</th></tr></thead>
+            <tbody>${secs.map(([s, n, sh]) => {
+              const d = sh[0] - sh[3];
+              const isC = s === c.sector;
+              return `<tr class="${isC ? 'sel' : ''}">
+                <td>${s}<div style="font-size:10.5px" class="mut">n=${n}</div></td>
+                <td class="r num">${sh[1].toFixed(1)}%</td>
+                <td class="r num ${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}</td></tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <p class="note" style="margin:var(--s5) 0;max-width:64ch">
+      <b>Settled in session.</b> Market is the top-level axis — the two close hours apart, so you work one
+      at a time and staleness is structural rather than a warning label. The list sorts by <b>star score</b>,
+      not by proximity to the trigger. Six columns earn their place: ticker, score, distance to trigger,
+      stop width vs 1×ADR, industry and the k/5 breadth badge — everything else lives in the chart panel.
+      Sector rotation sits beside the candidate because §3.5 makes sector a scoring input, not a report.
+      The decile leaderboards are a <b>peer tab, off the nightly path</b>, and there is <b>no rejected-candidates
+      view in v1</b>.
+    </p>
+  </div>`;
+}
+
+/* ---------- variant plumbing ---------- */
+const VARIANTS = [
+  ['C', 'Workbench — market is the axis · CHOSEN', VariantC],
+  ['A', 'Tonight — a run-sheet you finish · rejected', VariantA],
+  ['B', 'Console — one dense screen · rejected', VariantB],
+];
+
+function current() {
+  const k = new URLSearchParams(location.search).get('variant') || 'C';
+  const i = VARIANTS.findIndex(v => v[0] === k.toUpperCase());
+  return i < 0 ? 0 : i;
+}
+
+function render() {
+  const i = current();
+  document.getElementById('app').innerHTML = VARIANTS[i][2]();
+  document.getElementById('sw-label').innerHTML = `${VARIANTS[i][0]}<small>${esc(VARIANTS[i][1])}</small>`;
+  requestAnimationFrame(paintAll);
+}
+
+function go(i) {
+  const u = new URL(location.href);
+  u.searchParams.set('variant', VARIANTS[i][0]);
+  history.replaceState({}, '', u);
+  render();
+}
+
+document.querySelectorAll('#switcher button').forEach(b => {
+  b.addEventListener('click', () => {
+    const n = VARIANTS.length;
+    go((current() + (+b.dataset.step) + n) % n);
+  });
+});
+
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  const n = VARIANTS.length;
+  if (e.key === 'ArrowLeft')  go((current() - 1 + n) % n);
+  if (e.key === 'ArrowRight') go((current() + 1) % n);
+  if (e.key === 'j' || e.key === 'k') {
+    if (VARIANTS[current()][0] !== 'B') return;
+    selB = (selB + (e.key === 'j' ? 1 : -1) + CANDS.length) % CANDS.length;
+    render();
+  }
+});
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-pick]');
+  if (!el) return;
+  const [kind, val] = el.dataset.pick.split(':');
+  if (kind === 'B') { selB = +val; render(); }
+  if (kind === 'C') { tabC = val; render(); }
+  if (kind === 'P') { selC[tabC] = +val; render(); }
+});
+
+window.addEventListener('resize', () => requestAnimationFrame(paintAll));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => requestAnimationFrame(paintAll));
+new MutationObserver(() => requestAnimationFrame(paintAll))
+  .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+render();
+</script>

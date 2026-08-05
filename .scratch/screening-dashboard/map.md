@@ -166,6 +166,32 @@ is written during wayfinding.
   windows excluded as burst and stale. **Every scored quantity is a ratio**, confirming ticket 05's prediction
   that ticket 01's unrecoverable raw IDX prices cost nothing.
 
+- [Dashboard information architecture](issues/11-dashboard-information-architecture.md) — **two screens,
+  and market is the top-level axis**: `IDX` and `US` are tabs worked as **two short sittings**, each after
+  its own close, which dissolves the staleness problem rather than labelling it — there is no coherent
+  "tonight" spanning two markets that close hours apart. Three IAs were built and switched side by side
+  ([prototype](prototypes/11-dashboard-ia.html)); the two rejected ones are the finding. **The session is a
+  surface you scan, not a queue you finish** — the diff-first landing was put and rejected, so **v1 has no
+  "what changed since yesterday" surface anywhere**, and ticket 08's `WATCHING`→`TRIGGERED` transition is
+  computed and persisted but never surfaced. That abstention is what ticket 14 now has to answer. The list
+  sorts by **star score descending** — proximity to the trigger is a column, not the sort, because sorting
+  by distance puts a 2★ barcode above a 5★ base and defending against that needs a star floor, i.e. a
+  tunable. **This promotes ticket 09 from labelling to ordering**: a miscalibrated score now puts the wrong
+  name at the top of the only list in the app, nightly. **Six columns** (ticker, score+state, distance,
+  stop ÷1×ADR, industry, `k/5`) — the row decides whether to open the chart, the chart decides whether to
+  trade; ADR, dollar volume, `L` and the five ranks were cut as near-constant night to night. The chart
+  panel **settles ticket 08's provisional D16 bundle**: §2's full MA set including the 65 EMA, the
+  **primary window only** (drawing D3's retained set would render the degeneracy, not the setup), both
+  fitted lines drawn *as fits* so candles pierce them per §3.2, trigger and base-low stop as rules, and
+  volume dry-up but **no expansion** — it exists only at the break. The §3.5 breakdown sits adjacent
+  because a sort key you cannot audit is one you will not trust. **Sector rotation is in the workbench**
+  (ticket 07 made it a scoring input, not a report); **the five leaderboards are a peer tab off the nightly
+  path**, since ticket 08's D15 already gates on decile membership so the boards re-read an input to a
+  filter that has already run. **No rejected-candidates view in v1** — overruled against a live
+  counter-argument (a zero-parameter detector, never checked against a real chart, with three knowing
+  omissions), so the inspection of the discarded set is handed to ticket 09 as the only place it can now
+  happen.
+
 ## Not yet specified
 
 - **Validation / backtest.** How do we know the screen actually surfaces the right names? History depth
@@ -202,8 +228,10 @@ is written during wayfinding.
        which is the thing an alert hangs on. It is now a channel-and-threshold decision, not fog. -->
 - **Watchlist persistence and user state.** Whether the app remembers names you've marked, and what
   storage that implies, waits on the architecture ticket.
-- **Chart rendering approach.** Library and how the detected trendline / MA context is drawn — waits
-  on the dashboard IA ticket.
+  <!-- "Chart rendering approach" cleared by ticket 11: I5 fixed what the chart draws (§2's MA set
+       including the 65 EMA, the primary window only, both fitted lines as fits, trigger and base-low
+       stop, volume with base bars distinguished). The remaining library choice is a pure architecture
+       question and was handed to ticket 12 — it is not fog and does not need its own ticket. -->
   <!-- "History depth" graduated into ticket 12: the data-source research it waited on is done, and
        ticket 05 fixed the demand side (24-month lookbacks + 20-bar minimum). It is now a storage
        decision, not fog. -->

@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from .bars import clean_bars, parse_bars
+from .detection import Detection, detect, detection_gate
 from .labels import select_fetches
 from .models import RunRecord
 from .ranks import Rank, rank_table
@@ -143,6 +144,35 @@ def capture_follow_through(store: Store, market: str, session: date) -> bool | N
     return broke
 
 
+def rebuild_detections(store: Store, market: str, session: date) -> list[Detection]:
+    """Pipeline stage: detect every eligible universe member for ``session``.
+
+    Detection runs against **every universe member every night**, not only recent
+    movers (spec §4.5): the loop visits each member and the **decile gate** —
+    top decile in any of 1m/3m/6m, off the rank table — decides eligibility, not
+    a "did it move today" pre-filter. Each gated member is handed its clean bars
+    and detected; the cluster and catch-up gates live inside :func:`detect`.
+
+    A member that is gated but not sitting in a base simply yields no detection
+    (it was still evaluated); a strong member with a base is emitted with its
+    trigger, stop and signal vector. Returns — and appends — the detection rows.
+
+    Must run after the universe **and** the ranks for ``session`` are written: it
+    reads both. A quarantined run wrote neither, so it never calls this.
+    """
+    members = store.universe(market, session)
+    gated = detection_gate(store.ranks(market, session))
+    rows: list[Detection] = []
+    for symbol in members:
+        if symbol not in gated:
+            continue
+        found = detect(symbol, store.bars(market, symbol), session)
+        if found is not None:
+            rows.append(found)
+    store.append_detections(market, session, rows)
+    return rows
+
+
 def run_market_universe(
     store: Store,
     source: Source,
@@ -162,11 +192,13 @@ def run_market_universe(
     shrink good data. Above it the universe is rebuilt from the freshly-ingested
     bars — with the candidates that stayed unresolved carrying yesterday's
     classification (§3.4 rule 6) — then ranked, so the session leaves the shared
-    rank substrate every downstream stage reads (§4.3). Once the membership is
-    known the label cache is kept warm too — new members block, a rolling 1/30th
-    of the rest refresh (§3.3, stage 7) — and the index's breakout follow-through
-    is captured, the forward, unbiased regime record that is never displayed or
-    gated (§4.9). ``now`` must be timezone-aware for the finality rule.
+    rank substrate every downstream stage reads (§4.3). With ranks in hand the
+    detector runs against every member, emitting a dated detection row for each
+    name sitting in a valid base (§4.5). Once the membership is known the label
+    cache is kept warm too — new members block, a rolling 1/30th of the rest
+    refresh (§3.3, stage 7) — and the index's breakout follow-through is captured,
+    the forward, unbiased regime record that is never displayed or gated (§4.9).
+    ``now`` must be timezone-aware for the finality rule.
     """
     instruments = source.enumerate(market)
     status: dict[str, str] = {}
@@ -187,6 +219,7 @@ def run_market_universe(
             store, market, session, instruments=instruments, unresolved=unresolved
         )
         rebuild_ranks(store, market, session)
+        rebuild_detections(store, market, session)
         refresh_labels(store, source, market, members, session)
         capture_follow_through(store, market, session)
     return store.append_run(

@@ -18,16 +18,17 @@ from pathlib import Path
 import duckdb
 
 from .bars import Bar
+from .detection import Detection
 from .labels import Label
 from .models import RunRecord, RunStatus
 from .ranks import Rank
 from .regime import FollowThrough
 
-# Bump when a derived-table definition changes. Detection rows will additionally
-# carry their own detector_version (spec §7.2); this is the store-level schema.
+# Bump when a derived-table definition changes. Detection rows additionally carry
+# their own detector_version column (spec §7.2); this is the store-level schema.
 # v2 adds the sector/industry label cache (spec §3.3); v3 the breakout
-# follow-through capture (spec §4.9).
-SCHEMA_VERSION = 3
+# follow-through capture (spec §4.9); v4 the detections table (spec §4.5).
+SCHEMA_VERSION = 4
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
@@ -105,6 +106,37 @@ CREATE TABLE IF NOT EXISTS labels (
     industry  TEXT NOT NULL,
     as_of     DATE NOT NULL,
     PRIMARY KEY (market, symbol)
+);
+
+-- Detections: one dated row per name currently sitting in a valid base (spec
+-- §4.5). Keyed (market, session, symbol), append-only like every derived stream.
+-- Carries the trigger, the stop and the full signal vector, plus a
+-- detector_version so rows written by different detector logic are never
+-- silently compared (§7.2). trigger is the cluster high by identity; line_end is
+-- the fitted line at today (always <= trigger — the line never sets the trigger).
+CREATE TABLE IF NOT EXISTS detections (
+    market             TEXT    NOT NULL,
+    session            DATE    NOT NULL,
+    symbol             TEXT    NOT NULL,
+    detector_version   INTEGER NOT NULL,
+    trigger            DOUBLE  NOT NULL,
+    stop               DOUBLE  NOT NULL,
+    stopw_adr          DOUBLE  NOT NULL,
+    base_len           INTEGER NOT NULL,
+    move_gain          DOUBLE  NOT NULL,
+    adr                DOUBLE  NOT NULL,
+    close              DOUBLE  NOT NULL,
+    cluster_k          INTEGER NOT NULL,
+    cluster_high       DOUBLE  NOT NULL,
+    cluster_low        DOUBLE  NOT NULL,
+    cluster_range_adr  DOUBLE  NOT NULL,
+    line_ok            BOOLEAN NOT NULL,
+    touch_zones        INTEGER NOT NULL,
+    overshoot_adr      DOUBLE  NOT NULL,
+    slope              DOUBLE  NOT NULL,
+    line_end           DOUBLE  NOT NULL,
+    base_low           DOUBLE  NOT NULL,
+    PRIMARY KEY (market, session, symbol)
 );
 """
 
@@ -284,6 +316,31 @@ class Store:
             [market, symbol, sector, industry, as_of],
         )
 
+    def append_detections(
+        self, market: str, session: date, rows: list[Detection]
+    ) -> int:
+        """Append a session's detections. Raises on a rewrite; empty is a no-op.
+
+        Written once and never rewritten (spec §7.2). An empty ``rows`` — a quiet
+        night where the universe published but nothing sits in a base — writes no
+        rows and records nothing, exactly as a night with no members would.
+        """
+        self._guard_absent("detections", market, session)
+        if not rows:
+            return 0
+        self._con.executemany(
+            "INSERT INTO detections VALUES "
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                [market, session, d.symbol, d.detector_version, d.trigger, d.stop,
+                 d.stopw_adr, d.base_len, d.move_gain, d.adr, d.close, d.cluster_k,
+                 d.cluster_high, d.cluster_low, d.cluster_range_adr, d.line_ok,
+                 d.touch_zones, d.overshoot_adr, d.slope, d.line_end, d.base_low]
+                for d in rows
+            ],
+        )
+        return len(rows)
+
     # -- reads -------------------------------------------------------------
 
     def rank_sessions(self, market: str) -> list[date]:
@@ -294,6 +351,27 @@ class Store:
             [market],
         ).fetchall()
         return [r[0] for r in rows]
+
+    def detections(self, market: str, session: date) -> list[Detection]:
+        """A session's detection rows, ordered by symbol."""
+        rows = self._con.execute(
+            "SELECT symbol, detector_version, trigger, stop, stopw_adr, base_len, "
+            "move_gain, adr, close, cluster_k, cluster_high, cluster_low, "
+            "cluster_range_adr, line_ok, touch_zones, overshoot_adr, slope, "
+            "line_end, base_low FROM detections "
+            "WHERE market = ? AND session = ? ORDER BY symbol",
+            [market, session],
+        ).fetchall()
+        return [
+            Detection(
+                symbol=r[0], session=session, detector_version=r[1], trigger=r[2],
+                stop=r[3], stopw_adr=r[4], base_len=r[5], move_gain=r[6], adr=r[7],
+                close=r[8], cluster_k=r[9], cluster_high=r[10], cluster_low=r[11],
+                cluster_range_adr=r[12], line_ok=r[13], touch_zones=r[14],
+                overshoot_adr=r[15], slope=r[16], line_end=r[17], base_low=r[18],
+            )
+            for r in rows
+        ]
 
     def ranks(self, market: str, session: date) -> list[Rank]:
         """A session's rank rows, ordered by symbol then lookback."""

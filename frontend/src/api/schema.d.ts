@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sectors/{market}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sectors */
+        get: operations["get_sectors_api_sectors__market__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -97,6 +114,31 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * IndustryStrength
+         * @description One ranked industry's shares (spec §4.4 / ticket 07 S5).
+         *
+         *     An industry is ranked only at ``members ≥ 10`` — one rule, both markets,
+         *     yielding many more rows on US than IDX. Industry *is* the theme layer (S1).
+         */
+        IndustryStrength: {
+            /** Decile Counts */
+            decile_counts: {
+                [key: string]: number;
+            };
+            /** Industry */
+            industry: string;
+            /** Members */
+            members: number;
+            /** Sector */
+            sector: string;
+            /** Shape Differential */
+            shape_differential: number;
+            /** Shares */
+            shares: {
+                [key: string]: number;
+            };
+        };
+        /**
          * RunRecord
          * @description One row of the append-only ``runs`` table, keyed ``(market, session)``.
          */
@@ -139,6 +181,56 @@ export interface components {
             runs: components["schemas"]["RunRecord"][];
             /** Universe Size */
             universe_size: number | null;
+        };
+        /**
+         * SectorStrength
+         * @description One sector's leadership and rotation numbers (spec §4.4 / ticket 07 S2–S8).
+         *
+         *     ``shares`` carries the five per-lookback strengths — the share of this
+         *     sector's members in that lookback's top decile, ``k/n``. ``members`` is
+         *     ``n`` (the sector's universe count) and ``decile_counts`` is ``k`` per
+         *     lookback, so the UI can render the ``k/n`` fragility badge (S4).
+         */
+        SectorStrength: {
+            /** Decile Counts */
+            decile_counts: {
+                [key: string]: number;
+            };
+            /** Delta Low Confidence */
+            delta_low_confidence: boolean;
+            /** Members */
+            members: number;
+            /** Rotation Eligible */
+            rotation_eligible: boolean;
+            /** Sector */
+            sector: string;
+            /** Shape Differential */
+            shape_differential: number;
+            /** Shares */
+            shares: {
+                [key: string]: number;
+            };
+            /** Temporal Delta */
+            temporal_delta: number | null;
+        };
+        /**
+         * SectorsResponse
+         * @description The sector board and the ranked-industry board for one market (§4.4).
+         *
+         *     ``sectors`` is always the full 11-sector axis, default-sorted by shape
+         *     differential with the rotation-ineligible sectors grouped below (S4/S8).
+         *     ``industries`` carries only the ``members ≥ 10`` rows. ``session`` is the
+         *     as-of published session, ``None`` when no run has published.
+         */
+        SectorsResponse: {
+            /** Industries */
+            industries: components["schemas"]["IndustryStrength"][];
+            /** Market */
+            market: string;
+            /** Sectors */
+            sectors: components["schemas"]["SectorStrength"][];
+            /** Session */
+            session: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -211,6 +303,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sectors_api_sectors__market__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                market: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectorsResponse"];
                 };
             };
             /** @description Validation Error */

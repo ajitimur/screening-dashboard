@@ -17,7 +17,18 @@ from fastapi.staticfiles import StaticFiles
 from . import MARKETS
 from .boards import board_symbols, build_boards
 from .indicators import adr
-from .models import Board, BoardRow, BoardsResponse, RunsResponse
+from .models import (
+    Board,
+    BoardRow,
+    BoardsResponse,
+    RunsResponse,
+    SectorsResponse,
+)
+from .sectors import (
+    TEMPORAL_SESSIONS,
+    industry_strengths,
+    sector_strengths,
+)
 from .store import Store
 
 # Repo root, resolved from …/backend/screener/app.py — so the file path and the
@@ -82,6 +93,40 @@ def create_app(store: Store | None = None) -> FastAPI:
             for b in build_boards(rows, prev, adrs)
         ]
         return BoardsResponse(market=market, session=session, boards=boards)
+
+    @app.get("/api/sectors/{market}", response_model=SectorsResponse)
+    def get_sectors(market: str) -> SectorsResponse:
+        market = market.upper()
+        if market not in MARKETS:
+            raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
+        latest = store.latest_run(market)
+        if latest is None:
+            # No run has published: the 11-sector axis still renders, all at 0%
+            # (spec §4.4 S8), and there is no industry board yet.
+            return SectorsResponse(
+                market=market,
+                session=None,
+                sectors=sector_strengths([], {}),
+                industries=[],
+            )
+        rows = store.ranks(market, latest.session)
+        labels = store.labels(market)
+        sector_of = {sym: label.sector for sym, label in labels.items()}
+        industry_of = {sym: label.industry for sym, label in labels.items()}
+        # The temporal delta differences against the rank table TEMPORAL_SESSIONS
+        # sessions back; absent (fewer sessions of history), the delta is None.
+        history = store.rank_sessions(market)
+        past_rows = None
+        if latest.session in history:
+            idx = history.index(latest.session)
+            if idx >= TEMPORAL_SESSIONS:
+                past_rows = store.ranks(market, history[idx - TEMPORAL_SESSIONS])
+        return SectorsResponse(
+            market=market,
+            session=latest.session,
+            sectors=sector_strengths(rows, sector_of, past_rows=past_rows),
+            industries=industry_strengths(rows, industry_of, sector_of),
+        )
 
     # FastAPI serves the built frontend so it is one process on one URL. Mounted
     # last so it never shadows /api. Absent before the first `vite build`, so the

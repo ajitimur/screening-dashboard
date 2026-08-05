@@ -8,6 +8,9 @@ export type RunRecord = components["schemas"]["RunRecord"];
 export type BoardsResponse = components["schemas"]["BoardsResponse"];
 export type Board = components["schemas"]["Board"];
 export type BoardRow = components["schemas"]["BoardRow"];
+export type SectorsResponse = components["schemas"]["SectorsResponse"];
+export type SectorStrength = components["schemas"]["SectorStrength"];
+export type IndustryStrength = components["schemas"]["IndustryStrength"];
 
 export async function fetchRuns(market: string): Promise<RunsResponse> {
   const resp = await fetch(`/api/runs/${market}`);
@@ -19,4 +22,10 @@ export async function fetchBoards(market: string): Promise<BoardsResponse> {
   const resp = await fetch(`/api/boards/${market}`);
   if (!resp.ok) throw new Error(`GET /api/boards/${market} → ${resp.status}`);
   return (await resp.json()) as BoardsResponse;
+}
+
+export async function fetchSectors(market: string): Promise<SectorsResponse> {
+  const resp = await fetch(`/api/sectors/${market}`);
+  if (!resp.ok) throw new Error(`GET /api/sectors/${market} → ${resp.status}`);
+  return (await resp.json()) as SectorsResponse;
 }

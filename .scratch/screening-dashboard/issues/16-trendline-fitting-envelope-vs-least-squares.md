@@ -1,7 +1,7 @@
 # Trendline fitting: envelope or least squares?
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: —
 
 ## Question

@@ -1,3 +1,4 @@
-venv/
-.scratch/screening-dashboard/prototypes/*/cache/
+.venv/
 __pycache__/
+*.pyc
+.scratch/screening-dashboard/prototypes/*/cache

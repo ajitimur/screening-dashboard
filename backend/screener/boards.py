@@ -116,16 +116,20 @@ def build_boards(
     boards: list[Board] = []
     for lookback in LOOKBACKS:
         prev_members = {r.symbol for r in _board_rows(prev_rows, lookback)}
-        board_rows = [
-            BoardRow(
-                symbol=r.symbol,
-                raw_return=r.raw_return,
-                breadth=breadth.get(r.symbol, 0),
-                is_new=r.symbol not in prev_members,
-                surge=lookback == "1w" and r.raw_return >= SURGE_THRESHOLD,
-                adr=adrs.get(r.symbol),
+        boards.append(
+            Board(
+                lookback=lookback,
+                rows=[
+                    BoardRow(
+                        symbol=r.symbol,
+                        raw_return=r.raw_return,
+                        breadth=breadth.get(r.symbol, 0),
+                        is_new=r.symbol not in prev_members,
+                        surge=lookback == "1w" and r.raw_return >= SURGE_THRESHOLD,
+                        adr=adrs.get(r.symbol),
+                    )
+                    for r in _board_rows(rows, lookback)
+                ],
             )
-            for r in _board_rows(rows, lookback)
-        ]
-        boards.append(Board(lookback=lookback, rows=board_rows))
+        )
     return boards

@@ -2,7 +2,7 @@
 
 Type: prototype
 Status: open
-Blocked by: 26
+Blocked by: 27
 
 ## Question
 
@@ -38,7 +38,7 @@ care about the sign of its correlation; the sign only sets which way the point i
 rule to read |ρ| in this round's pre-registration** and re-screen everything, including candidates
 already dismissed on one-sided grounds.
 
-**Why it is blocked on [ticket 26](26-level-or-order.md).** Adding or swapping a dimension is a
+**Why it is blocked on [ticket 27](27-level-or-order.md).** Adding or swapping a dimension is a
 fitting decision, and ticket 21 established there is no usable fitter until the level-versus-order
 question is settled: under `mae` every threshold on 366 cards is degenerate and unstable, so a fit
 that "adds churn" would be measuring nothing. Once 26 answers, this is a re-fit over grades that

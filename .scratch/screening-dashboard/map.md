@@ -72,13 +72,33 @@ is written during wayfinding.
   named: **`line_not_drawable` is the one rejection path that does not separate from the accepted
   names** (−0.40★, interval spanning zero, below the eye's own noise floor), so the residual risk is
   a single rejection rule, not the population. Ticket 25 carries that.
+  **Ticket 25 closed it, and the rule lost.** On a properly matched 105-card deck `line_not_drawable`
+  grades **−0.12★** against detections — inside the eye's own noise floor — so it is downgraded from a
+  hard reject to a scored penalty and the detector's gate set shrinks to the cluster and the decile.
+  The residual risk on this branch is now **operational, not evidential**: the list grows 59% and
+  nobody has decided what the penalty looks like (ticket 26). Two of the map's standing worries
+  moved with it. **Ticket 17's dismissal of the base-length effect is wrong** — it reproduces at
+  r = −0.373, p = 0.0001 on a fourth population — so ticket 09's original finding stands and ticket
+  15's length term is earned rather than inherited. And **the catch-up test does not separate either**,
+  at full power (+0.03★, n=33), which is tickets 19 and 24's pattern a third time: a rule about
+  *entry* measured with a ruler about *quality*. Parked as fog, because it needs a different
+  question rather than more cards.
+  **Ticket 26 closed the operational half and left the map with a smaller worry and a new one.**
+  The remedy is a **silent tiebreak** — no refit, no dimension, no tunable — chosen after the
+  *machine* was pointed at deck F's cards for the first time and returned the same null as the eye
+  (−0.03★ against −0.12★), so **two independent rulers agree there is nothing much to demote**. The
+  new worry is not about the line test at all: **every list-size level on this map is a sample
+  count**. Ticket 25's 5.98 → 9.5 names a night is measured over 628 scanned symbols against ticket
+  05's 1,966-name universe and scaled only for the date grid, while ticket 18's 7.0 digest rows is
+  scaled for the universe — so the app's nightly list is nearer **19 → 30**, and the two figures the
+  map has been quoting side by side were never on the same basis. Ratios survive; levels do not.
   **Ticket 21 moved this risk off the dimensions and onto the fitter.** The two ×2 dimensions are not
   unconfirmed — under a rank objective **orderliness is the strongest dimension on the map**
   (partial ρ +0.365, ahead of `cluster_k`'s +0.233) and dropping it costs 62% of the rubric's ranking
   power. What is broken is the instrument: `mae` produced **no stable threshold on any of five**
   across 25 fits, and three tickets' worth of "the eye does not confirm this dimension" was measured
   with it. The residual risk is now precise and it is a *decision*, not a measurement — **nothing on
-  this map can be fitted until [ticket 26](issues/26-level-or-order.md) says whether the star number
+  this map can be fitted until [ticket 27](issues/27-level-or-order.md) says whether the star number
   is a level or a label for a rank**, because the objective that passes the level guardrail produces
   degenerate thresholds and the one that produces stable thresholds fails it by 0.01★.
 - **Standing property of the data layer** (found independently by tickets 01, 02 and 03): **Yahoo fails
@@ -416,7 +436,10 @@ is written during wayfinding.
   — **the eye is reproducible and the rubric is weak, which is the opposite of what was feared.**
   The **test–retest ceiling is +0.808** (12 pairs, mean absolute difference 0.58★ — *tickets 22 and
   23 then each added 6 **disjoint** repeats in parallel, reading +0.854 and +0.831 on their own
-  18-pair sets, so the number held twice; the pooled **24-pair** figure is unmeasured*), measured for the
+  18-pair sets, so the number held twice; ticket 25 then computed the owed **pooled 24-pair**
+  figure from the existing grades at no cost: **+0.855, mean |difference| 0.46★**, up again, so the
+  noise floor every result is read against tightens from 0.56★ to **0.46★**; deck F's own 6 pairs then
+  took it to **30 at +0.846 / 0.47★**, where it has now sat since 12*), measured for the
   first time after two rounds of going unmeasured, so R3 §2's "published against an unmeasured
   ceiling" caveat is **discharged** — and every correlation on this map now reads against +0.83
   rather than an unknown maximum. That reframes ticket 15: **+0.255 is not a rubric against a noisy
@@ -448,11 +471,78 @@ is written during wayfinding.
   population — but the deck resolves 1.00★, not 0.75★, so **the sign is the finding and the size is
   provisional**. The result is carried almost entirely by one path: `no_cluster` separates hard
   (−1.40★, 7 of 10 cards graded 1★) while **`line_not_drawable` does not separate at all** (−0.40★,
-  CI −1.22 to **+0.42**, below the eye's own 0.56★ noise floor, and 3 of its 10 cards graded 4★
+  CI −1.22 to **+0.42**, below the eye's own 0.56★ noise floor *(as it then stood; 0.46★ since
+  ticket 25 pooled the pairs)*, and 3 of its 10 cards graded 4★
   against a detection arm averaging only 3.20). That unresolved path graduated to
   [ticket 25](issues/25-the-line-not-drawable-path.md); the third path, `not_caught_up`, was never
   sampled. The ceiling moved **12 pairs → 18 and held at +0.831** (mean absolute difference 0.56★),
   so ticket 20's reading survives more data. Nothing else moved — deck D carries no A or E cards.
+  **Ticket 25 has since closed the `line_not_drawable` path, and corrected two of this ticket's
+  own sampling choices** — see below.
+
+- [Does the `line_not_drawable` rejection path discard setups you want?](issues/25-the-line-not-drawable-path.md)
+  — **it does not separate from what the screen surfaces, so it stops being a gate.** On 105 bare
+  cards with three arms drawn from one gated population, `line_not_drawable` grades **−0.12★**
+  against detections (95% CI −0.73 to +0.48; −0.18★ controlling base length), **inside the eye's own
+  0.46★ noise floor** — which the pre-registration fixed in advance as *a finding, not a pass*. The
+  move from ticket 23's −0.40★ was **predicted before the deck was built**, because
+  [ticket 23's](issues/23-the-rejected-candidates.md) two arms were not the same population:
+  `build_deck3.py` decile-gates and band-stratifies the detections arm and does **neither** for the
+  rejects, and only **6.7%** of the `line_not_drawable` pool clears the decile the detections arm was
+  100% inside. Both confounds push rejects down. The control arm confirms it independently —
+  band-stratified 3.20, drawn at random **2.97**. Ticket 23 is sharpened, not contradicted: the deck
+  rules out any true gap worse than −0.72★, and its pooled −0.90★ headline still rests on
+  `no_cluster`, which is untouched. **Remedy: a scored penalty, not a reject** (§6's pre-registered
+  default; loosening only the touches sub-test and refusing outright were both put and declined),
+  accepting the decile-gated US list going **5.98 → 9.5 names a night, +59%**. It is the smallest
+  blast radius any remedy on this map has had, because **ticket 18's identity makes `line_ok`
+  geometrically inert** — the line never reaches the trigger, so demoting it changes no trigger, no
+  stop, no cluster and no parameter. It follows D6 out of the gate set, leaving **the cluster and the
+  decile as the only tests that separate**. Sub-tests are **descriptive only** and pre-registered as
+  such: overshoot-only −0.84★ (n=8), touches-only +0.03★ (n=16), and cards failing **both** grade
+  **+0.25★** (n=9, 56% ≥4★) — the touches test is where the null lives, and the decile gate inverts
+  the ungated mix so the surviving sub-test is the one it makes rarest. **The secondary arm is the
+  bigger surprise**: `not_caught_up` reads **+0.03★ on a full 33-card arm**, so two of three rejection
+  paths fail to separate — parked as fog, not ticketed, because it is worth 0.95 names a night and
+  because catch-up governs *entry*, making "is this a setup you want to see" the wrong ruler for it.
+  Ride-alongs: **the base-length penalty reproduces** (r = −0.373, p = 0.0001, arm-demeaned, same
+  sign in all three arms), so **ticket 17's correction of ticket 09 is itself wrong**; **cluster
+  length k replicates a fourth time** (+0.329, p = 0.001); and the **ceiling reaches 30 pairs at
+  +0.846**, the pooled 24-pair figure the map had owed having been computed free (+0.855) before the
+  deck was rendered. The penalty's shape and the longer list graduated to
+  [ticket 26](issues/26-the-line-penalty-and-the-longer-list.md), **which has since resolved and
+  corrected this ticket's cost figure — the list is ~19 → ~30 a night, not 5.98 → 9.5.**
+
+- [What does the line penalty look like, and does the list survive?](issues/26-the-line-penalty-and-the-longer-list.md)
+  — **a silent tiebreak, and the list was never 9.5 a night.** The penalty is the smallest shape
+  available: `line_ok` sorts **below an accepted name at equal star score** and does nothing else —
+  no dimension, no refit, no second grading round, no tunable, and **nothing marks it** (no glyph,
+  no column, and the chart draws the fitted line exactly as for any other name, since the envelope
+  is always computable and `line_ok` only ever judged its quality). The decision rests on a
+  measurement nobody had taken: deck F's cards had only been read by the eye, and **scored with
+  ticket 15's rubric the machine returns the same null** — `line_not_drawable` at **−0.03★**
+  (CI −0.46 to +0.40) against the eye's −0.12★, with agreement no worse on the marginal arm
+  (r = +0.223 vs +0.180). Two rulers, one null: the score was not quietly demoting these names
+  already, so any demotion had to be added deliberately, and the evidence caps how much.
+  **The overshoot lead does not become a shape**: it survives the second ruler (machine −0.42★ vs
+  eye −0.84★, the only sub-test either thinks is working), but the cards failing **both** sub-tests
+  grade **+0.25★ above detections**, 56% at ≥4★, and an overshoot key demotes them hardest. Ticket
+  11's screen is **unchanged**, and its precision cost is recorded rather than acted on: at the 4★
+  line, 0.71 on detections alone → **0.58 merged** (12 cards called, a hint that cannot move a
+  threshold ticket 15 R5 has now upheld three times). The digest **takes them, ~7.0 → ~9.6 US rows a
+  night** — growth of +37% rather than +59%, because of the finding that outlives the ticket:
+  **marginal names break through their trigger at 0.62× the accepted rate** (3.04% vs 4.90% of
+  detection-nights), not explained by distance to the level (0.69 vs 0.65 ADR) and holding inside
+  **every** base-length bucket, most extremely at L ≤ 10 (0.74% vs 4.88%). That is the **first
+  non-eye evidence about this population on the map**, and it is deliberately **not** priced into
+  the score — a lower break rate is not a worse setup with no return attached, and pricing it would
+  be ticket 24's wrong-ruler error a fourth time with the rulers reversed. **The correction is the
+  bigger output**: `split.pkl` scans **628 US symbols** against ticket 05's **1,966**, and ticket
+  25's cost figure scales for the 1-in-3 date grid but **not** for the universe, while ticket 18's
+  `crossings.py` scales for both — so the nightly screen is **~18.7 → ~29.8 names**, the +59% ratio
+  is untouched, and the two numbers the map quoted side by side were on different bases. The write
+  path needs a **detector-version bump** (`line_ok` is already in D16's persisted vector, but 59%
+  more rows begin being written under a changed definition, and nothing marks the boundary).
 
 - [Does IDX need its own thresholds?](issues/22-idx-per-market-calibration.md) — **no: one threshold
   set covers both markets**, and the reason is more interesting than the ruling. Both pre-registered
@@ -561,7 +651,7 @@ is written during wayfinding.
   miss means is that **the score is doing two jobs**: `mae` fits the *level* (stars printed),
   `cindex` fits the *order* (the only list the app has). The two-stage fix was measured **post hoc**
   and is not free — an isotonic level map restores mae to 0.93 but collapses predicted SD 1.24 → 0.44
-  and the ties cost ρ 0.326 → 0.233. So the ticket ends on a trader question, [ticket 26](issues/26-level-or-order.md),
+  and the ties cost ρ 0.326 → 0.233. So the ticket ends on a trader question, [ticket 27](issues/27-level-or-order.md),
   and **every threshold on this map waits behind it**. Three further results: **ticket 20's drop of
   orderliness must not proceed** — dropping the band costs **+0.143 ρ, 62% of the rubric's ranking
   power**, and it is the strongest dimension on the map at partial ρ +0.365; **no thresholds are
@@ -570,9 +660,9 @@ is written during wayfinding.
   were retired by a blind instrument** — `cluster_churn` +0.313, `density` +0.286, `narrowing_ratio`
   +0.211, `ma_dist_adr` +0.183 (killed at Pearson partial r +0.010), plus `base_height_adr` at −0.290
   that R6 §7's **own mis-written one-sided rule** recorded as correctly retired. Six candidates to
-  [ticket 27](issues/27-the-retired-dimensions.md). Two by-products: **all 366 graded cards pool** on
+  [ticket 28](issues/28-the-retired-dimensions.md). Two by-products: **all 366 graded cards pool** on
   a rank criterion (the +0.30★ A3/E3 offset is invisible to it, and ticket 22's US/IDX pooling
-  survives a rank test), buying nothing until 26; and a **defect in the machinery** — `rubric3.fit`'s
+  survives a rank test), buying nothing until 27; and a **defect in the machinery** — `rubric3.fit`'s
   fast path and `score3` disagree on every card with a missing `prior_move`/`sector_share`, i.e.
   **every IDX card**, so the first fit to pool IDX would have optimised one rubric and reported
   another. Nothing published is affected. Finally, a number to carry: `mae` scores median ρ +0.215
@@ -620,8 +710,8 @@ is written during wayfinding.
   rediscover and over-read. Whatever validation becomes possible needs to clear that bar before any
   claim about score quality is made from returns.
   **Ticket 20 sharpened that warning by removing one of its escape routes.** The test–retest ceiling
-  is **at least +0.83** (ticket 20 measured +0.808 on 12 pairs; tickets 22 and 23 each took it to 18
-  on disjoint repeat sets, reading +0.854 and +0.831 — the pooled 24-pair value is still owed), so
+  is **+0.846 on 30 pairs** (ticket 20 measured +0.808 on 12; tickets 22 and 23 each took it to 18 on
+  disjoint repeat sets, reading +0.854 and +0.831; ticket 25 pooled them to 24 at +0.855 and added 6), so
   the eye is reproducible to within half a star and "the grader is just noisy" is no
   longer available as an explanation for an eye-versus-outcome disagreement. If a later study
   reproduces ticket 09's finding at a workable n, it is a **real disagreement between the eye and
@@ -653,7 +743,9 @@ is written during wayfinding.
   is load-bearing here: detections recorded before the swap are under a different definition, and nothing
   marks the boundary unless **the detector version is written alongside them**. That is a small, free
   addition to the write path today and irrecoverable afterwards — the same shape as the map's other five
-  capture streams.
+  capture streams. **Ticket 26 made that requirement recurring rather than one-off**: demoting
+  `line_ok` is a second change to what counts as a detection, and it starts writing 59% more rows
+  under the new definition. The version stamp is not a marker for one swap, it is a column.
   **Ticket 12 made this patch tractable and then put one stain on it.** Tractable, because A4 lands all six
   streams through a single dated, append-only write path from launch — the archive is no longer six
   bolt-on captures but the thing the app itself reads, so it cannot quietly diverge from what was shown on
@@ -690,6 +782,19 @@ is written during wayfinding.
      "do not fight k" argument a statement about §7 rather than about geometry.
   A residual trap survives even measurement 1: §6 usually enters on the opening range, so the breakout-day
   low is itself a proxy — but it errs **narrow-to-wide**, the safe direction, unlike the cluster low.
+  **Ticket 26 added the first non-eye measurement this patch has ever had, and it is already
+  collected.** The names `line_ok` used to reject **break through their trigger at 0.62× the rate of
+  accepted ones** (3.04% vs 4.90% of detection-nights, US; 2.28% vs 3.66% IDX), not explained by
+  distance to the level and holding inside every base-length bucket — 0.74% vs 4.88% at L ≤ 10. The
+  eye says these names are indistinguishable (−0.12★) and the rubric agrees (−0.03★); **the tape
+  does not**. Ticket 26 declined to price it into the score, because a break rate is not a return:
+  a base that breaks less often may resolve later, or lower, and nothing here can tell those apart.
+  That makes it the map's **third** eye-versus-something disagreement, alongside the eye-versus-§7
+  stop and the eye-versus-outcomes result ticket 09 found — and unlike those, its arms are already
+  written to the archive by ticket 12's A4 at 23,605 vs 22,375 detections, so the follow-up question
+  is only *what happens next* to the two populations. It needs forward returns, not more grading,
+  and it inherits the same trap: a rule about which setups *complete* is not a rule about which
+  setups are *good*.
   <!-- "Alerting" graduated into ticket 14 and is now resolved: v1 does not alert; a per-market digest of
        real breaks only. See Decisions so far. -->
 - **Watchlist persistence and user state.** **Narrowed by ticket 12, not cleared.** The storage half is
@@ -709,6 +814,34 @@ is written during wayfinding.
        decision, not fog. -->
   <!-- "Data quality handling on IDX" graduated: ticket 05 resolved phantom bars, rights adjustment
        and suspended names. The ARA/ARB remainder is now assigned to ticket 08, so it is no longer fog. -->
+- **The catch-up test, measured and unresolved.** [Ticket 25](issues/25-the-line-not-drawable-path.md)
+  carried `not_caught_up` as a secondary arm and it **did not separate** — +0.03★ against detections
+  (CI −0.50 to +0.56, p = 0.910) on a **full 33-card arm**, as well powered as the primary. By the
+  logic that demoted `line_ok` this rule is not earning its gate either. It is fog rather than a
+  ticket for two reasons, and both would have to change before it graduates. It is **worth 0.95 US
+  names a night** (0.16× the list), so even a wholly wrong gate is a small miss. And more
+  importantly, **catch-up is probably not a quality rule at all**: §3.1 wants price back at the 10/20
+  so the *stop* is close, which is a statement about entry, not about whether the base is good — so
+  *"is there a setup here you would want to see tonight"* is the wrong ruler for it, and a null under
+  the wrong ruler is not evidence. This is tickets 19 and 24's pattern a third time — a risk rule
+  measured with a quality ruler — and like those it needs a **different question**, not more cards.
+  What would sharpen it into a ticket is naming that question: probably something about realised stop
+  distance at entry for names that were extended when detected, which is forward-history work and
+  therefore folds into the validation patch above.
+- **No list level on this map has been measured on the real universe.** Found by
+  [ticket 26](issues/26-the-line-penalty-and-the-longer-list.md): the detection scans run over a
+  **628-name US sample** (`universe.py` draws random Nasdaq common stock plus a 39-name momentum
+  core) against ticket 05's measured **1,966**, and the tickets differ in whether they scale for it
+  — ticket 18's `crossings.py` does, ticket 25's `lnd_cost.py` does not, and ticket 19 uses ticket
+  06's five-window union gate where ticket 08's D15 says three. So the map carries "~63 a night"
+  (17), "39.7 a night" (19) and "5.98 a night" (25) for overlapping quantities, and the best current
+  estimate of the app's nightly list is **~19 as specified, ~30 with ticket 26's remedy**, obtained
+  by rescaling rather than by measuring. Every *ratio* on the map survives this; every *level* is
+  provisional. It is fog rather than a ticket because **no spec decision depends on the level** —
+  ticket 26 re-put its list question at the corrected size and the answer did not move — and because
+  ticket 12's ingest makes the real number free to compute the day it exists. What would sharpen it
+  into a ticket is a decision that actually turns on list length: a cap, a star floor, or any
+  reading-cost argument, none of which v1 currently contains.
 - **Survivorship bias.** Yahoo's screener enumerates only live names, so delisted history is not
   discoverable. Harmless for nightly scanning, potentially fatal for any backtest — folds into the
   validation patch above once that takes shape.

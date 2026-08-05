@@ -90,7 +90,7 @@ has, ticket 11), and on this data they genuinely disagree. The obvious two-stage
 but collapses the score's spread (SD 1.24 → 0.44), and the ties that creates cost ρ 0.326 → 0.233.
 It is still the best pair on the table (beating the incumbent on both axes), but it buys level with
 resolution. **So this ticket ends on a trader question, not a computation:** does a 4★ have to
-*mean* 4★, or is the number a label for a rank? That is [ticket 26](26-level-or-order.md), and every
+*mean* 4★, or is the number a label for a rank? That is [ticket 27](27-level-or-order.md), and every
 threshold on this map waits behind it.
 
 **Ticket 20's drop of orderliness must not proceed.** Keep versus drop on E3, ×2 redistributed:
@@ -98,7 +98,7 @@ threshold on this map waits behind it.
 ranking power**, and makes the level worse too. R3 §6's instruction to drop it on a failed +0.20 bar
 is comprehensively wrong. By R6 §6 the band is **real but unfittable** — it clears the keep/drop bar
 four times over and its thresholds are unstable *under `mae` only*. Orderliness stays in the rubric;
-whether it gets a fitted threshold depends on ticket 26. For scale, its Spearman partial ρ against
+whether it gets a fitted threshold depends on ticket 27. For scale, its Spearman partial ρ against
 the eye controlling base length is **+0.365, the strongest dimension on this map**, ahead of
 `cluster_k`'s +0.233.
 
@@ -118,13 +118,13 @@ stronger relationship than `cluster_k`'s, consistent on both decks — the eye r
 bases) is recorded as "correctly retired" when a scored dimension does not care about the sign of
 its correlation. That defect is reported rather than quietly patched, and the rule is fixed in the
 next pre-registration. Six candidates, adopted by nobody here, go to
-[ticket 27](27-the-retired-dimensions.md).
+[ticket 28](28-the-retired-dimensions.md).
 
 **Two things fell out along the way.** *Poolability:* on a rank criterion A3 + E3 + C3 pool (ρ on E3
 +0.217 vs +0.215 E3-only), so **all 366 graded cards are usable together** — the +0.30★ level offset
 `REFIT_FINDINGS.md` F3 called disqualifying is invisible to a rank criterion, and ticket 22's
 US/IDX pooling survives a rank test as well as the level test it was made on. It buys nothing until
-ticket 26, because every pooled fit under `mae` is degenerate. *A defect in the machinery:*
+ticket 27, because every pooled fit under `mae` is degenerate. *A defect in the machinery:*
 `rubric3._vector_predictor` (what `rubric3.fit` optimises) and `score3` (what produced every
 published prediction) disagree on any card with a missing `prior_move` or `sector_share` — **every
 IDX card** — because `score3` scores a NaN as zero and still counts its weight. Nothing published is

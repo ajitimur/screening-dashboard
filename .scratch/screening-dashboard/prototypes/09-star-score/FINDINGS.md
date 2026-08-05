@@ -202,3 +202,84 @@ That is the behaviour ticket 07 was aiming for. 07 rejected the naive (non-leave
 because it fires 77–90% of the time, making the point nearly free; at ~50% the dimension actually
 discriminates. Nothing to change here — recorded because it is the one dimension inherited from
 another ticket that this prototype could check independently, and it holds up.
+
+---
+
+# Post-grading findings
+
+27 charts graded blind by the trader, score hidden, before any reveal.
+
+## F9. The score does not agree with the eye — and it is not a threshold problem
+
+| rubric | pearson r | mean abs error | within 1 star |
+| --- | --- | --- | --- |
+| ticket 08 as written (boolean) | **−0.043** | 1.77★ | 44% |
+| ticket 08 as written (continuous) | −0.081 | 1.58★ | 37% |
+
+Zero correlation. The machine was on average **+0.74★ too generous**. But the errors are not scattered
+— they lie on one axis (F10), which is why re-tuning thresholds cannot fix this.
+
+## F10. The star score is largely a proxy for base length, and D14 is why
+
+Across the gated sweep, the share of candidates reaching ≥4★ rises monotonically with the longest
+valid window:
+
+| longest valid window | n | mean ★ | share ≥4★ | contraction | orderliness |
+| --- | --- | --- | --- | --- | --- |
+| 3–5 bars | 451 | 1.98 | **0.9%** | 1.23 | 0.644 |
+| 6–10 | 285 | 2.65 | 13.0% | 1.28 | 0.441 |
+| 11–20 | 252 | 3.59 | 50.8% | 1.58 | 0.292 |
+| 21–40 | 154 | 3.93 | 60.4% | 1.93 | 0.174 |
+| 41–60 | 99 | 3.97 | **63.6%** | 1.78 | 0.139 |
+
+Both ×2 dimensions carry it: contraction rises with L (more windows, wider spread to grow across) and
+churn/L falls with L. So **4 of the 10 points collapse onto a single axis §3.5 never names**.
+
+**The eye reads that axis in the opposite direction.** Against the 27 grades, `L_longest` correlates
+**−0.558 with the trader** and **+0.622 with the machine** — the strongest correlate on both sides,
+opposed. It is the only signal in the graded set clearing significance (|r| > 0.38 at n=27). Every
+large over-score was a long base (NET 55, KOD 49, UBCP 47, MRNA 45, CHPT 37, NISP 34); every
+under-score was short (MBUU 3, ENPH 3, HXL 3, FND 11).
+
+**Root cause: ticket 08's D14 is false.** D14 argues no `Lmax` is needed because extending backwards
+into the momentum leg tips the highs fit positive, so the 60-bar compute bound *"never binds"*. It
+binds: **22.9% of detections have bases ≥ 30 bars and 1.8% hit the 60-bar bound outright** (p95 = 54).
+The triangle test does not self-cap, so §3.4's *"months of sideways with no momentum leg in front of
+it → skip"* is not merely unenforced — it is what tops the score.
+
+## F11. Fixing the measures works; adding a penalty does not
+
+Four rubrics, each a single a-priori structural change, each tested **once** against the 27 grades.
+No threshold was tuned against them.
+
+| rubric | pearson r | mean abs error | within 1 star |
+| --- | --- | --- | --- |
+| **A** — ticket 08 as written | −0.043 | 1.77★ | 44% |
+| **B** — A + base-length penalty (×1 dimension) | +0.076 | 1.57★ | 48% |
+| **C** — A + both ×2 dims measured length-decoupled | **+0.259** | 1.33★ | **63%** |
+| **D** — B + C together | +0.252 | **1.24★** | 56% |
+
+The **penalty alone barely moves anything** (B). One ×1 point can shift the grade by half a star while
+4 points of length-driven ×2 signal push the other way — it fights the symptom. **Decoupling the
+measurement is what works** (C): measure both ×2 dimensions over `min(L, 20)` — §2's own 10/20-day
+horizon — with contraction as *older-half range ÷ recent-half range*, which is length-matched by
+construction and needs no √L baseline at all.
+
+**None of them reaches significance.** At n=27, |r| must exceed ~0.38; the best variant reaches +0.26.
+The honest reading: the corrected structure moves the score from *actively uncorrelated* to *weakly
+positive*, and cuts the typical error from 1.77 to ~1.24 stars — real progress, not a calibrated
+rubric. **Concrete thresholds need a second, larger grading round.**
+
+## F12. What the grading did not settle
+
+- **D5's trigger rule.** Trigger-vs-close correlates **+0.012** with the grades — the eye was
+  indifferent to how early the trigger sat, so 27 charts cannot adjudicate F3. Still open.
+- **The IDX partial-lock cards** (F6's exposed band) were graded 3, 1 and 4 — no pattern. The
+  clean-base IDX cards drew 2 and 3. Nothing separates them at this sample size.
+- **Booleans vs continuous.** Continuous gives a slightly lower mean error in every variant but never
+  a better within-1-star rate. F5 already showed outcomes cannot decide it. No evidence either way;
+  §3.5's booleans stay on faithfulness grounds.
+- **Neither party graded in the direction of outcomes.** On the 27, the trader's ≥4★ picks averaged
+  −0.12R against +0.77R for the rest; the machine's ≥4★ averaged −0.51R against +1.44R. n=27 with an
+  R standard deviation near 2.75 makes this uninterpretable on its own — recorded so a later round
+  does not rediscover it as news.

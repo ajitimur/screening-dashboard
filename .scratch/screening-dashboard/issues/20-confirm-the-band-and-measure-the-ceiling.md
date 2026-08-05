@@ -1,7 +1,7 @@
 # Confirm the orderliness band, and measure the ceiling every correlation is judged against
 
 Type: prototype
-Status: claimed
+Status: resolved
 Blocked by: —
 
 ## Question
@@ -126,3 +126,57 @@ Then `analyse3.py A=<grades3_A.txt> C=<string> D=<string> E=<string>`. Any deck 
 is reported as unanswered. Any **prefix** of E3 is an unbiased sample — the cards are shuffled — so
 stopping early costs power, not honesty; below 120 graded it is reported as underpowered rather
 than as a verdict.
+
+## Answer
+
+**The rubric is real but weak, and it is weak against a target that is not noisy.** Deck E3 —
+194 fresh US cards on the split's accepted population plus 12 repeats, graded in one sitting —
+settled both halves of the question. Full numbers in
+[`ROUND4_RESULTS.md`](../prototypes/15-grading-round-2/ROUND4_RESULTS.md).
+
+**The ceiling is +0.808** (n=12 pairs, mean absolute difference 0.58★), measured for the first time
+after going unmeasured for two rounds. It clears R3 §2's 0.6 gate, so the caveat that every number
+on this map was "published against an unmeasured ceiling" is **discharged**. The finding is the one
+that reframes everything else: the eye reproduces itself to within half a star, so ticket 15's
++0.255 is **not** a rubric bumping against a noisy target — it is a weak rubric against a
+reproducible one, capturing roughly a third of what is achievable. Ticket 09's −0.043 and round 2's
++0.189 now read against +0.81 too. With n=12 the interval is wide (~0.6–0.94) but lands on the
+right side of the gate.
+
+**The band FAILED its pre-registered bar**: out-of-fold **r = +0.120** against R3 §6's +0.20, on
+the deck R4 built precisely so §6 could be tested. Not a fold-split artefact — over 25 fold
+assignments the median is +0.171, range +0.094 to +0.259, clearing the bar 20% of the time.
+
+**But §6's remedy is refuted by the same grades, so it was not executed** — trader's call. Dropping
+orderliness and redistributing its ×2 takes E3 from median r +0.171 to **+0.069**, never once
+clearing the bar in 25 splits, and within-one-star from 70% to 57%. Meanwhile the dimension's own
+partial r against the eye controlling base length is **+0.302**, the strongest single-dimension
+number on this map (cluster k is +0.196); **43%** of cards fall inside the band, so it discriminates
+rather than repeating A3's 99%-degenerate failure; and A3's thresholds applied **frozen** to E3
+score **+0.240**, above the bar. So: the band is **not credited**, ticket 15's +0.255 **stays
+optimistic**, orderliness is **kept**, and A3's thresholds stand as **explicitly provisional**.
+
+**What actually failed is the fitting objective.** Refit on E3, every fold runs `ord_lo` to 0.1 and
+`ord_hi` to 0.6 — the widest values on the grid, which is nearly no band at all — and `len_ok` to 4,
+then scores worse out of fold than the band it abandoned. The exhaustive search reaches the true
+optimum of its objective; **the objective is the problem**, mae being a level statistic on a flat
+loss surface. This is `REFIT_FINDINGS.md`'s round-2 complaint resurfacing as instability rather
+than as a local minimum, and it means **no threshold on this map is final for a reason that is now
+named rather than vague**. Graduated to
+[ticket 21](21-the-fitting-objective-does-not-identify-the-dimensions.md).
+
+**Pooling A3 with E3 was recorded and refused.** n=314 gives +0.204 with the band, but mean grade is
+3.23★ on A3 against 2.93★ on E3 — a +0.30★ offset at p ≈ 0.035, and mae is a level statistic, so
+that offset lands on every threshold. Same ground R3 refused to pool round 2 on (+0.69★, p = 0.044);
+smaller offset, identical shape.
+
+**The two carried obligations are ticketed, not carried a fourth time.** Decks C3 and D3 are
+rendered and still ungraded, and each carries 6 repeats that would tighten the n=12 ceiling:
+[ticket 22](22-idx-per-market-calibration.md) (per-market calibration — still zero graded IDX cards
+on any structure) and [ticket 23](23-the-rejected-candidates.md) (the rejected candidates, an
+obligation now passed along three tickets).
+
+**Method note.** `analyse3.py` gained section 8 and `rubric3.py` an additive `drop=`; both are
+verified against ticket 15's published run, which reproduces exactly (r = +0.255, mae 1.11,
+within-1 60%, identical six thresholds). One bug was found and fixed on the way: repeat cards
+carried A3's own deck/card labels into the renderer, silently reporting deck A as 132 cards long.

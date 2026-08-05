@@ -386,6 +386,33 @@ is written during wayfinding.
   the rejected candidates, and **the test–retest ceiling — unmeasured for the second round running**,
   so by its own pre-registration none of the thresholds above is final.
 
+- [Confirm the orderliness band, and measure the ceiling every correlation is judged against](issues/20-confirm-the-band-and-measure-the-ceiling.md)
+  — **the eye is reproducible and the rubric is weak, which is the opposite of what was feared.**
+  The **test–retest ceiling is +0.808** (12 pairs, mean absolute difference 0.58★), measured for the
+  first time after two rounds of going unmeasured, so R3 §2's "published against an unmeasured
+  ceiling" caveat is **discharged** — and every correlation on this map now reads against +0.81
+  rather than an unknown maximum. That reframes ticket 15: **+0.255 is not a rubric against a noisy
+  target but a weak rubric against a reproducible one**, capturing about a third of what is
+  achievable, so closing that gap is the highest-value move left on the score. **The band FAILED its
+  pre-registered bar** — out-of-fold **+0.120** against +0.20 on 194 fresh cards, and not a fold-split
+  artefact (median +0.171 over 25 assignments, clearing the bar 20% of the time) — **so it is not
+  credited and ticket 15's +0.255 stays optimistic. But §6's remedy was refused**, trader's call,
+  because the same grades refute it: dropping orderliness costs 0.10 r and 13pp of within-one-star,
+  while the dimension's partial r controlling base length is **+0.302**, the strongest single
+  dimension on this map, 43% of cards fall inside the band (against A3's 99%-degenerate failure), and
+  A3's thresholds applied **frozen** score **+0.240**, above the bar. Orderliness is kept and A3's
+  thresholds stand as **explicitly provisional**. **What failed is the objective, not the band** —
+  refit on E3 every fold runs `ord_lo` to 0.1 and `ord_hi` to 0.6, the widest values on the grid,
+  then scores worse than the band it abandoned; mae is a level statistic on a flat surface, which is
+  `REFIT_FINDINGS.md`'s round-2 complaint returning as instability rather than a local minimum. So
+  **no threshold on this map is final, for a reason that is now named**, and that graduated to
+  [ticket 21](issues/21-the-fitting-objective-does-not-identify-the-dimensions.md). Pooling A3 with
+  E3 was **recorded and refused** (+0.204 at n=314, but a +0.30★ level offset at p ≈ 0.035 — the same
+  ground R3 refused round 2 on). The two carried obligations are ticketed rather than passed a fourth
+  time: [ticket 22](issues/22-idx-per-market-calibration.md) and
+  [ticket 23](issues/23-the-rejected-candidates.md), whose decks are already rendered and whose 12
+  further repeats would halve the ceiling's error.
+
 - [Architecture and local runtime shape](issues/12-architecture-and-deployment.md) — **one DuckDB file,
   one command per market, and every derived table is dated rows.** A4 is the load-bearing one: universe
   membership, ranks, sector shares, detections, scores and signal vectors are all keyed by
@@ -449,6 +476,14 @@ is written during wayfinding.
   which at n=27 means nothing on its own but is exactly the kind of result a later study will
   rediscover and over-read. Whatever validation becomes possible needs to clear that bar before any
   claim about score quality is made from returns.
+  **Ticket 20 sharpened that warning by removing one of its escape routes.** The test–retest ceiling
+  is **+0.808**, so the eye is reproducible to within half a star and "the grader is just noisy" is no
+  longer available as an explanation for an eye-versus-outcome disagreement. If a later study
+  reproduces ticket 09's finding at a workable n, it is a **real disagreement between the eye and
+  returns** — and the map has no rule for which one wins, because the eye is the arbiter only by
+  necessity (~672 triggered setups per band to resolve 0.3R). That question is not fog to be cleared
+  by more grading, and it is the one place where a validation result could invalidate the star score
+  rather than merely calibrate it.
   **Ticket 14 added a sixth stream and a named hypothesis.** Its A2 excludes two of the three crossing
   types from the digest — line-descent crossings and the 16.4% born triggered — while still persisting
   them. That is a claim that neither is actionable, and like ticket 08's three omissions it is untestable

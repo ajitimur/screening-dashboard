@@ -30,6 +30,10 @@ is written during wayfinding.
   - "Top decile" is ranked against the whole tradeable universe **per market**, not within sector.
 - **Known risk carried into the map**: §3.5 double-weights *tightness* and *orderliness*, the two
   dimensions least amenable to automation. Setup detection is the highest-risk ticket on this map.
+  **Discharged by ticket 08** — both dimensions proved scorable (contraction against a √L baseline;
+  churn ratio for orderliness), and the resulting detector has **zero tunable parameters**. The residual
+  risk moved rather than vanished: it now sits in ticket 09, which is where a human eye first meets the
+  computed score.
 - **Standing property of the data layer** (found independently by tickets 01, 02 and 03): **Yahoo fails
   as silence.** Throttled requests return empty results — and for price history, the literal message
   "possibly delisted; no price data found". Every ingestion path must distinguish throttling from
@@ -134,6 +138,34 @@ is written during wayfinding.
   **reproduced the universe a third time (290/1,896)** and measured **1.2s Yahoo spacing as throttle-free**,
   halving ticket 03's assumed full-pass cost.
 
+- [Setup detection algorithm](issues/08-setup-detection-algorithm.md) — **the highest-risk ticket resolved with
+  zero tunable parameters**, which was not the expected outcome. Detection emits a **state, not an event**:
+  every name currently in a valid base, nightly, with the breakout as a `WATCHING`→`TRIGGERED` transition —
+  forced by ticket 10, since you cannot record a trigger for a break that already happened. The base is found
+  by an **end-anchored backward search** (always ends on the last bar, only the start is searched), which
+  **eliminates pivot detection** — the trap, because §3.2 says undercuts and overshoots are *desirable*, so a
+  pivot detector fights the method at exactly the bars that mark the best setups. Validity is **§3.2's triangle
+  test executed literally**: highs fit slopes ≤ 0, lows fit slopes ≥ 0, L ≥ 3 — and because a *fit* is not a
+  monotonic test, piercing bars are the stated ideal rather than a tolerated exception. That test also
+  **self-caps the search**, deleting the one free parameter: reaching back into the momentum leg tips the highs
+  fit positive, so §3.1's "consolidation *after* the move" is enforced by geometry. **Every distance quantity
+  over an end-anchored window is monotone in L**, so ranking windows by tightness *or* by MA proximity both
+  collapse to L=3; the degeneracy is accepted rather than corrected — primary is the **shortest valid window**,
+  which yields the earliest, nearest-the-MA trigger §3.2 argues for. Trigger is the **lower of the flat max-high
+  and the fitted descending line**, so a base that sits still eventually triggers on its own. §7 gets teeth:
+  stop estimated at the **base low**, and width > 1×ADR **rejects outright**. Both ×2 dimensions turned out
+  scorable: **contraction** = how far the retained set's `range(L)` curve sits below its **√L random-walk
+  baseline** (the affordability gate already measures *narrow*, so tightness scores only *narrowing*), and
+  **orderliness** = **churn ratio**, Σ daily ranges ÷ envelope — which required correcting the ticket's own
+  candidate: net-drift efficiency scores every good base as maximally disorderly, because a base is sideways by
+  definition. MA catch-up is **one number** carrying §3.1's 20-over-10 preference for free. **Three knowing
+  omissions**: §5's backside veto is unenforced (needs 60-min bars; a daily-65-EMA substitute was declined),
+  IDX limit days are unhandled (they flatter *both* ×2 dimensions at once — carried to ticket 09), and only
+  **dry-up** is scored, since expansion exists only at the break and scoring it would make the score
+  state-dependent. Gate is **top decile in any of 1m/3m/6m** off ticket 06's rank table — 06's 1w and 12m
+  windows excluded as burst and stale. **Every scored quantity is a ratio**, confirming ticket 05's prediction
+  that ticket 01's unrecoverable raw IDX prices cost nothing.
+
 ## Not yet specified
 
 - **Validation / backtest.** How do we know the screen actually surfaces the right names? History depth
@@ -159,9 +191,15 @@ is written during wayfinding.
   the stored ranks carry a **~1.5% noise floor** from denominator churn (30 US / 8 IDX names entering or
   leaving the universe overnight even with D11's hysteresis), so small percentile moves are not
   necessarily price moves. Whatever validation becomes possible has to be robust to both.
-- **Alerting.** He hangs price alerts on the trendline. Whether v1 notifies at all, and through what
-  channel, waits on detection being defined. Running locally narrows the options — a desktop
-  notification or a nightly digest, not a push service.
+  **Ticket 08 adds a fifth stream** — the raw signal vector behind every detected setup, persisted nightly
+  even though the emitted interface only carries the score and the chart bundle. It exists for the same
+  reason as the other four: it is the only way a later recalibration can be replayed *backwards* over
+  accumulated history rather than merely applied forward. It also sharpens what validation must eventually
+  measure, because ticket 08 shipped three knowing omissions — the unenforced backside veto, unhandled IDX
+  limit days, and a half-measured volume dimension — each of which is a hypothesis about what does not
+  matter, and none of which can be tested until there is something to test against.
+  <!-- "Alerting" graduated into ticket 14: ticket 08 defined a stable trigger level per detected setup,
+       which is the thing an alert hangs on. It is now a channel-and-threshold decision, not fog. -->
 - **Watchlist persistence and user state.** Whether the app remembers names you've marked, and what
   storage that implies, waits on the architecture ticket.
 - **Chart rendering approach.** Library and how the detected trendline / MA context is drawn — waits

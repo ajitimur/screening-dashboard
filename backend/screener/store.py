@@ -266,6 +266,18 @@ class Store:
         ).fetchall()
         return [Rank(*r) for r in rows]
 
+    def ranks_before(self, market: str, session: date) -> list[Rank]:
+        """The rank rows of the most recent session *strictly before* ``session``,
+        or ``[]`` if none. This is what the boards' ``NEW`` marker diffs against
+        as "last session" (spec §4.3 / ticket 06 R10)."""
+        latest = self._con.execute(
+            "SELECT max(session) FROM ranks WHERE market = ? AND session < ?",
+            [market, session],
+        ).fetchone()[0]
+        if latest is None:
+            return []
+        return self.ranks(market, latest)
+
     def bars(self, market: str, symbol: str) -> list[Bar]:
         """A symbol's stored bars, oldest session first."""
         rows = self._con.execute(

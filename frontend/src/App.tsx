@@ -1,16 +1,24 @@
 import { useEffect, useState } from "react";
 import { fetchRuns, type RunsResponse } from "./api/client";
+import Boards from "./Boards";
 
 const MARKETS = ["IDX", "US"] as const;
 type Market = (typeof MARKETS)[number];
 
+// The two screens, per spec §5: the market workbench and the boards. Market is
+// the top-level axis; the screen switches under it, carrying the same market.
+const SCREENS = ["Workbench", "Boards"] as const;
+type Screen = (typeof SCREENS)[number];
+
 /**
  * The two-market tab shell (spec §5.1). Each tab reads its as-of session date
  * from the API and says so plainly when no run exists yet. The candidate list,
- * regime banner and chart panel land in later tickets against the same shell.
+ * regime banner and chart panel land in later tickets against the same shell;
+ * the Boards screen (§5.2) is a peer tab under the same market axis.
  */
 export default function App() {
   const [market, setMarket] = useState<Market>("IDX");
+  const [screen, setScreen] = useState<Screen>("Workbench");
 
   return (
     <main>
@@ -27,7 +35,19 @@ export default function App() {
           </button>
         ))}
       </nav>
-      <Workbench market={market} />
+      <nav aria-label="screen">
+        {SCREENS.map((s) => (
+          <button
+            key={s}
+            aria-current={s === screen}
+            disabled={s === screen}
+            onClick={() => setScreen(s)}
+          >
+            {s}
+          </button>
+        ))}
+      </nav>
+      {screen === "Workbench" ? <Workbench market={market} /> : <Boards market={market} />}
     </main>
   );
 }

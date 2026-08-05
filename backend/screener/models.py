@@ -43,3 +43,39 @@ class RunsResponse(BaseModel):
     # Tonight's tradeable universe size — the count of membership rows for the
     # latest published session (spec §4.1). ``None`` when no run has published.
     universe_size: int | None
+
+
+class BoardRow(BaseModel):
+    """One leaderboard row: a name ranked on **pure return**, plus its furniture
+    (spec §4.3 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks currently
+    led — a persistence count, *not* a quality score); ``is_new`` marks absence
+    from this board last session; ``surge`` flags a 1w name up ≥30% over the week;
+    ``adr`` is a column for the toggle, never the sort key, ``None`` when it cannot
+    be computed."""
+
+    symbol: str
+    raw_return: float
+    breadth: int
+    is_new: bool
+    surge: bool
+    adr: float | None
+
+
+class Board(BaseModel):
+    """One market's leaderboard for a single lookback (spec §5.2)."""
+
+    lookback: str
+    rows: list[BoardRow]
+
+
+class BoardsResponse(BaseModel):
+    """The five leaderboards for one market, off the nightly path (spec §5.2).
+
+    ``session`` is the as-of session the boards were ranked on — the latest
+    published run — or ``None`` when no run has published yet, which the tab shows
+    as an explicit empty state.
+    """
+
+    market: str
+    session: date | None
+    boards: list[Board]

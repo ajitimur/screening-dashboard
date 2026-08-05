@@ -15,7 +15,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
 from . import MARKETS
-from .models import RunsResponse
+from .boards import board_symbols, build_boards
+from .indicators import adr
+from .models import Board, BoardRow, BoardsResponse, RunsResponse
 from .store import Store
 
 # Repo root, resolved from …/backend/screener/app.py — so the file path and the
@@ -56,6 +58,30 @@ def create_app(store: Store | None = None) -> FastAPI:
             runs=store.runs(market),
             universe_size=len(store.universe(market, latest.session)) if latest else None,
         )
+
+    @app.get("/api/boards/{market}", response_model=BoardsResponse)
+    def get_boards(market: str) -> BoardsResponse:
+        market = market.upper()
+        if market not in MARKETS:
+            raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
+        latest = store.latest_run(market)
+        if latest is None:
+            # No published run yet — an explicit empty state, not a fabricated date.
+            return BoardsResponse(market=market, session=None, boards=[])
+        session = latest.session
+        rows = store.ranks(market, session)
+        prev = store.ranks_before(market, session)
+        # ADR is a column that rides each row for the toggle (§4.4); read bars only
+        # for the names that land on some board, not the whole universe.
+        adrs = {s: adr(store.bars(market, s)) for s in board_symbols(rows)}
+        boards = [
+            Board(
+                lookback=b.lookback,
+                rows=[BoardRow(**vars(r)) for r in b.rows],
+            )
+            for b in build_boards(rows, prev, adrs)
+        ]
+        return BoardsResponse(market=market, session=session, boards=boards)
 
     # FastAPI serves the built frontend so it is one process on one URL. Mounted
     # last so it never shadows /api. Absent before the first `vite build`, so the

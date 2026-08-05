@@ -69,3 +69,18 @@ def test_pruning_is_per_market(store: Store):
     store.append_ranks("IDX", date(2024, 8, 4), [_rank("OLDIDX", "1w", 0.9, 0.2)])
     store.append_ranks("US", date(2026, 8, 5), [_rank("NEWUS", "1w", 0.9, 0.2)])
     assert [r.symbol for r in store.ranks("IDX", date(2024, 8, 4))] == ["OLDIDX"]
+
+
+def test_ranks_before_reads_the_prior_sessions_rows(store: Store):
+    # The NEW marker on the boards diffs against last session's rank table
+    # (ticket 06 R10); ranks_before returns the most recent session strictly
+    # before the given one, ignoring any later session.
+    store.append_ranks("US", date(2026, 8, 3), [_rank("YDAY", "1w", 0.9, 0.2)])
+    store.append_ranks("US", date(2026, 8, 4), [_rank("TODAY", "1w", 0.9, 0.3)])
+    before = store.ranks_before("US", date(2026, 8, 4))
+    assert [r.symbol for r in before] == ["YDAY"]
+
+
+def test_ranks_before_is_empty_on_the_first_session(store: Store):
+    store.append_ranks("US", date(2026, 8, 4), [_rank("FIRST", "1w", 0.9, 0.3)])
+    assert store.ranks_before("US", date(2026, 8, 4)) == []

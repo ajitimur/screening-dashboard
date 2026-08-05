@@ -70,6 +70,37 @@ describe("the two market tabs", () => {
     expect(screen.getAllByText("2026-08-04").length).toBeGreaterThan(0);
   });
 
+  it("switches to the Boards screen and renders a board", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const market = url.split("/").pop()!.toUpperCase();
+        if (url.includes("/api/boards/")) {
+          return {
+            ok: true,
+            json: async () => ({
+              market,
+              session: "2026-08-04",
+              boards: [
+                {
+                  lookback: "1w",
+                  rows: [{ symbol: "WIN", raw_return: 0.42, breadth: 3, is_new: true, surge: true, adr: 0.05 }],
+                },
+              ],
+            }),
+          } as Response;
+        }
+        return { ok: true, json: async () => runs(market, "2026-08-04") } as Response;
+      }),
+    );
+    render(<App />);
+    await screen.findByText("2026-08-04"); // workbench first
+
+    act(() => screen.getByRole("button", { name: "Boards" }).click());
+    expect(await screen.findByRole("table", { name: /1w/ })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /ADR/i })).not.toBeChecked();
+  });
+
   it("shows no banner when the latest run published", async () => {
     mockRuns({
       IDX: {

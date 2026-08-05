@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/boards/{market}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Boards */
+        get: operations["get_boards_api_boards__market__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{market}": {
         parameters: {
             query?: never;
@@ -25,6 +42,55 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * Board
+         * @description One market's leaderboard for a single lookback (spec §5.2).
+         */
+        Board: {
+            /** Lookback */
+            lookback: string;
+            /** Rows */
+            rows: components["schemas"]["BoardRow"][];
+        };
+        /**
+         * BoardRow
+         * @description One leaderboard row: a name ranked on **pure return**, plus its furniture
+         *     (spec §4.3 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks currently
+         *     led — a persistence count, *not* a quality score); ``is_new`` marks absence
+         *     from this board last session; ``surge`` flags a 1w name up ≥30% over the week;
+         *     ``adr`` is a column for the toggle, never the sort key, ``None`` when it cannot
+         *     be computed.
+         */
+        BoardRow: {
+            /** Adr */
+            adr: number | null;
+            /** Breadth */
+            breadth: number;
+            /** Is New */
+            is_new: boolean;
+            /** Raw Return */
+            raw_return: number;
+            /** Surge */
+            surge: boolean;
+            /** Symbol */
+            symbol: string;
+        };
+        /**
+         * BoardsResponse
+         * @description The five leaderboards for one market, off the nightly path (spec §5.2).
+         *
+         *     ``session`` is the as-of session the boards were ranked on — the latest
+         *     published run — or ``None`` when no run has published yet, which the tab shows
+         *     as an explicit empty state.
+         */
+        BoardsResponse: {
+            /** Boards */
+            boards: components["schemas"]["Board"][];
+            /** Market */
+            market: string;
+            /** Session */
+            session: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -96,6 +162,37 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_boards_api_boards__market__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                market: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_runs_api_runs__market__get: {
         parameters: {
             query?: never;

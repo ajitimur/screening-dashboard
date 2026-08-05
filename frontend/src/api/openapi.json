@@ -1,6 +1,109 @@
 {
   "components": {
     "schemas": {
+      "Board": {
+        "description": "One market's leaderboard for a single lookback (spec \u00a75.2).",
+        "properties": {
+          "lookback": {
+            "title": "Lookback",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BoardRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lookback",
+          "rows"
+        ],
+        "title": "Board",
+        "type": "object"
+      },
+      "BoardRow": {
+        "description": "One leaderboard row: a name ranked on **pure return**, plus its furniture\n(spec \u00a74.3 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks currently\nled \u2014 a persistence count, *not* a quality score); ``is_new`` marks absence\nfrom this board last session; ``surge`` flags a 1w name up \u226530% over the week;\n``adr`` is a column for the toggle, never the sort key, ``None`` when it cannot\nbe computed.",
+        "properties": {
+          "adr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adr"
+          },
+          "breadth": {
+            "title": "Breadth",
+            "type": "integer"
+          },
+          "is_new": {
+            "title": "Is New",
+            "type": "boolean"
+          },
+          "raw_return": {
+            "title": "Raw Return",
+            "type": "number"
+          },
+          "surge": {
+            "title": "Surge",
+            "type": "boolean"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "raw_return",
+          "breadth",
+          "is_new",
+          "surge",
+          "adr"
+        ],
+        "title": "BoardRow",
+        "type": "object"
+      },
+      "BoardsResponse": {
+        "description": "The five leaderboards for one market, off the nightly path (spec \u00a75.2).\n\n``session`` is the as-of session the boards were ranked on \u2014 the latest\npublished run \u2014 or ``None`` when no run has published yet, which the tab shows\nas an explicit empty state.",
+        "properties": {
+          "boards": {
+            "items": {
+              "$ref": "#/components/schemas/Board"
+            },
+            "title": "Boards",
+            "type": "array"
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          }
+        },
+        "required": [
+          "market",
+          "session",
+          "boards"
+        ],
+        "title": "BoardsResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -152,6 +255,45 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/boards/{market}": {
+      "get": {
+        "operationId": "get_boards_api_boards__market__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Boards"
+      }
+    },
     "/api/runs/{market}": {
       "get": {
         "operationId": "get_runs_api_runs__market__get",

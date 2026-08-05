@@ -168,7 +168,10 @@ is written during wayfinding.
   **dry-up** is scored, since expansion exists only at the break and scoring it would make the score
   state-dependent. Gate is **top decile in any of 1m/3m/6m** off ticket 06's rank table — 06's 1w and 12m
   windows excluded as burst and stale. **Every scored quantity is a ratio**, confirming ticket 05's prediction
-  that ticket 01's unrecoverable raw IDX prices cost nothing.
+  that ticket 01's unrecoverable raw IDX prices cost nothing. **D2/D5 are now qualified**: the boundaries are
+  fitted by least squares, which puts the upper line through the *middle* of the highs, and that alone accounts
+  for the already-breached triggers ticket 09 found (13.3% → 0.8% under an envelope fit). Reopened as
+  [Trendline fitting: envelope or least squares?](issues/16-trendline-fitting-envelope-vs-least-squares.md).
 
 - [Star score calibration](issues/09-star-score-calibration.md) — **the score does not agree with the
   eye, and it is not a threshold problem**: blind-graded over 27 charts the two are *uncorrelated*
@@ -227,7 +230,11 @@ is written during wayfinding.
   counter-argument (a zero-parameter detector, never checked against a real chart, with three knowing
   omissions), so the inspection of the discarded set was handed to ticket 09 as the only place it could
   happen — **and ticket 09 did not do it**: its deck graded detections, not rejects, so that obligation
-  is currently unowned and belongs on ticket 15.
+  is currently unowned and belongs on ticket 15. **I5 was never implemented**: ticket 09's chart draws the
+  retained set *and* fits the triangle over the longest window while the trigger comes from the shortest —
+  the exact rendering I5 ruled out. A conformance bug against a resolved decision, noted in
+  [ticket 16](issues/16-trendline-fitting-envelope-vs-least-squares.md) alongside the fitting question the
+  trader raised from the same charts.
 
 - [Alerting on the trigger level](issues/14-alerting-and-trigger-notification.md) — **v1 does not alert.**
   The nightly run writes **one dated Markdown digest per market** (`digests/<market>/<session>.md`) and that

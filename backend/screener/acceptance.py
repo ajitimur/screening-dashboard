@@ -142,9 +142,9 @@ def compute_b_criteria(
     sector_of = {sym: lab.sector for sym, lab in labels.items()}
     candidates = build_candidates(detections, ranks, industry_of, sector_of)
 
-    stops = [d.stopw_adr for d in detections]
-    ks = [d.cluster_k for d in detections]
-    d = len(detections)
+    stops = [det.stopw_adr for det in detections]
+    ks = [det.cluster_k for det in detections]
+    n_det = len(detections)
 
     b6_detail = f"median {median(stops):.2f}×" if stops else "no detections"
     b8_detail = f"median k={median(ks):g}" if ks else "no detections"
@@ -153,14 +153,14 @@ def compute_b_criteria(
         "B1": n,
         "B2": len(decile_gate(ranks)) / n if n else 0.0,
         "B3": len(board_symbols(ranks)),
-        "B4": d,
+        "B4": n_det,
         "B5": len(breaks),
-        "B6": sum(s > AFFORDABLE_ADR for s in stops) / d if d else 0.0,
+        "B6": sum(s > AFFORDABLE_ADR for s in stops) / n_det if n_det else 0.0,
         # The line is anchored at the cluster high and searched over non-positive
         # slopes, so line_end ≤ cluster_high always: this share is 0 by identity,
         # and any non-zero value is a bug (spec §8.2 B7 / §4.5).
-        "B7": sum(det.line_end > det.cluster_high for det in detections) / d if d else 0.0,
-        "B8": sum(k == 3 for k in ks) / d if d else 0.0,
+        "B7": sum(det.line_end > det.cluster_high for det in detections) / n_det if n_det else 0.0,
+        "B8": sum(k == 3 for k in ks) / n_det if n_det else 0.0,
         "B9": sum(c.score >= FOUR_STAR for c in candidates) / len(candidates)
         if candidates else 0.0,
         "B10": sum(1 for m in universe if m in labels) / n if n else 0.0,

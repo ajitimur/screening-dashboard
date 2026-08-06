@@ -439,6 +439,8 @@ export interface components {
              * @default false
              */
             run_due: boolean;
+            /** Run Error */
+            run_error?: string | null;
             /**
              * Running
              * @default false

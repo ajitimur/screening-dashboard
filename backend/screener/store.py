@@ -183,6 +183,14 @@ class SessionExistsError(RuntimeError):
     """
 
 
+# The derived streams one session computes — every table keyed (market, session)
+# and guarded by :meth:`Store._guard_absent`, minus ``runs`` itself. ``bars`` is
+# deliberately not here: bars are the ingest substrate, committed per symbol so a
+# killed pull keeps what it already fetched (spec §3.3), and a re-pull appends
+# them idempotently rather than recomputing them.
+_DERIVED_TABLES = ("universe", "ranks", "follow_through", "detections", "digest_breaks")
+
+
 class Store:
     """A thin wrapper over one DuckDB connection with append-only writes."""
 
@@ -208,6 +216,40 @@ class Store:
         self._con.close()
 
     # -- writes (append-only) ---------------------------------------------
+
+    def discard_session(self, market: str, session: date) -> int:
+        """Drop the derived rows of a session that was never stamped with a run.
+
+        A run computes a session's derived streams and stamps its run record
+        **last**, which makes the run record the commit point — every read keys
+        off the last *published* run, so a session without one was never visible
+        to anyone. A run that dies in between therefore leaves rows belonging to
+        no session: debris, not history. Left in place they are permanent, and
+        :meth:`_guard_absent` refuses to let any later run recompute that
+        session, so one interrupted run wedges the market for good.
+
+        Clearing them is not a rewrite of recorded history. A session that
+        *does* carry a run record — published or quarantined — is refused here,
+        so the write-once guarantee (spec §7.2) still holds over everything a
+        run ever published. Returns the number of rows discarded.
+        """
+        recorded = self._con.execute(
+            "SELECT 1 FROM runs WHERE market = ? AND session = ? LIMIT 1",
+            [market, session],
+        ).fetchone()
+        if recorded is not None:
+            raise SessionExistsError(
+                f"({market}, {session}) carries a run record; a recorded "
+                "session's derived rows are never discarded"
+            )
+        discarded = 0
+        for table in _DERIVED_TABLES:
+            deleted = self._con.execute(
+                f"DELETE FROM {table} WHERE market = ? AND session = ? RETURNING 1",
+                [market, session],
+            ).fetchall()
+            discarded += len(deleted)
+        return discarded
 
     def _guard_absent(self, table: str, market: str, session: date) -> None:
         existing = self._con.execute(

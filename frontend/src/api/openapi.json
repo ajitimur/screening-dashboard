@@ -644,6 +644,17 @@
             "title": "Run Due",
             "type": "boolean"
           },
+          "run_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Error"
+          },
           "running": {
             "default": false,
             "title": "Running",

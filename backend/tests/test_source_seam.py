@@ -18,6 +18,7 @@ import pytest
 from screener.pipeline import run_market_from_source
 from screener.source import (
     Pacer,
+    PermanentlyUnavailableError,
     RateLimitedError,
     Source,
     parse_idx_screener,
@@ -53,7 +54,8 @@ class FakeClient:
 
     ``responses`` maps a symbol to a list of successive fetch outcomes, so a
     symbol can return empty (silence), then data, on retries. An outcome of
-    ``"429"`` raises :class:`RateLimitedError`; a list is returned as bars.
+    ``"429"`` raises :class:`RateLimitedError`, ``"refused"`` raises
+    :class:`PermanentlyUnavailableError`; a list is returned as bars.
     """
 
     def __init__(self, instruments=None, responses=None) -> None:
@@ -71,6 +73,8 @@ class FakeClient:
         outcome = outcomes[min(seen, len(outcomes) - 1)]
         if outcome == "429":
             raise RateLimitedError(symbol)
+        if outcome == "refused":
+            raise PermanentlyUnavailableError(f"{symbol}: period 'max' is invalid")
         return outcome
 
 
@@ -255,3 +259,60 @@ def test_run_quarantines_when_candidates_stay_unresolved(store: Store):
     assert record.symbols_enumerated == 100
     assert record.symbols_resolved == 90
     assert store.universe("US", date(2026, 8, 6)) == []
+
+
+# -- a stated refusal is not silence -----------------------------------------
+
+
+def test_a_stated_refusal_is_answered_once_not_retried():
+    # Yahoo will not serve full history for some listings (warrants and units,
+    # typically) and says so instead of returning an empty frame. That is an
+    # answer, so there is nothing to wait out: one attempt, no backoff sleeps,
+    # unlike the four-attempt retry silence earns (issue #47).
+    client = FakeClient(
+        instruments={"US": _us_instruments()},
+        responses={"AAA": ["refused"], "BBB": [[]]},
+    )
+    src, clock = make_source(client)
+    # The clock records the pacer's sub-second waits too; the backoff sleeps are
+    # the ones this test is about.
+    backoff = lambda: [s for s in clock.slept if s >= 1.0]  # noqa: E731
+
+    refused = src.resolve("AAA")
+
+    assert refused.status == "refused"
+    assert refused.bars == []
+    assert client.fetch_calls.count("AAA") == 1, "a refusal was retried"
+    assert backoff() == [], "a refusal burned backoff sleeps"
+
+    # Silence still gets the full retry budget — the policy it exists for.
+    src.resolve("BBB")
+    assert client.fetch_calls.count("BBB") == 4
+    assert backoff() == [1.0, 2.0, 4.0]
+
+
+def test_refused_listings_do_not_drag_the_completeness_gate(store: Store):
+    # The floor exists to catch a throttled pull. Listings the provider refuses
+    # outright are not throttling and can never resolve, so counting them in the
+    # denominator would quarantine a pull that fetched everything obtainable —
+    # a market's warrants alone are enough to do it (issue #47).
+    instruments = {
+        "US": parse_us_listings(
+            "Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares\n"
+            + "".join(f"S{i}|Corp {i}|Q|N|N|100|N|N\n" for i in range(100)),
+            "ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol\n",
+        )
+    }
+    # 90 resolve, 10 are refused outright — nothing was lost to silence.
+    responses = {f"S{i}": [["bar"]] for i in range(90)}
+    responses.update({f"S{i}": ["refused"] for i in range(90, 100)})
+    client = FakeClient(instruments=instruments, responses=responses)
+    src, _ = make_source(client)
+
+    record = run_market_from_source(
+        store, "US", date(2026, 8, 6), src, now=datetime(2026, 8, 6, 22, 10)
+    )
+
+    assert record.status == "published"
+    assert record.symbols_enumerated == 90, "refusals stayed out of the denominator"
+    assert record.symbols_resolved == 90

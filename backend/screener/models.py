@@ -55,6 +55,11 @@ class RunsResponse(BaseModel):
     # session throughout).
     run_due: bool = False
     running: bool = False
+    # The message from the last run that *failed* for this market, or ``None``.
+    # A failed run publishes nothing, so without this the tab cannot tell "no run
+    # has ever happened" from "every run is crashing" — it kicks a run on open,
+    # the run dies, and the same empty state comes back with nothing said.
+    run_error: str | None = None
 
 
 class RunTriggerResponse(BaseModel):

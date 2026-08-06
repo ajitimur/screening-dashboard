@@ -326,7 +326,11 @@ def run_market_universe(
     and the target is recomputed from them, ascending, so stopping the job for a
     week and restarting leaves no hole in any derivable stream (acceptance A5).
     Backfill fills only absent sessions; a session already recorded is never
-    rewritten. The returned record is the target session's run.
+    rewritten. An absent session that nonetheless carries derived rows is debris
+    from an interrupted run — the run record is stamped last, so a run that died
+    mid-session left rows belonging to no session — and is discarded before the
+    session is recomputed, so one killed run cannot wedge a market for good.
+    The returned record is the target session's run.
     """
     instruments = source.enumerate(market)
     status: dict[str, str] = {}
@@ -340,7 +344,14 @@ def run_market_universe(
 
     candidates = [i.symbol for i in instruments if i.role == "candidate"]
     resolved = [s for s in candidates if status[s] == "resolved"]
-    published = len(resolved) >= RESOLUTION_FLOOR * len(candidates)
+    # The gate exists to catch a *throttled* pull — silence it cannot tell from a
+    # dead name (spec §3.4 rule 7). A listing the provider has explicitly refused
+    # to serve history for is neither: it is a stated answer, and no amount of
+    # pacing will ever turn it into bars. Counting refusals in the denominator
+    # would let a market's warrant listings alone drag a complete pull under the
+    # floor, so the gate is measured over the candidates that *could* resolve.
+    measurable = [s for s in candidates if status[s] != "refused"]
+    published = len(resolved) >= RESOLUTION_FLOOR * len(measurable)
     if not published:
         # A throttled pull quarantines the whole run: no universe, no ranks, no
         # backfill — the last good data keeps serving (spec §3.4 rule 7).
@@ -348,14 +359,27 @@ def run_market_universe(
             market,
             session,
             status="quarantined",
-            symbols_enumerated=len(candidates),
+            # The gate's own denominator, so the record's two numbers are the
+            # ones the verdict was reached on rather than a ratio that reads as
+            # a failed gate on a run that passed it.
+            symbols_enumerated=len(measurable),
             symbols_resolved=len(resolved),
             created_at=now,
         )
 
+    # Sticky classification (spec §3.4 rule 6) carries yesterday's verdict for
+    # every candidate that produced no bars tonight — a refused listing among
+    # them, which is right: it has no bars to reclassify from either.
     unresolved = {s for s in candidates if status[s] != "resolved"}
     record: RunRecord | None = None
     for backfill_session in _sessions_to_backfill(store, market, session):
+        # A previous run may have died after writing some of this session's
+        # derived streams but before stamping its run record — rows that belong
+        # to no session, and that the write-once guard would otherwise refuse to
+        # let this run recompute, wedging the market permanently. The sessions
+        # reaching here are by construction unrecorded, so anything found is
+        # debris from an interrupted run and is cleared before recomputing.
+        store.discard_session(market, backfill_session)
         _compute_session(
             store,
             source,
@@ -372,7 +396,7 @@ def run_market_universe(
             market,
             backfill_session,
             status="published",
-            symbols_enumerated=len(candidates),
+            symbols_enumerated=len(measurable),
             symbols_resolved=len(resolved),
             created_at=now,
         )
@@ -428,9 +452,14 @@ def run_market_from_source(
     silence that survived retries — is *not* counted as resolved, so a
     throttled pull falls below the completeness floor and quarantines rather
     than silently shrinking the universe (spec §3.4 rules 5, 7).
+
+    A candidate the provider ``refused`` outright drops out of the denominator
+    for the same reason it is not retried: it is a stated answer, not the silence
+    the floor is there to detect, and it would otherwise pull a complete pull
+    under the floor.
     """
     _instruments, resolutions = resolve_market(source, market)
-    enumerated = [r.symbol for r in resolutions]
+    enumerated = [r.symbol for r in resolutions if r.status != "refused"]
     resolved = [r.symbol for r in resolutions if r.status == "resolved"]
     return run_market(
         store, market, session, enumerated=enumerated, resolved=resolved, now=now

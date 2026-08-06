@@ -17,6 +17,11 @@ non-actionable: an empty result is ``unresolved`` and is retried with backoff �
 it is *never* reported as ``absent``. Absence requires positive evidence (real
 bars failing the density gate, spec §3.4 rule 6), which lives above this module.
 
+The one break in that symmetry is a refusal Yahoo *states*: for some listings it
+names the periods it will serve instead of answering with an empty frame. That
+is an answer, not silence, so it resolves ``refused`` on the first attempt —
+retrying a sentence only gets the sentence back.
+
 Everything above this boundary sees a :class:`Resolution`, never an empty list,
 and every test fakes *this* boundary — nothing else needs the network.
 """
@@ -47,11 +52,23 @@ NASDAQ_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.tx
 OTHER_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
 
 Role = Literal["candidate", "reference"]
-ResolutionStatus = Literal["resolved", "unresolved"]
+ResolutionStatus = Literal["resolved", "unresolved", "refused"]
 
 
 class RateLimitedError(RuntimeError):
     """A request was throttled (HTTP 429). The caller backs off and retries."""
+
+
+class PermanentlyUnavailableError(RuntimeError):
+    """The provider *stated* it will not serve this listing's history.
+
+    The one case that is not silence. Yahoo answers a request for full history
+    on some listings — warrants and units, typically, with barely any trading
+    life — by naming the periods it will serve instead of returning an empty
+    frame. That is positive evidence, not the ambiguous emptiness §3.2 is about,
+    so it is the one fetch outcome a retry cannot improve: backing off and
+    asking again gets the same sentence back every time.
+    """
 
 
 class Instrument(BaseModel):
@@ -77,6 +94,9 @@ class Resolution:
 
     ``resolved`` carries the fetched bars; ``unresolved`` is silence that
     survived every retry, and it is *not* ``absent`` (spec §3.4 rule 5).
+    ``refused`` is the provider saying outright that it will not serve this
+    listing's history — the one outcome that is evidence rather than silence,
+    so it is neither retried nor counted against the completeness gate.
     """
 
     symbol: str
@@ -247,6 +267,11 @@ class Source:
         Silence — an empty result *or* a persistent 429, indistinguishable by
         spec §3.2 — is retried with exponential backoff up to ``max_attempts``.
         If it never yields bars the result is ``unresolved``, never ``absent``.
+
+        A *stated* refusal is the exception: the provider has answered, so there
+        is nothing to wait out. It returns ``refused`` on the first attempt
+        rather than burning the full retry budget and its backoff sleeps on a
+        listing that will never resolve.
         """
         delay = self._backoff_base
         for attempt in range(1, self._max_attempts + 1):
@@ -255,6 +280,8 @@ class Source:
                 bars = self._client.fetch(symbol)
             except RateLimitedError:
                 bars = []  # a 429 is silence too — back off and retry
+            except PermanentlyUnavailableError:
+                return Resolution(symbol, "refused", [])
             if bars:
                 return Resolution(symbol, "resolved", list(bars))
             if attempt < self._max_attempts:
@@ -308,16 +335,28 @@ class YFinanceSourceClient:
         raise ValueError(f"unknown market {market!r}")
 
     def fetch(self, symbol: str) -> list:
-        """Download a symbol's bars. Empty on silence; raises on a 429."""
+        """Download a symbol's bars. Empty on silence; raises on a 429 or a
+        stated refusal.
+
+        Goes through ``Ticker.history`` rather than ``yfinance.download``:
+        ``download`` catches everything the fetch raised, prints it, and hands
+        back an empty frame, which flattens a refusal the provider *stated* into
+        the same silence a throttled request produces — the one distinction
+        worth keeping. ``history`` lets the typed error through, so a listing
+        Yahoo will not serve is answered once instead of retried four times.
+        """
         import yfinance as yf
 
+        # yfinance swallows fetch exceptions by default and only logs them; this
+        # asks for the exception itself, which is the whole point of the call.
+        yf.config.debug.hide_exceptions = False
         try:
-            frame = yf.download(
-                symbol, period="max", auto_adjust=False, progress=False, threads=False
-            )
-        except Exception as exc:  # yfinance raises its own YFRateLimitError type
+            frame = yf.Ticker(symbol).history(period="max", auto_adjust=False)
+        except Exception as exc:  # yfinance raises its own exception types
             if type(exc).__name__ == "YFRateLimitError":
                 raise RateLimitedError(symbol) from exc
+            if type(exc).__name__ == "YFInvalidPeriodError":
+                raise PermanentlyUnavailableError(f"{symbol}: {exc}") from exc
             raise
         if frame is None or frame.empty:
             return []  # silence — surfaced as unresolved, never absent

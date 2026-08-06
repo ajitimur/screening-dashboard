@@ -112,3 +112,27 @@ def test_a_run_in_progress_never_serves_a_half_written_session(store: Store):
     assert body["universe_size"] == 100  # the published session's universe
     # ...and it is flagged run_due, so the tab shows the run is still needed.
     assert body["run_due"] is True
+
+
+def test_a_failed_run_is_reported_rather_than_showing_as_no_run(store: Store):
+    # A run that crashes publishes nothing and clears ``running``, leaving a
+    # response identical to one where no run ever happened — the tab kicks
+    # another run into the same wall and says nothing. The failure is carried on
+    # the response so the tab can say a run failed (issue #46).
+    manager = RunManager(lambda market: (_ for _ in ()).throw(RuntimeError("pull died")))
+    app = create_app(store=store, run_manager=manager, clock=lambda: FIXED_NOW)
+    client = TestClient(app)
+
+    client.post("/api/runs/IDX")
+    manager.join("IDX", timeout=5)
+    body = client.get("/api/runs/IDX").json()
+
+    assert body["running"] is False
+    assert body["latest"] is None
+    assert body["run_error"] == "pull died"
+
+
+def test_no_run_error_reported_when_nothing_has_failed(store: Store):
+    _publish(store, "IDX", date(2026, 8, 5), datetime(2026, 8, 5, 19, 30))
+    app = create_app(store=store, run_manager=RunManager(lambda m: None), clock=lambda: FIXED_NOW)
+    assert TestClient(app).get("/api/runs/IDX").json()["run_error"] is None

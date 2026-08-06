@@ -104,6 +104,11 @@ def create_app(
             universe_size=len(store.universe(market, latest.session)) if latest else None,
             run_due=run_is_due(latest.session if latest else None, market, clock()),
             running=run_manager.is_running(market) if run_manager else False,
+            # A run that crashed clears ``running`` and publishes nothing, which
+            # is indistinguishable from never having run at all. Surface the
+            # coordinator's error so the tab says the run failed rather than
+            # kicking another one into the same wall in silence.
+            run_error=run_manager.error(market) if run_manager else None,
         )
 
     @app.post("/api/runs/{market}", response_model=RunTriggerResponse)

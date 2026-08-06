@@ -20,7 +20,7 @@ import pytest
 
 from screener.pipeline import run_market_universe
 from screener.source import Instrument, Source
-from screener.store import Store
+from screener.store import SessionExistsError, Store
 
 WIB = ZoneInfo("Asia/Jakarta")
 
@@ -172,3 +172,34 @@ def test_backfilled_universe_is_resolved_as_of_that_session(store, tmp_path):
     assert "LIQ" not in store.universe("IDX", SESSIONS[-5])
     # The latest night sees the liquid bars → LIQ is a member.
     assert "LIQ" in store.universe("IDX", SESSIONS[-1])
+
+
+def test_a_run_killed_mid_session_can_be_redone(store, tmp_path):
+    # The run record is stamped last, so a run killed after writing some of a
+    # session's derived streams leaves rows belonging to no session. Those rows
+    # must not lock the session: the write-once guard protects what a run
+    # *published*, and this session was never published, so the next run
+    # recomputes it rather than dying on the guard forever (issue #46).
+    target = SESSIONS[-1]
+    store.append_universe("IDX", target, ["LIQ"])  # debris from the killed run
+    assert store.runs("IDX") == []  # ...and no run record to show for it
+
+    record = run_market_universe(
+        store, _source(), "IDX", target, now=NOW, digests_dir=tmp_path
+    )
+
+    assert record is not None and record.status == "published"
+    assert store.latest_run("IDX").session == target
+    assert store.ranks("IDX", target), "the redone session computed its streams"
+
+
+def test_a_published_session_is_still_never_recomputed(store, tmp_path):
+    # The other half of the same rule: clearing debris must not become a licence
+    # to rewrite recorded history. A session that carries a run record is refused
+    # outright, so the append-only guarantee (spec §7.2) is untouched.
+    target = SESSIONS[-1]
+    run_market_universe(store, _source(), "IDX", target, now=NOW, digests_dir=tmp_path)
+
+    with pytest.raises(SessionExistsError):
+        store.discard_session("IDX", target)
+    assert store.universe("IDX", target), "the published session is intact"

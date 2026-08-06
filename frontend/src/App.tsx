@@ -134,12 +134,22 @@ function Workbench({ market }: { market: Market }) {
     </p>
   ) : null;
 
+  // A run that crashed publishes nothing and clears `running`, which on its own
+  // looks exactly like never having run at all. Say so instead: the empty state
+  // reads as "nothing happened tonight" and would quietly hide a market that is
+  // failing every single time it is opened.
+  const failure = runs.run_error ? (
+    <p role="alert" className="run-failed">
+      Tonight's {market} run failed: {runs.run_error}
+    </p>
+  ) : null;
+
   if (!runs.latest) {
-    // No run has published yet: either an in-progress first run (progress state)
-    // or an explicit empty state — never a fabricated date.
+    // No run has published yet: an in-progress first run (progress state), a run
+    // that failed, or an explicit empty state — never a fabricated date.
     return (
       <section aria-label={`${market} workbench`}>
-        {progress ?? (
+        {progress ?? failure ?? (
           <p className="empty-state">No run yet for {market}. Nothing to show tonight.</p>
         )}
       </section>
@@ -156,6 +166,7 @@ function Workbench({ market }: { market: Market }) {
   return (
     <section aria-label={`${market} workbench`}>
       {progress}
+      {failure}
       {stale && (
         <p role="status" className="quarantine-banner">
           Tonight's {market} run was quarantined — showing the last good session{" "}

@@ -84,6 +84,21 @@ describe("the two market tabs", () => {
     expect(await screen.findByText(/No run yet for IDX/)).toBeInTheDocument();
   });
 
+  it("says a run failed rather than showing the never-ran empty state", async () => {
+    // A crashed run publishes nothing and clears `running`, so the response is
+    // otherwise identical to one where no run ever happened. Without saying so
+    // the tab kicks a run into the same wall on every open, in silence (#46).
+    mockRuns({
+      IDX: { ...empty("IDX"), run_due: true, run_error: "universe already has rows" },
+      US: empty("US"),
+    });
+    render(<App />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Tonight's IDX run failed: universe already has rows/,
+    );
+    expect(screen.queryByText(/No run yet for IDX/)).not.toBeInTheDocument();
+  });
+
   it("shows tonight's universe size", async () => {
     mockRuns({ IDX: runs("IDX", "2026-08-04", 288), US: empty("US") });
     render(<App />);

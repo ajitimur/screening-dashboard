@@ -344,6 +344,13 @@ class YFinanceSourceClient:
         the same silence a throttled request produces — the one distinction
         worth keeping. ``history`` lets the typed error through, so a listing
         Yahoo will not serve is answered once instead of retried four times.
+
+        Everything *else* it lets through goes back to being silence. Reading
+        one symbol's failure as this run's failure is the trade ``download``
+        was quietly making in the right direction: a dead ticker raises here
+        where it used to yield an empty frame, and a market has thousands of
+        symbols to be wrong about, so letting one of them out of this method
+        would take the whole night's run down with it (spec §3.2).
         """
         import yfinance as yf
 
@@ -357,7 +364,7 @@ class YFinanceSourceClient:
                 raise RateLimitedError(symbol) from exc
             if type(exc).__name__ == "YFInvalidPeriodError":
                 raise PermanentlyUnavailableError(f"{symbol}: {exc}") from exc
-            raise
+            return []  # anything else — a dead ticker, a blip — is silence
         if frame is None or frame.empty:
             return []  # silence — surfaced as unresolved, never absent
         # A single-symbol download can still carry a MultiIndex column axis

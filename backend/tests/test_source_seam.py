@@ -11,6 +11,7 @@ These tests drive that boundary with a fake client and an injected clock, so no
 test touches the network and none sleeps in real time.
 """
 
+import sys
 from datetime import date, datetime
 
 import pytest
@@ -316,3 +317,61 @@ def test_refused_listings_do_not_drag_the_completeness_gate(store: Store):
     assert record.status == "published"
     assert record.symbols_enumerated == 90, "refusals stayed out of the denominator"
     assert record.symbols_resolved == 90
+
+
+# -- the network client's own error translation ------------------------------
+
+
+class _FakeYF:
+    """Stands in for the ``yfinance`` module, raising on the history call.
+
+    The one place a fake replaces the *module* rather than the client: this is
+    the translation from yfinance's exceptions to ours, so there is nothing
+    below it left to inject.
+    """
+
+    class config:  # noqa: N801 — mirrors yfinance's own lowercase namespace
+        class debug:
+            hide_exceptions = True
+
+    def __init__(self, exc: Exception) -> None:
+        self._exc = exc
+
+    def Ticker(self, symbol):  # noqa: N802 — mirrors yfinance's API
+        exc = self._exc
+
+        class _Ticker:
+            def history(self, **_kw):
+                raise exc
+
+        return _Ticker()
+
+
+def _fetch_raising(monkeypatch, exc: Exception):
+    from screener.source import YFinanceSourceClient
+
+    monkeypatch.setitem(sys.modules, "yfinance", _FakeYF(exc))
+    return YFinanceSourceClient().fetch("AAA")
+
+
+@pytest.mark.parametrize("name", ["YFPricesMissingError", "YFTzMissingError", "ValueError"])
+def test_an_unexpected_fetch_error_is_silence_not_the_end_of_the_run(monkeypatch, name):
+    # `yfinance.download` swallowed every error and returned an empty frame;
+    # `Ticker.history` raises them. A dead ticker must not escape this method —
+    # a market has thousands of symbols to be wrong about, and one of them
+    # taking the night's run down is exactly the failure #46 is about.
+    exc = type(name, (Exception,), {})("AAA: possibly delisted; no price data found")
+
+    assert _fetch_raising(monkeypatch, exc) == []
+
+
+def test_the_two_signals_worth_keeping_still_come_through(monkeypatch):
+    # The distinction the switch to `Ticker.history` was made for survives the
+    # catch-all above: throttling and a stated refusal are still typed.
+    throttled = type("YFRateLimitError", (Exception,), {})("too many requests")
+    with pytest.raises(RateLimitedError):
+        _fetch_raising(monkeypatch, throttled)
+
+    refused = type("YFInvalidPeriodError", (Exception,), {})("Period 'max' is invalid")
+    with pytest.raises(PermanentlyUnavailableError):
+        _fetch_raising(monkeypatch, refused)

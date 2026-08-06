@@ -426,6 +426,18 @@ class Store:
             return []
         return self.detections(market, latest)
 
+    def digest_breaks(self, market: str, session: date) -> list[str]:
+        """The symbols the digest reported for ``session``, ordered by symbol — the
+        machine record behind the digest file (spec §6). Empty on a quiet night.
+        Read by the acceptance pass to count digest rows without re-parsing the
+        Markdown or re-running the build (spec §8.2 B5)."""
+        rows = self._con.execute(
+            "SELECT symbol FROM digest_breaks WHERE market = ? AND session = ? "
+            "ORDER BY symbol",
+            [market, session],
+        ).fetchall()
+        return [r[0] for r in rows]
+
     def digest_reports_before(self, market: str, session: date) -> dict[str, date]:
         """Each symbol's most recent reported break *strictly before* ``session``.
 

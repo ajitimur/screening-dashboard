@@ -20,7 +20,7 @@ from .labels import select_fetches
 from .models import RunRecord
 from .ranks import Rank, rank_table
 from .regime import index_broke_out
-from .source import MARKET_INDEX, Source, resolve_market
+from .source import MARKET_INDEX, Instrument, Source, resolve_market
 from .store import Store
 from .universe import rebuild_universe
 
@@ -229,6 +229,68 @@ def write_digest(
     return path
 
 
+def _sessions_to_backfill(store: Store, market: str, target: date) -> list[date]:
+    """Every session the run must compute, ascending, up to and including ``target``.
+
+    Backfill closes gaps: everything derivable from bars is recomputed for every
+    session between the last computed one and the latest final session (spec
+    §7.3). The observed exchange calendar is the union of stored bar dates (spec
+    §3.4 rule 4), so the sessions to fill are exactly the bar dates lying past
+    the last published session and no later than ``target`` — a week away costs
+    a handful of these and leaves no hole.
+
+    Only **absent** sessions are returned: a session that already carries a run
+    record (published *or* quarantined) is skipped, because derived rows are
+    written once and never rewritten (spec §7.2). ``target`` is always included
+    when it is itself absent, so a holiday with no bar still stamps a run and the
+    tab stops re-triggering. On a *first* run — no prior published session — only
+    ``target`` is computed rather than the entire ten-year history.
+    """
+    recorded = {r.session for r in store.runs(market)}
+    latest = store.latest_run(market)
+    out: list[date] = []
+    if latest is not None:
+        out = [s for s in store.sessions(market) if latest.session < s <= target]
+    if target not in out:
+        out.append(target)
+    return sorted(s for s in out if s not in recorded)
+
+
+def _compute_session(
+    store: Store,
+    source: Source,
+    market: str,
+    session: date,
+    *,
+    instruments: list[Instrument],
+    unresolved: set[str],
+    digests_dir: Path,
+    refresh_labels_now: bool,
+) -> None:
+    """Recompute one session's derivable streams from stored bars (stages 4–10).
+
+    Universe, ranks, detections, the index follow-through and the digest are all
+    deterministic functions of the bars, so a backfilled past night reproduces
+    what that night would have produced (spec §7.3). Runs in ascending session
+    order so sticky membership and the digest's "yesterday" read the freshly
+    written prior session.
+
+    The label cache is the one **as-of-only** stream (spec §7.3): it is stamped
+    with the run date and never backfilled, so ``refresh_labels`` fires only on
+    the target session (``refresh_labels_now``) — a missed night leaves a visible
+    gap in ``labels.as_of`` rather than a fabricated per-session stamp.
+    """
+    members = rebuild_universe(
+        store, market, session, instruments=instruments, unresolved=unresolved
+    )
+    rebuild_ranks(store, market, session)
+    rebuild_detections(store, market, session)
+    if refresh_labels_now:
+        refresh_labels(store, source, market, members, session)
+    capture_follow_through(store, market, session)
+    write_digest(store, market, session, digests_dir=digests_dir)
+
+
 def run_market_universe(
     store: Store,
     source: Source,
@@ -237,7 +299,7 @@ def run_market_universe(
     *,
     now: datetime,
     digests_dir: Path = DEFAULT_DIGESTS_DIR,
-) -> RunRecord:
+) -> RunRecord | None:
     """The nightly per-market run: ingest bars, rebuild the universe, record it.
 
     Enumerates the market, resolves every instrument once through the paced,
@@ -258,6 +320,13 @@ def run_market_universe(
     Finally the digest is written: yesterday's breaks made into one dated Markdown
     file, the whole notification layer, so a *missing* file means a failed run
     (§6). ``now`` must be timezone-aware for the finality rule.
+
+    ``session`` is the *target* — the latest final session (spec §7.3). The bars
+    are pulled once, then **every absent session** between the last computed one
+    and the target is recomputed from them, ascending, so stopping the job for a
+    week and restarting leaves no hole in any derivable stream (acceptance A5).
+    Backfill fills only absent sessions; a session already recorded is never
+    rewritten. The returned record is the target session's run.
     """
     instruments = source.enumerate(market)
     status: dict[str, str] = {}
@@ -272,27 +341,42 @@ def run_market_universe(
     candidates = [i.symbol for i in instruments if i.role == "candidate"]
     resolved = [s for s in candidates if status[s] == "resolved"]
     published = len(resolved) >= RESOLUTION_FLOOR * len(candidates)
-    if published:
-        unresolved = {s for s in candidates if status[s] != "resolved"}
-        members = rebuild_universe(
-            store, market, session, instruments=instruments, unresolved=unresolved
+    if not published:
+        # A throttled pull quarantines the whole run: no universe, no ranks, no
+        # backfill — the last good data keeps serving (spec §3.4 rule 7).
+        return store.append_run(
+            market,
+            session,
+            status="quarantined",
+            symbols_enumerated=len(candidates),
+            symbols_resolved=len(resolved),
+            created_at=now,
         )
-        rebuild_ranks(store, market, session)
-        rebuild_detections(store, market, session)
-        refresh_labels(store, source, market, members, session)
-        capture_follow_through(store, market, session)
-        # Stage 10: the digest — yesterday's breaks made into one dated file, the
-        # whole notification layer (spec §6). Written only on a published run, so a
-        # quarantined pull leaves no digest and a *missing* file means a failed run.
-        write_digest(store, market, session, digests_dir=digests_dir)
-    return store.append_run(
-        market,
-        session,
-        status="published" if published else "quarantined",
-        symbols_enumerated=len(candidates),
-        symbols_resolved=len(resolved),
-        created_at=now,
-    )
+
+    unresolved = {s for s in candidates if status[s] != "resolved"}
+    record: RunRecord | None = None
+    for backfill_session in _sessions_to_backfill(store, market, session):
+        _compute_session(
+            store,
+            source,
+            market,
+            backfill_session,
+            instruments=instruments,
+            unresolved=unresolved,
+            digests_dir=digests_dir,
+            # The label cache is as-of-only: stamp it once, on the target session,
+            # never per backfilled night (spec §7.3).
+            refresh_labels_now=backfill_session == session,
+        )
+        record = store.append_run(
+            market,
+            backfill_session,
+            status="published",
+            symbols_enumerated=len(candidates),
+            symbols_resolved=len(resolved),
+            created_at=now,
+        )
+    return record
 
 
 def refresh_labels(

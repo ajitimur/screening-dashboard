@@ -182,15 +182,20 @@ def rebuild_universe(
 
     Bars must already be ingested (Seam 4): the density gate and the calendar
     are read from what is stored.
+
+    Everything read is sliced to ``session``: a backfilled past night is
+    resolved from only what was knowable *then*, never from bars that landed on
+    later sessions (spec §7.3). In the normal single-session run ``session`` is
+    the latest bar date, so the slice is a no-op.
     """
-    market_sessions = store.sessions(market)
+    market_sessions = [s for s in store.sessions(market) if s <= session]
     prior_members = set(store.universe_before(market, session))
     candidates = [
         Candidate(
             symbol=i.symbol,
             name=i.name,
             resolved=i.symbol not in unresolved,
-            bars=store.bars(market, i.symbol),
+            bars=[b for b in store.bars(market, i.symbol) if b.session <= session],
         )
         for i in instruments
         if i.role == "candidate"

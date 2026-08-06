@@ -30,9 +30,18 @@ from .regime import FollowThrough
 # follow-through capture (spec §4.9); v4 the detections table (spec §4.5); v5
 # extends detections with the star score's three derived signals (spec §4.7); v6
 # the digest_breaks table — the reported-break record behind the repeat marker (§6).
+# Recorded in the database on open (``schema_meta``) and reconciled against it by
+# :meth:`Store._migrate`, so an older file is upgraded rather than crashed into.
 SCHEMA_VERSION = 6
 
 _SCHEMA = """
+-- The schema this database has been reconciled to. Written on every open, so
+-- SCHEMA_VERSION is a fact about the file on disk rather than a constant that
+-- only describes what the code would have created from scratch.
+CREATE TABLE IF NOT EXISTS schema_meta (
+    version INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS runs (
     market              TEXT      NOT NULL,
     session             DATE      NOT NULL,
@@ -191,12 +200,84 @@ class SessionExistsError(RuntimeError):
 _DERIVED_TABLES = ("universe", "ranks", "follow_through", "detections", "digest_breaks")
 
 
+class SchemaDriftError(RuntimeError):
+    """An existing database's shape cannot be reconciled with the current one.
+
+    Raised for drift a migration must not paper over — a column that exists
+    under the right name but the wrong type. Adding a column is safe; silently
+    reinterpreting one is not.
+    """
+
+
+def _declared_columns() -> dict[str, dict[str, str]]:
+    """The shape ``_SCHEMA`` describes: ``{table: {column: type}}``.
+
+    Read back out of a throwaway in-memory database rather than parsed out of
+    the DDL text, so the declaration and the thing compared against it cannot
+    drift apart — there is only one description of the schema in this module.
+    """
+    con = duckdb.connect(":memory:")
+    try:
+        con.execute(_SCHEMA)
+        rows = con.execute(
+            "SELECT table_name, column_name, data_type FROM information_schema.columns"
+        ).fetchall()
+    finally:
+        con.close()
+    shape: dict[str, dict[str, str]] = {}
+    for table, column, data_type in rows:
+        shape.setdefault(table, {})[column] = data_type
+    return shape
+
+
 class Store:
     """A thin wrapper over one DuckDB connection with append-only writes."""
 
     def __init__(self, connection: duckdb.DuckDBPyConnection) -> None:
         self._con = connection
         self._con.execute(_SCHEMA)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """Bring a database created by older code up to the current schema.
+
+        ``_SCHEMA`` only ever says *create if absent*, so a table that already
+        exists keeps the shape it was born with however far the declaration has
+        moved on. Nothing noticed: :data:`SCHEMA_VERSION` was never written down
+        or read back, so an out-of-date store looked identical to a current one
+        until a write hit the narrower table — minutes into a pull, after the
+        whole network cost had been paid, and (before the run record is stamped)
+        leaving the session half-computed.
+
+        The reconciliation is additive and derived from the declaration itself:
+        every column the schema declares and the database lacks is added. A
+        column added this way is nullable even where the schema says NOT NULL —
+        rows written before it existed have no value for it, and inventing one
+        would fabricate a signal that night did not have. A column present under
+        the right name but the wrong type is drift no migration should decide
+        about silently, so it raises.
+        """
+        for table, columns in _declared_columns().items():
+            actual = {
+                name: data_type
+                for name, data_type in self._con.execute(
+                    "SELECT column_name, data_type FROM information_schema.columns "
+                    "WHERE table_name = ?",
+                    [table],
+                ).fetchall()
+            }
+            for column, data_type in columns.items():
+                if column not in actual:
+                    self._con.execute(
+                        f"ALTER TABLE {table} ADD COLUMN {column} {data_type}"
+                    )
+                elif actual[column] != data_type:
+                    raise SchemaDriftError(
+                        f"{table}.{column} is {actual[column]}, the schema declares "
+                        f"{data_type}; this database cannot be migrated in place"
+                    )
+        self._con.execute("DELETE FROM schema_meta")
+        self._con.execute("INSERT INTO schema_meta VALUES (?)", [SCHEMA_VERSION])
 
     # -- lifecycle ---------------------------------------------------------
 

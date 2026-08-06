@@ -7,10 +7,16 @@ against (spec §7.2). It also pins the two non-negotiable properties: append-onl
 
 from datetime import date, datetime
 
+import duckdb
 import pytest
 
 from screener.pipeline import ENUMERATION_FLOOR, RESOLUTION_FLOOR, run_market
-from screener.store import SessionExistsError, Store
+from screener.store import (
+    SCHEMA_VERSION,
+    SchemaDriftError,
+    SessionExistsError,
+    Store,
+)
 
 
 def test_run_writes_run_and_universe_rows(store: Store):
@@ -160,3 +166,51 @@ def test_quarantine_is_per_market(store: Store):
     )
     assert store.latest_run("US") is None
     assert store.latest_run("IDX").session == date(2026, 8, 5)
+
+
+# -- opening a database that older code created ------------------------------
+
+
+def test_a_store_from_older_code_is_brought_up_to_the_current_schema(tmp_path):
+    # The schema only ever says "create if absent", so a table that already
+    # exists keeps the shape it was born with. Opening such a store must
+    # reconcile it rather than leave a narrower table for a later write to die
+    # on, minutes into a pull (issue #49).
+    path = tmp_path / "old.duckdb"
+    con = duckdb.connect(str(path))
+    # The detections table as an older version wrote it: without the star
+    # score's three derived signals.
+    con.execute(
+        "CREATE TABLE detections (market TEXT NOT NULL, session DATE NOT NULL, "
+        "symbol TEXT NOT NULL, detector_version INTEGER NOT NULL)"
+    )
+    con.close()
+
+    store = Store.open(path)
+    try:
+        columns = {
+            r[0]
+            for r in store._con.execute(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'detections'"
+            ).fetchall()
+        }
+        assert {"churn_l", "sma20_rising", "dryup"} <= columns
+        # ...and the store now says on disk which schema it has been brought to.
+        assert store._con.execute("SELECT version FROM schema_meta").fetchone()[0] == (
+            SCHEMA_VERSION
+        )
+    finally:
+        store.close()
+
+
+def test_a_column_that_changed_type_is_refused_rather_than_reinterpreted(tmp_path):
+    # Adding a column is safe; silently reading an old column as a new type is
+    # not. That drift is a decision for a person, so it raises at open.
+    path = tmp_path / "drifted.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("CREATE TABLE runs (market TEXT NOT NULL, session TEXT NOT NULL)")
+    con.close()
+
+    with pytest.raises(SchemaDriftError, match="runs.session"):
+        Store.open(path)

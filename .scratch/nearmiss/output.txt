@@ -1,0 +1,126 @@
+========================================================================
+IDX  2026-08-04  universe=80 (carried from 2026-08-06) ranks=recomputed
+  universe members                : 80
+  rejected: not top decile (1m/3m/6m, pipeline.py:172): 65
+  entering detect()               : 15
+    no_bar_asof        [hard    ] 0
+    short_history      [hard    ] 0
+    adr_nonpositive    [hard    ] 0
+    no_prior_move      [hard    ] 0
+    base_too_short     [immature] 7
+    not_caught_up      [immature] 2
+    no_cluster         [immature] 0
+    emitted            [-       ] 6
+  NEAR-MISS (immature rejects)    : 9
+  independent immature failures   : {'base_too_short': 7, 'not_caught_up': 8, 'no_cluster': 5}
+  # immature tests failed (of names past hard gates): {0: 6, 1: 1, 2: 5, 3: 3}
+  base_len of names past hard gates: {1: 3, 2: 4, 3: 2, 7: 1, 9: 1, 12: 1, 15: 1, 26: 1, 28: 1}
+  detections: 6  scores: {2.0: 1, 3.0: 1, 3.5: 2, 4.0: 1, 4.5: 1}
+  >3 stars: 4 (66.7%)   >4 stars: 1 (16.7%)
+  [sector-hit upper bracket] scores: {2.0: 1, 3.0: 1, 3.5: 2, 4.0: 1, 4.5: 1}  >3: 4  >4: 1
+  rows: [('SMLE.JK', 4.5, 4.5), ('VERN.JK', 4.0, 4.0), ('SQMI.JK', 3.5, 3.5), ('VKTR.JK', 3.5, 3.5), ('RBMS.JK', 3.0, 3.0), ('TAMA.JK', 2.0, 2.0)]
+========================================================================
+IDX  2026-08-05  universe=78 (stored) ranks=stored
+  universe members                : 78
+  rejected: not top decile (1m/3m/6m, pipeline.py:172): 63
+  entering detect()               : 15
+    no_bar_asof        [hard    ] 0
+    short_history      [hard    ] 0
+    adr_nonpositive    [hard    ] 0
+    no_prior_move      [hard    ] 0
+    base_too_short     [immature] 7
+    not_caught_up      [immature] 2
+    no_cluster         [immature] 0
+    emitted            [-       ] 6
+  NEAR-MISS (immature rejects)    : 9
+  independent immature failures   : {'base_too_short': 7, 'not_caught_up': 9, 'no_cluster': 8}
+  # immature tests failed (of names past hard gates): {0: 6, 2: 3, 3: 6}
+  base_len of names past hard gates: {1: 5, 2: 2, 3: 2, 4: 2, 10: 1, 13: 1, 27: 1, 29: 1}
+  detections: 6  scores: {2.0: 2, 2.5: 1, 3.0: 1, 3.5: 1, 4.5: 1}
+  >3 stars: 2 (33.3%)   >4 stars: 1 (16.7%)
+  [sector-hit upper bracket] scores: {2.0: 2, 2.5: 1, 3.0: 1, 3.5: 1, 4.5: 1}  >3: 2  >4: 1
+  rows: [('PKPK.JK', 4.5, 4.5), ('RLCO.JK', 3.5, 3.5), ('RBMS.JK', 3.0, 3.0), ('SQMI.JK', 2.5, 2.5), ('TAMA.JK', 2.0, 2.0), ('WGSH.JK', 2.0, 2.0)]
+========================================================================
+IDX  2026-08-06  universe=80 (stored) ranks=stored
+  universe members                : 80
+  rejected: not top decile (1m/3m/6m, pipeline.py:172): 66
+  entering detect()               : 14
+    no_bar_asof        [hard    ] 0
+    short_history      [hard    ] 0
+    adr_nonpositive    [hard    ] 0
+    no_prior_move      [hard    ] 0
+    base_too_short     [immature] 7
+    not_caught_up      [immature] 1
+    no_cluster         [immature] 1
+    emitted            [-       ] 5
+  NEAR-MISS (immature rejects)    : 9
+  independent immature failures   : {'base_too_short': 7, 'not_caught_up': 5, 'no_cluster': 7}
+  # immature tests failed (of names past hard gates): {0: 5, 1: 3, 2: 2, 3: 4}
+  base_len of names past hard gates: {1: 5, 2: 2, 3: 1, 4: 2, 5: 2, 14: 1, 30: 1}
+  detections: 5  scores: {2.0: 1, 3.0: 1, 3.5: 2, 4.0: 1}
+  >3 stars: 3 (60.0%)   >4 stars: 0 (0.0%)
+  [sector-hit upper bracket] scores: {2.0: 1, 3.0: 1, 3.5: 2, 4.0: 1}  >3: 3  >4: 0
+  rows: [('TAMA.JK', 4.0, 4.0), ('PKPK.JK', 3.5, 3.5), ('RLCO.JK', 3.5, 3.5), ('RBMS.JK', 3.0, 3.0), ('SGER.JK', 2.0, 2.0)]
+========================================================================
+US  2026-08-03  universe=1156 (stored) ranks=stored
+  universe members                : 1156
+  rejected: not top decile (1m/3m/6m, pipeline.py:172): 904
+  entering detect()               : 252
+    no_bar_asof        [hard    ] 0
+    short_history      [hard    ] 2
+    adr_nonpositive    [hard    ] 0
+    no_prior_move      [hard    ] 0
+    base_too_short     [immature] 74
+    not_caught_up      [immature] 50
+    no_cluster         [immature] 82
+    emitted            [-       ] 44
+  NEAR-MISS (immature rejects)    : 206
+  independent immature failures   : {'base_too_short': 74, 'not_caught_up': 109, 'no_cluster': 184}
+  # immature tests failed (of names past hard gates): {0: 44, 1: 97, 2: 57, 3: 52}
+  base_len of names past hard gates: {1: 56, 2: 18, 3: 9, 4: 29, 5: 9, 6: 3, 7: 2, 8: 3, 9: 2, 10: 5, 11: 3, 12: 4, 13: 5, 14: 9, 15: 1, 17: 3, 18: 7, 20: 7, 21: 3, 22: 5, 23: 4, 24: 15, 25: 4, 27: 6, 30: 8, 31: 5, 32: 2, 34: 4, 40: 1, 41: 3, 42: 6, 43: 3, 44: 5, 45: 1}
+  detections: 44  scores: {0.5: 1, 1.0: 11, 1.5: 8, 2.0: 3, 2.5: 7, 3.0: 10, 3.5: 1, 4.0: 2, 4.5: 1}
+  >3 stars: 4 (9.1%)   >4 stars: 1 (2.3%)
+  [sector-hit upper bracket] scores: {1.0: 1, 1.5: 11, 2.0: 8, 2.5: 3, 3.0: 7, 3.5: 10, 4.0: 1, 4.5: 2, 5.0: 1}  >3: 14  >4: 3
+  rows: [('GRPN', 4.5, 5.0), ('APGE', 4.0, 4.5), ('ZBIO', 4.0, 4.5), ('KOD', 3.5, 4.0), ('ASH', 3.0, 3.5), ('BURL', 3.0, 3.5), ('CON', 3.0, 3.5), ('DYN', 3.0, 3.5), ('GSHD', 3.0, 3.5), ('LCID', 3.0, 3.5), ('PGNY', 3.0, 3.5), ('SEZL', 3.0, 3.5), ('SYRE', 3.0, 3.5), ('TRAX', 3.0, 3.5), ('AGL', 2.5, 3.0), ('CLOV', 2.5, 3.0), ('CRAI', 2.5, 3.0), ('CXW', 2.5, 3.0), ('LFST', 2.5, 3.0), ('PVLA', 2.5, 3.0), ('RLAY', 2.5, 3.0), ('ATEX', 2.0, 2.5), ('BMNR', 2.0, 2.5), ('OKTA', 2.0, 2.5), ('ABCL', 1.5, 2.0), ('CMPS', 1.5, 2.0), ('COMP', 1.5, 2.0), ('MXL', 1.5, 2.0), ('PTRN', 1.5, 2.0), ('TNGX', 1.5, 2.0), ('VRNS', 1.5, 2.0), ('XMTR', 1.5, 2.0), ('AMBQ', 1.0, 1.5), ('ASTH', 1.0, 1.5), ('CDNL', 1.0, 1.5), ('DELL', 1.0, 1.5), ('DFTX', 1.0, 1.5), ('EXTR', 1.0, 1.5), ('GTX', 1.0, 1.5), ('MGNI', 1.0, 1.5), ('PENG', 1.0, 1.5), ('SLS', 1.0, 1.5), ('WYFI', 1.0, 1.5), ('ATEN', 0.5, 1.0)]
+========================================================================
+US  2026-08-04  universe=1160 (stored) ranks=stored
+  universe members                : 1160
+  rejected: not top decile (1m/3m/6m, pipeline.py:172): 905
+  entering detect()               : 255
+    no_bar_asof        [hard    ] 0
+    short_history      [hard    ] 2
+    adr_nonpositive    [hard    ] 0
+    no_prior_move      [hard    ] 0
+    base_too_short     [immature] 83
+    not_caught_up      [immature] 85
+    no_cluster         [immature] 57
+    emitted            [-       ] 28
+  NEAR-MISS (immature rejects)    : 225
+  independent immature failures   : {'base_too_short': 83, 'not_caught_up': 158, 'no_cluster': 201}
+  # immature tests failed (of names past hard gates): {0: 28, 1: 76, 2: 81, 3: 68}
+  base_len of names past hard gates: {1: 64, 2: 19, 3: 7, 4: 7, 5: 21, 6: 9, 7: 3, 8: 3, 10: 3, 11: 6, 12: 2, 13: 4, 14: 5, 15: 9, 16: 1, 18: 2, 19: 6, 21: 6, 22: 4, 23: 4, 24: 4, 25: 19, 26: 4, 28: 7, 31: 8, 32: 5, 33: 2, 35: 4, 42: 2, 43: 5, 44: 5, 45: 3}
+  detections: 28  scores: {1.0: 6, 1.5: 4, 2.0: 2, 2.5: 5, 3.0: 3, 3.5: 3, 4.0: 3, 4.5: 2}
+  >3 stars: 8 (28.6%)   >4 stars: 2 (7.1%)
+  [sector-hit upper bracket] scores: {1.5: 6, 2.0: 4, 2.5: 2, 3.0: 5, 3.5: 3, 4.0: 3, 4.5: 3, 5.0: 2}  >3: 11  >4: 5
+  rows: [('GRPN', 4.5, 5.0), ('LCID', 4.5, 5.0), ('APGE', 4.0, 4.5), ('DYN', 4.0, 4.5), ('ZBIO', 4.0, 4.5), ('BMNR', 3.5, 4.0), ('CXW', 3.5, 4.0), ('KOD', 3.5, 4.0), ('DJT', 3.0, 3.5), ('RLAY', 3.0, 3.5), ('SBET', 3.0, 3.5), ('ATRC', 2.5, 3.0), ('CLOV', 2.5, 3.0), ('CRAI', 2.5, 3.0), ('ERAS', 2.5, 3.0), ('ORKA', 2.5, 3.0), ('ANAB', 2.0, 2.5), ('PGNY', 2.0, 2.5), ('AGL', 1.5, 2.0), ('BB', 1.5, 2.0), ('CMPS', 1.5, 2.0), ('KEEL', 1.5, 2.0), ('ALKS', 1.0, 1.5), ('CDNL', 1.0, 1.5), ('DFTX', 1.0, 1.5), ('GTX', 1.0, 1.5), ('PENG', 1.0, 1.5), ('WYFI', 1.0, 1.5)]
+========================================================================
+US  2026-08-05  universe=1167 (stored) ranks=stored
+  universe members                : 1167
+  rejected: not top decile (1m/3m/6m, pipeline.py:172): 921
+  entering detect()               : 246
+    no_bar_asof        [hard    ] 0
+    short_history      [hard    ] 3
+    adr_nonpositive    [hard    ] 0
+    no_prior_move      [hard    ] 0
+    base_too_short     [immature] 91
+    not_caught_up      [immature] 60
+    no_cluster         [immature] 65
+    emitted            [-       ] 27
+  NEAR-MISS (immature rejects)    : 216
+  independent immature failures   : {'base_too_short': 91, 'not_caught_up': 135, 'no_cluster': 173}
+  # immature tests failed (of names past hard gates): {0: 27, 1: 97, 2: 55, 3: 64}
+  base_len of names past hard gates: {1: 73, 2: 18, 3: 15, 4: 4, 5: 8, 6: 19, 7: 5, 8: 1, 9: 1, 11: 3, 12: 4, 13: 3, 14: 3, 15: 5, 16: 6, 19: 2, 20: 6, 22: 4, 23: 2, 24: 2, 25: 4, 26: 17, 27: 4, 29: 5, 32: 7, 33: 5, 34: 2, 36: 4, 43: 2, 44: 3, 45: 6}
+  detections: 27  scores: {1.0: 1, 1.5: 5, 2.0: 3, 2.5: 5, 3.0: 5, 3.5: 5, 4.0: 2, 4.5: 1}
+  >3 stars: 8 (29.6%)   >4 stars: 1 (3.7%)
+  [sector-hit upper bracket] scores: {1.5: 1, 2.0: 5, 2.5: 3, 3.0: 5, 3.5: 5, 4.0: 5, 4.5: 2, 5.0: 1}  >3: 13  >4: 3
+  rows: [('ZBIO', 4.5, 5.0), ('APGE', 4.0, 4.5), ('GSHD', 4.0, 4.5), ('ACVA', 3.5, 4.0), ('CRAI', 3.5, 4.0), ('DFNS', 3.5, 4.0), ('SBET', 3.5, 4.0), ('TXG', 3.5, 4.0), ('BURL', 3.0, 3.5), ('DNTH', 3.0, 3.5), ('INTU', 3.0, 3.5), ('PYPL', 3.0, 3.5), ('XRAY', 3.0, 3.5), ('AGYS', 2.5, 3.0), ('ATRC', 2.5, 3.0), ('BHVN', 2.5, 3.0), ('BJRI', 2.5, 3.0), ('CLOV', 2.5, 3.0), ('CDNL', 2.0, 2.5), ('DFTX', 2.0, 2.5), ('GEN', 2.0, 2.5), ('ABCL', 1.5, 2.0), ('ACMR', 1.5, 2.0), ('ILMN', 1.5, 2.0), ('OKTA', 1.5, 2.0), ('PGNY', 1.5, 2.0), ('FCEL', 1.0, 1.5)]

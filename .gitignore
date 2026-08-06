@@ -1,6 +1,15 @@
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+*.egg-info/
+node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+data/*.duckdb
+data/*.duckdb.wal
+data/digests/
+snapshots/
 .scratch/screening-dashboard/prototypes/*/cache
 .scratch/screening-dashboard/prototypes/*/out
 .scratch/screening-dashboard/prototypes/*/venv

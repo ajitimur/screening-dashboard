@@ -684,7 +684,12 @@ Best current estimates, obtained by rescaling rather than by measuring:
 | **Digest rows per night, with `line_ok` demoted** | **~9.6** | **~1.2** |
 
 The real number is **free to compute the day the pipeline exists**. Compute it on the first full run
-and replace this table.
+and replace this table. **The pipeline now exists** (ticket 45):
+`python -m screener.acceptance <IDX|US>` reads the published run and prints B4 (detections per night)
+and B5 (digest rows per night) — among all ten §8.2 figures — measured against these estimates, so
+the replacement is a one-command read, not a re-derivation. Until a live run has been recorded the
+levels above stand as the best rescaled estimates; the measured values, once taken, overwrite this
+table and the deviation flag on B4/B5 goes quiet.
 
 ### 4.9 Market regime ([ticket 10](issues/10-market-regime-filter.md))
 
@@ -1072,6 +1077,12 @@ v1 is done when, on a given evening, the following all hold. Each is checkable i
 Reproduce these on the first full run. **Deviations are not automatically failures** — the universe
 moves — but a deviation of more than ~10% on any of them means a rule was implemented differently
 from this spec.
+
+All ten are computed off the published run by `python -m screener.acceptance <IDX|US>` (ticket 45),
+each paired with the expectation below and flagged when it deviates beyond ~10% — so B1–B10 are
+*recorded*, not eyeballed, and the D2 spot check (the twelve ADRs) rides the same report. Do not
+treat a mediocre-looking list as an implementation bug without checking these first: the rubric
+captures about a third of what the eye achieves (§4.7), a measured shortfall, not a defect.
 
 | # | Criterion | Expected |
 |---|---|---|

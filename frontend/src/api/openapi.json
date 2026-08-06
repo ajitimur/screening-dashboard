@@ -1,0 +1,1201 @@
+{
+  "components": {
+    "schemas": {
+      "Board": {
+        "description": "One market's leaderboard for a single lookback (spec \u00a75.2).",
+        "properties": {
+          "lookback": {
+            "title": "Lookback",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BoardRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lookback",
+          "rows"
+        ],
+        "title": "Board",
+        "type": "object"
+      },
+      "BoardRow": {
+        "description": "One leaderboard row: a name ranked on **pure return**, plus its furniture\n(spec \u00a74.3 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks currently\nled \u2014 a persistence count, *not* a quality score); ``is_new`` marks absence\nfrom this board last session; ``surge`` flags a 1w name up \u226530% over the week;\n``adr`` is a column for the toggle, never the sort key, ``None`` when it cannot\nbe computed.",
+        "properties": {
+          "adr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adr"
+          },
+          "breadth": {
+            "title": "Breadth",
+            "type": "integer"
+          },
+          "is_new": {
+            "title": "Is New",
+            "type": "boolean"
+          },
+          "raw_return": {
+            "title": "Raw Return",
+            "type": "number"
+          },
+          "surge": {
+            "title": "Surge",
+            "type": "boolean"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "raw_return",
+          "breadth",
+          "is_new",
+          "surge",
+          "adr"
+        ],
+        "title": "BoardRow",
+        "type": "object"
+      },
+      "BoardsResponse": {
+        "description": "The five leaderboards for one market, off the nightly path (spec \u00a75.2).\n\n``session`` is the as-of session the boards were ranked on \u2014 the latest\npublished run \u2014 or ``None`` when no run has published yet, which the tab shows\nas an explicit empty state.",
+        "properties": {
+          "boards": {
+            "items": {
+              "$ref": "#/components/schemas/Board"
+            },
+            "title": "Boards",
+            "type": "array"
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          }
+        },
+        "required": [
+          "market",
+          "session",
+          "boards"
+        ],
+        "title": "BoardsResponse",
+        "type": "object"
+      },
+      "Candidate": {
+        "description": "One row of the candidate list \u2014 a detection made readable (spec \u00a75.1).\n\nFive columns off the detection row. ``score`` is the star score (0\u20135) and the\nsort key of the list; ``breakdown`` carries its eight-row rubric so the chart\npanel can reconstruct the arithmetic (spec \u00a74.7). ``dist_adr`` is the distance\nto the trigger in ADR (``(trigger \u2212 close) / adr_abs``); ``stopw_adr`` is the\nstop width in ADR (``(trigger \u2212 cluster_low) / adr_abs``, the watchlist stop\nof \u00a74.6). The stop column **never filters** \u2014 instead the affordable sub-1\u00d7ADR\nminority is flagged (``affordable``), the inverse of marking the ~92%\nunaffordable majority. ``industry`` is the theme layer (``None`` if the label\nwas never fetched); ``breadth`` is the ``k/5`` badge, a persistence count and\n**not** a quality score.\n\nNothing here marks a ``line_ok`` failure: the fit's quality is a **silent\ntiebreak** that orders the list but is never surfaced in the row (spec \u00a74.7).",
+        "properties": {
+          "affordable": {
+            "title": "Affordable",
+            "type": "boolean"
+          },
+          "breadth": {
+            "title": "Breadth",
+            "type": "integer"
+          },
+          "breakdown": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreRow"
+            },
+            "title": "Breakdown",
+            "type": "array"
+          },
+          "dist_adr": {
+            "title": "Dist Adr",
+            "type": "number"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Industry"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "stopw_adr": {
+            "title": "Stopw Adr",
+            "type": "number"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "score",
+          "breakdown",
+          "dist_adr",
+          "stopw_adr",
+          "affordable",
+          "industry",
+          "breadth"
+        ],
+        "title": "Candidate",
+        "type": "object"
+      },
+      "CandidatesResponse": {
+        "description": "Tonight's candidate list for one market (spec \u00a75.1).\n\n``session`` is the as-of published session, ``None`` when no run has\npublished (an explicit empty state). ``ordered_by`` is ``\"score\"`` now that\nthe star-score rubric lands (ticket 39): the list sorts by star score\ndescending, with ``line_ok`` failures silently below equal-scored accepted\nnames. The field remains for the UI to read the order honestly.",
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/Candidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "ordered_by": {
+            "enum": [
+              "ticker",
+              "score"
+            ],
+            "title": "Ordered By",
+            "type": "string"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          }
+        },
+        "required": [
+          "market",
+          "session",
+          "ordered_by",
+          "candidates"
+        ],
+        "title": "CandidatesResponse",
+        "type": "object"
+      },
+      "Candle": {
+        "description": "One OHLCV bar for the chart, **unadjusted** \u2014 real price levels the trigger\nand stop rules are placed at (spec \u00a75.1 / \u00a73.5). ``session`` is the trading\ndate; the frontend renders these as candlesticks and the volume histogram.",
+        "properties": {
+          "close": {
+            "title": "Close",
+            "type": "number"
+          },
+          "high": {
+            "title": "High",
+            "type": "number"
+          },
+          "low": {
+            "title": "Low",
+            "type": "number"
+          },
+          "open": {
+            "title": "Open",
+            "type": "number"
+          },
+          "session": {
+            "format": "date",
+            "title": "Session",
+            "type": "string"
+          },
+          "volume": {
+            "title": "Volume",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session",
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ],
+        "title": "Candle",
+        "type": "object"
+      },
+      "ChartFacts": {
+        "description": "The facts block beside the chart (spec \u00a75.1): the numbers the row deliberately\nleft off, read here where the trade decision is made.\n\nPopulated from the name's detection row (``base_len``, ``trigger``,\n``dist_adr``, ``stopw_adr``, ``adr``), its bars (``dollar_volume``, the \u00a74.1\nmedian-20d liquidity), its rank rows (``decile_ranks``, percentile per\nlookback) and the label cache (``sector``). ``None`` for the whole block when\nthe symbol has no detection tonight \u2014 the chart still draws, but there is no\nbase to describe.",
+        "properties": {
+          "adr": {
+            "title": "Adr",
+            "type": "number"
+          },
+          "base_len": {
+            "title": "Base Len",
+            "type": "integer"
+          },
+          "decile_ranks": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Decile Ranks",
+            "type": "object"
+          },
+          "dist_adr": {
+            "title": "Dist Adr",
+            "type": "number"
+          },
+          "dollar_volume": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dollar Volume"
+          },
+          "sector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sector"
+          },
+          "stopw_adr": {
+            "title": "Stopw Adr",
+            "type": "number"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "number"
+          }
+        },
+        "required": [
+          "base_len",
+          "trigger",
+          "dist_adr",
+          "stopw_adr",
+          "adr",
+          "dollar_volume",
+          "decile_ranks",
+          "sector"
+        ],
+        "title": "ChartFacts",
+        "type": "object"
+      },
+      "ChartResponse": {
+        "description": "One symbol's evidence bundle \u2014 the chart panel in a single call (spec \u00a75.1).\n\nCandles plus the daily MA set (SMA 10/20/50 and the 65 EMA, spec \u00a72) as line\nseries, the ``setup`` overlay (base/cluster shading, envelope, trigger/stop and\nthe \u00a74.7 breakdown) and the facts block. ``session`` is the as-of published\nsession, or ``None`` when no run has published (an explicit empty state). The\nMA lines are computed over the full stored history and then sliced to the drawn\nwindow, so the first drawn point already carries a full window behind it.",
+        "properties": {
+          "candles": {
+            "items": {
+              "$ref": "#/components/schemas/Candle"
+            },
+            "title": "Candles",
+            "type": "array"
+          },
+          "ema65": {
+            "items": {
+              "$ref": "#/components/schemas/MaPoint"
+            },
+            "title": "Ema65",
+            "type": "array"
+          },
+          "facts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChartFacts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          },
+          "setup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SetupOverlay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sma10": {
+            "items": {
+              "$ref": "#/components/schemas/MaPoint"
+            },
+            "title": "Sma10",
+            "type": "array"
+          },
+          "sma20": {
+            "items": {
+              "$ref": "#/components/schemas/MaPoint"
+            },
+            "title": "Sma20",
+            "type": "array"
+          },
+          "sma50": {
+            "items": {
+              "$ref": "#/components/schemas/MaPoint"
+            },
+            "title": "Sma50",
+            "type": "array"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "market",
+          "symbol",
+          "session",
+          "candles",
+          "sma10",
+          "sma20",
+          "sma50",
+          "ema65",
+          "setup",
+          "facts"
+        ],
+        "title": "ChartResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IndustryStrength": {
+        "description": "One ranked industry's shares (spec \u00a74.4 / ticket 07 S5).\n\nAn industry is ranked only at ``members \u2265 10`` \u2014 one rule, both markets,\nyielding many more rows on US than IDX. Industry *is* the theme layer (S1).",
+        "properties": {
+          "decile_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Decile Counts",
+            "type": "object"
+          },
+          "industry": {
+            "title": "Industry",
+            "type": "string"
+          },
+          "members": {
+            "title": "Members",
+            "type": "integer"
+          },
+          "sector": {
+            "title": "Sector",
+            "type": "string"
+          },
+          "shape_differential": {
+            "title": "Shape Differential",
+            "type": "number"
+          },
+          "shares": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Shares",
+            "type": "object"
+          }
+        },
+        "required": [
+          "industry",
+          "sector",
+          "members",
+          "shares",
+          "decile_counts",
+          "shape_differential"
+        ],
+        "title": "IndustryStrength",
+        "type": "object"
+      },
+      "MaPoint": {
+        "description": "One point of a moving-average line series \u2014 the value at a session. The\nline skips the leading bars where the window has not yet filled, so a series\nis shorter than the candle series and starts later (spec \u00a74.2).",
+        "properties": {
+          "session": {
+            "format": "date",
+            "title": "Session",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "session",
+          "value"
+        ],
+        "title": "MaPoint",
+        "type": "object"
+      },
+      "RegimeResponse": {
+        "description": "The market regime banner's payload \u2014 **advisory only** (spec \u00a74.9).\n\nCarries the three-state ``state``, its sizing posture in *words*, market\n``breadth`` (share of the universe above its own rising SMA10/20, displayed\nand gating nothing), and the as-of ``session``. Two banners, one per market,\nnever combined into a global verdict. The regime never filters, reorders or\nscores the candidate list \u2014 every field here is read and shown, none gates.\n\n``state`` is ``None`` when the regime is **undefined** (fewer than 25 index\nbars) or no run has published; ``session`` is ``None`` only in the latter\ncase, which is how the banner tells \"warming up\" from \"nothing yet\". ``posture``\nis ``None`` whenever ``state`` is.",
+        "properties": {
+          "breadth": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Breadth"
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "posture": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posture"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "FRIENDLY",
+                  "CHOPPY",
+                  "HOSTILE"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "required": [
+          "market",
+          "session",
+          "state",
+          "posture",
+          "breadth"
+        ],
+        "title": "RegimeResponse",
+        "type": "object"
+      },
+      "RunRecord": {
+        "description": "One row of the append-only ``runs`` table, keyed ``(market, session)``.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "session": {
+            "format": "date",
+            "title": "Session",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "published",
+              "quarantined"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "symbols_enumerated": {
+            "title": "Symbols Enumerated",
+            "type": "integer"
+          },
+          "symbols_resolved": {
+            "title": "Symbols Resolved",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "market",
+          "session",
+          "status",
+          "symbols_enumerated",
+          "symbols_resolved",
+          "created_at"
+        ],
+        "title": "RunRecord",
+        "type": "object"
+      },
+      "RunTriggerResponse": {
+        "description": "The reply to a run-on-open ``POST /api/runs/{market}`` (spec \u00a77.3).\n\n``triggered`` is true when this call started a run, false when one was\nalready in flight (run-on-open is single-flight \u2014 a second open joins the\nrunning run rather than duplicating it). ``running`` is the market's state\nafter the call: true whenever a run is in flight, so the tab polls until it\nclears and then reloads the now-complete session.",
+        "properties": {
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "running": {
+            "title": "Running",
+            "type": "boolean"
+          },
+          "triggered": {
+            "title": "Triggered",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "market",
+          "triggered",
+          "running"
+        ],
+        "title": "RunTriggerResponse",
+        "type": "object"
+      },
+      "RunsResponse": {
+        "description": "Run records for one market, newest first.\n\n``latest`` is the last *published* run \u2014 the as-of session the tab renders.\nIt is ``None`` when no run has published yet, which the tab shows as an\nexplicit empty state rather than a blank or a fabricated date.",
+        "properties": {
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "run_due": {
+            "default": false,
+            "title": "Run Due",
+            "type": "boolean"
+          },
+          "run_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Error"
+          },
+          "running": {
+            "default": false,
+            "title": "Running",
+            "type": "boolean"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunRecord"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "universe_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Universe Size"
+          }
+        },
+        "required": [
+          "market",
+          "latest",
+          "runs",
+          "universe_size"
+        ],
+        "title": "RunsResponse",
+        "type": "object"
+      },
+      "ScoreRow": {
+        "description": "One row of a candidate's star-score breakdown (spec \u00a74.7).\n\nEight of these reconstruct the score arithmetically next to the chart \u2014 the\ndimension's name, its weight (2 for tightness and orderliness, 1 for the rest)\nand whether it hit. ``n/10 \u2192 stars`` is ``sum(weight where hit) \u00f7 2``.",
+        "properties": {
+          "dimension": {
+            "title": "Dimension",
+            "type": "string"
+          },
+          "hit": {
+            "title": "Hit",
+            "type": "boolean"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dimension",
+          "weight",
+          "hit"
+        ],
+        "title": "ScoreRow",
+        "type": "object"
+      },
+      "SectorStrength": {
+        "description": "One sector's leadership and rotation numbers (spec \u00a74.4 / ticket 07 S2\u2013S8).\n\n``shares`` carries the five per-lookback strengths \u2014 the share of this\nsector's members in that lookback's top decile, ``k/n``. ``members`` is\n``n`` (the sector's universe count) and ``decile_counts`` is ``k`` per\nlookback, so the UI can render the ``k/n`` fragility badge (S4).",
+        "properties": {
+          "decile_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Decile Counts",
+            "type": "object"
+          },
+          "delta_low_confidence": {
+            "title": "Delta Low Confidence",
+            "type": "boolean"
+          },
+          "members": {
+            "title": "Members",
+            "type": "integer"
+          },
+          "rotation_eligible": {
+            "title": "Rotation Eligible",
+            "type": "boolean"
+          },
+          "sector": {
+            "title": "Sector",
+            "type": "string"
+          },
+          "shape_differential": {
+            "title": "Shape Differential",
+            "type": "number"
+          },
+          "shares": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Shares",
+            "type": "object"
+          },
+          "temporal_delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temporal Delta"
+          }
+        },
+        "required": [
+          "sector",
+          "members",
+          "shares",
+          "decile_counts",
+          "shape_differential",
+          "temporal_delta",
+          "rotation_eligible",
+          "delta_low_confidence"
+        ],
+        "title": "SectorStrength",
+        "type": "object"
+      },
+      "SectorsResponse": {
+        "description": "The sector board and the ranked-industry board for one market (\u00a74.4).\n\n``sectors`` is always the full 11-sector axis, default-sorted by shape\ndifferential with the rotation-ineligible sectors grouped below (S4/S8).\n``industries`` carries only the ``members \u2265 10`` rows. ``session`` is the\nas-of published session, ``None`` when no run has published.",
+        "properties": {
+          "industries": {
+            "items": {
+              "$ref": "#/components/schemas/IndustryStrength"
+            },
+            "title": "Industries",
+            "type": "array"
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "sectors": {
+            "items": {
+              "$ref": "#/components/schemas/SectorStrength"
+            },
+            "title": "Sectors",
+            "type": "array"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          }
+        },
+        "required": [
+          "market",
+          "session",
+          "sectors",
+          "industries"
+        ],
+        "title": "SectorsResponse",
+        "type": "object"
+      },
+      "SetupOverlay": {
+        "description": "The setup drawn on top of the candles (spec \u00a75.1 / \u00a73.5 / ticket 41) \u2014 the\nchart as *evidence for the score*, not merely a price chart.\n\n- ``base_start`` / ``cluster_start`` are the first sessions of the base and of\n  the tight trailing cluster inside it; the frontend shades each region from\n  its start to the last candle (the base always ends today, \u00a74.5).\n- ``trigger`` (cluster high) and ``stop`` (cluster low) are the two horizontal\n  rules \u00a77's affordability test is read off geometrically.\n- ``envelope`` is the fitted upper line drawn **as a line series** so candles\n  pierce it in both directions \u2014 per \u00a73.2 that is the correct picture and must\n  not be \"fixed\" in rendering. Anchored at the cluster's max-high bar with the\n  detection's non-positive slope, so it can never exceed the trigger.\n- ``score`` (0\u20135 stars) and ``breakdown`` (the eight \u00a74.7 dimensions, each with\n  its weight and hit) reconstruct the sort key arithmetically beside the chart.\n\n``None`` for the whole overlay when the name has no detection tonight \u2014 there\nis no base to shade, no envelope to fit and no score to break down.",
+        "properties": {
+          "base_start": {
+            "format": "date",
+            "title": "Base Start",
+            "type": "string"
+          },
+          "breakdown": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreRow"
+            },
+            "title": "Breakdown",
+            "type": "array"
+          },
+          "cluster_start": {
+            "format": "date",
+            "title": "Cluster Start",
+            "type": "string"
+          },
+          "envelope": {
+            "items": {
+              "$ref": "#/components/schemas/MaPoint"
+            },
+            "title": "Envelope",
+            "type": "array"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "stop": {
+            "title": "Stop",
+            "type": "number"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "number"
+          }
+        },
+        "required": [
+          "base_start",
+          "cluster_start",
+          "trigger",
+          "stop",
+          "envelope",
+          "score",
+          "breakdown"
+        ],
+        "title": "SetupOverlay",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Qullamaggie Screening Dashboard",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/boards/{market}": {
+      "get": {
+        "operationId": "get_boards_api_boards__market__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Boards"
+      }
+    },
+    "/api/candidates/{market}": {
+      "get": {
+        "operationId": "get_candidates_api_candidates__market__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidatesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Candidates"
+      }
+    },
+    "/api/chart/{market}/{symbol}": {
+      "get": {
+        "operationId": "get_chart_api_chart__market___symbol__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "symbol",
+            "required": true,
+            "schema": {
+              "title": "Symbol",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Chart"
+      }
+    },
+    "/api/regime/{market}": {
+      "get": {
+        "operationId": "get_regime_api_regime__market__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegimeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Regime"
+      }
+    },
+    "/api/runs/{market}": {
+      "get": {
+        "operationId": "get_runs_api_runs__market__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Runs"
+      },
+      "post": {
+        "operationId": "trigger_run_api_runs__market__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunTriggerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trigger Run"
+      }
+    },
+    "/api/sectors/{market}": {
+      "get": {
+        "operationId": "get_sectors_api_sectors__market__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectorsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Sectors"
+      }
+    }
+  }
+}

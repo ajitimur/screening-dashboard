@@ -11,6 +11,32 @@ Researched 2026-08-06. Tailwind docs pages were fetched live; the docs site self
 
 ---
 
+## 0. Where this repo stands today
+
+Read from `frontend/package.json`, `frontend/vite.config.ts`, `frontend/tsconfig.json`, `frontend/src/`:
+
+| Fact | Value |
+| ---- | ----- |
+| Vite | `^5.4.2` |
+| React / React DOM | `^18.3.1` |
+| TypeScript | `^5.5.4` |
+| Plugin | `@vitejs/plugin-react ^4.3.1` |
+| Test runner | `vitest ^2.0.5` + jsdom, config shared with Vite |
+| CSS framework | **none** |
+| Stylesheets | **none** — `find frontend -name "*.css"` outside `node_modules` returns nothing |
+| Inline `style=` props | **zero** — `grep -rn "style=" frontend/src/` returns nothing |
+| Existing `className` usage | semantic hooks only: `run-progress`, `run-failed`, `empty-state`, `quarantine-banner`, `as-of`, `universe-size`, `regime-banner` (`frontend/src/App.tsx`) |
+
+So the frontend is **completely unstyled**. Those `className` strings resolve to nothing — they are
+test/future hooks, not styles. `frontend/src/main.tsx` imports no CSS at all.
+
+That is the ideal starting point: no legacy stylesheet to reconcile, no inline-style convention to
+unpick, no preprocessor or CSS Modules to unwind. Contrast with q-scanner-v2, which is styled
+**entirely** through inline `CSSProperties` objects exported from `theme.ts` — no framework there
+either. The migration is therefore additive here and a rewrite there.
+
+---
+
 ## 1. Which version, and how it installs here
 
 **Target Tailwind v4.** It is current, and for a Vite project the docs prescribe the dedicated
@@ -147,21 +173,24 @@ Sources for the values: `/Users/ajitimur/Projects/q-scanner-v2/web/src/theme.ts:
   --color-verdict-no: #b0402a;
   --color-verdict-no-bg: #f6e3dd;
 
-  /* ---- sector scale (theme.ts:62-85); note the duplicate-name aliases in the
-         source map collapse to these nine distinct hues ---- */
-  --color-sector-technology: #2f7d5b;
-  --color-sector-financials: #2a6f97;
-  --color-sector-industrials: #b5651d;
-  --color-sector-communication: #8e5572;
-  --color-sector-consumer-cyclical: #c9843e;
-  --color-sector-healthcare: #4c9a8f;
-  --color-sector-utilities: #7a8a5e;
-  --color-sector-energy: #a8453a;
-  --color-sector-materials: #9c7a3c;
-  --color-sector-consumer-defensive: #6b7d8a;
-  --color-sector-real-estate: #7d6b8a;
-  --color-sector-infrastructures: #5f7f9c;
-  --color-sector-transportation: #8e5572;
+  /* ---- sector scale (theme.ts:62-85) ----
+         The source map has 21 keys but only 12 distinct hues: it carries aliases for
+         short labels ("Comm Svcs") and for IDX-IC's own classification (docs/adr/0002).
+         Declared once per hue; the alias→hue collapse stays in TypeScript. */
+  --color-sector-technology: #2f7d5b;         /* Technology */
+  --color-sector-financials: #2a6f97;         /* Financial Services | Financials */
+  --color-sector-industrials: #b5651d;        /* Industrials */
+  --color-sector-communication: #8e5572;      /* Communication Services | Comm Svcs
+                                                 | IDX Transportation & Logistics */
+  --color-sector-consumer-cyclical: #c9843e;  /* Consumer Cyclical(s) | Cons Cyclical */
+  --color-sector-healthcare: #4c9a8f;         /* Healthcare */
+  --color-sector-utilities: #7a8a5e;          /* Utilities */
+  --color-sector-energy: #a8453a;             /* Energy */
+  --color-sector-materials: #9c7a3c;          /* Basic Materials | Materials */
+  --color-sector-consumer-defensive: #6b7d8a; /* Consumer Defensive | Cons Defensive
+                                                 | IDX Consumer Non-Cyclicals */
+  --color-sector-real-estate: #7d6b8a;        /* Real Estate | IDX Properties & Real Estate */
+  --color-sector-infrastructures: #5f7f9c;    /* IDX Infrastructures only */
 
   /* ---- structure (App.tsx:78) ---- */
   --radius-card: 1.125rem;                              /* 18px */
@@ -177,6 +206,31 @@ Sources for the values: `/Users/ajitimur/Projects/q-scanner-v2/web/src/theme.ts:
 
 Then `bg-bg`, `bg-surface`, `text-text-muted`, `border-border-strong`, `rounded-card`,
 `shadow-shell`, `max-w-shell`, `font-sans`, `font-mono`, `text-micro` all exist as utilities.
+
+### Referencing them from class names
+
+The namespace prefix drops; the rest becomes the utility suffix. q-scanner's shell
+(`App.tsx:78` — a single inline style object) becomes:
+
+```tsx
+<div className="bg-bg font-sans text-text">
+  <div className="w-shell max-w-full overflow-hidden rounded-card bg-surface shadow-shell
+                  flex flex-col">
+    <span className="font-mono text-green">+12.4%</span>
+    <span className="text-text-muted">as of …</span>
+    <a className="text-teal hover:text-teal-dark">…</a>
+  </div>
+</div>
+```
+
+Theme variables are simultaneously plain CSS variables, so `var(--color-teal)` works in handwritten
+CSS and in inline styles — the docs show `style="background-color: var(--color-mint-500)"` directly
+(<https://tailwindcss.com/docs/theme>). That dual nature is exactly what makes Pattern B in §4 work.
+
+Note `@theme inline` is **not** needed here. The docs reserve it for the case where a theme
+variable's value is *another* variable ("Without using `inline`, your utility classes might resolve
+to unexpected values because of how variables are resolved in CSS" —
+<https://tailwindcss.com/docs/theme>). Every value above is a literal hex or length.
 
 **Two decisions worth flagging.**
 
@@ -349,6 +403,96 @@ does mean q-scanner's `theme.ts` helpers do not disappear — they change return
 (sectors). Budget for rewriting `verdictBadgeStyle`, `verdictDotStyle`, `sectorColor`, `bar`,
 `segItem`, `tickerStyle`, `statMono` (`theme.ts:44-148`) rather than deleting them.
 
+### Worked examples
+
+**Verdict badge (Pattern A)** — replaces `verdictBadgeStyle` (`theme.ts:44-55`). Six full class
+strings, all literal in source, all visible to the scanner. No safelist needed.
+
+```tsx
+const VERDICT_CLASSES = {
+  READY: "text-verdict-ready bg-verdict-ready-bg",
+  WAIT:  "text-verdict-wait bg-verdict-wait-bg",
+  NO:    "text-verdict-no bg-verdict-no-bg",
+} as const;
+
+export function VerdictBadge({ verdict }: { verdict: string | null }) {
+  const n = normVerdict(verdict) ?? "NO";   // theme.ts:37-42, unchanged
+  return (
+    <span className={`rounded-[5px] px-[7px] py-[2px] text-micro font-bold
+                      tracking-badge ${VERDICT_CLASSES[n]}`}>
+      {verdict}
+    </span>
+  );
+}
+```
+
+**Sector cell (Pattern B)** — one variable set at runtime; every utility that consumes it is
+static. The variable also *inherits*, so setting it once on a table row styles every descendant.
+
+```tsx
+<tr style={cssVars({ "--sector": sectorColor(row.sector) })}>   {/* theme.ts:111-113 */}
+  <td>
+    <span className="inline-block size-[9px] rounded-full bg-(--sector)" />
+    <span className="font-mono text-(--sector)">{sectorAbbrOf(row.sector)}</span>
+  </td>
+</tr>
+```
+
+The strings `bg-(--sector)` and `text-(--sector)` are literal in the source, so Tailwind emits them;
+only the variable's *value* is runtime, and CSS variables are resolved by the browser, not the
+build. That is the seam that reconciles runtime colour with a static build — and it preserves
+`sectorColor`'s `?? colors.textFaint` fallback for free, which Pattern A cannot.
+
+**Bar (Pattern B for colour + inline width)** — replaces `bar()` (`theme.ts:119-124`):
+
+```tsx
+export function Bar({ color, widthPct }: { color: string; widthPct: number }) {
+  return (
+    <span className="block h-full w-full rounded-[3px] bg-track">
+      <span
+        className="block h-full rounded-[3px] bg-(--bar)"
+        style={cssVars({
+          "--bar": color,
+          width: `${Math.max(2, Math.min(100, widthPct))}%`,
+        })}
+      />
+    </span>
+  );
+}
+```
+
+Colour goes through a variable (themeable, overridable by a parent); width goes straight to `style`
+— there is nothing to gain from indirection on a continuous value.
+
+**The TypeScript helper.** React 18's `CSSProperties` doesn't admit arbitrary `--*` keys, so
+Pattern B needs a cast. Contain it once rather than sprinkling `as React.CSSProperties`:
+
+```ts
+// frontend/src/theme.ts
+export const cssVars = (
+  vars: Record<string, string | number>,
+): React.CSSProperties => vars as React.CSSProperties;
+```
+
+### What each `theme.ts` export becomes
+
+| `theme.ts` export | Becomes |
+| --- | --- |
+| `colors` (`:6-27`) | `@theme` `--color-*` block |
+| `mono`, `sans` (`:3-4`) | `--font-mono`, `--font-sans` |
+| `verdictBadgeStyle` (`:44-55`) | static class map (Pattern A) |
+| `verdictDotStyle` (`:57-60`) | `inline-block size-[9px] rounded-full bg-(--verdict)` |
+| `bar` (`:119-124`) | component, inline width (above) |
+| `segItem` (`:126-134`) | conditional class string or `data-active:` variants |
+| `tickerStyle` (`:136-141`) | `cursor-pointer border-b-[1.5px] border-dotted border-underline font-bold` |
+| `statLabel` (`:143-145`) | `mb-[2px] block text-micro tracking-label text-text-muted` |
+| `statMono` (`:146-148`) | `font-mono font-semibold text-(--stat)` + size token or arbitrary value |
+| **`verdictColor`, `normVerdict`, `sectorColors`, `sectorAbbr`, `sectorColor`, `sectorAbbrOf`** | **stay as TypeScript** — data and logic, not styling |
+
+The rule that falls out: **Tailwind owns the static vocabulary, TypeScript owns the runtime lookup,
+and a CSS custom property is the seam between them.** Everything returning `CSSProperties` for
+*static* styling dissolves into classes; everything that is a *map* survives untouched.
+
 ---
 
 ## 5. Testing (vitest 2.0 + testing-library) and the build pipeline
@@ -412,4 +556,5 @@ beyond serving the emitted stylesheet, which it already does for the JS bundle.
 - <https://vitest.dev/config/css>
 - npm registry manifests: `tailwindcss`, `@tailwindcss/vite`, `@fontsource/space-grotesk`, `@fontsource/ibm-plex-mono`
 - `/Users/ajitimur/Projects/q-scanner-v2/web/src/theme.ts`, `web/index.html`, `web/src/App.tsx`, `web/src/main.tsx`, `web/package.json`
-- `frontend/package.json`, `frontend/vite.config.ts`, `frontend/src/test-setup.ts` (this repo)
+- `frontend/package.json`, `frontend/vite.config.ts`, `frontend/tsconfig.json`,
+  `frontend/src/main.tsx`, `frontend/src/App.tsx`, `frontend/src/test-setup.ts` (this repo)

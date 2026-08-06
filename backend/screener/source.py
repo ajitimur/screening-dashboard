@@ -344,6 +344,15 @@ class YFinanceSourceClient:
         the same silence a throttled request produces — the one distinction
         worth keeping. ``history`` lets the typed error through, so a listing
         Yahoo will not serve is answered once instead of retried four times.
+
+        Only two of those typed errors are special: a 429 is retryable, and a
+        *stated* refusal (``YFInvalidPeriodError`` — "period 'max' is invalid")
+        is answered once (spec §3.2). Every other error is the silence
+        ``download`` used to swallow — a dead or delisted ticker raises
+        ``YFPricesMissingError`` where ``download`` returned an empty frame, and
+        that is exactly the ambiguous emptiness §3.2 is about, retried as
+        unresolved. Surfacing it as an exception instead would let one bad
+        listing kill the whole pull, which is what reopened issue #47.
         """
         import yfinance as yf
 
@@ -357,7 +366,7 @@ class YFinanceSourceClient:
                 raise RateLimitedError(symbol) from exc
             if type(exc).__name__ == "YFInvalidPeriodError":
                 raise PermanentlyUnavailableError(f"{symbol}: {exc}") from exc
-            raise
+            return []  # any other fetch error is silence — unresolved, not fatal
         if frame is None or frame.empty:
             return []  # silence — surfaced as unresolved, never absent
         # A single-symbol download can still carry a MultiIndex column axis

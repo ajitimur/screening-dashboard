@@ -13,3 +13,11 @@ snapshots/
 .scratch/screening-dashboard/prototypes/*/cache
 .scratch/screening-dashboard/prototypes/*/out
 .scratch/screening-dashboard/prototypes/*/venv
+# claude
+.claude/settings.local.json
+.claude/worktrees/
+.claude/skills/
+.agents/
+skills-lock.json
+# sandcastle
+.sandcastle/

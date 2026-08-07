@@ -35,7 +35,7 @@ rows and a ``symbol → label`` mapping; the store-driven read lives in the app.
 from __future__ import annotations
 
 from .indicators import LOOKBACKS
-from .models import IndustryStrength, SectorStrength
+from .models import IndustryStrength, SectorMember, SectorStrength
 from .ranks import TOP_DECILE, Rank
 
 # The 11 Morningstar GECS sectors, the same taxonomy on both markets (spec §2,
@@ -190,6 +190,47 @@ def sector_strengths(
     # differential descending. SECTORS order breaks any remaining tie.
     out.sort(key=lambda s: (not s.rotation_eligible, -s.shape_differential))
     return out
+
+
+def sector_members(
+    rows: list[Rank],
+    sector_of: dict[str, str],
+    sector: str,
+) -> list[SectorMember]:
+    """The member rows behind one sector — the drill-down (spec §5.5).
+
+    A third reader of the shared rank table (§4.3): the names carrying ``sector``
+    that appear in ``rows``, each folded into its per-lookback ``returns``,
+    ``pctile_universe`` (the percentile, named for the population it is taken over
+    — the universe, since this repo applies no tradability filter) and
+    ``top_decile`` (``percentile ≥ TOP_DECILE``, the same test :func:`_aggregate`
+    counts members with — so there is one definition of the decile badge). The P2
+    fields are emitted ``None``: no 52-week high is computed anywhere today, and
+    the verdict is *not evaluated* for a pack the detector never ran on (§2.1).
+
+    Sorted by symbol. A name absent from a lookback contributes no entry to any of
+    its three maps — never zero-filled, matching the rank table (§4.3).
+    """
+    returns: dict[str, dict[str, float]] = {}
+    pctile: dict[str, dict[str, float]] = {}
+    decile: dict[str, dict[str, bool]] = {}
+    for r in rows:
+        if sector_of.get(r.symbol) != sector:
+            continue
+        returns.setdefault(r.symbol, {})[r.lookback] = r.raw_return
+        pctile.setdefault(r.symbol, {})[r.lookback] = r.percentile
+        decile.setdefault(r.symbol, {})[r.lookback] = r.percentile >= TOP_DECILE
+    return [
+        SectorMember(
+            symbol=symbol,
+            returns=returns[symbol],
+            pctile_universe=pctile[symbol],
+            top_decile=decile[symbol],
+            pct_of_52w_high=None,
+            verdict=None,
+        )
+        for symbol in sorted(returns)
+    ]
 
 
 def industry_strengths(

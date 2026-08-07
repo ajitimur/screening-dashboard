@@ -426,6 +426,7 @@ function emptySectors(market: string): SectorsResponse {
   return {
     market,
     session: null,
+    taxonomy: "GECS",
     sectors: SECTORS.map((sector) => ({
       sector,
       members: 0,

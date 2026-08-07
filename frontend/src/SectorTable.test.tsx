@@ -33,6 +33,7 @@ function board(over: Partial<SectorsResponse> = {}): SectorsResponse {
   return {
     market: "IDX",
     session: "2026-08-04",
+    taxonomy: "GECS",
     sectors: SECTORS.map((s) => sector(s)),
     industries: [],
     ...over,

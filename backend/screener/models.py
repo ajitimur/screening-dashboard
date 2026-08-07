@@ -22,6 +22,12 @@ from .regime import RegimeState
 # it resolved < ~99% of enumerated symbols (v1-spec §3.4 rule 7 / A2).
 RunStatus = Literal["published", "quarantined"]
 
+# Sector/industry labels are yfinance GECS, one taxonomy on both markets. Every
+# sector-bearing response records it, because the labels carry a single ``as_of``
+# and no effective period — a relabel silently rewrites history, so naming the
+# taxonomy on the wire is the one thing that makes the gap legible (spec §2.6).
+Taxonomy = Literal["GECS"]
+
 
 class RunRecord(BaseModel):
     """One row of the append-only ``runs`` table, keyed ``(market, session)``."""
@@ -169,8 +175,65 @@ class SectorsResponse(BaseModel):
 
     market: str
     session: date | None
+    # The taxonomy the sector/industry labels came from — always ``"GECS"``
+    # (spec §2.6 / §4.5). Recorded even here, where the axis renders unchanged.
+    taxonomy: Taxonomy = "GECS"
     sectors: list[SectorStrength]
     industries: list[IndustryStrength]
+
+
+class SectorMember(BaseModel):
+    """One name inside a sector's drill-down (spec §5.5).
+
+    The member list behind a sector row: what the Sectors screen drills into. A
+    member is a universe name carrying this sector's label that appears in the
+    session's rank table, so every field is read off that table (§4.3) — nothing
+    is recomputed here.
+
+    Phase-1 fields, all per-lookback so the client's lookback switch re-renders
+    without a refetch: ``returns`` (the raw per-lookback return), ``pctile_universe``
+    (the percentile, **named for its population** — this repo ranks over the whole
+    universe, applying no tradability filter, so the field must not borrow a name
+    that means ``gated`` elsewhere), and ``top_decile`` (whether the name is in
+    that lookback's top decile, ``percentile ≥ TOP_DECILE`` — the per-name decile
+    badge, P1). A lookback the name is not ranked in (a recent listing) is simply
+    absent from all three maps.
+
+    Phase-2 fields, typed nullable and always ``None`` today:
+    - ``pct_of_52w_high`` — no 52-week high is computed anywhere yet (§1.3).
+    - ``verdict`` — the detector's grade, where **``None`` means *not evaluated***,
+      a different fact from ``extended`` (spec §2.1): a pack contains names the
+      detector never ran on.
+    """
+
+    symbol: str
+    # lookback -> raw return; only the lookbacks the name is ranked in.
+    returns: dict[str, float]
+    # lookback -> percentile in [0, 1] over the *universe* population.
+    pctile_universe: dict[str, float]
+    # lookback -> whether the name is in that lookback's top decile.
+    top_decile: dict[str, bool]
+    # P2: distance below the 52-week high; ``None`` — not computed anywhere today.
+    pct_of_52w_high: float | None
+    # P2: detector verdict; ``None`` means *not evaluated*, not ``extended`` (§2.1).
+    verdict: str | None
+
+
+class SectorDetailResponse(BaseModel):
+    """The member list behind one sector — the drill-down (spec §5.5 / §4.5).
+
+    ``sector`` echoes the resolved label (the path segment is URL-encoded, GECS
+    labels carrying spaces such as ``Consumer Cyclical``). ``members`` is sorted
+    by symbol; it is empty when no run has published (``session`` is ``None``, the
+    explicit empty state) or when a valid sector simply has no members tonight.
+    ``taxonomy`` is always ``"GECS"`` (§2.6).
+    """
+
+    market: str
+    session: date | None
+    sector: str
+    taxonomy: Taxonomy = "GECS"
+    members: list[SectorMember]
 
 
 class ScoreRow(BaseModel):

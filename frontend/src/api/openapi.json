@@ -712,6 +712,114 @@
         "title": "ScoreRow",
         "type": "object"
       },
+      "SectorDetailResponse": {
+        "description": "The member list behind one sector \u2014 the drill-down (spec \u00a75.5 / \u00a74.5).\n\n``sector`` echoes the resolved label (the path segment is URL-encoded, GECS\nlabels carrying spaces such as ``Consumer Cyclical``). ``members`` is sorted\nby symbol; it is empty when no run has published (``session`` is ``None``, the\nexplicit empty state) or when a valid sector simply has no members tonight.\n``taxonomy`` is always ``\"GECS\"`` (\u00a72.6).",
+        "properties": {
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/SectorMember"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "sector": {
+            "title": "Sector",
+            "type": "string"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          },
+          "taxonomy": {
+            "const": "GECS",
+            "default": "GECS",
+            "title": "Taxonomy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "market",
+          "session",
+          "sector",
+          "members"
+        ],
+        "title": "SectorDetailResponse",
+        "type": "object"
+      },
+      "SectorMember": {
+        "description": "One name inside a sector's drill-down (spec \u00a75.5).\n\nThe member list behind a sector row: what the Sectors screen drills into. A\nmember is a universe name carrying this sector's label that appears in the\nsession's rank table, so every field is read off that table (\u00a74.3) \u2014 nothing\nis recomputed here.\n\nPhase-1 fields, all per-lookback so the client's lookback switch re-renders\nwithout a refetch: ``returns`` (the raw per-lookback return), ``pctile_universe``\n(the percentile, **named for its population** \u2014 this repo ranks over the whole\nuniverse, applying no tradability filter, so the field must not borrow a name\nthat means ``gated`` elsewhere), and ``top_decile`` (whether the name is in\nthat lookback's top decile, ``percentile \u2265 TOP_DECILE`` \u2014 the per-name decile\nbadge, P1). A lookback the name is not ranked in (a recent listing) is simply\nabsent from all three maps.\n\nPhase-2 fields, typed nullable and always ``None`` today:\n- ``pct_of_52w_high`` \u2014 no 52-week high is computed anywhere yet (\u00a71.3).\n- ``verdict`` \u2014 the detector's grade, where **``None`` means *not evaluated***,\n  a different fact from ``extended`` (spec \u00a72.1): a pack contains names the\n  detector never ran on.",
+        "properties": {
+          "pct_of_52w_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Of 52W High"
+          },
+          "pctile_universe": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Pctile Universe",
+            "type": "object"
+          },
+          "returns": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Returns",
+            "type": "object"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "top_decile": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Top Decile",
+            "type": "object"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          }
+        },
+        "required": [
+          "symbol",
+          "returns",
+          "pctile_universe",
+          "top_decile",
+          "pct_of_52w_high",
+          "verdict"
+        ],
+        "title": "SectorMember",
+        "type": "object"
+      },
       "SectorStrength": {
         "description": "One sector's leadership and rotation numbers (spec \u00a74.4 / ticket 07 S2\u2013S8).\n\n``shares`` carries the five per-lookback strengths \u2014 the share of this\nsector's members in that lookback's top decile, ``k/n``. ``members`` is\n``n`` (the sector's universe count) and ``decile_counts`` is ``k`` per\nlookback, so the UI can render the ``k/n`` fragility badge (S4).",
         "properties": {
@@ -806,6 +914,12 @@
               }
             ],
             "title": "Session"
+          },
+          "taxonomy": {
+            "const": "GECS",
+            "default": "GECS",
+            "title": "Taxonomy",
+            "type": "string"
           }
         },
         "required": [
@@ -1195,6 +1309,54 @@
           }
         },
         "summary": "Get Sectors"
+      }
+    },
+    "/api/sectors/{market}/{sector}": {
+      "get": {
+        "operationId": "get_sector_detail_api_sectors__market___sector__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sector",
+            "required": true,
+            "schema": {
+              "title": "Sector",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectorDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Sector Detail"
       }
     }
   }

@@ -1,5 +1,7 @@
 <!doctype html>
-<html lang="en" data-frame="card" data-density="tight">
+<!-- Resolved #59: the defaults below are the chosen combination — full-bleed frame,
+     reference-tight density. The toggles remain so the rejected options stay inspectable. -->
+<html lang="en" data-frame="bleed" data-density="tight">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -402,7 +404,7 @@ const DATA = {
 
 // ──────────────────────────────────────────────────────────────
 const $ = (s) => document.querySelector(s);
-const state = { market: "us", frame: "card", density: "tight", run: "healthy" };
+const state = { market: "us", frame: "bleed", density: "tight", run: "healthy" };
 // ?market=idx&frame=bleed&density=native&run=stale — so each variant is linkable
 new URLSearchParams(location.search).forEach((v, k) => { if (k in state) state[k] = v; });
 

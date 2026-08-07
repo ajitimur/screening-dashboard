@@ -5,6 +5,7 @@
   "scripts": {
     "typecheck": "npm --prefix frontend run typecheck",
     "gen:types": "${PYTHON:-.venv/bin/python} backend/scripts/dump_openapi.py && npm --prefix frontend run gen:types",
+    "gen:types:check": "bash scripts/check-types.sh",
     "test": "npm run test:backend && npm run test:frontend",
     "test:backend": "cd backend && ${PYTHON:-../.venv/bin/python} -m pytest -q",
     "test:frontend": "npm --prefix frontend run test",

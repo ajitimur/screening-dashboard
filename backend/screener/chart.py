@@ -137,6 +137,7 @@ def build_chart(
     *,
     prior_move: bool = False,
     sector_share: float = 0.0,
+    window: int | None = None,
 ) -> ChartResponse:
     """One symbol's evidence bundle (spec §5.1). ``bars`` is the name's clean,
     oldest-first series (already scoped to the as-of session by the caller);
@@ -144,14 +145,24 @@ def build_chart(
     tonight, feeding the facts block. ``prior_move`` / ``sector_share`` are the two
     cross-sectional inputs to the star score (the decile gate and the leave-one-out
     1m sector share), supplied by the caller off the same session — they feed the
-    setup overlay's breakdown, mirroring how :mod:`.candidates` scores the list."""
+    setup overlay's breakdown, mirroring how :mod:`.candidates` scores the list.
+
+    ``window`` is how many trailing bars to draw; ``None`` falls back to the
+    :data:`CHART_BARS` default. A thumbnail passes a small ``window`` (e.g. 60) so
+    it costs that many bars, not a full stored history (spec §4.6). The truncation
+    is the *last* step over an already session-scoped series, so a quarantined
+    pull's bars — filtered off before this call — can never survive into the
+    window. The MA lines are still computed over the full ``bars`` and then sliced,
+    so the first drawn point carries a full window behind it rather than
+    restarting at the cut."""
     closes = [b.close for b in bars]  # unadjusted — see the module docstring
     sma10 = sma_series(closes, 10)
     sma20 = sma_series(closes, 20)
     sma50 = sma_series(closes, 50)
     ema65 = ema_series(closes, EMA_WINDOW)
 
-    lo = max(0, len(bars) - CHART_BARS)
+    drawn = CHART_BARS if window is None else window
+    lo = max(0, len(bars) - drawn)
     shown = bars[lo:]
     sessions = [b.session for b in shown]
     return ChartResponse(

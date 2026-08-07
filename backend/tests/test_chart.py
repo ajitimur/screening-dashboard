@@ -65,6 +65,27 @@ def test_chart_window_is_capped_but_ma_lines_start_full():
     assert len(chart.sma10) == CHART_BARS
 
 
+def test_bars_window_draws_the_trailing_n_but_ma_lines_still_start_full():
+    # A thumbnail asks for the last 60 bars, not the full stored history (spec
+    # §4.6). The candles are the trailing N, and the MA lines are still computed
+    # over the *full* history and sliced to that window, so the first drawn SMA10
+    # already carries a full window behind it rather than restarting at the cut.
+    bars = _bars(200)
+    chart = build_chart("US", "AAA", CAL[199], bars, None, [], None, window=60)
+    assert len(chart.candles) == 60
+    assert chart.candles[0].session == CAL[140]
+    assert chart.candles[-1].session == CAL[199]
+    # Every drawn candle has an SMA10 point — none dropped for a short window.
+    assert len(chart.sma10) == 60
+
+
+def test_bars_window_larger_than_history_draws_everything():
+    # Asking for more bars than exist just draws all of them — no padding.
+    bars = _bars(40)
+    chart = build_chart("US", "AAA", CAL[39], bars, None, [], None, window=60)
+    assert len(chart.candles) == 40
+
+
 def test_facts_block_is_reconstructed_from_the_detection():
     bars = _bars(100, close=98.0, volume=1000)
     det = _det("AAA", CAL[99], trigger=100.0, close=98.0, cluster_low=97.0, adr=0.02)

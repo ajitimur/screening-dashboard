@@ -321,6 +321,73 @@ def test_chart_of_a_name_without_a_detection_still_draws_without_facts():
         store.close()
 
 
+def test_chart_bars_window_returns_the_trailing_n_candles():
+    # ?bars=N draws only the last N bars — a thumbnail costs N bars, not the full
+    # stored history (spec §4.6). The response shape is otherwise unchanged.
+    store = _chart_store()
+    try:
+        body = client_for(store).get("/api/chart/US/AAA?bars=60").json()
+        assert len(body["candles"]) == 60
+        assert body["candles"][-1]["close"] == 98.0  # still the last stored bar
+        # The response shape is unchanged — the four MA lines are still present,
+        # computed over full history and sliced to the drawn window.
+        for line in ("sma10", "sma20", "sma50", "ema65"):
+            assert len(body[line]) > 0
+        # Same bundle, just fewer bars: the facts/setup blocks are untouched.
+        assert body["facts"]["base_len"] == 30
+        assert body["setup"]["trigger"] == 100.0
+    finally:
+        store.close()
+
+
+def test_chart_without_bars_param_returns_full_history():
+    # Omitting ?bars keeps the default: the full stored series (120 bars).
+    store = _chart_store()
+    try:
+        body = client_for(store).get("/api/chart/US/AAA").json()
+        assert len(body["candles"]) == 120
+    finally:
+        store.close()
+
+
+def test_chart_window_never_admits_a_quarantined_pulls_bars():
+    # The ordering is the correctness requirement (spec §4.6): the session filter
+    # runs *before* the tail truncation. A newer pull sits in the store past the
+    # published session (quarantined, not published); a small window must still
+    # draw published bars, never the quarantined tail.
+    from datetime import date, datetime, timedelta
+
+    from screener.bars import Bar
+
+    store = Store.memory()
+    session = date(2026, 4, 30)  # the published as-of session
+    cal = [date(2026, 1, 1) + timedelta(days=i) for i in range(120)]
+    # 120 published bars up to and including the session, then 5 quarantined bars
+    # beyond it — a newer pull whose run is not published.
+    published = [Bar(s, 98.0, 99.0, 97.0, 98.0, 98.0, 1000) for s in cal]
+    quarantined = [
+        Bar(session + timedelta(days=i), 5.0, 5.0, 5.0, 5.0, 5.0, 9)
+        for i in range(1, 6)
+    ]
+    store.append_bars("US", "AAA", published + quarantined)
+    store.append_run(
+        "US", session, status="published",
+        symbols_enumerated=1, symbols_resolved=1,
+        created_at=datetime(2026, 4, 30, 22, 10),
+    )
+    store.append_universe("US", session, ["AAA"])
+    try:
+        body = client_for(store).get("/api/chart/US/AAA?bars=3").json()
+        assert len(body["candles"]) == 3
+        # Every drawn bar is on or before the published session; the quarantined
+        # tail (had truncation run first) would have filled the whole window.
+        assert all(c["session"] <= session.isoformat() for c in body["candles"])
+        assert body["candles"][-1]["session"] == session.isoformat()
+        assert all(c["close"] == 98.0 for c in body["candles"])  # none of the 5.0 tail
+    finally:
+        store.close()
+
+
 def test_chart_unknown_symbol_is_404(store: Store):
     assert client_for(store).get("/api/chart/US/NOPE").status_code == 404
 

@@ -1,109 +1,6 @@
 {
   "components": {
     "schemas": {
-      "Board": {
-        "description": "One market's leaderboard for a single lookback (spec \u00a75.2).",
-        "properties": {
-          "lookback": {
-            "title": "Lookback",
-            "type": "string"
-          },
-          "rows": {
-            "items": {
-              "$ref": "#/components/schemas/BoardRow"
-            },
-            "title": "Rows",
-            "type": "array"
-          }
-        },
-        "required": [
-          "lookback",
-          "rows"
-        ],
-        "title": "Board",
-        "type": "object"
-      },
-      "BoardRow": {
-        "description": "One leaderboard row: a name ranked on **pure return**, plus its furniture\n(spec \u00a74.3 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks currently\nled \u2014 a persistence count, *not* a quality score); ``is_new`` marks absence\nfrom this board last session; ``surge`` flags a 1w name up \u226530% over the week;\n``adr`` is a column for the toggle, never the sort key, ``None`` when it cannot\nbe computed.",
-        "properties": {
-          "adr": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Adr"
-          },
-          "breadth": {
-            "title": "Breadth",
-            "type": "integer"
-          },
-          "is_new": {
-            "title": "Is New",
-            "type": "boolean"
-          },
-          "raw_return": {
-            "title": "Raw Return",
-            "type": "number"
-          },
-          "surge": {
-            "title": "Surge",
-            "type": "boolean"
-          },
-          "symbol": {
-            "title": "Symbol",
-            "type": "string"
-          }
-        },
-        "required": [
-          "symbol",
-          "raw_return",
-          "breadth",
-          "is_new",
-          "surge",
-          "adr"
-        ],
-        "title": "BoardRow",
-        "type": "object"
-      },
-      "BoardsResponse": {
-        "description": "The five leaderboards for one market, off the nightly path (spec \u00a75.2).\n\n``session`` is the as-of session the boards were ranked on \u2014 the latest\npublished run \u2014 or ``None`` when no run has published yet, which the tab shows\nas an explicit empty state.",
-        "properties": {
-          "boards": {
-            "items": {
-              "$ref": "#/components/schemas/Board"
-            },
-            "title": "Boards",
-            "type": "array"
-          },
-          "market": {
-            "title": "Market",
-            "type": "string"
-          },
-          "session": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Session"
-          }
-        },
-        "required": [
-          "market",
-          "session",
-          "boards"
-        ],
-        "title": "BoardsResponse",
-        "type": "object"
-      },
       "Candidate": {
         "description": "One row of the candidate list \u2014 a detection made readable (spec \u00a75.1 / \u00a74.3).\n\n``score`` is the star score (0\u20135) and the sort key of the list; ``breakdown``\ncarries its eight-row rubric so the row (or the chart panel) can reconstruct\nthe arithmetic (spec \u00a74.7). ``dist_adr`` is the distance to the trigger in ADR\n(``(trigger \u2212 close) / adr_abs``); ``stopw_adr`` is the stop width in ADR\n(``(trigger \u2212 cluster_low) / adr_abs``, the watchlist stop of \u00a74.6). The stop\ncolumn **never filters** \u2014 instead the affordable sub-1\u00d7ADR minority is flagged\n(``affordable``), the inverse of marking the ~92% unaffordable majority.\n``industry`` is the theme layer (``None`` if the label was never fetched);\n``breadth`` is the ``k/5`` badge, a persistence count and **not** a quality\nscore.\n\nThe **chart-facts fold** (spec \u00a74.3): so a Setups card can show trigger, stop\nand distance without a per-symbol chart fetch, the fields that lived only in\nthe chart bundle now ride the row too \u2014 projected from the *same* detection,\nwhich is the single source both endpoints render from. ``trigger_price`` /\n``stop_price`` are the **borrowed** names for the overlay's trigger (cluster\nhigh) and stop (cluster low) \u2014 v1 had no word for them; ``risk_adr`` is\n**refused** (that quantity is ``stopw_adr`` and keeps its name). ``sector`` is\nnew on this row, which carried ``industry`` only; both are wanted.\n``dollar_volume`` and ``sector`` are ``None`` when the bars/label could not\nsupply them, and ``decile_ranks`` omits a lookback the name is not ranked in \u2014\nmirroring the chart facts block exactly.\n\n``new_tonight`` (P1) is true exactly for names absent from the previous\nsession's detected rows \u2014 the row-level fact that replaces the reference's\nstandalone new-ready panel. ``verdict`` (P2) is typed now and returned ``None``.\n``breakdown`` is typed nullable because at P2 the list will carry non-``detected``\nrows whose star score is undefined; on a P1 detected row it is always the\neight-row rubric.\n\nNothing here marks a ``line_ok`` failure: the fit's quality is a **silent\ntiebreak** that orders the list but is never surfaced in the row (spec \u00a74.7).",
         "properties": {
@@ -538,6 +435,169 @@
           "shape_differential"
         ],
         "title": "IndustryStrength",
+        "type": "object"
+      },
+      "Leader": {
+        "description": "One market's leaderboard for a single lookback (spec \u00a75.2 / \u00a75.3).\n\n``cutoffs`` is a per-lookback block that sits **beside** the rows \u2014 the\ncutoff-return summary at the tier-band boundaries \u2014 never repeated on every\nrow (spec \u00a74.4). Phase-2, so ``None`` until the banding lands.",
+        "properties": {
+          "cutoffs": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cutoffs"
+          },
+          "lookback": {
+            "title": "Lookback",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/LeaderRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lookback",
+          "rows"
+        ],
+        "title": "Leader",
+        "type": "object"
+      },
+      "LeaderRow": {
+        "description": "One leaderboard row: a name ranked on **pure return**, plus its furniture\n(spec \u00a74.3 / \u00a74.4 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks\ncurrently led \u2014 a persistence count, *not* a quality score); ``is_new`` marks\nabsence from this board last session; ``surge`` flags a 1w name up \u226530% over\nthe week; ``adr`` is a column for the toggle, never the sort key, ``None`` when\nit cannot be computed.\n\n``sector`` and ``dollar_volume`` are the two **phase-1** additions (spec \u00a74.4):\nboth cheap, since the read already loads exactly these names' bars for the ADR\ncolumn and sector is a store lookup. Without them the phase-1 control bar would\nship with two live controls and two dead ones. ``sector`` is ``None`` when the\nlabel was never fetched; ``dollar_volume`` is ``None`` when the name's bars\ncould not supply it, the same guard the ADR column carries.\n\n``tier`` and ``rs_pctile`` are **phase-2**, typed nullable and returning\n``None`` until the cross-sectional tier banding lands in the run (spec \u00a74.4).",
+        "properties": {
+          "adr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adr"
+          },
+          "breadth": {
+            "title": "Breadth",
+            "type": "integer"
+          },
+          "dollar_volume": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dollar Volume"
+          },
+          "is_new": {
+            "title": "Is New",
+            "type": "boolean"
+          },
+          "raw_return": {
+            "title": "Raw Return",
+            "type": "number"
+          },
+          "rs_pctile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rs Pctile"
+          },
+          "sector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sector"
+          },
+          "surge": {
+            "title": "Surge",
+            "type": "boolean"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          }
+        },
+        "required": [
+          "symbol",
+          "raw_return",
+          "breadth",
+          "is_new",
+          "surge",
+          "adr",
+          "sector",
+          "dollar_volume"
+        ],
+        "title": "LeaderRow",
+        "type": "object"
+      },
+      "LeadersResponse": {
+        "description": "The five leaderboards for one market, off the nightly path (spec \u00a75.2 /\n\u00a75.3). Formerly ``/api/boards``; renamed because *Board* now names the\ncomposite home screen, with ``/api/boards`` kept as an alias (spec \u00a710.2).\n\n``session`` is the as-of session the boards were ranked on \u2014 the latest\npublished run \u2014 or ``None`` when no run has published yet, which the tab shows\nas an explicit empty state.",
+        "properties": {
+          "boards": {
+            "items": {
+              "$ref": "#/components/schemas/Leader"
+            },
+            "title": "Boards",
+            "type": "array"
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          }
+        },
+        "required": [
+          "market",
+          "session",
+          "boards"
+        ],
+        "title": "LeadersResponse",
         "type": "object"
       },
       "MaPoint": {
@@ -1011,7 +1071,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BoardsResponse"
+                  "$ref": "#/components/schemas/LeadersResponse"
                 }
               }
             },
@@ -1116,6 +1176,45 @@
           }
         },
         "summary": "Get Chart"
+      }
+    },
+    "/api/leaders/{market}": {
+      "get": {
+        "operationId": "get_leaders_api_leaders__market__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Leaders"
       }
     },
     "/api/regime/{market}": {

@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/leaders/{market}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Leaders */
+        get: operations["get_leaders_api_leaders__market__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/regime/{market}": {
         parameters: {
             query?: never;
@@ -111,55 +128,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /**
-         * Board
-         * @description One market's leaderboard for a single lookback (spec §5.2).
-         */
-        Board: {
-            /** Lookback */
-            lookback: string;
-            /** Rows */
-            rows: components["schemas"]["BoardRow"][];
-        };
-        /**
-         * BoardRow
-         * @description One leaderboard row: a name ranked on **pure return**, plus its furniture
-         *     (spec §4.3 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks currently
-         *     led — a persistence count, *not* a quality score); ``is_new`` marks absence
-         *     from this board last session; ``surge`` flags a 1w name up ≥30% over the week;
-         *     ``adr`` is a column for the toggle, never the sort key, ``None`` when it cannot
-         *     be computed.
-         */
-        BoardRow: {
-            /** Adr */
-            adr: number | null;
-            /** Breadth */
-            breadth: number;
-            /** Is New */
-            is_new: boolean;
-            /** Raw Return */
-            raw_return: number;
-            /** Surge */
-            surge: boolean;
-            /** Symbol */
-            symbol: string;
-        };
-        /**
-         * BoardsResponse
-         * @description The five leaderboards for one market, off the nightly path (spec §5.2).
-         *
-         *     ``session`` is the as-of session the boards were ranked on — the latest
-         *     published run — or ``None`` when no run has published yet, which the tab shows
-         *     as an explicit empty state.
-         */
-        BoardsResponse: {
-            /** Boards */
-            boards: components["schemas"]["Board"][];
-            /** Market */
-            market: string;
-            /** Session */
-            session: string | null;
-        };
         /**
          * Candidate
          * @description One row of the candidate list — a detection made readable (spec §5.1 / §4.3).
@@ -373,6 +341,83 @@ export interface components {
             shares: {
                 [key: string]: number;
             };
+        };
+        /**
+         * Leader
+         * @description One market's leaderboard for a single lookback (spec §5.2 / §5.3).
+         *
+         *     ``cutoffs`` is a per-lookback block that sits **beside** the rows — the
+         *     cutoff-return summary at the tier-band boundaries — never repeated on every
+         *     row (spec §4.4). Phase-2, so ``None`` until the banding lands.
+         */
+        Leader: {
+            /** Cutoffs */
+            cutoffs?: {
+                [key: string]: number;
+            } | null;
+            /** Lookback */
+            lookback: string;
+            /** Rows */
+            rows: components["schemas"]["LeaderRow"][];
+        };
+        /**
+         * LeaderRow
+         * @description One leaderboard row: a name ranked on **pure return**, plus its furniture
+         *     (spec §4.3 / §4.4 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks
+         *     currently led — a persistence count, *not* a quality score); ``is_new`` marks
+         *     absence from this board last session; ``surge`` flags a 1w name up ≥30% over
+         *     the week; ``adr`` is a column for the toggle, never the sort key, ``None`` when
+         *     it cannot be computed.
+         *
+         *     ``sector`` and ``dollar_volume`` are the two **phase-1** additions (spec §4.4):
+         *     both cheap, since the read already loads exactly these names' bars for the ADR
+         *     column and sector is a store lookup. Without them the phase-1 control bar would
+         *     ship with two live controls and two dead ones. ``sector`` is ``None`` when the
+         *     label was never fetched; ``dollar_volume`` is ``None`` when the name's bars
+         *     could not supply it, the same guard the ADR column carries.
+         *
+         *     ``tier`` and ``rs_pctile`` are **phase-2**, typed nullable and returning
+         *     ``None`` until the cross-sectional tier banding lands in the run (spec §4.4).
+         */
+        LeaderRow: {
+            /** Adr */
+            adr: number | null;
+            /** Breadth */
+            breadth: number;
+            /** Dollar Volume */
+            dollar_volume: number | null;
+            /** Is New */
+            is_new: boolean;
+            /** Raw Return */
+            raw_return: number;
+            /** Rs Pctile */
+            rs_pctile?: number | null;
+            /** Sector */
+            sector: string | null;
+            /** Surge */
+            surge: boolean;
+            /** Symbol */
+            symbol: string;
+            /** Tier */
+            tier?: string | null;
+        };
+        /**
+         * LeadersResponse
+         * @description The five leaderboards for one market, off the nightly path (spec §5.2 /
+         *     §5.3). Formerly ``/api/boards``; renamed because *Board* now names the
+         *     composite home screen, with ``/api/boards`` kept as an alias (spec §10.2).
+         *
+         *     ``session`` is the as-of session the boards were ranked on — the latest
+         *     published run — or ``None`` when no run has published yet, which the tab shows
+         *     as an explicit empty state.
+         */
+        LeadersResponse: {
+            /** Boards */
+            boards: components["schemas"]["Leader"][];
+            /** Market */
+            market: string;
+            /** Session */
+            session: string | null;
         };
         /**
          * MaPoint
@@ -637,7 +682,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BoardsResponse"];
+                    "application/json": components["schemas"]["LeadersResponse"];
                 };
             };
             /** @description Validation Error */
@@ -701,6 +746,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChartResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_leaders_api_leaders__market__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                market: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeadersResponse"];
                 };
             };
             /** @description Validation Error */

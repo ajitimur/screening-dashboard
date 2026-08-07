@@ -6,9 +6,13 @@ import type { components } from "./schema";
 export type RunsResponse = components["schemas"]["RunsResponse"];
 export type RunRecord = components["schemas"]["RunRecord"];
 export type RunTriggerResponse = components["schemas"]["RunTriggerResponse"];
-export type BoardsResponse = components["schemas"]["BoardsResponse"];
-export type Board = components["schemas"]["Board"];
-export type BoardRow = components["schemas"]["BoardRow"];
+// `Boards` renamed to `Leaders` on the backend (spec §4.4 / §10.2); `/api/boards`
+// is kept as an alias so v1 keeps working until it dies in the integration
+// commit. These aliases hold the v1 names against the renamed schemas so the v1
+// screen compiles unchanged over the aliased endpoint.
+export type BoardsResponse = components["schemas"]["LeadersResponse"];
+export type Board = components["schemas"]["Leader"];
+export type BoardRow = components["schemas"]["LeaderRow"];
 export type SectorsResponse = components["schemas"]["SectorsResponse"];
 export type SectorStrength = components["schemas"]["SectorStrength"];
 export type IndustryStrength = components["schemas"]["IndustryStrength"];

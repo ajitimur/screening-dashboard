@@ -20,6 +20,9 @@ function row(
     is_new: opts.is_new ?? false,
     surge: opts.surge ?? false,
     adr: opts.adr ?? 0.05,
+    // Phase-1 leaders fields (spec §4.4); v1 renders neither yet.
+    sector: null,
+    dollar_volume: null,
   };
 }
 

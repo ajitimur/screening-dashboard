@@ -77,13 +77,24 @@ class RunTriggerResponse(BaseModel):
     running: bool
 
 
-class BoardRow(BaseModel):
+class LeaderRow(BaseModel):
     """One leaderboard row: a name ranked on **pure return**, plus its furniture
-    (spec §4.3 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks currently
-    led — a persistence count, *not* a quality score); ``is_new`` marks absence
-    from this board last session; ``surge`` flags a 1w name up ≥30% over the week;
-    ``adr`` is a column for the toggle, never the sort key, ``None`` when it cannot
-    be computed."""
+    (spec §4.3 / §4.4 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks
+    currently led — a persistence count, *not* a quality score); ``is_new`` marks
+    absence from this board last session; ``surge`` flags a 1w name up ≥30% over
+    the week; ``adr`` is a column for the toggle, never the sort key, ``None`` when
+    it cannot be computed.
+
+    ``sector`` and ``dollar_volume`` are the two **phase-1** additions (spec §4.4):
+    both cheap, since the read already loads exactly these names' bars for the ADR
+    column and sector is a store lookup. Without them the phase-1 control bar would
+    ship with two live controls and two dead ones. ``sector`` is ``None`` when the
+    label was never fetched; ``dollar_volume`` is ``None`` when the name's bars
+    could not supply it, the same guard the ADR column carries.
+
+    ``tier`` and ``rs_pctile`` are **phase-2**, typed nullable and returning
+    ``None`` until the cross-sectional tier banding lands in the run (spec §4.4).
+    """
 
     symbol: str
     raw_return: float
@@ -91,17 +102,32 @@ class BoardRow(BaseModel):
     is_new: bool
     surge: bool
     adr: float | None
+    # Phase-1 (spec §4.4): the sector label and §4.1 median-20d liquidity.
+    sector: str | None
+    dollar_volume: float | None
+    # Phase-2 (spec §4.4): the tier band (1%/2%/3%) and relative-strength
+    # percentile, both nullable until the run computes the banding.
+    tier: str | None = None
+    rs_pctile: float | None = None
 
 
-class Board(BaseModel):
-    """One market's leaderboard for a single lookback (spec §5.2)."""
+class Leader(BaseModel):
+    """One market's leaderboard for a single lookback (spec §5.2 / §5.3).
+
+    ``cutoffs`` is a per-lookback block that sits **beside** the rows — the
+    cutoff-return summary at the tier-band boundaries — never repeated on every
+    row (spec §4.4). Phase-2, so ``None`` until the banding lands.
+    """
 
     lookback: str
-    rows: list[BoardRow]
+    rows: list[LeaderRow]
+    cutoffs: dict[str, float] | None = None
 
 
-class BoardsResponse(BaseModel):
-    """The five leaderboards for one market, off the nightly path (spec §5.2).
+class LeadersResponse(BaseModel):
+    """The five leaderboards for one market, off the nightly path (spec §5.2 /
+    §5.3). Formerly ``/api/boards``; renamed because *Board* now names the
+    composite home screen, with ``/api/boards`` kept as an alias (spec §10.2).
 
     ``session`` is the as-of session the boards were ranked on — the latest
     published run — or ``None`` when no run has published yet, which the tab shows
@@ -110,7 +136,7 @@ class BoardsResponse(BaseModel):
 
     market: str
     session: date | None
-    boards: list[Board]
+    boards: list[Leader]
 
 
 class SectorStrength(BaseModel):

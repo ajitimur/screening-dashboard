@@ -23,11 +23,11 @@ from .chart import build_chart
 from .detection import detection_gate
 from .indicators import adr, median_dollar_volume
 from .models import (
-    Board,
-    BoardRow,
-    BoardsResponse,
     CandidatesResponse,
     ChartResponse,
+    Leader,
+    LeaderRow,
+    LeadersResponse,
     RegimeResponse,
     RunsResponse,
     RunTriggerResponse,
@@ -128,29 +128,50 @@ def create_app(
             market=market, triggered=triggered, running=run_manager.is_running(market)
         )
 
-    @app.get("/api/boards/{market}", response_model=BoardsResponse)
-    def get_boards(market: str) -> BoardsResponse:
+    def _leaders(market: str) -> LeadersResponse:
+        """The five leaderboards for one market — the body of ``/api/leaders`` and
+        its ``/api/boards`` alias (spec §4.4 / §10.2)."""
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
         latest = store.latest_run(market)
         if latest is None:
             # No published run yet — an explicit empty state, not a fabricated date.
-            return BoardsResponse(market=market, session=None, boards=[])
+            return LeadersResponse(market=market, session=None, boards=[])
         session = latest.session
         rows = store.ranks(market, session)
         prev = store.ranks_before(market, session)
-        # ADR is a column that rides each row for the toggle (§4.4); read bars only
-        # for the names that land on some board, not the whole universe.
-        adrs = {s: adr(store.bars(market, s)) for s in board_symbols(rows)}
+        # ADR and dollar volume are columns that ride each row for the toggle /
+        # phase-1 control bar (§4.4); read bars only once, for the names that land
+        # on some board, not the whole universe.
+        members = board_symbols(rows)
+        bars = {s: store.bars(market, s) for s in members}
+        adrs = {s: adr(bars[s]) for s in members}
+        dollar_volumes = {s: median_dollar_volume(bars[s]) for s in members}
+        # Sector is a store lookup off the label cache (§3.3 / §4.4); absent when
+        # the label was never fetched, carried as ``None`` rather than fabricated.
+        labels = store.labels(market)
+        sectors = {s: (labels[s].sector if s in labels else None) for s in members}
         boards = [
-            Board(
+            Leader(
                 lookback=b.lookback,
-                rows=[BoardRow(**vars(r)) for r in b.rows],
+                # tier / rs_pctile / cutoffs are phase-2 and default to null.
+                rows=[LeaderRow(**vars(r)) for r in b.rows],
             )
-            for b in build_boards(rows, prev, adrs)
+            for b in build_boards(rows, prev, adrs, sectors, dollar_volumes)
         ]
-        return BoardsResponse(market=market, session=session, boards=boards)
+        return LeadersResponse(market=market, session=session, boards=boards)
+
+    @app.get("/api/leaders/{market}", response_model=LeadersResponse)
+    def get_leaders(market: str) -> LeadersResponse:
+        return _leaders(market)
+
+    # ``/api/boards`` is kept as an alias so the whole backend lands on ``main``
+    # ahead of any frontend work without breaking v1; it dies later, in the
+    # integration commit (spec §10.2 constraint 1).
+    @app.get("/api/boards/{market}", response_model=LeadersResponse)
+    def get_boards(market: str) -> LeadersResponse:
+        return _leaders(market)
 
     @app.get("/api/sectors/{market}", response_model=SectorsResponse)
     def get_sectors(market: str) -> SectorsResponse:

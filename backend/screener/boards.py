@@ -45,7 +45,7 @@ SURGE_THRESHOLD = 0.30
 
 @dataclass(frozen=True)
 class BoardRow:
-    """One leaderboard row: a ranked name plus its furniture (spec §4.3)."""
+    """One leaderboard row: a ranked name plus its furniture (spec §4.3 / §4.4)."""
 
     symbol: str
     raw_return: float
@@ -53,6 +53,11 @@ class BoardRow:
     is_new: bool  # absent from this board last session
     surge: bool  # 1w only: up ≥30% over the five-day window
     adr: float | None  # a column for the toggle, never the sort key
+    # Phase-1 leaders fields (spec §4.4): the sector label and §4.1 median-20d
+    # dollar volume. Both ride the same board members' bars/labels the ADR read
+    # already loads; ``None`` when the label or bars cannot supply them.
+    sector: str | None = None
+    dollar_volume: float | None = None
 
 
 @dataclass(frozen=True)
@@ -89,15 +94,24 @@ def build_boards(
     rows: list[Rank],
     prev_rows: list[Rank],
     adrs: dict[str, float | None],
+    sectors: dict[str, str | None] | None = None,
+    dollar_volumes: dict[str, float | None] | None = None,
 ) -> list[Board]:
-    """The five boards for a session, built from its rank rows (spec §4.3).
+    """The five boards for a session, built from its rank rows (spec §4.3 / §4.4).
 
     ``prev_rows`` is last session's rank table — the ``NEW`` marker is per-board
     absence from it, so a name can be new on 3m and not on 1w. ``adrs`` maps each
     board member to its ADR for the toggle column; a symbol absent from the map
     carries ``None`` rather than a fabricated zero. On the very first session
     ``prev_rows`` is empty, so every row is correctly ``NEW``.
+
+    ``sectors`` and ``dollar_volumes`` are the phase-1 leaders columns (spec §4.4),
+    each keyed the same way as ``adrs``: a board member absent from the map carries
+    ``None``. Both default to empty, so callers that do not yet supply them (v1's
+    domain tests) build rows with those fields ``None``.
     """
+    sectors = sectors or {}
+    dollar_volumes = dollar_volumes or {}
     breadth = breadth_counts(rows)
     boards: list[Board] = []
     for lookback in LOOKBACKS:
@@ -113,6 +127,8 @@ def build_boards(
                         is_new=r.symbol not in prev_members,
                         surge=lookback == "1w" and r.raw_return >= SURGE_THRESHOLD,
                         adr=adrs.get(r.symbol),
+                        sector=sectors.get(r.symbol),
+                        dollar_volume=dollar_volumes.get(r.symbol),
                     )
                     for r in _board_rows(rows, lookback)
                 ],

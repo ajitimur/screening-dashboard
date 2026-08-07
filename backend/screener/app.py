@@ -31,15 +31,18 @@ from .models import (
     RegimeResponse,
     RunsResponse,
     RunTriggerResponse,
+    SectorDetailResponse,
     SectorsResponse,
 )
 from .regime import breadth, posture, regime_state
 from .runner import RunManager
 from .schedule import run_is_due
 from .sectors import (
+    SECTORS,
     TEMPORAL_SESSIONS,
     industry_strengths,
     leave_one_out_sector_shares,
+    sector_members,
     sector_strengths,
 )
 from .source import MARKET_INDEX
@@ -205,6 +208,34 @@ def create_app(
             session=latest.session,
             sectors=sector_strengths(rows, sector_of, past_rows=past_rows),
             industries=industry_strengths(rows, industry_of, sector_of),
+        )
+
+    @app.get("/api/sectors/{market}/{sector}", response_model=SectorDetailResponse)
+    def get_sector_detail(market: str, sector: str) -> SectorDetailResponse:
+        market = market.upper()
+        if market not in MARKETS:
+            raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
+        # ``sector`` arrives URL-decoded, so a GECS label with a space (e.g.
+        # "Consumer Cyclical") resolves as itself. A label outside the 11-sector
+        # axis is a clean 404 rather than a 200 that looks like an empty pack —
+        # the drill-down only ever links from a real sector row (spec §5.5).
+        if sector not in SECTORS:
+            raise HTTPException(status_code=404, detail=f"unknown sector {sector!r}")
+        latest = store.latest_run(market)
+        if latest is None:
+            # No run has published: the sector resolves but has no members yet —
+            # an explicit empty state, not a fabricated date (spec §4.7).
+            return SectorDetailResponse(
+                market=market, session=None, sector=sector, members=[]
+            )
+        rows = store.ranks(market, latest.session)
+        labels = store.labels(market)
+        sector_of = {sym: label.sector for sym, label in labels.items()}
+        return SectorDetailResponse(
+            market=market,
+            session=latest.session,
+            sector=sector,
+            members=sector_members(rows, sector_of, sector),
         )
 
     @app.get("/api/candidates/{market}", response_model=CandidatesResponse)

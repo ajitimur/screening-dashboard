@@ -124,6 +124,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sectors/{market}/{sector}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sector Detail */
+        get: operations["get_sector_detail_api_sectors__market___sector__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -552,6 +569,76 @@ export interface components {
             weight: number;
         };
         /**
+         * SectorDetailResponse
+         * @description The member list behind one sector — the drill-down (spec §5.5 / §4.5).
+         *
+         *     ``sector`` echoes the resolved label (the path segment is URL-encoded, GECS
+         *     labels carrying spaces such as ``Consumer Cyclical``). ``members`` is sorted
+         *     by symbol; it is empty when no run has published (``session`` is ``None``, the
+         *     explicit empty state) or when a valid sector simply has no members tonight.
+         *     ``taxonomy`` is always ``"GECS"`` (§2.6).
+         */
+        SectorDetailResponse: {
+            /** Market */
+            market: string;
+            /** Members */
+            members: components["schemas"]["SectorMember"][];
+            /** Sector */
+            sector: string;
+            /** Session */
+            session: string | null;
+            /**
+             * Taxonomy
+             * @default GECS
+             * @constant
+             */
+            taxonomy: "GECS";
+        };
+        /**
+         * SectorMember
+         * @description One name inside a sector's drill-down (spec §5.5).
+         *
+         *     The member list behind a sector row: what the Sectors screen drills into. A
+         *     member is a universe name carrying this sector's label that appears in the
+         *     session's rank table, so every field is read off that table (§4.3) — nothing
+         *     is recomputed here.
+         *
+         *     Phase-1 fields, all per-lookback so the client's lookback switch re-renders
+         *     without a refetch: ``returns`` (the raw per-lookback return), ``pctile_universe``
+         *     (the percentile, **named for its population** — this repo ranks over the whole
+         *     universe, applying no tradability filter, so the field must not borrow a name
+         *     that means ``gated`` elsewhere), and ``top_decile`` (whether the name is in
+         *     that lookback's top decile, ``percentile ≥ TOP_DECILE`` — the per-name decile
+         *     badge, P1). A lookback the name is not ranked in (a recent listing) is simply
+         *     absent from all three maps.
+         *
+         *     Phase-2 fields, typed nullable and always ``None`` today:
+         *     - ``pct_of_52w_high`` — no 52-week high is computed anywhere yet (§1.3).
+         *     - ``verdict`` — the detector's grade, where **``None`` means *not evaluated***,
+         *       a different fact from ``extended`` (spec §2.1): a pack contains names the
+         *       detector never ran on.
+         */
+        SectorMember: {
+            /** Pct Of 52W High */
+            pct_of_52w_high: number | null;
+            /** Pctile Universe */
+            pctile_universe: {
+                [key: string]: number;
+            };
+            /** Returns */
+            returns: {
+                [key: string]: number;
+            };
+            /** Symbol */
+            symbol: string;
+            /** Top Decile */
+            top_decile: {
+                [key: string]: boolean;
+            };
+            /** Verdict */
+            verdict: string | null;
+        };
+        /**
          * SectorStrength
          * @description One sector's leadership and rotation numbers (spec §4.4 / ticket 07 S2–S8).
          *
@@ -600,6 +687,12 @@ export interface components {
             sectors: components["schemas"]["SectorStrength"][];
             /** Session */
             session: string | null;
+            /**
+             * Taxonomy
+             * @default GECS
+             * @constant
+             */
+            taxonomy: "GECS";
         };
         /**
          * SetupOverlay
@@ -903,6 +996,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SectorsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sector_detail_api_sectors__market___sector__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                market: string;
+                sector: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectorDetailResponse"];
                 };
             };
             /** @description Validation Error */

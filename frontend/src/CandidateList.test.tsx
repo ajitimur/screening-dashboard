@@ -18,6 +18,17 @@ function candidate(symbol: string, over: Partial<Candidate> = {}): Candidate {
     affordable: false,
     industry: "Semiconductors",
     breadth: 1,
+    // The chart-facts fold (spec §4.3): folded onto the row so a Setups card
+    // renders without a per-symbol chart fetch.
+    trigger_price: 100.0,
+    stop_price: 97.0,
+    close: 98.0,
+    sector: "Technology",
+    adr: 0.02,
+    dollar_volume: 1_000_000,
+    decile_ranks: {},
+    new_tonight: false,
+    verdict: null,
     ...over,
   };
 }

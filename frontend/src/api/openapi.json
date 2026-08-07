@@ -105,8 +105,12 @@
         "type": "object"
       },
       "Candidate": {
-        "description": "One row of the candidate list \u2014 a detection made readable (spec \u00a75.1).\n\nFive columns off the detection row. ``score`` is the star score (0\u20135) and the\nsort key of the list; ``breakdown`` carries its eight-row rubric so the chart\npanel can reconstruct the arithmetic (spec \u00a74.7). ``dist_adr`` is the distance\nto the trigger in ADR (``(trigger \u2212 close) / adr_abs``); ``stopw_adr`` is the\nstop width in ADR (``(trigger \u2212 cluster_low) / adr_abs``, the watchlist stop\nof \u00a74.6). The stop column **never filters** \u2014 instead the affordable sub-1\u00d7ADR\nminority is flagged (``affordable``), the inverse of marking the ~92%\nunaffordable majority. ``industry`` is the theme layer (``None`` if the label\nwas never fetched); ``breadth`` is the ``k/5`` badge, a persistence count and\n**not** a quality score.\n\nNothing here marks a ``line_ok`` failure: the fit's quality is a **silent\ntiebreak** that orders the list but is never surfaced in the row (spec \u00a74.7).",
+        "description": "One row of the candidate list \u2014 a detection made readable (spec \u00a75.1 / \u00a74.3).\n\n``score`` is the star score (0\u20135) and the sort key of the list; ``breakdown``\ncarries its eight-row rubric so the row (or the chart panel) can reconstruct\nthe arithmetic (spec \u00a74.7). ``dist_adr`` is the distance to the trigger in ADR\n(``(trigger \u2212 close) / adr_abs``); ``stopw_adr`` is the stop width in ADR\n(``(trigger \u2212 cluster_low) / adr_abs``, the watchlist stop of \u00a74.6). The stop\ncolumn **never filters** \u2014 instead the affordable sub-1\u00d7ADR minority is flagged\n(``affordable``), the inverse of marking the ~92% unaffordable majority.\n``industry`` is the theme layer (``None`` if the label was never fetched);\n``breadth`` is the ``k/5`` badge, a persistence count and **not** a quality\nscore.\n\nThe **chart-facts fold** (spec \u00a74.3): so a Setups card can show trigger, stop\nand distance without a per-symbol chart fetch, the fields that lived only in\nthe chart bundle now ride the row too \u2014 projected from the *same* detection,\nwhich is the single source both endpoints render from. ``trigger_price`` /\n``stop_price`` are the **borrowed** names for the overlay's trigger (cluster\nhigh) and stop (cluster low) \u2014 v1 had no word for them; ``risk_adr`` is\n**refused** (that quantity is ``stopw_adr`` and keeps its name). ``sector`` is\nnew on this row, which carried ``industry`` only; both are wanted.\n``dollar_volume`` and ``sector`` are ``None`` when the bars/label could not\nsupply them, and ``decile_ranks`` omits a lookback the name is not ranked in \u2014\nmirroring the chart facts block exactly.\n\n``new_tonight`` (P1) is true exactly for names absent from the previous\nsession's detected rows \u2014 the row-level fact that replaces the reference's\nstandalone new-ready panel. ``verdict`` (P2) is typed now and returned ``None``.\n``breakdown`` is typed nullable because at P2 the list will carry non-``detected``\nrows whose star score is undefined; on a P1 detected row it is always the\neight-row rubric.\n\nNothing here marks a ``line_ok`` failure: the fit's quality is a **silent\ntiebreak** that orders the list but is never surfaced in the row (spec \u00a74.7).",
         "properties": {
+          "adr": {
+            "title": "Adr",
+            "type": "number"
+          },
           "affordable": {
             "title": "Affordable",
             "type": "boolean"
@@ -116,15 +120,44 @@
             "type": "integer"
           },
           "breakdown": {
-            "items": {
-              "$ref": "#/components/schemas/ScoreRow"
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ScoreRow"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Breakdown"
+          },
+          "close": {
+            "title": "Close",
+            "type": "number"
+          },
+          "decile_ranks": {
+            "additionalProperties": {
+              "type": "number"
             },
-            "title": "Breakdown",
-            "type": "array"
+            "title": "Decile Ranks",
+            "type": "object"
           },
           "dist_adr": {
             "title": "Dist Adr",
             "type": "number"
+          },
+          "dollar_volume": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dollar Volume"
           },
           "industry": {
             "anyOf": [
@@ -137,8 +170,27 @@
             ],
             "title": "Industry"
           },
+          "new_tonight": {
+            "title": "New Tonight",
+            "type": "boolean"
+          },
           "score": {
             "title": "Score",
+            "type": "number"
+          },
+          "sector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sector"
+          },
+          "stop_price": {
+            "title": "Stop Price",
             "type": "number"
           },
           "stopw_adr": {
@@ -148,6 +200,21 @@
           "symbol": {
             "title": "Symbol",
             "type": "string"
+          },
+          "trigger_price": {
+            "title": "Trigger Price",
+            "type": "number"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
           }
         },
         "required": [
@@ -158,7 +225,15 @@
           "stopw_adr",
           "affordable",
           "industry",
-          "breadth"
+          "breadth",
+          "trigger_price",
+          "stop_price",
+          "close",
+          "sector",
+          "adr",
+          "dollar_volume",
+          "decile_ranks",
+          "new_tonight"
         ],
         "title": "Candidate",
         "type": "object"

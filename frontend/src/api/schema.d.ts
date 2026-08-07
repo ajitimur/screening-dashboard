@@ -162,39 +162,78 @@ export interface components {
         };
         /**
          * Candidate
-         * @description One row of the candidate list — a detection made readable (spec §5.1).
+         * @description One row of the candidate list — a detection made readable (spec §5.1 / §4.3).
          *
-         *     Five columns off the detection row. ``score`` is the star score (0–5) and the
-         *     sort key of the list; ``breakdown`` carries its eight-row rubric so the chart
-         *     panel can reconstruct the arithmetic (spec §4.7). ``dist_adr`` is the distance
-         *     to the trigger in ADR (``(trigger − close) / adr_abs``); ``stopw_adr`` is the
-         *     stop width in ADR (``(trigger − cluster_low) / adr_abs``, the watchlist stop
-         *     of §4.6). The stop column **never filters** — instead the affordable sub-1×ADR
-         *     minority is flagged (``affordable``), the inverse of marking the ~92%
-         *     unaffordable majority. ``industry`` is the theme layer (``None`` if the label
-         *     was never fetched); ``breadth`` is the ``k/5`` badge, a persistence count and
-         *     **not** a quality score.
+         *     ``score`` is the star score (0–5) and the sort key of the list; ``breakdown``
+         *     carries its eight-row rubric so the row (or the chart panel) can reconstruct
+         *     the arithmetic (spec §4.7). ``dist_adr`` is the distance to the trigger in ADR
+         *     (``(trigger − close) / adr_abs``); ``stopw_adr`` is the stop width in ADR
+         *     (``(trigger − cluster_low) / adr_abs``, the watchlist stop of §4.6). The stop
+         *     column **never filters** — instead the affordable sub-1×ADR minority is flagged
+         *     (``affordable``), the inverse of marking the ~92% unaffordable majority.
+         *     ``industry`` is the theme layer (``None`` if the label was never fetched);
+         *     ``breadth`` is the ``k/5`` badge, a persistence count and **not** a quality
+         *     score.
+         *
+         *     The **chart-facts fold** (spec §4.3): so a Setups card can show trigger, stop
+         *     and distance without a per-symbol chart fetch, the fields that lived only in
+         *     the chart bundle now ride the row too — projected from the *same* detection,
+         *     which is the single source both endpoints render from. ``trigger_price`` /
+         *     ``stop_price`` are the **borrowed** names for the overlay's trigger (cluster
+         *     high) and stop (cluster low) — v1 had no word for them; ``risk_adr`` is
+         *     **refused** (that quantity is ``stopw_adr`` and keeps its name). ``sector`` is
+         *     new on this row, which carried ``industry`` only; both are wanted.
+         *     ``dollar_volume`` and ``sector`` are ``None`` when the bars/label could not
+         *     supply them, and ``decile_ranks`` omits a lookback the name is not ranked in —
+         *     mirroring the chart facts block exactly.
+         *
+         *     ``new_tonight`` (P1) is true exactly for names absent from the previous
+         *     session's detected rows — the row-level fact that replaces the reference's
+         *     standalone new-ready panel. ``verdict`` (P2) is typed now and returned ``None``.
+         *     ``breakdown`` is typed nullable because at P2 the list will carry non-``detected``
+         *     rows whose star score is undefined; on a P1 detected row it is always the
+         *     eight-row rubric.
          *
          *     Nothing here marks a ``line_ok`` failure: the fit's quality is a **silent
          *     tiebreak** that orders the list but is never surfaced in the row (spec §4.7).
          */
         Candidate: {
+            /** Adr */
+            adr: number;
             /** Affordable */
             affordable: boolean;
             /** Breadth */
             breadth: number;
             /** Breakdown */
-            breakdown: components["schemas"]["ScoreRow"][];
+            breakdown: components["schemas"]["ScoreRow"][] | null;
+            /** Close */
+            close: number;
+            /** Decile Ranks */
+            decile_ranks: {
+                [key: string]: number;
+            };
             /** Dist Adr */
             dist_adr: number;
+            /** Dollar Volume */
+            dollar_volume: number | null;
             /** Industry */
             industry: string | null;
+            /** New Tonight */
+            new_tonight: boolean;
             /** Score */
             score: number;
+            /** Sector */
+            sector: string | null;
+            /** Stop Price */
+            stop_price: number;
             /** Stopw Adr */
             stopw_adr: number;
             /** Symbol */
             symbol: string;
+            /** Trigger Price */
+            trigger_price: number;
+            /** Verdict */
+            verdict?: string | null;
         };
         /**
          * CandidatesResponse

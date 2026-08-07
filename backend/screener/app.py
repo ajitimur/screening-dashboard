@@ -21,7 +21,7 @@ from .boards import board_symbols, build_boards
 from .candidates import build_candidates
 from .chart import build_chart
 from .detection import detection_gate
-from .indicators import adr
+from .indicators import adr, median_dollar_volume
 from .models import (
     Board,
     BoardRow,
@@ -207,11 +207,29 @@ def create_app(
         labels = store.labels(market)
         industry_of = {sym: label.industry for sym, label in labels.items()}
         sector_of = {sym: label.sector for sym, label in labels.items()}
+        detections = store.detections(market, session)
+        # The chart-facts fold (spec §4.3): dollar_volume is the one row fact not
+        # carried on the detection row, so read each detected name's bars and
+        # compute the §4.1 median-20d liquidity exactly as the chart does — scoped
+        # to the published session so a newer quarantined pull never leaks in.
+        dollar_volume_of = {
+            det.symbol: median_dollar_volume(
+                [b for b in store.bars(market, det.symbol) if b.session <= session]
+            )
+            for det in detections
+        }
+        # new_tonight: absence from the previous session's detected rows — the
+        # per-session analogue of the board's per-lookback NEW diff (spec §4.3).
+        prev_detected = {
+            d.symbol for d in store.detections_before(market, session)
+        }
         candidates = build_candidates(
-            store.detections(market, session),
+            detections,
             store.ranks(market, session),
             industry_of,
             sector_of,
+            dollar_volume_of=dollar_volume_of,
+            prev_detected=prev_detected,
         )
         # Sorted by star score descending, line_ok failures a silent tiebreak
         # below equal-scored accepted names (spec §4.7); the UI reads ordered_by.

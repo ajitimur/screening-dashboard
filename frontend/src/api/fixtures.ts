@@ -278,11 +278,11 @@ export function resolveRoute(routes: ApiRoutes, url: string, method = "GET"): un
     return (routes.regime ?? ((m) => regimeResponse({ market: m })))(market);
   if (path.includes("/api/candidates/"))
     return (routes.candidates ?? ((m) => candidatesResponse({ market: m })))(market);
-  if (path.includes("/api/chart/"))
-    return (routes.chart ?? ((m, s) => chartResponse({ market: m, symbol: s })))(
-      market,
-      decodeURIComponent(seg[3] ?? ""),
-    );
+  if (path.includes("/api/chart/")) {
+    const symbol = decodeURIComponent(seg[3] ?? "");
+    return (routes.chart ??
+      ((m, s) => chartResponse({ market: m, symbol: s })))(market, symbol);
+  }
   throw new Error(`fixtures: no route for ${method} ${path}`);
 }
 

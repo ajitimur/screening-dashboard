@@ -13,24 +13,13 @@ today. It is the fast feedback that catches a stale schema at model-edit time
 rather than later, at a frontend type error.
 """
 
-import json
-from pathlib import Path
-
-from screener.app import create_app
-
-OPENAPI_PATH = (
-    Path(__file__).resolve().parents[2] / "frontend" / "src" / "api" / "openapi.json"
-)
-
-
-def _rendered() -> str:
-    """Exactly the bytes ``dump_openapi.py`` writes — kept in lockstep with it."""
-    return json.dumps(create_app().openapi(), indent=2, sort_keys=True) + "\n"
+from scripts.dump_openapi import OUT as OPENAPI_PATH
+from scripts.dump_openapi import render
 
 
 def test_committed_openapi_matches_response_models() -> None:
     committed = OPENAPI_PATH.read_text()
-    assert committed == _rendered(), (
+    assert committed == render(), (
         "frontend/src/api/openapi.json is stale relative to the response models. "
         "Run 'npm run gen:types' and commit the regenerated openapi.json and "
         "schema.d.ts."

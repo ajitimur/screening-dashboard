@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 
 from . import MARKETS
@@ -259,7 +259,15 @@ def create_app(
         )
 
     @app.get("/api/chart/{market}/{symbol}", response_model=ChartResponse)
-    def get_chart(market: str, symbol: str) -> ChartResponse:
+    def get_chart(
+        market: str,
+        symbol: str,
+        bars_window: int | None = Query(default=None, alias="bars", ge=1),
+    ) -> ChartResponse:
+        # ``?bars=N`` draws only the last N bars — so a 60-bar thumbnail costs 60
+        # bars, not a full stored history (spec §4.6). Omitting it keeps the full
+        # default window; the truncation runs *after* the session filter below, so
+        # a quarantined pull's bars can never survive into a windowed response.
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
@@ -308,7 +316,7 @@ def create_app(
                 ).get(symbol, 0.0)
         return build_chart(
             market, symbol, session, bars, detection, ranks_for_symbol, sector,
-            prior_move=prior_move, sector_share=sector_share,
+            prior_move=prior_move, sector_share=sector_share, window=bars_window,
         )
 
     @app.get("/api/regime/{market}", response_model=RegimeResponse)

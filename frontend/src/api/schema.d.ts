@@ -729,7 +729,9 @@ export interface operations {
     };
     get_chart_api_chart__market___symbol__get: {
         parameters: {
-            query?: never;
+            query?: {
+                bars?: number | null;
+            };
             header?: never;
             path: {
                 market: string;

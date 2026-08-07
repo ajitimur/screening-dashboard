@@ -1151,6 +1151,23 @@
               "title": "Symbol",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "bars",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bars"
+            }
           }
         ],
         "responses": {

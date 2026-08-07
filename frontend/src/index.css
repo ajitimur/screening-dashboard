@@ -1,0 +1,131 @@
+/*
+ * The v2 styling floor — Tailwind v4, CSS-first, and the token set (spec §3.2).
+ *
+ * This is the reference's paper palette with the neutral ramp and semantic trio
+ * DARKENED for contrast; the palette is deliberately not adopted wholesale. Every
+ * lifted value is measured against §8.3's ratio table, not eyeballed.
+ */
+@import "tailwindcss";
+
+/* Both fonts self-hosted via @fontsource — no CDN <link>, no network at runtime. */
+@import "@fontsource/space-grotesk/400.css";
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/600.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+
+@theme {
+  /* Wipe the stock scales so our red/green/amber names don't collide with
+     Tailwind's built-in colour scales (spec §3.2). */
+  --color-*: initial;
+
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* ---- paper palette (§3.2) ---- */
+  --color-bg: #e7e4de;        /* paper ground */
+  --color-surface: #f6f4ef;
+  --color-card: #ffffff;
+  --color-border: #e8e2d8;
+  --color-text: #1c1b18;      /* 13.57 on bg */
+
+  /* Darkened neutrals + semantic trio (§8.3). The reference's lighter values
+     were measured against paper and rejected; these are the lifts (old hexes
+     kept out of source on purpose — see index.css.test.ts):
+       text-muted -> #6b665c   (4.50 on the worst background)
+       green      -> #17703e   (5.58 on surface)
+       amber      -> #8a6215   (4.98 on surface)
+       red        -> #b03d26   (5.39 on surface) */
+  --color-text-muted: #6b665c; /* carries every 9.5px label in the app */
+  --color-green: #17703e;
+  --color-amber: #8a6215;
+  --color-red: #b03d26;
+
+  /* fill-faint: was --color-text-faint #a09a8e (2.20 on bg, dead as a text
+     token). Non-text fill only, lifted past 1.4.11's 3:1 floor on bg (§8.3). */
+  --color-fill-faint: #7c776d; /* ~3.5:1 on bg */
+
+  /* The ticker's dotted underline as its own token at a 3:1 floor — the old
+     `underline #b3ab9d` (2.07) split off from the text uses (§8.3). */
+  --color-affordance: #8f8879; /* ~3.0:1 on bg */
+
+  --radius-card: 1.125rem;                          /* 18px */
+  --shadow-shell: 0 30px 70px rgb(40 34 24 / 0.20);
+  --container-shell: 82.5rem;                       /* 1320px */
+
+  /* ---- type scale: the reference's, kept, 9.5px floor and all (§3.2) ---- */
+  --text-micro: 0.59375rem;  /*  9.5px */
+  --text-label: 0.65625rem;  /* 10.5px */
+  --text-meta: 0.71875rem;   /* 11.5px */
+  --text-body: 0.8125rem;    /* 13px   */
+  --text-head: 0.9375rem;    /* 15px   */
+  --text-stat: 1rem;         /* 16px   */
+  --text-ticker: 1.25rem;    /* 20px   */
+
+  /* Sector scale — ten hues, unchanged from the reference (§3.2). Declared here
+     as theme tokens *and* restated in :root below, because they are read only
+     from a runtime var() and would otherwise be tree-shaken away. */
+  --color-sector-technology: #2f7d5b;
+  --color-sector-financials: #2a6f97;
+  --color-sector-industrials: #b5651d;
+  --color-sector-communication: #8e5572;
+  --color-sector-consumer-cyclical: #c9843e;
+  --color-sector-healthcare: #4c9a8f;
+  --color-sector-utilities: #7a8a5e;
+  --color-sector-energy: #a8453a;
+  --color-sector-materials: #9c7a3c;
+  --color-sector-defensive: #6b7d8a;
+
+  /* Regime band pairs (§4.9 states): text · background · border. */
+  --color-regime-ok: #17703e;
+  --color-regime-ok-bg: #e7f2ea;
+  --color-regime-ok-br: #b9dcc4;
+  --color-regime-warn: #8a6215;
+  --color-regime-warn-bg: #f6ecd8;
+  --color-regime-warn-br: #e6cf9e;
+  --color-regime-stop: #b03d26;
+  --color-regime-stop-bg: #f6e3dd;
+  --color-regime-stop-br: #e8c3b8;
+}
+
+/*
+ * The tree-shaking trap, closed (spec §3.2, map #59). Tailwind v4 drops any
+ * @theme variable no utility class mentions. The sector scale and the regime
+ * pairs are consumed only through a runtime `var()` — sector colours as an
+ * inline `style` read by `bg-(--sector)`, regime pairs likewise — so no class
+ * names them and they would vanish from the emitted CSS, leaving bars and dots
+ * uncoloured with no error. Restating them in a plain :root keeps them in the
+ * sheet regardless of what any utility mentions.
+ */
+:root {
+  --color-sector-technology: #2f7d5b;
+  --color-sector-financials: #2a6f97;
+  --color-sector-industrials: #b5651d;
+  --color-sector-communication: #8e5572;
+  --color-sector-consumer-cyclical: #c9843e;
+  --color-sector-healthcare: #4c9a8f;
+  --color-sector-utilities: #7a8a5e;
+  --color-sector-energy: #a8453a;
+  --color-sector-materials: #9c7a3c;
+  --color-sector-defensive: #6b7d8a;
+
+  --color-regime-ok: #17703e;
+  --color-regime-ok-bg: #e7f2ea;
+  --color-regime-ok-br: #b9dcc4;
+  --color-regime-warn: #8a6215;
+  --color-regime-warn-bg: #f6ecd8;
+  --color-regime-warn-br: #e6cf9e;
+  --color-regime-stop: #b03d26;
+  --color-regime-stop-bg: #f6e3dd;
+  --color-regime-stop-br: #e8c3b8;
+}
+
+@layer base {
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+  }
+}

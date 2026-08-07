@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en" data-frame="card" data-density="tight">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>v2 shell — prototype for #59</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+<style type="text/tailwindcss">
+  @theme {
+    /* wipe the stock scales so our red/green/amber names don't collide (research §2) */
+    --color-*: initial;
+
+    --font-sans: "Space Grotesk", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", monospace;
+
+    /* ---- paper palette ---- */
+    --color-bg: #e7e4de;
+    --color-surface: #f6f4ef;
+    --color-surface-alt: #f9f6f0;
+    --color-card: #ffffff;
+    --color-border: #e8e2d8;
+    --color-border-strong: #d8cbb6;
+    --color-text: #1c1b18;
+    --color-text-muted: #8a857c;
+    --color-text-faint: #a09a8e;
+    --color-chip: #f2eee6;
+    --color-seg-bg: #ece7dd;
+    --color-track: #efeae0;
+    --color-hover: #faf7f1;
+    --color-underline: #b3ab9d;
+    --color-white: #ffffff;
+
+    --color-green: #1f8a4c;
+    --color-amber: #c08a2e;
+    --color-red: #c8492f;
+    --color-teal: #0f766e;
+
+    /* regime band pairs (§4.9 states) */
+    --color-regime-ok: #1f7a45;
+    --color-regime-ok-bg: #e7f2ea;
+    --color-regime-ok-br: #b9dcc4;
+    --color-regime-warn: #a9781f;
+    --color-regime-warn-bg: #f6ecd8;
+    --color-regime-warn-br: #e6cf9e;
+    --color-regime-stop: #b0402a;
+    --color-regime-stop-bg: #f6e3dd;
+    --color-regime-stop-br: #e8c3b8;
+
+    /* sector scale */
+    --color-sector-technology: #2f7d5b;
+    --color-sector-financials: #2a6f97;
+    --color-sector-industrials: #b5651d;
+    --color-sector-communication: #8e5572;
+    --color-sector-consumer-cyclical: #c9843e;
+    --color-sector-healthcare: #4c9a8f;
+    --color-sector-utilities: #7a8a5e;
+    --color-sector-energy: #a8453a;
+    --color-sector-materials: #9c7a3c;
+    --color-sector-defensive: #6b7d8a;
+
+    --radius-card: 1.125rem;
+    --shadow-shell: 0 30px 70px rgb(40 34 24 / 0.20);
+    --shadow-tile: 0 1px 2px rgb(40 34 24 / 0.04);
+    --container-shell: 82.5rem; /* 1320px */
+
+    /* ---- type scale: DENSITY VARIANT A (reference-tight) ---- */
+    --text-micro:   0.59375rem;  /*  9.5px */
+    --text-label:   0.65625rem;  /* 10.5px */
+    --text-meta:    0.71875rem;  /* 11.5px */
+    --text-body:    0.8125rem;   /* 13px   */
+    --text-head:    0.9375rem;   /* 15px   */
+    --text-stat:    1rem;        /* 16px   */
+    --text-ticker:  1.25rem;     /* 20px   */
+    --text-wordmark:1.1875rem;   /* 19px   */
+  }
+
+  /* ---- type scale: DENSITY VARIANT B (Tailwind-native floor, nothing under 11px) ---- */
+  [data-density="native"] {
+    --text-micro:   0.6875rem;   /* 11px */
+    --text-label:   0.75rem;     /* 12px */
+    --text-meta:    0.8125rem;   /* 13px */
+    --text-body:    0.875rem;    /* 14px */
+    --text-head:    1rem;        /* 16px */
+    --text-stat:    1.125rem;    /* 18px */
+    --text-ticker:  1.375rem;    /* 22px */
+    --text-wordmark:1.25rem;     /* 20px */
+    --pad-shell:    1.75rem;
+    --pad-tile:     1.25rem;
+    --gap-grid:     1.125rem;
+    --row-h:        2.25rem;
+  }
+  :root {
+    --pad-shell: 1.625rem;
+    --pad-tile:  1.0625rem;
+    --gap-grid:  0.875rem;
+    --row-h:     1.875rem;
+  }
+
+  @layer base {
+    body { background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb { background: #d8cfbf; border-radius: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+  }
+</style>
+
+<style>
+  /* Tokens referenced only from a runtime var() — Tailwind tree-shakes theme vars
+     that no utility class mentions, so the sector + regime scales are restated here.
+     In the real build these are `bg-(--sector)` / static class map per research §4. */
+  :root {
+    --color-sector-technology: #2f7d5b;
+    --color-sector-financials: #2a6f97;
+    --color-sector-industrials: #b5651d;
+    --color-sector-communication: #8e5572;
+    --color-sector-consumer-cyclical: #c9843e;
+    --color-sector-healthcare: #4c9a8f;
+    --color-sector-utilities: #7a8a5e;
+    --color-sector-energy: #a8453a;
+    --color-sector-materials: #9c7a3c;
+    --color-sector-defensive: #6b7d8a;
+
+    --color-regime-ok: #1f7a45;   --color-regime-ok-bg: #e7f2ea;   --color-regime-ok-br: #b9dcc4;
+    --color-regime-warn: #a9781f; --color-regime-warn-bg: #f6ecd8; --color-regime-warn-br: #e6cf9e;
+    --color-regime-stop: #b0402a; --color-regime-stop-bg: #f6e3dd; --color-regime-stop-br: #e8c3b8;
+  }
+
+  /* density-driven spacing, applied via the vars above */
+  .px-shell { padding-left: var(--pad-shell); padding-right: var(--pad-shell); }
+  .p-tile   { padding: var(--pad-tile); }
+  .gap-grid { gap: var(--gap-grid); }
+  .h-row    { height: var(--row-h); }
+
+  /* FRAME VARIANT A: centred 1320px card, height-capped, internal scroll */
+  html[data-frame="card"] .frame-outer {
+    min-height: 100vh; display: flex; justify-content: center;
+    padding: 22px 16px 28px;
+  }
+  html[data-frame="card"] .frame-shell {
+    width: 82.5rem; max-width: 100%; height: calc(100vh - 50px);
+    border-radius: 1.125rem; overflow: hidden;
+    box-shadow: var(--shadow-shell);
+    display: flex; flex-direction: column;
+  }
+  /* FRAME VARIANT B: full-bleed, page scrolls, content column still capped */
+  html[data-frame="bleed"] .frame-outer { min-height: 100vh; }
+  html[data-frame="bleed"] .frame-shell {
+    width: 100%; min-height: 100vh; border-radius: 0; box-shadow: none;
+    display: flex; flex-direction: column;
+  }
+  html[data-frame="bleed"] .bleed-cap { max-width: 82.5rem; margin-inline: auto; width: 100%; }
+  html[data-frame="bleed"] .scroll-zone { overflow: visible !important; }
+</style>
+</head>
+
+<body class="antialiased">
+
+<!-- ══════════ prototype chrome — NOT part of the design ══════════ -->
+<div class="sticky top-0 z-50 bg-[#1c1b18] text-[#e7e4de] text-[12px] font-mono">
+  <div class="mx-auto max-w-[82.5rem] px-4 py-2 flex flex-wrap items-center gap-x-5 gap-y-2">
+    <span class="opacity-50 uppercase tracking-[.12em] text-[10px]">prototype #59 — not the design</span>
+
+    <span class="flex items-center gap-1.5">
+      <span class="opacity-50">frame</span>
+      <button data-set="frame" data-val="card"  class="pchip px-2 py-0.5 rounded">centred card</button>
+      <button data-set="frame" data-val="bleed" class="pchip px-2 py-0.5 rounded">full-bleed</button>
+    </span>
+
+    <span class="flex items-center gap-1.5">
+      <span class="opacity-50">density</span>
+      <button data-set="density" data-val="tight"  class="pchip px-2 py-0.5 rounded">reference-tight</button>
+      <button data-set="density" data-val="native" class="pchip px-2 py-0.5 rounded">11px floor</button>
+    </span>
+
+    <span class="flex items-center gap-1.5">
+      <span class="opacity-50">run status</span>
+      <button data-set="run" data-val="healthy" class="pchip px-2 py-0.5 rounded">healthy</button>
+      <button data-set="run" data-val="stale"   class="pchip px-2 py-0.5 rounded">stale</button>
+    </span>
+
+    <span class="opacity-40 ml-auto">fake data · IDX &amp; US · 2026-08-06</span>
+  </div>
+</div>
+<style>
+  .pchip { background:#33302a; color:#a09a8e; }
+  .pchip[aria-pressed="true"] { background:#e7e4de; color:#1c1b18; font-weight:600; }
+</style>
+
+<!-- ══════════════════════════ the artifact ══════════════════════════ -->
+<div class="frame-outer">
+<div class="frame-shell bg-surface text-text">
+
+  <!-- ─────────── header strip ─────────── -->
+  <header class="bg-surface-alt border-b border-[#e6e0d6] shrink-0">
+   <div class="bleed-cap px-shell py-3.5 flex items-center gap-4">
+    <div class="text-wordmark font-bold tracking-[-.02em]">screening&#8202;·&#8202;dashboard</div>
+
+    <div class="text-meta text-text-muted">
+      session <span class="font-mono" data-bind="session">2026-08-06</span>
+    </div>
+
+    <div class="flex-1"></div>
+
+    <nav aria-label="Screens" class="flex gap-1.5">
+      <button class="tab" aria-current="page">Board</button>
+      <button class="tab">Leaders</button>
+      <button class="tab">Setups</button>
+      <button class="tab">Sectors</button>
+    </nav>
+
+    <div role="group" aria-label="Market" class="flex gap-0.5 bg-seg-bg rounded-[9px] p-[3px] ml-2">
+      <button data-set="market" data-val="us"  class="seg">US</button>
+      <button data-set="market" data-val="idx" class="seg">IDX</button>
+    </div>
+   </div>
+  </header>
+
+  <!-- ─────────── regime band — v1 §4.9 in full, permanent ─────────── -->
+  <div id="regime" class="border-b shrink-0">
+   <div class="bleed-cap px-shell py-2.5 flex items-baseline flex-wrap gap-x-3 gap-y-1">
+      <span class="inline-flex items-center gap-2 shrink-0">
+        <span id="regime-dot" class="w-[7px] h-[7px] rounded-full"></span>
+        <span id="regime-state" class="text-body font-semibold"></span>
+      </span>
+      <span id="regime-posture" class="text-body"></span>
+      <span class="flex-1"></span>
+      <span id="regime-detail" class="text-meta font-mono opacity-70"></span>
+   </div>
+  </div>
+
+  <!-- ─────────── run-status banner — only when abnormal ─────────── -->
+  <div id="runbanner" class="hidden border-b border-regime-warn-br bg-regime-warn-bg text-regime-warn shrink-0">
+   <div class="bleed-cap px-shell py-2 flex items-center gap-3">
+    <span class="text-body font-semibold">Session is stale.</span>
+    <span class="text-meta">Last successful run 2026-08-04; tonight's IDX run failed at the detection stage. Figures below are two sessions old.</span>
+    <span class="flex-1"></span>
+    <button class="text-meta underline underline-offset-2 opacity-70 hover:opacity-100">Dismiss</button>
+   </div>
+  </div>
+
+  <!-- ─────────── Board ─────────── -->
+  <main class="flex-1 min-h-0 overflow-y-auto scroll-zone">
+   <div class="bleed-cap px-shell py-6">
+    <div class="grid grid-cols-[1fr_384px] gap-6 items-start">
+
+      <!-- ══ left column ══ -->
+      <div class="min-w-0">
+
+        <!-- Set up tonight -->
+        <div class="flex items-baseline justify-between mb-3.5">
+          <h2 class="text-head font-semibold m-0">Set up tonight</h2>
+          <span class="flex items-center gap-3">
+            <span class="text-meta text-text-muted" data-bind="counts"></span>
+            <button class="text-meta text-teal font-semibold">view charts →</button>
+          </span>
+        </div>
+
+        <div id="setups" class="grid grid-cols-2 gap-grid mb-7"></div>
+
+        <!-- Leaders strip -->
+        <div class="flex items-baseline justify-between mb-3.5">
+          <h2 class="text-head font-semibold m-0">Biggest movers · 1 month</h2>
+          <button class="text-meta text-teal font-semibold">See all →</button>
+        </div>
+        <div class="bg-card border border-border rounded-[14px] shadow-tile overflow-hidden">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="text-label uppercase tracking-[.07em] text-text-faint text-left">
+                <th class="font-medium px-tile py-2">Ticker</th>
+                <th class="font-medium py-2">Sector</th>
+                <th class="font-medium py-2 text-right">1m</th>
+                <th class="font-medium py-2 text-right">Breadth</th>
+                <th class="font-medium py-2 pr-tile text-right">State</th>
+              </tr>
+            </thead>
+            <tbody id="leaders"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══ right rail ══ -->
+      <div class="min-w-0 flex flex-col gap-grid">
+
+        <!-- rotation map, phase-1 degraded to sector bars (#56 fidelity table) -->
+        <section class="bg-card border border-border rounded-[14px] shadow-tile p-tile">
+          <div class="flex items-baseline justify-between mb-1">
+            <h2 class="text-head font-semibold m-0">Where money is rotating</h2>
+            <span class="text-micro uppercase tracking-[.08em] text-text-faint border border-border-strong rounded px-1.5 py-0.5">phase 1</span>
+          </div>
+          <p class="text-meta text-text-muted mt-0 mb-3.5 leading-snug">
+            Shape differential, 1w − 6m decile share. The RRG trail replaces this once prior-run state is retained.
+          </p>
+          <div id="sectors" class="flex flex-col gap-2.5"></div>
+          <p class="text-micro text-text-faint mt-3 mb-0">Taxonomy: GECS · a relabel silently rewrites history</p>
+        </section>
+
+        <!-- new tonight -->
+        <section class="bg-card border border-border rounded-[14px] shadow-tile p-tile">
+          <h2 class="text-head font-semibold m-0 mb-3">New tonight</h2>
+          <div id="newtonight" class="flex flex-wrap gap-1.5"></div>
+        </section>
+
+        <!-- universe -->
+        <section class="bg-card border border-border rounded-[14px] shadow-tile p-tile">
+          <h2 class="text-head font-semibold m-0 mb-3">Universe</h2>
+          <dl id="universe" class="grid grid-cols-2 gap-y-2.5 gap-x-3 m-0"></dl>
+        </section>
+      </div>
+    </div>
+   </div>
+  </main>
+</div>
+</div>
+
+<style>
+  .tab { font-size: var(--text-body); color: var(--color-text-muted);
+         border-bottom: 2px solid transparent; padding: 3px 2px; font-weight: 400; }
+  .tab[aria-current="page"] { color: var(--color-text); font-weight: 600;
+         border-bottom-color: var(--color-text); }
+  .tab:hover { color: var(--color-text); }
+  .seg { font-size: var(--text-meta); font-weight: 500; color: var(--color-text-muted);
+         padding: 3px 11px; border-radius: 7px; }
+  .seg[aria-pressed="true"] { background: var(--color-white); color: var(--color-text);
+         font-weight: 600; box-shadow: 0 1px 2px rgb(40 34 24 / .10); }
+</style>
+
+<script>
+// ──────────────────────────────────────────────────────────────
+// fake data — realistic shapes, both markets
+// ──────────────────────────────────────────────────────────────
+const SECTOR_COLOR = {
+  "Technology":"var(--color-sector-technology)", "Financial Services":"var(--color-sector-financials)",
+  "Industrials":"var(--color-sector-industrials)", "Communication Services":"var(--color-sector-communication)",
+  "Consumer Cyclical":"var(--color-sector-consumer-cyclical)", "Healthcare":"var(--color-sector-healthcare)",
+  "Utilities":"var(--color-sector-utilities)", "Energy":"var(--color-sector-energy)",
+  "Basic Materials":"var(--color-sector-materials)", "Consumer Defensive":"var(--color-sector-defensive)",
+};
+
+const DATA = {
+  us: {
+    session: "2026-08-06",
+    regime: { key:"ok", state:"Long-friendly",
+      posture:"Full size on names that clear every gate.",
+      detail:"62% above 20-day · SPY · 10 & 20-day rising" },
+    counts: "27 detected · 216 forming · 148 rejected",
+    setups: [
+      { t:"APP",  stars:4.5, sector:"Technology",  trigger:"428.60", stop:"396.20", move:87, risk:0.78, isNew:true  },
+      { t:"CRDO", stars:4.0, sector:"Technology",  trigger:"92.15",  stop:"84.40",  move:91, risk:0.94, isNew:false },
+      { t:"POWL", stars:3.5, sector:"Industrials", trigger:"318.75", stop:"296.10", move:73, risk:1.06, isNew:false },
+      { t:"RKLB", stars:3.5, sector:"Industrials", trigger:"61.40",  stop:"55.85",  move:95, risk:1.31, isNew:true  },
+    ],
+    leaders: [
+      { t:"TSSI", sector:"Technology",   ret:84.2, breadth:"5/5", state:"detected" },
+      { t:"AEVA", sector:"Technology",   ret:61.7, breadth:"4/5", state:"extended" },
+      { t:"RGTI", sector:"Technology",   ret:54.9, breadth:"4/5", state:"forming"  },
+      { t:"OKLO", sector:"Utilities",    ret:48.3, breadth:"5/5", state:"extended" },
+      { t:"CRDO", sector:"Technology",   ret:41.6, breadth:"5/5", state:"detected" },
+      { t:"APP",  sector:"Technology",   ret:33.8, breadth:"4/5", state:"detected" },
+      { t:"SEZL", sector:"Financial Services", ret:29.4, breadth:"3/5", state:"forming" },
+    ],
+    sectors: [
+      { name:"Technology",         v: 6.8 }, { name:"Industrials", v: 4.1 },
+      { name:"Energy",             v: 2.6 }, { name:"Financial Services", v:-1.2 },
+      { name:"Healthcare",         v:-3.4 },
+    ],
+    newTonight: ["APP","RKLB","TSSI","SEZL"],
+    universe: [["Listed","4,812"],["Passed liquidity","1,196"],["Ranked","1,196"],["Charted tonight","27"]],
+  },
+  idx: {
+    session: "2026-08-06",
+    regime: { key:"warn", state:"Choppy",
+      posture:"Half size or less; wait for a clean close above the trigger.",
+      detail:"41% above 20-day · ^JKSE · 10-day flat or falling" },
+    counts: "2 detected · 2 forming · 31 rejected",
+    setups: [
+      { t:"PANI", stars:4.0, sector:"Consumer Cyclical", trigger:"14,275", stop:"13,150", move:82, risk:0.91, isNew:true },
+      { t:"RAJA", stars:3.5, sector:"Energy",            trigger:"2,410",  stop:"2,180",  move:68, risk:1.18, isNew:false },
+    ],
+    leaders: [
+      { t:"CUAN", sector:"Energy",            ret:52.4, breadth:"4/5", state:"extended" },
+      { t:"RAJA", sector:"Energy",            ret:38.9, breadth:"3/5", state:"detected" },
+      { t:"PANI", sector:"Consumer Cyclical", ret:31.2, breadth:"4/5", state:"detected" },
+      { t:"AMMN", sector:"Basic Materials",   ret:22.7, breadth:"3/5", state:"forming"  },
+      { t:"BRPT", sector:"Basic Materials",   ret:18.4, breadth:"2/5", state:"forming"  },
+      { t:"MDKA", sector:"Basic Materials",   ret:11.6, breadth:"2/5", state:null       },
+    ],
+    sectors: [
+      { name:"Basic Materials",   v: 5.9 }, { name:"Energy", v: 3.7 },
+      { name:"Consumer Cyclical", v: 1.8 }, { name:"Financial Services", v:-0.9 },
+      { name:"Utilities",         v:-2.8 },
+    ],
+    newTonight: ["PANI","CUAN"],
+    universe: [["Listed","941"],["Passed liquidity","188"],["Ranked","188"],["Charted tonight","2"]],
+  },
+};
+
+// ──────────────────────────────────────────────────────────────
+const $ = (s) => document.querySelector(s);
+const state = { market: "us", frame: "card", density: "tight", run: "healthy" };
+// ?market=idx&frame=bleed&density=native&run=stale — so each variant is linkable
+new URLSearchParams(location.search).forEach((v, k) => { if (k in state) state[k] = v; });
+
+function riskColor(r) {
+  return r < 0.85 ? "var(--color-green)" : r <= 1.15 ? "var(--color-amber)" : "var(--color-red)";
+}
+
+function render() {
+  const d = DATA[state.market];
+
+  document.querySelectorAll('[data-bind="session"]').forEach(e => e.textContent = d.session);
+  $('[data-bind="counts"]').textContent = d.counts;
+
+  // regime band — colour carries state; the posture SENTENCE carries the advice (§4.9)
+  const k = d.regime.key;
+  const band = $("#regime");
+  band.style.background   = `var(--color-regime-${k}-bg)`;
+  band.style.borderColor  = `var(--color-regime-${k}-br)`;
+  band.style.color        = `var(--color-regime-${k})`;
+  $("#regime-dot").style.background = `var(--color-regime-${k})`;
+  $("#regime-state").textContent    = d.regime.state;
+  $("#regime-posture").textContent  = d.regime.posture;
+  $("#regime-detail").textContent   = d.regime.detail + " · as of " + d.session;
+
+  // setup cards
+  $("#setups").innerHTML = d.setups.map(s => `
+    <article class="bg-card border border-border rounded-[14px] shadow-tile p-tile">
+      <div class="flex items-center gap-2.5 mb-3">
+        <button class="text-ticker font-semibold tracking-[-.02em] hover:text-[#c67139]">${s.t}</button>
+        <span class="font-mono text-meta text-amber">${s.stars.toFixed(1)}★</span>
+        ${s.isNew ? `<span class="text-micro font-bold tracking-[.05em] bg-text text-white rounded px-1.5 py-0.5">NEW</span>` : ``}
+        <span class="flex-1"></span>
+        <span class="text-meta text-text-muted bg-chip rounded-md px-2 py-0.5">${s.sector}</span>
+      </div>
+      <div class="flex gap-6 mb-3">
+        ${stat("TRIGGER", s.trigger, "var(--color-green)")}
+        ${stat("STOP",    s.stop,    "var(--color-red)")}
+        ${stat("MOVE",    "p"+s.move,"var(--color-text)")}
+      </div>
+      <div class="flex items-center gap-2.5">
+        <span class="flex-1 h-1.5 bg-track rounded-full overflow-hidden block">
+          <span class="block h-full rounded-full" style="width:${Math.min(100, s.risk*72)}%;background:${riskColor(s.risk)}"></span>
+        </span>
+        <span class="font-mono text-meta text-[#6b665d]">risk ${s.risk.toFixed(2)}×ADR</span>
+      </div>
+    </article>`).join("") ||
+    `<p style="grid-column:span 2" class="text-body text-text-faint m-0">Nothing cleared every gate tonight.</p>`;
+
+  // IDX runs short — show the empty slots rather than reflowing the grid
+  if (d.setups.length < 4) {
+    $("#setups").insertAdjacentHTML("beforeend",
+      `<div style="grid-column:span ${Math.min(2, 4 - d.setups.length)}"
+            class="border border-dashed border-border-strong rounded-[14px] p-tile flex items-center">
+         <p class="text-meta text-text-faint m-0">${4 - d.setups.length} more slot${4-d.setups.length>1?"s":""} — nothing else cleared every gate on IDX tonight.</p>
+       </div>`);
+  }
+
+  // leaders — verdict is a NEUTRAL text marker, no colour (#56)
+  $("#leaders").innerHTML = d.leaders.map(r => `
+    <tr class="border-t border-border hover:bg-hover">
+      <td class="px-tile h-row"><button class="font-semibold text-body hover:text-[#c67139]">${r.t}</button></td>
+      <td class="text-meta text-text-muted">
+        <span class="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" style="background:${SECTOR_COLOR[r.sector]}"></span>${r.sector}
+      </td>
+      <td class="text-right font-mono text-body ${r.ret>=0?"text-green":"text-red"}">+${r.ret.toFixed(1)}%</td>
+      <td class="text-right font-mono text-meta text-text-muted">${r.breadth}</td>
+      <td class="pr-tile text-right text-meta text-text-muted">${r.state ?? "—"}</td>
+    </tr>`).join("");
+
+  // sector bars — diverging around a centre line
+  const max = Math.max(...d.sectors.map(s => Math.abs(s.v)));
+  $("#sectors").innerHTML = d.sectors.map(s => {
+    const pct = Math.abs(s.v) / max * 50;
+    return `
+    <button class="grid grid-cols-[92px_1fr_46px] items-center gap-2 text-left group">
+      <span class="text-meta text-text-muted truncate group-hover:text-text">${s.name}</span>
+      <span class="relative h-2.5 bg-track rounded-sm block">
+        <span class="absolute inset-y-0 left-1/2 w-px bg-border-strong"></span>
+        <span class="absolute inset-y-0 rounded-sm" style="background:${SECTOR_COLOR[s.name]};
+          ${s.v>=0 ? `left:50%;width:${pct}%` : `right:50%;width:${pct}%`}"></span>
+      </span>
+      <span class="font-mono text-meta text-right ${s.v>=0?"text-green":"text-red"}">${s.v>0?"+":""}${s.v.toFixed(1)}</span>
+    </button>`;
+  }).join("");
+
+  $("#newtonight").innerHTML = d.newTonight.map(t =>
+    `<button class="font-mono text-meta bg-chip hover:bg-hover border border-border rounded-md px-2 py-1">${t}</button>`).join("");
+
+  $("#universe").innerHTML = d.universe.map(([k2,v]) =>
+    `<div><dt class="text-label uppercase tracking-[.07em] text-text-faint m-0">${k2}</dt>
+          <dd class="font-mono text-stat m-0 leading-tight">${v}</dd></div>`).join("");
+
+  // run banner is a per-market fact in the fake data; the toggle forces it on
+  $("#runbanner").classList.toggle("hidden", state.run !== "stale");
+
+  // reflect toggles
+  document.querySelectorAll("[data-set]").forEach(b =>
+    b.setAttribute("aria-pressed", String(state[b.dataset.set] === b.dataset.val)));
+  document.documentElement.dataset.frame   = state.frame;
+  document.documentElement.dataset.density = state.density;
+}
+
+function stat(label, value, color) {
+  return `<span class="block">
+    <span class="block text-label uppercase tracking-[.07em] text-text-faint mb-0.5">${label}</span>
+    <span class="block font-mono text-stat font-medium" style="color:${color}">${value}</span>
+  </span>`;
+}
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-set]");
+  if (!b) return;
+  state[b.dataset.set] = b.dataset.val;
+  render();
+});
+
+render();
+</script>
+</body>
+</html>

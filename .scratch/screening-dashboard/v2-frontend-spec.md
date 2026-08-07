@@ -45,7 +45,8 @@ composite home screen — the Board — arrives.
 
 ### 1.2 Out of scope
 
-Compiled from the eight tickets that ruled something out. None of these is deferred v2 work; each was
+Compiled from the map's Out of scope section and the tickets that ruled something out. None of these
+is deferred v2 work; each was
 consciously ruled off the route. They return only as fresh efforts.
 
 | Ruled out | Why | Owner |
@@ -63,7 +64,9 @@ consciously ruled off the route. They return only as fresh efforts.
 | **Stopping the pipeline writing the digest** | A change to v1's backend, past a destination of a spec plus a prototype. The file keeps being written at `data/digests/<market>/<session>.md`, unchanged | [#70](https://github.com/ajitimur/screening-dashboard/issues/70) |
 | **Industry-filtered sector detail** | Detail is per-sector; an industry row drills into its **parent sector** | [#64](https://github.com/ajitimur/screening-dashboard/issues/64) |
 | **Per-name reject history** | Real future want, but universe hygiene rather than screening; addable later from the same detector without disturbing anything here | [#53](https://github.com/ajitimur/screening-dashboard/issues/53) |
-| **Implementing this spec** | The map's destination was the spec plus a reacted-to prototype. The build is a separate effort | [#52](https://github.com/ajitimur/screening-dashboard/issues/52) |
+| **Porting q-scanner's backend wholesale** | Rejected while charting: `qscan/` is read as a reference for what a concept *means*, never lifted into `backend/screener/` | [#52](https://github.com/ajitimur/screening-dashboard/issues/52) |
+| **q-scanner-v2's own future** | Not retired, merged or changed by this effort. The two repos drift freely from here | [#52](https://github.com/ajitimur/screening-dashboard/issues/52) |
+| **Implementing this spec** — both the frontend and the backend growth it designs | The map's destination was the spec plus a reacted-to prototype. Writing the endpoints, the computations behind them and the screens is downstream work | [#52](https://github.com/ajitimur/screening-dashboard/issues/52) |
 
 ### 1.3 Standing constraints
 

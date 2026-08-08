@@ -365,20 +365,24 @@ def _resolution_failures(
     # An instrument-type exclusion is no longer fetched (issue #99), so it
     # carries no status — it produced no bars, so ``"unresolved"`` is the honest
     # default and keeps the record identical to when the filter ran post-fetch.
-    return [
-        ResolutionFailure(
-            market=market,
-            session=session,
-            symbol=i.symbol,
-            name=i.name,
-            status=status.get(i.symbol, "unresolved"),
-            # Mirrors the gate above: only a common-stock listing the source did
-            # not refuse was ever measured against the floor.
-            counted=is_common_stock(i.name) and status.get(i.symbol, "unresolved") != "refused",
+    failures: list[ResolutionFailure] = []
+    for i in candidates:
+        outcome = status.get(i.symbol, "unresolved")
+        if outcome == "resolved":
+            continue
+        failures.append(
+            ResolutionFailure(
+                market=market,
+                session=session,
+                symbol=i.symbol,
+                name=i.name,
+                status=outcome,
+                # Mirrors the gate above: only a common-stock listing the source
+                # did not refuse was ever measured against the floor.
+                counted=is_common_stock(i.name) and outcome != "refused",
+            )
         )
-        for i in candidates
-        if status.get(i.symbol, "unresolved") != "resolved"
-    ]
+    return failures
 
 
 def _sessions_to_backfill(store: Store, market: str, target: date) -> list[date]:
@@ -466,10 +470,10 @@ def run_market_universe(
     measured over *candidates* only — references (the index, ETFs) are
     enumerated but not part of the tradeable denominator (§3.4 rule 7), and its
     denominator is unchanged by the pre-fetch filter because both dropped slices
-    were already outside it. Below the floor the run is
-    quarantined and writes no universe (and no ranks), so a throttled pull cannot
-    shrink good data. Above it the universe is rebuilt from the freshly-ingested
-    bars — with the candidates that stayed unresolved carrying yesterday's
+    were already outside it. Below the floor the run is quarantined and writes no
+    universe (and no ranks), so a throttled pull cannot shrink good data. Above
+    it the universe is rebuilt from the freshly-ingested bars — with the
+    candidates that stayed unresolved carrying yesterday's
     classification (§3.4 rule 6) — then ranked, so the session leaves the shared
     rank substrate every downstream stage reads (§4.3). With ranks in hand the
     detector runs against every member, emitting a dated detection row for each
@@ -592,7 +596,7 @@ def run_market_universe(
     # Sticky classification (spec §3.4 rule 6) carries yesterday's verdict for
     # every candidate that produced no bars tonight — a refused listing among
     # them, which is right: it has no bars to reclassify from either.
-    unresolved = {s for s in candidates if status.get(s) != "resolved"}
+    unresolved = {s for s in candidates if status.get(s, "unresolved") != "resolved"}
     record: RunRecord | None = None
     for backfill_session in _sessions_to_backfill(store, market, session):
         # A previous run may have died after writing some of this session's

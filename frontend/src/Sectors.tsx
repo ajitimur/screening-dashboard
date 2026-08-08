@@ -54,10 +54,14 @@ function signedPct(value: number): string {
   return `${p > 0 ? "+" : ""}${p}pp`;
 }
 
-// A signed percentage return, e.g. "+12%" / "−4%".
+// A signed percentage return, e.g. "+12%" / "−4%" (a typographic minus, not the
+// ASCII hyphen `signedPct` leaves on its negatives).
 function signedReturn(value: number): string {
   const p = Math.round(value * 100);
-  return `${p > 0 ? "+" : p < 0 ? "−" : ""}${Math.abs(p)}%`;
+  let sign = "";
+  if (p > 0) sign = "+";
+  else if (p < 0) sign = "−";
+  return `${sign}${Math.abs(p)}%`;
 }
 
 /**
@@ -123,24 +127,8 @@ export default function Sectors({
     }
   }, [sector]);
 
-  if (sector) {
-    return (
-      <section
-        id="active-tabpanel"
-        role="tabpanel"
-        aria-labelledby="tab-sectors"
-        tabIndex={0}
-      >
-        <SectorDetail
-          market={market}
-          sector={sector}
-          headingRef={headingRef}
-          onBreadcrumbBack={breadcrumbBack}
-        />
-      </section>
-    );
-  }
-
+  // The list and the detail share one `tabpanel` shell so the drill-down never
+  // reopens the tabpanel contract (id/role/labelling) in two places.
   return (
     <section
       id="active-tabpanel"
@@ -148,13 +136,24 @@ export default function Sectors({
       aria-labelledby="tab-sectors"
       tabIndex={0}
     >
-      <h2>Sectors</h2>
-      <SectorList
-        market={market}
-        regime={regime}
-        onDrill={drillInto}
-        registerRow={registerRow}
-      />
+      {sector ? (
+        <SectorDetail
+          market={market}
+          sector={sector}
+          headingRef={headingRef}
+          onBreadcrumbBack={breadcrumbBack}
+        />
+      ) : (
+        <>
+          <h2>Sectors</h2>
+          <SectorList
+            market={market}
+            regime={regime}
+            onDrill={drillInto}
+            registerRow={registerRow}
+          />
+        </>
+      )}
     </section>
   );
 }
@@ -562,8 +561,10 @@ function MemberTable({
   onOpen: (target: SheetTarget) => void;
 }) {
   const rows = useMemo(() => {
-    const ranked = data.members.filter((m) => topDecileOnly ? m.top_decile[lookback] : true);
-    return [...ranked].sort((a, b) => {
+    const visible = data.members.filter(
+      (m) => !topDecileOnly || m.top_decile[lookback],
+    );
+    return visible.sort((a, b) => {
       const ra = a.returns[lookback];
       const rb = b.returns[lookback];
       // Names not ranked in this lookback sort last; among ranked, higher return

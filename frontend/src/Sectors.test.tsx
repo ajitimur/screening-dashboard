@@ -111,7 +111,11 @@ describe("Sectors — click-through into detail (spec §5.4/§5.5)", () => {
       sectorDetail: (m, s) => sectorDetailResponse({ market: m, sector: s, members: [sectorMember({ symbol: "XOM" })] }),
     });
 
-    act(() => screen.getByRole("button", { name: "Energy" }).click());
+    // The row comes from the sectors body read, which lands *after* the band
+    // shell paints — `renderSectors` only awaits the shell. Query it with
+    // `find*`, or the click races the fetch and the test flakes under load.
+    const energy = await screen.findByRole("button", { name: "Energy" });
+    act(() => energy.click());
 
     const heading = await screen.findByRole("heading", { level: 2, name: "Energy" });
     await waitFor(() => expect(heading).toHaveFocus());
@@ -128,7 +132,8 @@ describe("Sectors — click-through into detail (spec §5.4/§5.5)", () => {
       sectorDetail: (m, s) => sectorDetailResponse({ market: m, sector: s }),
     });
 
-    act(() => screen.getByRole("button", { name: "Biotechnology" }).click());
+    const industry = await screen.findByRole("button", { name: "Biotechnology" });
+    act(() => industry.click());
 
     await screen.findByRole("heading", { level: 2, name: "Healthcare" });
     expect(window.location.search).toBe("?tab=sectors&sector=Healthcare");
@@ -142,7 +147,8 @@ describe("Sectors — the two back-doors (spec §5.5/§8.6)", () => {
       sectors: (m) => sectorsResponse({ market: m, sectors: [sectorStrength({ sector: "Energy" })] }),
     });
 
-    act(() => screen.getByRole("button", { name: "Energy" }).click());
+    const energy = await screen.findByRole("button", { name: "Energy" });
+    act(() => energy.click());
     await screen.findByRole("heading", { level: 2, name: "Energy" });
 
     act(() => screen.getByRole("button", { name: "Sectors" }).click());
@@ -206,6 +212,9 @@ describe("Sector detail — the member table (spec §5.5)", () => {
 
   it("defaults the lookback to 1m and re-renders the decile badge on switch", async () => {
     await openDetail();
+    // Same race as the drill-in: `openDetail` awaits the heading, which renders
+    // from the URL, while the member table waits on the detail body read.
+    await screen.findByRole("button", { name: "AAA" });
     const row = () => screen.getByRole("button", { name: "AAA" }).closest("tr")!;
     // 1m is top-decile → the badge is present.
     expect(within(row()).getByText(/top decile/i)).toBeInTheDocument();
@@ -246,7 +255,8 @@ describe("Sector detail — the member table (spec §5.5)", () => {
 
   it("opens the chart sheet when a ticker is clicked", async () => {
     await openDetail();
-    act(() => screen.getByRole("button", { name: "AAA" }).click());
+    const ticker = await screen.findByRole("button", { name: "AAA" });
+    act(() => ticker.click());
     // The sheet is portalled with the symbol as its heading (spec §6).
     expect(await screen.findByRole("heading", { level: 2, name: "AAA" })).toBeInTheDocument();
   });

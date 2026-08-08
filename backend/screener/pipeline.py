@@ -362,19 +362,22 @@ def _resolution_failures(
     never part of the tradeable denominator (§3.4 rule 7), so their silence is a
     different question than the one this record exists to answer.
     """
+    # An instrument-type exclusion is no longer fetched (issue #99), so it
+    # carries no status — it produced no bars, so ``"unresolved"`` is the honest
+    # default and keeps the record identical to when the filter ran post-fetch.
     return [
         ResolutionFailure(
             market=market,
             session=session,
             symbol=i.symbol,
             name=i.name,
-            status=status[i.symbol],
+            status=status.get(i.symbol, "unresolved"),
             # Mirrors the gate above: only a common-stock listing the source did
             # not refuse was ever measured against the floor.
-            counted=is_common_stock(i.name) and status[i.symbol] != "refused",
+            counted=is_common_stock(i.name) and status.get(i.symbol, "unresolved") != "refused",
         )
         for i in candidates
-        if status[i.symbol] != "resolved"
+        if status.get(i.symbol, "unresolved") != "resolved"
     ]
 
 
@@ -453,11 +456,17 @@ def run_market_universe(
 ) -> RunRecord | None:
     """The nightly per-market run: ingest bars, rebuild the universe, record it.
 
-    Enumerates the market, resolves every instrument once through the paced,
+    Enumerates the market, resolves the *fetch set* once through the paced,
     backed-off source, and persists each resolved symbol's clean bars the moment
-    they arrive (spec §3.1–3.4). The completeness gate is measured over
-    *candidates* only — references (the index, ETFs) are enumerated but not part
-    of the tradeable denominator (§3.4 rule 7). Below the floor the run is
+    they arrive (spec §3.1–3.4). The fetch set is the enumeration minus the two
+    slices nothing keeps (issue #99): only the market index is fetched among
+    references — the other ETFs are enumerated but no code path reads their bars
+    — and only common-stock candidates are fetched, the instrument-type filter
+    running before the loop rather than after it. The completeness gate is
+    measured over *candidates* only — references (the index, ETFs) are
+    enumerated but not part of the tradeable denominator (§3.4 rule 7), and its
+    denominator is unchanged by the pre-fetch filter because both dropped slices
+    were already outside it. Below the floor the run is
     quarantined and writes no universe (and no ranks), so a throttled pull cannot
     shrink good data. Above it the universe is rebuilt from the freshly-ingested
     bars — with the candidates that stayed unresolved carrying yesterday's
@@ -494,7 +503,29 @@ def run_market_universe(
     status: dict[str, str] = {}
     counts: Counter[str] = Counter()
     started = time.monotonic()
-    symbols = [i.symbol for i in instruments]
+    # Shrink the fetch set before the resolve loop ever starts (issue #99). Two
+    # slices of the enumeration are known from the enumeration alone to be
+    # things no code path reads or the universe ever keeps, so fetching them is
+    # pure waste — ~57% of the US pull:
+    #   - Among references, only ``MARKET_INDEX[market]`` has its bars read
+    #     (pipeline.py index ingest, app.py §4.9); the other US ETFs are
+    #     enumerated but never looked at, so only the index is fetched.
+    #   - Among candidates, only ``is_common_stock`` names can enter the
+    #     universe (§4.1); the instrument-type filter already ran on these
+    #     names, just *after* the fetch. Running it first means an excluded
+    #     name is never fetched.
+    # This changes nothing about what the universe *is*: both slices were
+    # already outside the completeness gate's denominator below, so pre-fetch
+    # filtering leaves ``measurable`` and every derived count identical. On IDX
+    # the enumeration carries no security names, so ``is_common_stock("")`` is
+    # True and the candidate filter is a correct no-op there.
+    index_symbol = MARKET_INDEX[market]
+    symbols = [
+        i.symbol
+        for i in instruments
+        if (i.role == "reference" and i.symbol == index_symbol)
+        or (i.role == "candidate" and is_common_stock(i.name))
+    ]
     for done, resolution in enumerate(resolve_all(source, symbols, workers=workers), 1):
         status[resolution.symbol] = resolution.status
         counts[resolution.status] += 1
@@ -525,6 +556,11 @@ def run_market_universe(
     # it arrives as silence, not a refusal (issue #90). Both would let listings
     # the universe never keeps drag a complete pull under the floor, so the gate
     # is measured over the tradeable candidates that *could* resolve.
+    # ``tradeable`` is exactly the candidate slice of the fetch set above, so
+    # every symbol here carries a status. The wider ``candidates`` list still
+    # holds the instrument-type exclusions that were never fetched — those read
+    # a default ``"unresolved"`` below (they produced no bars, which is the
+    # truth), never a KeyError.
     tradeable = [i.symbol for i in candidate_instruments if is_common_stock(i.name)]
     measurable = [s for s in tradeable if status[s] != "refused"]
     resolved = [s for s in measurable if status[s] == "resolved"]
@@ -556,7 +592,7 @@ def run_market_universe(
     # Sticky classification (spec §3.4 rule 6) carries yesterday's verdict for
     # every candidate that produced no bars tonight — a refused listing among
     # them, which is right: it has no bars to reclassify from either.
-    unresolved = {s for s in candidates if status[s] != "resolved"}
+    unresolved = {s for s in candidates if status.get(s) != "resolved"}
     record: RunRecord | None = None
     for backfill_session in _sessions_to_backfill(store, market, session):
         # A previous run may have died after writing some of this session's

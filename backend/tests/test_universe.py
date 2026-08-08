@@ -305,3 +305,38 @@ def test_run_market_universe_ingests_and_builds_a_liquid_universe(store: Store, 
     assert store.label("IDX", "THIN") is None
     # Bars for all instruments (index included) were ingested on the way.
     assert len(store.bars("IDX", "^JKSE")) == 25
+
+
+def test_run_market_universe_excludes_instrument_type_listings_from_the_gate(store: Store, tmp_path):
+    # Issue #90: a US market takes the whole listing file, so ~a quarter of its
+    # candidates are warrants/rights/units/preferreds. The provider serves them
+    # no history, so they come back as silence (unresolved), and the universe
+    # throws them out on their name anyway — but the instrument-type rule runs
+    # *after* resolution. Left in the completeness denominator they hold a
+    # complete common-equity pull under the floor forever. They must sit outside
+    # the gate, so a full pull of the tradeable names publishes.
+    sessions = CAL[:25]
+    now = datetime(2026, 8, 20, 20, 0, tzinfo=WIB)
+    instruments = [Instrument(market="US", symbol="^IXIC", role="reference")]
+    # 20 common stocks that all resolve.
+    instruments += [
+        Instrument(market="US", symbol=f"S{i}", role="candidate", name=f"Corp {i} - Common Stock")
+        for i in range(20)
+    ]
+    # 10 warrants the provider serves no history for — pure silence.
+    instruments += [
+        Instrument(market="US", symbol=f"W{i}", role="candidate", name=f"Corp {i} Warrant")
+        for i in range(10)
+    ]
+    bars = {"^IXIC": [_row(s, close=100.0, volume=1) for s in sessions]}
+    bars.update({f"S{i}": [_row(s, close=2000.0, volume=1_000_000) for s in sessions] for i in range(20)})
+    source = Source(FakeBarClient({"US": instruments}, bars), rate_per_sec=1000, sleep=lambda s: None)
+
+    record = run_market_universe(store, source, "US", date(2026, 8, 20), now=now, digests_dir=tmp_path)
+
+    assert record is not None
+    assert record.status == "published"
+    # The ten warrants stayed out of the denominator; every tradeable name resolved.
+    assert record.symbols_enumerated == 20
+    assert record.symbols_resolved == 20
+    assert store.universe("US", date(2026, 8, 20)) == sorted(f"S{i}" for i in range(20))

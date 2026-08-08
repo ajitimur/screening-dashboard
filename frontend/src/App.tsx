@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useReducer,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -141,14 +142,21 @@ function useDestination(): {
   navigate: (patch: Partial<Destination>) => void;
   announcement: string;
 } {
-  const [dest, setDest] = useState<Destination>(() => parseLocation(window.location.search));
+  // The URL is the single source of truth (spec §3.5): `dest` is derived from
+  // `location.search` on *every* render — there is no `useState` mirroring
+  // market/tab/sector, so there is no second copy to drift from the bar. A
+  // navigation is a history write plus a re-render tick; that tick is the hook's
+  // only piece of local state that concerns the three axes.
+  const [, tick] = useReducer((n: number) => n + 1, 0);
   // The destination-change region (spec §8.7/§8.8): announces on `popstate`
   // only, never on pushes — a tab or market click already announces through the
   // control's own role, name and state.
   const [announcement, setAnnouncement] = useState("");
 
   // Canonicalise on load: an unhonourable cold-open URL is resolved and rewritten
-  // with no announcement (spec §8.8) so back/forward never replay it.
+  // with no announcement (spec §8.8) so back/forward never replay it. `dest` is
+  // already honourable this render — parseLocation resolves it regardless of the
+  // raw bar — so the rewrite needs no tick.
   useEffect(() => {
     canonicaliseLocation();
   }, []);
@@ -156,7 +164,7 @@ function useDestination(): {
   useEffect(() => {
     function onPop() {
       const next = canonicaliseLocation();
-      setDest(next);
+      tick();
       setAnnouncement(destinationLabel(next));
     }
     window.addEventListener("popstate", onPop);
@@ -164,18 +172,24 @@ function useDestination(): {
   }, []);
 
   const navigate = useCallback((patch: Partial<Destination>) => {
-    setDest((prev) => {
-      const next: Destination = { ...prev, ...patch };
-      // The reset rule (spec §3.4): a market switch resets the drill-down. The
-      // rest of the entity-naming reset (symbol, ticker query) lives in the
-      // screens, which key that state off `market`; view-shape state survives.
-      if (patch.market && patch.market !== prev.market) next.sector = null;
-      if (next.tab !== "sectors") next.sector = null;
-      window.history.pushState(null, "", toLocation(next));
-      return next;
-    });
+    // Read the current destination back from the bar, not from a mirror — the
+    // URL is the truth even mid-navigation.
+    const prev = parseLocation(window.location.search);
+    const next: Destination = { ...prev, ...patch };
+    // The reset rule (spec §3.4): a market switch resets the drill-down. The
+    // rest of the entity-naming reset (symbol, ticker query) lives in the
+    // screens, which key that state off `market`; view-shape state survives.
+    if (patch.market && patch.market !== prev.market) next.sector = null;
+    if (next.tab !== "sectors") next.sector = null;
+    window.history.pushState(null, "", toLocation(next));
+    // A push announces nothing (spec §8.8). Clearing also stops a prior
+    // popstate's label from lingering in the region and lets an identical later
+    // destination re-announce.
+    setAnnouncement("");
+    tick();
   }, []);
 
+  const dest = parseLocation(window.location.search);
   return { dest, navigate, announcement };
 }
 

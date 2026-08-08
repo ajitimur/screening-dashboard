@@ -316,6 +316,29 @@ describe("the shell — the URL contract", () => {
     expect(window.location.search).toBe("?tab=sectors&sector=Energy");
   });
 
+  it("a push announces nothing — it clears a prior popstate announcement (spec §8.8)", async () => {
+    // A push is silent (spec §8.8): the clicked control already speaks through
+    // its own role/name/state, so the destination region must carry only
+    // history-nav destinations — never leave a stale one for the next push.
+    window.history.replaceState(null, "", "/?tab=leaders");
+    stubFetch(vi);
+    render(<App />);
+    await screen.findByRole("heading", { level: 2, name: "Leaders" });
+
+    act(() => screen.getByRole("radio", { name: "US" }).click()); // push US/Leaders
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: "US" })).toHaveAttribute("aria-checked", "true"),
+    );
+
+    act(() => window.history.back()); // popstate → announces "Leaders, IDX"
+    await screen.findByText("Leaders, IDX");
+
+    act(() => screen.getByRole("tab", { name: "Board" }).click()); // push → must not announce
+    await screen.findByRole("heading", { level: 2, name: "Board" });
+    expect(screen.queryByText("Leaders, IDX")).not.toBeInTheDocument();
+    expect(screen.queryByText("Board, IDX")).not.toBeInTheDocument();
+  });
+
   it("a popstate announces the destination on the three axes — and nothing is asserted about focus", async () => {
     // Deliberately assert nothing about focus (spec §8.8, §9.3): a history
     // navigation moves no focus, and a later reader must not 'fix' that gap.

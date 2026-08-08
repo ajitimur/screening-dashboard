@@ -133,7 +133,7 @@ class Leader(BaseModel):
 class LeadersResponse(BaseModel):
     """The five leaderboards for one market, off the nightly path (spec §5.2 /
     §5.3). Formerly ``/api/boards``; renamed because *Board* now names the
-    composite home screen, with ``/api/boards`` kept as an alias (spec §10.2).
+    composite home screen (spec §10.2).
 
     ``session`` is the as-of session the boards were ranked on — the latest
     published run — or ``None`` when no run has published yet, which the tab shows

@@ -1,12 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
-  fetchBoards,
   fetchCandidates,
+  fetchLeaders,
   fetchSectors,
   type Candidate,
   type CandidatesResponse,
-  type BoardsResponse,
   type LeaderRow,
+  type LeadersResponse,
   type SectorStrength,
   type SectorsResponse,
 } from "./api/client";
@@ -107,7 +107,7 @@ export default function Board({
   navigate: (patch: { tab?: string; sector?: string | null }) => void;
 }) {
   const candidates = useBodyRead<CandidatesResponse>(market, fetchCandidates);
-  const leaders = useBodyRead<BoardsResponse>(market, fetchBoards);
+  const leaders = useBodyRead<LeadersResponse>(market, fetchLeaders);
   const sectors = useBodyRead<SectorsResponse>(market, fetchSectors);
 
   const [selected, setSelected] = useState<SheetTarget | null>(null);
@@ -369,7 +369,7 @@ function LeadersStripPanel({
   onOpen,
   onSeeAll,
 }: {
-  read: BodyRead<BoardsResponse>;
+  read: BodyRead<LeadersResponse>;
   selectedSymbol: string | null;
   onOpen: (r: LeaderRow) => void;
   onSeeAll: () => void;

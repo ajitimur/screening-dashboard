@@ -566,7 +566,7 @@
         "type": "object"
       },
       "LeadersResponse": {
-        "description": "The five leaderboards for one market, off the nightly path (spec \u00a75.2 /\n\u00a75.3). Formerly ``/api/boards``; renamed because *Board* now names the\ncomposite home screen, with ``/api/boards`` kept as an alias (spec \u00a710.2).\n\n``session`` is the as-of session the boards were ranked on \u2014 the latest\npublished run \u2014 or ``None`` when no run has published yet, which the tab shows\nas an explicit empty state.",
+        "description": "The five leaderboards for one market, off the nightly path (spec \u00a75.2 /\n\u00a75.3). Formerly ``/api/boards``; renamed because *Board* now names the\ncomposite home screen (spec \u00a710.2).\n\n``session`` is the as-of session the boards were ranked on \u2014 the latest\npublished run \u2014 or ``None`` when no run has published yet, which the tab shows\nas an explicit empty state.",
         "properties": {
           "boards": {
             "items": {
@@ -1166,45 +1166,6 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/api/boards/{market}": {
-      "get": {
-        "operationId": "get_boards_api_boards__market__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "market",
-            "required": true,
-            "schema": {
-              "title": "Market",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LeadersResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Boards"
-      }
-    },
     "/api/candidates/{market}": {
       "get": {
         "operationId": "get_candidates_api_candidates__market__get",
@@ -1311,6 +1272,7 @@
     },
     "/api/leaders/{market}": {
       "get": {
+        "description": "The five leaderboards for one market (spec \u00a74.4).",
         "operationId": "get_leaders_api_leaders__market__get",
         "parameters": [
           {

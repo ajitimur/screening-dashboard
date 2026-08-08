@@ -4,23 +4,6 @@
  */
 
 export interface paths {
-    "/api/boards/{market}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Boards */
-        get: operations["get_boards_api_boards__market__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/candidates/{market}": {
         parameters: {
             query?: never;
@@ -62,7 +45,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Leaders */
+        /**
+         * Get Leaders
+         * @description The five leaderboards for one market (spec §4.4).
+         */
         get: operations["get_leaders_api_leaders__market__get"];
         put?: never;
         post?: never;
@@ -422,7 +408,7 @@ export interface components {
          * LeadersResponse
          * @description The five leaderboards for one market, off the nightly path (spec §5.2 /
          *     §5.3). Formerly ``/api/boards``; renamed because *Board* now names the
-         *     composite home screen, with ``/api/boards`` kept as an alias (spec §10.2).
+         *     composite home screen (spec §10.2).
          *
          *     ``session`` is the as-of session the boards were ranked on — the latest
          *     published run — or ``None`` when no run has published yet, which the tab shows
@@ -758,37 +744,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    get_boards_api_boards__market__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                market: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeadersResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_candidates_api_candidates__market__get: {
         parameters: {
             query?: never;

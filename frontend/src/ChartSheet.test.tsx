@@ -7,7 +7,7 @@ import { chartFacts, chartResponse, scoreRow, setupOverlay } from "./api/fixture
 import type { ChartResponse } from "./api/client";
 
 // Mock the charting library at its seam (spec §6): record every series added and
-// its data — never pixels. Same shape the ChartPanel suite uses.
+// its data — never pixels. The MiniChart suite mocks the same seam the same way.
 const { addedSeries } = vi.hoisted(() => ({
   addedSeries: [] as Array<{ definition: unknown; options: Record<string, unknown>; data: unknown[]; priceLines: Array<Record<string, unknown>> }>,
 }));

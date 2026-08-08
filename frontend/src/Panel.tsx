@@ -110,9 +110,9 @@ export function Panel<T>({
  * A **night-inflicted** empty (spec §7.4). No click on screen can make it
  * non-empty, so it carries no action: it is a FACT, stated in the panel's own
  * body copy, naming the number, that **never apologises** — five detected names
- * is a *finished* screen, not a degraded one. The wording is transcribed from v1
- * per panel, not reinvented (e.g. `CandidateList.tsx:63`), so the copy is the
- * caller's; this component is only the register. Deliberately **not** a
+ * is a *finished* screen, not a degraded one. The wording was transcribed from
+ * v1 per panel, not reinvented, so the copy is the caller's; this component is
+ * only the register. Deliberately **not** a
  * `role="status"`/`role="alert"` — it is content, not an event.
  */
 export function NightEmpty({ children }: { children: ReactNode }) {

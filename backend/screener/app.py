@@ -1,7 +1,7 @@
 """The FastAPI app: resource endpoints, and it serves the built frontend.
 
 One process on one local URL (spec §7.5). The skeleton exposes only the run
-records; §7.5's other resource endpoints (regime, candidates, sectors, boards,
+records; §7.5's other resource endpoints (regime, candidates, sectors, leaders,
 chart) land in later tickets against the same store.
 """
 
@@ -131,9 +131,9 @@ def create_app(
             market=market, triggered=triggered, running=run_manager.is_running(market)
         )
 
-    def _leaders(market: str) -> LeadersResponse:
-        """The five leaderboards for one market — the body of ``/api/leaders`` and
-        its ``/api/boards`` alias (spec §4.4 / §10.2)."""
+    @app.get("/api/leaders/{market}", response_model=LeadersResponse)
+    def get_leaders(market: str) -> LeadersResponse:
+        """The five leaderboards for one market (spec §4.4)."""
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
@@ -164,17 +164,6 @@ def create_app(
             for b in build_boards(rows, prev, adrs, sectors, dollar_volumes)
         ]
         return LeadersResponse(market=market, session=session, boards=boards)
-
-    @app.get("/api/leaders/{market}", response_model=LeadersResponse)
-    def get_leaders(market: str) -> LeadersResponse:
-        return _leaders(market)
-
-    # ``/api/boards`` is kept as an alias so the whole backend lands on ``main``
-    # ahead of any frontend work without breaking v1; it dies later, in the
-    # integration commit (spec §10.2 constraint 1).
-    @app.get("/api/boards/{market}", response_model=LeadersResponse)
-    def get_boards(market: str) -> LeadersResponse:
-        return _leaders(market)
 
     @app.get("/api/sectors/{market}", response_model=SectorsResponse)
     def get_sectors(market: str) -> SectorsResponse:

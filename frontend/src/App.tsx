@@ -118,6 +118,18 @@ function destinationLabel(dest: Destination): string {
   return `${tabLabel(dest.tab)}, ${dest.market}`;
 }
 
+// Parse the bar and, if it carries an unhonourable or non-canonical destination,
+// rewrite it to its canonical form via `replace` (spec §3.5/§8.8) so back/forward
+// never replay a dead one. Returns the resolved destination.
+function canonicaliseLocation(): Destination {
+  const dest = parseLocation(window.location.search);
+  const canonical = toLocation(dest);
+  if (canonical !== window.location.pathname + window.location.search) {
+    window.history.replaceState(null, "", canonical);
+  }
+  return dest;
+}
+
 /**
  * The shell's single routing seam (spec §3.5). `location.search` is the one
  * source of truth for market/tab/sector; `navigate` pushes a new destination,
@@ -136,21 +148,14 @@ function useDestination(): {
   const [announcement, setAnnouncement] = useState("");
 
   // Canonicalise on load: an unhonourable cold-open URL is resolved and rewritten
-  // via `replace` with no announcement (spec §8.8) so back/forward never replay it.
+  // with no announcement (spec §8.8) so back/forward never replay it.
   useEffect(() => {
-    const canonical = toLocation(parseLocation(window.location.search));
-    if (canonical !== window.location.pathname + window.location.search) {
-      window.history.replaceState(null, "", canonical);
-    }
+    canonicaliseLocation();
   }, []);
 
   useEffect(() => {
     function onPop() {
-      const next = parseLocation(window.location.search);
-      const canonical = toLocation(next);
-      if (canonical !== window.location.pathname + window.location.search) {
-        window.history.replaceState(null, "", canonical);
-      }
+      const next = canonicaliseLocation();
       setDest(next);
       setAnnouncement(destinationLabel(next));
     }

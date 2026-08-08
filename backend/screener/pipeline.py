@@ -11,6 +11,7 @@ before asserting on rows.
 from __future__ import annotations
 
 import bisect
+import hashlib
 import time
 from collections import Counter
 from datetime import date, datetime
@@ -64,6 +65,37 @@ OVERLAP_SESSIONS = 20
 # gate — a drop past 10% of the last good run is a failed pull, not a shrinking
 # exchange (~84 IDX / ~694 US names vanishing overnight).
 ENUMERATION_FLOOR = 0.90
+
+# How many nights the rolling full-depth refetch cycles over (spec §3.6, issue
+# #101). Each night a deterministic 1-of-:data:`FULL_DEPTH_CYCLE` slice of the
+# fetch set is refetched at full depth (``period="max"``) *instead of*
+# incrementally, so §3.6's periodic full refetch never re-creates the whole-
+# universe throttle wall a single weekly pull would. 30 keeps the slice at
+# ~1/30 of the fetch set (~183 of ~5,500 US names a night) — well below the
+# incremental pull's cost — while guaranteeing every symbol a full refetch
+# inside a 30-night window. It is not 1/5: change 6's within-night rebasis
+# repair collapses this slice's job to corrections older than the overlap
+# window, rare and self-correcting, so a coarser cadence is enough.
+FULL_DEPTH_CYCLE = 30
+
+
+def _full_depth_today(symbol: str, session: date) -> bool:
+    """Whether ``symbol`` is in ``session``'s rolling full-depth slice (§3.6, #101).
+
+    A pure, deterministic hash partition of the symbol against the session date —
+    no persisted "last full fetch" state, exactly reproducible in tests and
+    self-balancing across the fetch set. The symbol is hashed to one of
+    :data:`FULL_DEPTH_CYCLE` buckets (a stable SHA-256, *not* the process-salted
+    :func:`hash`, so the verdict is identical across runs and machines), and the
+    session's ordinal selects tonight's bucket. Over any :data:`FULL_DEPTH_CYCLE`
+    consecutive sessions each bucket is chosen exactly once, so every symbol
+    receives exactly one full-depth fetch per cycle. A symbol in tonight's slice
+    is fetched at full depth *instead of* incrementally, never both, so the
+    nightly request count stays flat and ``status[symbol]`` stays single-valued.
+    """
+    digest = hashlib.sha256(symbol.encode("utf-8")).digest()
+    bucket = int.from_bytes(digest[:8], "big") % FULL_DEPTH_CYCLE
+    return bucket == session.toordinal() % FULL_DEPTH_CYCLE
 
 
 def run_market(
@@ -580,11 +612,22 @@ def run_market_universe(
     ]
     # The nightly fetch is incremental (spec §3.6): a symbol with stored bars is
     # pulled from ~20 sessions before its last bar, a cold-start symbol at full
-    # history. Starts are computed here, on this thread, off the observed calendar
-    # and each symbol's last stored session — a pure map the pool then reads.
+    # history. On top of that, a rolling 1/30 slice is refetched at full depth
+    # tonight *instead of* incrementally (issue #101) — §3.6's periodic full
+    # refetch, done as a deterministic hash partition so it never re-creates the
+    # whole-universe throttle wall a single weekly pull would. A slice symbol's
+    # start is forced to None (``period="max"``) rather than its overlap window;
+    # it is never fetched at both depths, so the request count stays flat and
+    # ``status[symbol]`` stays single-valued. Starts are computed here, on this
+    # thread, off the observed calendar and each symbol's last stored session — a
+    # pure map the pool then reads.
     calendar = store.sessions(market)
     starts = {
-        symbol: _incremental_start(store.last_session(market, symbol), calendar)
+        symbol: (
+            None
+            if _full_depth_today(symbol, session)
+            else _incremental_start(store.last_session(market, symbol), calendar)
+        )
         for symbol in to_resolve
     }
     for done, resolution in enumerate(

@@ -11,6 +11,7 @@ These tests drive that boundary with a fake client and an injected clock, so no
 test touches the network and none sleeps in real time.
 """
 
+import threading
 from datetime import date, datetime
 
 import pytest
@@ -32,18 +33,27 @@ from screener.store import Store
 
 
 class FakeClock:
-    """A monotonic clock whose ``sleep`` advances virtual time and records it."""
+    """A monotonic clock whose ``sleep`` advances virtual time and records it.
+
+    Locked because :func:`resolve_all` drives the source from several threads,
+    and ``self.t += seconds`` is a read-modify-write: unguarded, two workers
+    sleeping at once can lose one of the advances and make virtual time — the
+    thing every pacing assertion here reads — silently wrong.
+    """
 
     def __init__(self) -> None:
         self.t = 0.0
         self.slept: list[float] = []
+        self._lock = threading.Lock()
 
     def monotonic(self) -> float:
-        return self.t
+        with self._lock:
+            return self.t
 
     def sleep(self, seconds: float) -> None:
-        self.slept.append(seconds)
-        self.t += seconds
+        with self._lock:
+            self.slept.append(seconds)
+            self.t += seconds
 
 
 # -- a fake source client -----------------------------------------------------

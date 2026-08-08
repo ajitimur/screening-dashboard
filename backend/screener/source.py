@@ -28,9 +28,12 @@ and every test fakes *this* boundary — nothing else needs the network.
 
 from __future__ import annotations
 
+import threading
 import time
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
-from typing import Callable, Literal, Protocol
+from itertools import islice
+from typing import Callable, Iterable, Iterator, Literal, Protocol
 
 from pydantic import BaseModel
 
@@ -40,6 +43,21 @@ from pydantic import BaseModel
 DEFAULT_RATE_PER_SEC = 12
 DEFAULT_MAX_ATTEMPTS = 4
 DEFAULT_BACKOFF_BASE = 1.0
+
+# How many resolves may be in flight at once (issue #96). The rate cap above is
+# a *ceiling*, and a sequential loop never reaches it: one request at a time
+# bounded by Yahoo's round-trip latency spends a small fraction of the budget,
+# which is why a ~7,300-name US pull took the better part of an hour rather than
+# the ~10 minutes 12 req/s buys.
+#
+# Measured against the live provider, 30 US symbols, full history: sequential
+# managed 2.7 sym/s (22% of the budget), 12 workers 10.7 sym/s (89%), and 20
+# workers 10.5 sym/s — no better, because by then the workers are queueing on
+# :class:`Pacer` rather than on Yahoo. So the right worker count is the rate cap
+# itself: it is what fills the pacer's slots at realistic latency, and nothing
+# past it buys anything. Every run resolved every symbol with zero 429s. This
+# spends the pacing budget; it does not raise it.
+DEFAULT_RESOLVE_WORKERS = DEFAULT_RATE_PER_SEC
 
 # One index per market, ingested like anything else but never rankable — its
 # role is ``reference`` (spec §2, §4.9).
@@ -206,10 +224,19 @@ def parse_idx_screener(symbols: list[str]) -> list[Instrument]:
 
 
 class Pacer:
-    """Paces requests to at most ``rate_per_sec``.
+    """Paces requests to at most ``rate_per_sec``, in aggregate across threads.
 
     Time is injectable so tests drive it in virtual time — ``sleep`` may advance
     a fake clock rather than block.
+
+    The rate is a property of the *provider*, not of a caller, so with several
+    resolves in flight (:func:`resolve_all`) the cap has to hold across all of
+    them at once. :meth:`wait` therefore hands each caller its own slot: under
+    the lock it reads the clock and claims the next free instant, and only then —
+    outside the lock — sleeps until that instant arrives. Claiming is serialised,
+    so N workers get N slots one interval apart and the aggregate never exceeds
+    the cap; waiting is not, so the workers' sleeps overlap instead of summing,
+    which is the whole point of running them concurrently.
     """
 
     def __init__(
@@ -223,14 +250,16 @@ class Pacer:
         self._monotonic = monotonic
         self._sleep = sleep
         self._next_allowed = 0.0
+        self._lock = threading.Lock()
 
     def wait(self) -> None:
-        now = self._monotonic()
-        delay = self._next_allowed - now
+        with self._lock:
+            now = self._monotonic()
+            slot = max(now, self._next_allowed)
+            self._next_allowed = slot + self._min_interval
+        delay = slot - now
         if delay > 0:
             self._sleep(delay)
-            now = now + delay
-        self._next_allowed = now + self._min_interval
 
 
 # -- the source ---------------------------------------------------------------
@@ -415,15 +444,66 @@ def default_source() -> Source:
     return Source(YFinanceSourceClient())
 
 
-def resolve_market(source: Source, market: str) -> tuple[list[Instrument], list[Resolution]]:
+def resolve_all(
+    source: Source,
+    symbols: Iterable[str],
+    *,
+    workers: int = DEFAULT_RESOLVE_WORKERS,
+) -> Iterator[Resolution]:
+    """Resolve many symbols concurrently, yielding each result as it lands.
+
+    The policy above is untouched: every symbol still goes through
+    :meth:`Source.resolve`, so unresolved-not-absent, the once-only answer to a
+    stated refusal, and per-symbol backoff on silence (spec §3.2/§3.3) all hold
+    exactly as they did sequentially. The only change is how many are in flight,
+    and :class:`Pacer` keeps the aggregate rate at the same cap regardless.
+
+    Results arrive in **completion order, not input order** — a symbol that
+    burns its full retry budget lands long after ones queued behind it. Callers
+    that need input order re-key on :attr:`Resolution.symbol`.
+
+    Only ``2 * workers`` symbols are ever submitted at once, and each result is
+    yielded before another is queued. A completed future holds a symbol's entire
+    price history, so submitting all ~7,300 up front would let a fast provider
+    pile the whole market's bars in memory ahead of a slower consumer writing
+    them to the store. The sliding window bounds that to the pool's own depth,
+    and hands the caller its results as fast as they complete either way.
+
+    ``workers=1`` skips the pool entirely and runs the plain sequential loop.
+    """
+    if workers <= 1:
+        for symbol in symbols:
+            yield source.resolve(symbol)
+        return
+
+    remaining = iter(symbols)
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="resolve") as pool:
+        pending = {pool.submit(source.resolve, s) for s in islice(remaining, workers * 2)}
+        while pending:
+            done: set[Future[Resolution]]
+            done, pending = wait(pending, return_when=FIRST_COMPLETED)
+            for future in done:
+                yield future.result()
+                for symbol in islice(remaining, 1):
+                    pending.add(pool.submit(source.resolve, symbol))
+
+
+def resolve_market(
+    source: Source, market: str, *, workers: int = DEFAULT_RESOLVE_WORKERS
+) -> tuple[list[Instrument], list[Resolution]]:
     """Enumerate a market and resolve its candidates.
 
     References (the index, US ETFs) are enumerated but not part of the
     resolution count that the run's completeness gate reads — the gate measures
     the *tradeable* enumeration (spec §3.4 rule 7). Returns the full instrument
-    list and one :class:`Resolution` per candidate.
+    list and one :class:`Resolution` per candidate, in enumeration order —
+    :func:`resolve_all` yields in completion order, and re-keying here keeps this
+    function's result a positional match for its candidate list.
     """
     instruments = source.enumerate(market)
     candidates = [i for i in instruments if i.role == "candidate"]
-    resolutions = [source.resolve(i.symbol) for i in candidates]
-    return instruments, resolutions
+    by_symbol = {
+        r.symbol: r
+        for r in resolve_all(source, [i.symbol for i in candidates], workers=workers)
+    }
+    return instruments, [by_symbol[i.symbol] for i in candidates]

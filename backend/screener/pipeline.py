@@ -10,8 +10,11 @@ before asserting on rows.
 
 from __future__ import annotations
 
+import time
+from collections import Counter
 from datetime import date, datetime
 from pathlib import Path
+from typing import Callable
 
 from .bars import clean_bars, parse_bars
 from .detection import Detection, detect, detection_gate
@@ -20,7 +23,14 @@ from .labels import select_fetches
 from .models import ResolutionFailure, RunRecord
 from .ranks import Rank, rank_table
 from .regime import index_broke_out
-from .source import MARKET_INDEX, Instrument, Source, resolve_market
+from .source import (
+    DEFAULT_RESOLVE_WORKERS,
+    MARKET_INDEX,
+    Instrument,
+    Source,
+    resolve_all,
+    resolve_market,
+)
 from .store import Store
 from .universe import is_common_stock, rebuild_universe
 
@@ -235,6 +245,60 @@ def write_digest(
 # and 20 names is enough to see which it is without burying the file.
 FAILURE_SAMPLE = 20
 
+# How often the pull says where it has got to (issue #96). :func:`summarize_pull`
+# is a *post-mortem*: it lands once, at the end, so for the length of the pull
+# itself the log said nothing at all and a healthy run partway through its
+# enumeration looked exactly like a wedged one. This is the live signal. Every
+# 250 symbols is a line every ~20s at the paced rate — frequent enough to see
+# movement, sparse enough that a US pull adds ~30 lines to the log rather than
+# 7,300 (the per-symbol account is the ``run_failures`` record, issue #91).
+PROGRESS_EVERY = 250
+
+
+def emit_progress(line: str) -> None:
+    """Print a heartbeat line to stdout, flushed.
+
+    The flush is the load-bearing part. The scheduled jobs redirect stdout to a
+    launchd log file (spec §7.3), and a redirected stream is block-buffered, so
+    without it an hour of heartbeats would sit in a 4KB buffer and reach the file
+    only when the run ended — which is precisely the silence they exist to break.
+    """
+    print(line, flush=True)
+
+
+def progress_line(
+    market: str, done: int, total: int, counts: Counter[str], *, elapsed: float
+) -> str:
+    """One heartbeat: how far the pull has got, and how much longer it has.
+
+    The counts are broken out rather than summed because *which* way a symbol
+    failed is the diagnosis (issue #91): a rising ``silent`` count while the run
+    is in flight is a throttled pull, and a person watching can kill it an hour
+    before the completeness gate would have. ``refused`` rising instead is
+    listing quality, which is not worth waking up for.
+
+    The estimate is a flat extrapolation of the rate so far. That is honest for
+    this loop — every symbol costs one paced request, so the only thing that
+    skews it is the retry budget the silent ones burn, and those are already
+    spread through the enumeration rather than clustered at the end.
+    """
+    remaining = total - done
+    eta = f", ~{_duration(elapsed / done * remaining)} left" if done and remaining else ""
+    return (
+        f"{market}: pull {done:,}/{total:,} — {counts['resolved']:,} resolved, "
+        f"{counts['unresolved']:,} silent, {counts['refused']:,} refused{eta}"
+    )
+
+
+def _duration(seconds: float) -> str:
+    """A rough wall-clock span, at the coarsest unit that still says something."""
+    minutes = int(seconds // 60)
+    if minutes < 1:
+        return f"{int(seconds)}s"
+    if minutes < 60:
+        return f"{minutes}m"
+    return f"{minutes // 60}h{minutes % 60:02d}m"
+
 
 def summarize_pull(record: RunRecord, failures: list[ResolutionFailure]) -> str:
     """One human-readable block explaining how a run's pull went (issue #91).
@@ -384,6 +448,8 @@ def run_market_universe(
     *,
     now: datetime,
     digests_dir: Path = DEFAULT_DIGESTS_DIR,
+    workers: int = DEFAULT_RESOLVE_WORKERS,
+    progress: Callable[[str], None] = emit_progress,
 ) -> RunRecord | None:
     """The nightly per-market run: ingest bars, rebuild the universe, record it.
 
@@ -416,16 +482,36 @@ def run_market_universe(
     mid-session left rows belonging to no session — and is discarded before the
     session is recomputed, so one killed run cannot wedge a market for good.
     The returned record is the target session's run.
+
+    The pull runs ``workers`` resolves at once and heartbeats every
+    :data:`PROGRESS_EVERY` symbols (issue #96). Both are properties of the *loop*
+    only: the pacing cap, the backoff and the resolution semantics are the
+    source's, unchanged, and concurrency spends the 12 req/s budget rather than
+    raising it. Every store write stays on this thread — :func:`resolve_all`
+    hands back one result at a time — so ingestion is as serial as it ever was.
     """
     instruments = source.enumerate(market)
     status: dict[str, str] = {}
-    for instrument in instruments:
-        resolution = source.resolve(instrument.symbol)
-        status[instrument.symbol] = resolution.status
+    counts: Counter[str] = Counter()
+    started = time.monotonic()
+    symbols = [i.symbol for i in instruments]
+    for done, resolution in enumerate(resolve_all(source, symbols, workers=workers), 1):
+        status[resolution.symbol] = resolution.status
+        counts[resolution.status] += 1
         if resolution.status == "resolved":
             bars = clean_bars(parse_bars(resolution.bars), market, now)
             if bars:
-                store.append_bars(market, instrument.symbol, bars)
+                store.append_bars(market, resolution.symbol, bars)
+        if done % PROGRESS_EVERY == 0 or done == len(symbols):
+            # The last line is not redundant with summarize_pull: it marks the
+            # end of the *pull*, and the stages after it (universe, ranks,
+            # detection, labels, digest) are their own stretch of silence before
+            # the summary lands.
+            progress(
+                progress_line(
+                    market, done, len(symbols), counts, elapsed=time.monotonic() - started
+                )
+            )
 
     candidate_instruments = [i for i in instruments if i.role == "candidate"]
     candidates = [i.symbol for i in candidate_instruments]

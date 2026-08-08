@@ -530,9 +530,9 @@ def _adjustment_drift(stored: list[Bar], fetched: list[Bar]) -> bool:
     """
     fetched_adj = {b.session: b.adj_close for b in fetched}
     for b in stored:
-        other = fetched_adj.get(b.session)
-        if other is not None and not math.isclose(
-            b.adj_close, other, rel_tol=DRIFT_REL_TOL
+        fresh = fetched_adj.get(b.session)
+        if fresh is not None and not math.isclose(
+            b.adj_close, fresh, rel_tol=DRIFT_REL_TOL
         ):
             return True
     return False

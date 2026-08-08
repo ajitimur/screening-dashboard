@@ -22,7 +22,7 @@ from .ranks import Rank, rank_table
 from .regime import index_broke_out
 from .source import MARKET_INDEX, Instrument, Source, resolve_market
 from .store import Store
-from .universe import rebuild_universe
+from .universe import is_common_stock, rebuild_universe
 
 # Where the nightly digest files land: data/digests/<market>/<session>.md, one
 # dated Markdown file per market per session (spec §6 / §7.5). Resolved from this
@@ -342,15 +342,21 @@ def run_market_universe(
             if bars:
                 store.append_bars(market, instrument.symbol, bars)
 
-    candidates = [i.symbol for i in instruments if i.role == "candidate"]
-    resolved = [s for s in candidates if status[s] == "resolved"]
+    candidate_instruments = [i for i in instruments if i.role == "candidate"]
+    candidates = [i.symbol for i in candidate_instruments]
     # The gate exists to catch a *throttled* pull — silence it cannot tell from a
     # dead name (spec §3.4 rule 7). A listing the provider has explicitly refused
     # to serve history for is neither: it is a stated answer, and no amount of
-    # pacing will ever turn it into bars. Counting refusals in the denominator
-    # would let a market's warrant listings alone drag a complete pull under the
-    # floor, so the gate is measured over the candidates that *could* resolve.
-    measurable = [s for s in candidates if status[s] != "refused"]
+    # pacing will ever turn it into bars. And a listing the instrument-type rule
+    # will exclude on its name — warrants, rights, units, preferreds, ~a quarter
+    # of the US enumeration — is thrown out of the universe regardless (§4.1), but
+    # that rule runs *after* resolution and the provider serves it no history, so
+    # it arrives as silence, not a refusal (issue #90). Both would let listings
+    # the universe never keeps drag a complete pull under the floor, so the gate
+    # is measured over the tradeable candidates that *could* resolve.
+    tradeable = [i.symbol for i in candidate_instruments if is_common_stock(i.name)]
+    measurable = [s for s in tradeable if status[s] != "refused"]
+    resolved = [s for s in measurable if status[s] == "resolved"]
     published = len(resolved) >= RESOLUTION_FLOOR * len(measurable)
     if not published:
         # A throttled pull quarantines the whole run: no universe, no ranks, no
@@ -457,10 +463,19 @@ def run_market_from_source(
     for the same reason it is not retried: it is a stated answer, not the silence
     the floor is there to detect, and it would otherwise pull a complete pull
     under the floor.
+
+    An instrument-type-excluded listing — a warrant, right, unit or preferred —
+    drops out for the same reason, and it is the larger population (issue #90):
+    the universe throws it away on its name regardless (§4.1), but that rule runs
+    *after* resolution, and the provider serves no history for most of them, so
+    they arrive as silence rather than a stated refusal. Left in the denominator
+    they fail every night and hold a complete common-equity pull under the floor.
     """
-    _instruments, resolutions = resolve_market(source, market)
-    enumerated = [r.symbol for r in resolutions if r.status != "refused"]
-    resolved = [r.symbol for r in resolutions if r.status == "resolved"]
+    instruments, resolutions = resolve_market(source, market)
+    names = {i.symbol: i.name for i in instruments}
+    tradeable = [r for r in resolutions if is_common_stock(names.get(r.symbol, ""))]
+    enumerated = [r.symbol for r in tradeable if r.status != "refused"]
+    resolved = [r.symbol for r in tradeable if r.status == "resolved"]
     return run_market(
         store, market, session, enumerated=enumerated, resolved=resolved, now=now
     )

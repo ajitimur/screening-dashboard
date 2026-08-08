@@ -316,3 +316,34 @@ def test_refused_listings_do_not_drag_the_completeness_gate(store: Store):
     assert record.status == "published"
     assert record.symbols_enumerated == 90, "refusals stayed out of the denominator"
     assert record.symbols_resolved == 90
+
+
+def test_instrument_type_excluded_listings_do_not_drag_the_completeness_gate(store: Store):
+    # The far larger sibling of the refusal case (issue #90). Warrants, rights,
+    # units and preferreds are ~a quarter of the US enumeration; the provider
+    # serves no history for them, so they come back as *silence* (unresolved),
+    # not a stated refusal. The instrument-type rule throws them out of the
+    # universe on their name anyway, but it runs after resolution — so left in
+    # the denominator they fail every night as silence and hold US permanently
+    # under the floor. They must sit outside the gate the same as refusals do.
+    instruments = {
+        "US": parse_us_listings(
+            "Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares\n"
+            + "".join(f"S{i}|Corp {i} - Common Stock|Q|N|N|100|N|N\n" for i in range(90))
+            + "".join(f"W{i}|Corp {i} Warrant|Q|N|N|100|N|N\n" for i in range(10)),
+            "ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol\n",
+        )
+    }
+    # Every common stock resolves; the ten warrants come back as silence.
+    responses = {f"S{i}": [["bar"]] for i in range(90)}
+    responses.update({f"W{i}": [[]] for i in range(10)})
+    client = FakeClient(instruments=instruments, responses=responses)
+    src, _ = make_source(client)
+
+    record = run_market_from_source(
+        store, "US", date(2026, 8, 6), src, now=datetime(2026, 8, 6, 22, 10)
+    )
+
+    assert record.status == "published"
+    assert record.symbols_enumerated == 90, "instrument-type exclusions stayed out of the denominator"
+    assert record.symbols_resolved == 90

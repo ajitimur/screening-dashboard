@@ -99,16 +99,23 @@ const listedFmt = new Intl.NumberFormat("en");
  */
 export default function Board({
   market,
+  session,
   universeSize,
   navigate,
 }: {
   market: string;
+  // The as-of session the shell is serving (spec §7.3, issue #94). It re-keys
+  // every body read below, so a run the shell triggered on open — whose reads
+  // landed while it was still writing (the rail's all-zero, unsorted board) —
+  // refetches once when the finished session publishes, through the existing
+  // `switching`→`ready` path rather than a new per-panel loading branch.
+  session: string | null;
   universeSize: number | null;
   navigate: (patch: { tab?: string; sector?: string | null }) => void;
 }) {
-  const candidates = useBodyRead<CandidatesResponse>(market, fetchCandidates);
-  const leaders = useBodyRead<LeadersResponse>(market, fetchLeaders);
-  const sectors = useBodyRead<SectorsResponse>(market, fetchSectors);
+  const candidates = useBodyRead<CandidatesResponse>(market, fetchCandidates, session);
+  const leaders = useBodyRead<LeadersResponse>(market, fetchLeaders, session);
+  const sectors = useBodyRead<SectorsResponse>(market, fetchSectors, session);
 
   const [selected, setSelected] = useState<SheetTarget | null>(null);
   const sheetOpen = selected !== null;

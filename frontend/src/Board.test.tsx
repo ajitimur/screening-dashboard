@@ -110,6 +110,7 @@ function renderBoard(
   return render(
     <Board
       market={extra.market ?? "IDX"}
+      session="2026-08-04"
       universeSize={universeSize}
       navigate={extra.navigate ?? noop}
     />,
@@ -305,10 +306,71 @@ describe("Board — opening the sheet collapses the rail", () => {
     act(() => ticker.click());
     await screen.findByRole("heading", { name: "AAA", level: 2 });
 
-    rerender(<Board market="US" universeSize={4812} navigate={noop} />);
+    rerender(<Board market="US" session="2026-08-04" universeSize={4812} navigate={noop} />);
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: "Where money is rotating" })).toBeInTheDocument(),
     );
+  });
+});
+
+// ── Refetch when the triggered run completes (spec §7.3/§7.6, issue #94) ──────
+
+describe("Board — refetch on run completion", () => {
+  it("refetches its body reads when the session changes, replacing the pre-run board", async () => {
+    // The bug (#94): the shell triggers a run on open and the body reads land
+    // while it is still writing, so the rail paints the pre-run, all-zero,
+    // API-order shape and never finds out when the finished session lands. The
+    // fix keys the reads on the session, so a completed run refetches once.
+    let differential = 0; // pre-run: the all-zero shape the live IDX bug showed
+    stubFetch(vi, {
+      ...heroCandidates(),
+      ...leadersRoutes(),
+      sectors: (m) =>
+        sectorsResponse({
+          market: m,
+          sectors: [
+            sectorStrength({ sector: "Utilities", shape_differential: differential }),
+            sectorStrength({ sector: "Technology", shape_differential: 0 }),
+          ],
+        }),
+    });
+
+    const { rerender } = render(
+      <Board market="IDX" session="2026-08-04" universeSize={4812} navigate={noop} />,
+    );
+    await screen.findByRole("heading", { name: "Where money is rotating" });
+    // Pre-run: Utilities draws at 0pp — the all-zero board the bug showed.
+    const util = await screen.findByRole("button", { name: /Utilities/ });
+    expect(within(util).getByText("0pp")).toBeInTheDocument();
+
+    // The run completes: the served session flips and the API now returns the
+    // real differentials. The mounted panel must refetch, not stay stale.
+    differential = 0.25;
+    rerender(<Board market="IDX" session="2026-08-05" universeSize={4812} navigate={noop} />);
+
+    expect(await screen.findByText("+25pp")).toBeInTheDocument();
+  });
+
+  it("does not refetch while the session is unchanged (a plain re-render)", async () => {
+    let calls = 0;
+    stubFetch(vi, {
+      ...heroCandidates(),
+      ...leadersRoutes(),
+      sectors: (m) => {
+        calls += 1;
+        return sectorsResponse({ market: m });
+      },
+    });
+    const { rerender } = render(
+      <Board market="IDX" session="2026-08-04" universeSize={4812} navigate={noop} />,
+    );
+    await screen.findByRole("heading", { name: "Where money is rotating" });
+    expect(calls).toBe(1);
+
+    // A re-render that does not change market or session must not re-fire the read.
+    rerender(<Board market="IDX" session="2026-08-04" universeSize={9999} navigate={noop} />);
+    await waitFor(() => expect(screen.getByText(/9,999 listed/)).toBeInTheDocument());
+    expect(calls).toBe(1);
   });
 });
 

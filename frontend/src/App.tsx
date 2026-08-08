@@ -291,15 +291,10 @@ export default function App() {
         {announcement}
       </p>
 
-      {/* The identity-read failure — the app's single `role="alert"` (spec §8.7,
-          §11.7): fires when `/api/runs` or `/api/regime` cannot be reached. */}
-      {error ? (
-        <div className="shell-cap">
-          <p role="alert" className="identity-error">
-            Could not reach the backend: {error}
-          </p>
-        </div>
-      ) : (
+      {/* Chrome sits above the tab body ONLY when the identity read succeeded: an
+          identity-read failure collapses the whole app to its single alert
+          (spec §7.1), so the band and the run-status banner do not render. */}
+      {!error && (
         <div className="shell-cap">
           {/* 1. The permanent regime band (spec §3.3): v1's full §4.9 banner,
               on every screen, gating nothing. Absent only before the first run
@@ -315,8 +310,40 @@ export default function App() {
         </div>
       )}
 
+      {/* The identity/body seam, the shell half (spec §7.1/§7.2/§7.3). Identity
+          reads gate the tab body: no screen mounts until the read resolves to a
+          real session. The four gates below are exclusive and never overlap. */}
       <main id="main-content" className="shell-cap shell-main">
-        <Screen tab={tab} market={market} sector={sector} navigate={navigate} />
+        {error ? (
+          // Identity-read failure: the app's single `role="alert"`, in the tab
+          // body's place, with NO screen behind it (spec §7.1/§8.7). Reachability
+          // is what fails here — a failed *run* is a status, not this alert.
+          <p role="alert" className="identity-error">
+            Could not reach the backend: {error}
+          </p>
+        ) : runs === null ? (
+          // The identity read is still in flight; the shell blocks on it ALONE
+          // (spec §7.3) — a plain `aria-busy` container, not a whole-screen
+          // skeleton gated on every read, and NOT a `role="status"` region: the
+          // closed set of three polite regions is a decision (spec §8.7), and an
+          // initial load is not one of them. Each panel paints itself once a
+          // screen mounts.
+          <p aria-busy="true" className="shell-loading">
+            Loading {market}…
+          </p>
+        ) : asOf === null ? (
+          // The shell owns `session: null` EXCLUSIVELY (spec §7.2): one statement,
+          // once, replacing the whole tab body — a screen never mounts with it. A
+          // failed run is a different register: the run-status banner already
+          // speaks it, so the body stays silent rather than double-reporting.
+          runs.run_error ? null : (
+            <p className="empty-state no-run-yet">
+              No run yet for {market}. Nothing to show tonight.
+            </p>
+          )
+        ) : (
+          <Screen tab={tab} market={market} sector={sector} navigate={navigate} />
+        )}
       </main>
     </div>
   );
@@ -418,14 +445,11 @@ function RunStatus({
   dismissed: boolean;
   onDismiss: () => void;
 }) {
-  if (!runs) {
-    // The identity read is still in flight (spec §8.7: `aria-busy`).
-    return (
-      <p role="status" aria-busy="true" className="run-loading">
-        Loading {market}…
-      </p>
-    );
-  }
+  // The identity read is in flight, or nothing has ever published: neither is an
+  // abnormal *run* status, so this banner stays absent. The shell body owns both
+  // — the busy line and the no-run-yet statement (spec §7.2/§7.3) — so they are
+  // not answered twice in disagreeing prose (the v1 mistake, §7.2).
+  if (!runs) return null;
 
   let body: ReactNode = null;
   let kind = "";
@@ -439,16 +463,14 @@ function RunStatus({
         Tonight&apos;s {market} run failed: {runs.run_error}
       </>
     );
-  } else if (!runs.latest) {
-    // Nothing has ever published: an honest empty state, distinct from a
-    // run-failed banner (spec Appendix A). Not a status region — nothing changed.
-    return <p className="empty-state">No run yet for {market}. Nothing to show tonight.</p>;
   } else {
     // A quarantined latest attempt: the served `latest` is older than the last
     // attempt, so the shell carries a stale banner (spec §3.4 rules 7–8). Runs
     // arrive newest-first, so runs[0] is the last attempt.
     const newest = runs.runs[0];
-    if (newest?.status === "quarantined") {
+    // Only when a last good session is actually being served: with no `latest`
+    // there is nothing to fall back to, so the no-run-yet body owns that night.
+    if (newest?.status === "quarantined" && runs.latest) {
       kind = "quarantine-banner";
       body = (
         <>
@@ -505,7 +527,8 @@ function RegimeBanner({ market, regime }: { market: Market; regime: RegimeRespon
 
 /**
  * The active screen (spec §5). The four screens (Board, Leaders, Setups,
- * Sectors) and the sector drill-down land in later tickets (#82/#83); the shell
+ * Sectors) and the sector drill-down land in later tickets, each wrapping its
+ * body reads in `Panel`/`useBodyRead` (the state matrix, spec §7); the shell
  * renders each tab's panel with the per-panel heading and the `tabpanel`
  * association the semantics (spec §8.5) require. Screens receive `market` and
  * reset their entity-naming state (selected symbol, ticker query) off it, while
@@ -534,7 +557,7 @@ function Screen({
         </nav>
         <h2>{sector}</h2>
         <p className="screen-placeholder">
-          The {sector} pack for {market} lands in #83.
+          The {sector} pack for {market} lands in a later ticket.
         </p>
       </section>
     );

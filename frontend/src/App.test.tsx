@@ -189,6 +189,47 @@ describe("the shell — run-status banner", () => {
   });
 });
 
+// ── The identity/body seam, shell half (spec §7.1 / §7.2) ────────────────────
+
+describe("the shell — the identity/body seam", () => {
+  it("an identity-read failure blocks every screen and raises exactly one alert (spec §7.1)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network down");
+      }),
+    );
+    render(<App />);
+
+    // The single alert, in the tab body's place…
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Could not reach the backend/);
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    // …with NO screen behind it: no tabpanel, no screen heading, no chrome band.
+    expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2 })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/IDX regime/i)).not.toBeInTheDocument();
+  });
+
+  it("renders one shell statement for a null session and mounts no screen (spec §7.2)", async () => {
+    // A market that has published nothing: the shell owns `session: null`
+    // exclusively — one statement replaces the whole tab body, no screen mounts.
+    stubFetch(vi, {
+      runs: (m) => runsResponse({ market: m, latest: null, runs: [], universe_size: null }),
+      regime: (m) =>
+        regimeResponse({ market: m, session: null, state: null, posture: null, breadth: null }),
+    });
+    render(<App />);
+
+    await screen.findByText(/No run yet for IDX/);
+    // No screen mounts with a null session (spec §7.2): the statement is the
+    // whole body — no tabpanel and no per-screen heading behind it.
+    expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2 })).not.toBeInTheDocument();
+    // And still no alert — a market with no run yet is not an outage (spec §8.7).
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
 // ── Run-on-open lifecycle (spec §3.6) ────────────────────────────────────────
 
 describe("the shell — run-on-open lifecycle", () => {

@@ -14,6 +14,7 @@ import {
   type RegimeResponse,
   type RunsResponse,
 } from "./api/client";
+import Sectors from "./Sectors";
 
 // ── The three URL axes (spec §3.5) ───────────────────────────────────────────
 //
@@ -36,6 +37,9 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 const DEFAULT_TAB: Tab = "board";
+
+// The regime states advisory copy keys off (spec §5.4). `null` is warming up.
+type Regime = "FRIENDLY" | "CHOPPY" | "HOSTILE";
 
 // The 11-sector GECS axis (spec §2.6). The shell validates a `?sector=` against
 // this axis; the per-market *pack* eject (a sector with no members in the new
@@ -313,7 +317,15 @@ export default function App() {
         </p>
       );
     }
-    return <Screen tab={tab} market={market} sector={sector} navigate={navigate} />;
+    return (
+      <Screen
+        tab={tab}
+        market={market}
+        sector={sector}
+        regime={regime?.state ?? null}
+        navigate={navigate}
+      />
+    );
   }
 
   return (
@@ -333,7 +345,11 @@ export default function App() {
               As of <time dateTime={asOf}>{asOf}</time>
             </p>
           )}
-          <TabRow tab={tab} onSelect={(t) => navigate({ tab: t })} />
+          {/* A tab click clears the sector (spec §5.5): clicking the lit Sectors
+              tab returns to the list — the drill-down's most likely bug is a lit
+              tab that no-ops. The click leaves focus on the tab button (the tab
+              treatment), which is how it diverges from breadcrumb-back. */}
+          <TabRow tab={tab} onSelect={(t) => navigate({ tab: t, sector: null })} />
           <MarketControl market={market} onSelect={(m) => navigate({ market: m })} />
         </div>
       </header>
@@ -561,28 +577,26 @@ function Screen({
   tab,
   market,
   sector,
+  regime,
   navigate,
 }: {
   tab: Tab;
   market: Market;
   sector: string | null;
+  regime: Regime | null;
   navigate: (patch: Partial<Destination>) => void;
 }) {
-  // Sector detail is a drill-down, not a tab: it keeps the Sectors tab lit and
-  // the breadcrumb is the honest control (spec §5 / §8.5).
-  if (tab === "sectors" && sector) {
+  // The Sectors tab and its drill-down (spec §5.4/§5.5) are one component: it
+  // owns both the list and the detail so the drill-down's focus asymmetry
+  // survives the list↔detail swap (spec §8.6/§8.8).
+  if (tab === "sectors") {
     return (
-      <section id="active-tabpanel" role="tabpanel" aria-labelledby="tab-sectors" tabIndex={0}>
-        <nav aria-label="Breadcrumb" className="breadcrumb">
-          <button type="button" className="breadcrumb-back" onClick={() => navigate({ sector: null })}>
-            Sectors
-          </button>
-        </nav>
-        <h2>{sector}</h2>
-        <p className="screen-placeholder">
-          The {sector} pack for {market} lands in a later ticket.
-        </p>
-      </section>
+      <Sectors
+        market={market}
+        sector={sector}
+        regime={regime}
+        navigate={navigate}
+      />
     );
   }
 

@@ -16,6 +16,8 @@ export type BoardRow = components["schemas"]["LeaderRow"];
 export type SectorsResponse = components["schemas"]["SectorsResponse"];
 export type SectorStrength = components["schemas"]["SectorStrength"];
 export type IndustryStrength = components["schemas"]["IndustryStrength"];
+export type SectorDetailResponse = components["schemas"]["SectorDetailResponse"];
+export type SectorMember = components["schemas"]["SectorMember"];
 export type RegimeResponse = components["schemas"]["RegimeResponse"];
 export type CandidatesResponse = components["schemas"]["CandidatesResponse"];
 export type Candidate = components["schemas"]["Candidate"];
@@ -50,6 +52,21 @@ export async function fetchSectors(market: string): Promise<SectorsResponse> {
   const resp = await fetch(`/api/sectors/${market}`);
   if (!resp.ok) throw new Error(`GET /api/sectors/${market} → ${resp.status}`);
   return (await resp.json()) as SectorsResponse;
+}
+
+// The sector drill-down (spec §4.5 / §5.5). The sector name needs URL-encoding —
+// GECS labels carry spaces (`Consumer Cyclical`) — spec'd explicitly rather than
+// left to whoever implements. The member rows carry per-lookback returns,
+// percentile-in-universe and per-name decile, so the client's lookback switch
+// re-renders without a refetch.
+export async function fetchSectorDetail(
+  market: string,
+  sector: string,
+): Promise<SectorDetailResponse> {
+  const resp = await fetch(`/api/sectors/${market}/${encodeURIComponent(sector)}`);
+  if (!resp.ok)
+    throw new Error(`GET /api/sectors/${market}/${sector} → ${resp.status}`);
+  return (await resp.json()) as SectorDetailResponse;
 }
 
 export async function fetchRegime(market: string): Promise<RegimeResponse> {

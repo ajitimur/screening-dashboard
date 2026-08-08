@@ -326,3 +326,92 @@
   height: 56px;
   cursor: pointer;
 }
+
+/*
+ * The Sectors screen (spec §5.4): stacked bands, not peer panels side by side —
+ * the decile table is too wide to sit beside a square plot, so the two rotation
+ * models stack (and the phase-2 RRG appends above). One column, gap between
+ * bands; no reserved slot for the plot.
+ */
+.sectors-bands {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.band-subtitle {
+  margin: 0 0 0.75rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+.pullback-note {
+  margin: 0 0 0.75rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+  font-style: italic;
+}
+.band-skeleton {
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--color-text-muted) 12%, transparent);
+}
+
+/* Every sector-bearing mark is a real button into detail (spec §5.4). Styled as
+   an inline link, not a chunky control, so a dense board stays readable. */
+.sector-link,
+.ticker-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ticker-link {
+  font-family: var(--font-mono);
+}
+.rotation-ineligible {
+  color: var(--color-text-muted);
+}
+.kn {
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+
+/* The sector detail page (spec §5.5). */
+.breadcrumb {
+  margin: 0 0 0.25rem;
+  font-size: var(--text-micro);
+}
+.breadcrumb-back {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.lookback-control {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin: 0.75rem 0;
+}
+.member-return {
+  position: relative;
+}
+.return-bar {
+  display: inline-block;
+  height: 0.5rem;
+  margin-right: 0.4rem;
+  background: color-mix(in srgb, var(--color-text-muted) 35%, transparent);
+  vertical-align: middle;
+}
+.decile-badge {
+  font-size: var(--text-micro);
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--color-green) 18%, transparent);
+  color: var(--color-green);
+}

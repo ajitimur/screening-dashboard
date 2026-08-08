@@ -342,7 +342,8 @@ def run_market_universe(
             if bars:
                 store.append_bars(market, instrument.symbol, bars)
 
-    candidates = [i.symbol for i in instruments if i.role == "candidate"]
+    candidate_instruments = [i for i in instruments if i.role == "candidate"]
+    candidates = [i.symbol for i in candidate_instruments]
     # The gate exists to catch a *throttled* pull — silence it cannot tell from a
     # dead name (spec §3.4 rule 7). A listing the provider has explicitly refused
     # to serve history for is neither: it is a stated answer, and no amount of
@@ -353,7 +354,7 @@ def run_market_universe(
     # it arrives as silence, not a refusal (issue #90). Both would let listings
     # the universe never keeps drag a complete pull under the floor, so the gate
     # is measured over the tradeable candidates that *could* resolve.
-    tradeable = [i.symbol for i in instruments if i.role == "candidate" and is_common_stock(i.name)]
+    tradeable = [i.symbol for i in candidate_instruments if is_common_stock(i.name)]
     measurable = [s for s in tradeable if status[s] != "refused"]
     resolved = [s for s in measurable if status[s] == "resolved"]
     published = len(resolved) >= RESOLUTION_FLOOR * len(measurable)

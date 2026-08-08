@@ -104,11 +104,11 @@ export default function Board({
   navigate,
 }: {
   market: string;
-  // The as-of session the shell is serving (spec §7.3, issue #94). It re-keys
-  // every body read below, so a run the shell triggered on open — whose reads
-  // landed while it was still writing (the rail's all-zero, unsorted board) —
-  // refetches once when the finished session publishes, through the existing
-  // `switching`→`ready` path rather than a new per-panel loading branch.
+  // The as-of session the shell is serving (spec §7.3, issue #94). It is the
+  // revalidate token for every body read below, so each refetches once when a
+  // shell-triggered run publishes a new session — reusing the existing
+  // `switching`→`ready` path rather than a new per-panel loading branch. See
+  // `useBodyRead` for why (reads that landed mid-run show the pre-run board).
   session: string | null;
   universeSize: number | null;
   navigate: (patch: { tab?: string; sector?: string | null }) => void;

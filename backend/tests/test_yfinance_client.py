@@ -56,7 +56,7 @@ def _install_fake_yfinance(monkeypatch, *, history):
         def __init__(self, symbol):
             self._symbol = symbol
 
-        def history(self, *, period, auto_adjust):
+        def history(self, *, auto_adjust, period=None, start=None):
             return history(self._symbol)
 
     module.Ticker = Ticker
@@ -116,3 +116,47 @@ def test_bars_return_flattened_records(monkeypatch):
     _install_fake_yfinance(monkeypatch, history=lambda symbol: _FakeFrame(rows))
 
     assert YFinanceSourceClient().fetch("AAPL") == rows
+
+
+def _install_recording_yfinance(monkeypatch, kwargs):
+    """A fake yfinance whose ``Ticker.history`` records the kwargs it was called
+    with, so a test can assert on the request window (issue #100)."""
+    module = types.ModuleType("yfinance")
+    module.config = types.SimpleNamespace(debug=types.SimpleNamespace(hide_exceptions=True))
+
+    class Ticker:
+        def __init__(self, symbol):
+            pass
+
+        def history(self, **kw):
+            kwargs.update(kw)
+            return _FakeFrame([{"Date": "2026-08-01", "Close": 10.0}])
+
+    module.Ticker = Ticker
+    monkeypatch.setitem(sys.modules, "yfinance", module)
+
+
+def test_a_cold_start_asks_for_full_history(monkeypatch):
+    # start=None is the cold start — the one request a stated refusal can surface
+    # on, because period="max" is set (issue #100).
+    kwargs: dict = {}
+    _install_recording_yfinance(monkeypatch, kwargs)
+
+    YFinanceSourceClient().fetch("AAPL")
+
+    assert kwargs.get("period") == "max"
+    assert "start" not in kwargs
+
+
+def test_an_incremental_fetch_asks_from_the_start_and_sets_no_period(monkeypatch):
+    # Passing start= leaves period unset (None), so YFInvalidPeriodError can never
+    # fire — which is exactly why the refusal verdict is persisted, not re-probed.
+    from datetime import date
+
+    kwargs: dict = {}
+    _install_recording_yfinance(monkeypatch, kwargs)
+
+    YFinanceSourceClient().fetch("AAPL", date(2026, 7, 1))
+
+    assert kwargs.get("start") == date(2026, 7, 1)
+    assert "period" not in kwargs

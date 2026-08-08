@@ -56,7 +56,7 @@ class FakeInfoClient:
     def enumerate(self, market):  # unused here, present for the protocol
         return []
 
-    def fetch(self, symbol):  # unused here
+    def fetch(self, symbol, start=None):  # unused here
         return []
 
     def fetch_info(self, symbol):

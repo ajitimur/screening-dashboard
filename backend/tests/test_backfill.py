@@ -55,7 +55,7 @@ class _FakeClient:
     def enumerate(self, market):
         return self._instruments
 
-    def fetch(self, symbol):
+    def fetch(self, symbol, start=None):
         return self._bars.get(symbol, [])
 
     def fetch_info(self, symbol):

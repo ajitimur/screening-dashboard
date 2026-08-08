@@ -48,7 +48,7 @@ class RecordingBarClient:
     def enumerate(self, market):
         return self._instruments[market]
 
-    def fetch(self, symbol):
+    def fetch(self, symbol, start=None):
         self.fetched.append(symbol)
         return self._bars.get(symbol, [])
 

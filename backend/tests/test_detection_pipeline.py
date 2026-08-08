@@ -120,7 +120,7 @@ def test_run_market_universe_wires_in_detection(store: Store, tmp_path):
         def enumerate(self, market):
             return instruments
 
-        def fetch(self, symbol):
+        def fetch(self, symbol, start=None):
             return series
 
         def fetch_info(self, symbol):

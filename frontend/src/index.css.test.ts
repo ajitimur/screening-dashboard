@@ -108,3 +108,51 @@ describe("the v2 token set (spec §3.2, §8.3)", () => {
     expect(root).toMatch(/--color-regime-stop:/);
   });
 });
+
+// A class ships in a component but has no matching rule → it renders unstyled,
+// which reads as breakage rather than as a plain aesthetic (issue #95). Match the
+// class as a whole selector token: `.tab` must not be satisfied by `.tab-row`, so
+// the class name may not be followed by a word char or a hyphen.
+function hasRule(className: string): boolean {
+  return new RegExp(`\\.${className}(?![\\w-])`).test(css);
+}
+
+describe("the v2 shell, Leaders and Sectors are styled (issue #95)", () => {
+  // Every class below is referenced by a component and, before #95, matched no
+  // rule in index.css. The shell chrome and two screens rendered as unstyled
+  // text runs; the ARIA was correct throughout, so this is purely the visual
+  // layer. Grouped by the component that ships the markup.
+  const SHELL_CLASSES = [
+    "tab-row", "tab", "market-control", "market-item", "shell-header",
+    "shell-header-row", "shell-product", "shell-asof", "shell-loading",
+    "regime-banner", "run-status-dismiss", "identity-error",
+    "empty-state", "no-run-yet", "screen-placeholder",
+  ];
+  const LEADERS_CLASSES = [
+    "leaders-controls", "seg-item", "view", "ticker-search", "sector-select",
+    "adr-toggle", "sort-button", "leaders-table", "leaders-grid",
+    "leader-card", "leader-card-head", "leader-card-facts",
+    "leaders-summary", "leaders-skeleton", "badge-new-to-leaders",
+  ];
+  const SECTORS_CLASSES = [
+    "sector-detail", "member-table", "member-pctile", "member-decile",
+    "lookback-item", "top-decile-toggle", "decile-badge-empty",
+    "breadcrumb-current", "rank", "return-value", "share", "shape",
+  ];
+
+  it.each(SHELL_CLASSES)("styles the shell class .%s", (c) => {
+    expect(hasRule(c)).toBe(true);
+  });
+  it.each(LEADERS_CLASSES)("styles the Leaders class .%s", (c) => {
+    expect(hasRule(c)).toBe(true);
+  });
+  it.each(SECTORS_CLASSES)("styles the Sectors class .%s", (c) => {
+    expect(hasRule(c)).toBe(true);
+  });
+
+  it("covers exactly the 42 classes the audit named", () => {
+    expect(
+      SHELL_CLASSES.length + LEADERS_CLASSES.length + SECTORS_CLASSES.length,
+    ).toBe(42);
+  });
+});

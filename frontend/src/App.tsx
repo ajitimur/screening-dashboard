@@ -261,6 +261,47 @@ export default function App() {
 
   const asOf = runs?.latest?.session ?? null;
 
+  // The identity/body seam, the shell half (spec §7.1/§7.2/§7.3). Identity reads
+  // gate the tab body: no screen mounts until the read resolves to a real
+  // session. The four branches below are exclusive and never overlap.
+  function tabBody(): ReactNode {
+    if (error) {
+      // Identity-read failure: the app's single `role="alert"`, in the tab
+      // body's place, with NO screen behind it (spec §7.1/§8.7). Reachability
+      // is what fails here — a failed *run* is a status, not this alert.
+      return (
+        <p role="alert" className="identity-error">
+          Could not reach the backend: {error}
+        </p>
+      );
+    }
+    if (runs === null) {
+      // The identity read is still in flight; the shell blocks on it ALONE
+      // (spec §7.3) — a plain `aria-busy` container, not a whole-screen skeleton
+      // gated on every read, and NOT a `role="status"` region: the closed set of
+      // three polite regions is a decision (spec §8.7), and an initial load is
+      // not one of them. Each panel paints itself once a screen mounts.
+      return (
+        <p aria-busy="true" className="shell-loading">
+          Loading {market}…
+        </p>
+      );
+    }
+    if (asOf === null) {
+      // The shell owns `session: null` EXCLUSIVELY (spec §7.2): one statement,
+      // once, replacing the whole tab body — a screen never mounts with it. A
+      // failed run is a different register: the run-status banner already speaks
+      // it, so the body stays silent rather than double-reporting.
+      if (runs.run_error) return null;
+      return (
+        <p className="empty-state no-run-yet">
+          No run yet for {market}. Nothing to show tonight.
+        </p>
+      );
+    }
+    return <Screen tab={tab} market={market} sector={sector} navigate={navigate} />;
+  }
+
   return (
     <div className="shell">
       {/* Bypass block (spec §8.5, SC 2.4.1): a visually-hidden skip link that
@@ -310,40 +351,8 @@ export default function App() {
         </div>
       )}
 
-      {/* The identity/body seam, the shell half (spec §7.1/§7.2/§7.3). Identity
-          reads gate the tab body: no screen mounts until the read resolves to a
-          real session. The four gates below are exclusive and never overlap. */}
       <main id="main-content" className="shell-cap shell-main">
-        {error ? (
-          // Identity-read failure: the app's single `role="alert"`, in the tab
-          // body's place, with NO screen behind it (spec §7.1/§8.7). Reachability
-          // is what fails here — a failed *run* is a status, not this alert.
-          <p role="alert" className="identity-error">
-            Could not reach the backend: {error}
-          </p>
-        ) : runs === null ? (
-          // The identity read is still in flight; the shell blocks on it ALONE
-          // (spec §7.3) — a plain `aria-busy` container, not a whole-screen
-          // skeleton gated on every read, and NOT a `role="status"` region: the
-          // closed set of three polite regions is a decision (spec §8.7), and an
-          // initial load is not one of them. Each panel paints itself once a
-          // screen mounts.
-          <p aria-busy="true" className="shell-loading">
-            Loading {market}…
-          </p>
-        ) : asOf === null ? (
-          // The shell owns `session: null` EXCLUSIVELY (spec §7.2): one statement,
-          // once, replacing the whole tab body — a screen never mounts with it. A
-          // failed run is a different register: the run-status banner already
-          // speaks it, so the body stays silent rather than double-reporting.
-          runs.run_error ? null : (
-            <p className="empty-state no-run-yet">
-              No run yet for {market}. Nothing to show tonight.
-            </p>
-          )
-        ) : (
-          <Screen tab={tab} market={market} sector={sector} navigate={navigate} />
-        )}
+        {tabBody()}
       </main>
     </div>
   );

@@ -468,6 +468,33 @@ class Store:
         ).fetchall()
         return len(inserted)
 
+    def replace_bars(self, market: str, symbol: str, bars: list[Bar]) -> int:
+        """Delete one symbol's bars and rewrite them — the drift repair (§3.6, #102).
+
+        A deliberate, narrow exception to :meth:`append_bars`' write-once rule
+        (spec §7.2). When the incremental overlap shows a symbol's stored history
+        sits on a stale adjustment basis — a corporate-action rebasis — those bars
+        are *wrong*, not merely stale, and no ``ON CONFLICT DO NOTHING`` append can
+        fix a row that already exists. §7.2 exists so a *throttled* run cannot
+        silently rewrite good data; a rebasis is the opposite case, so this rewrite
+        is scoped as hard as it can be:
+
+        - **One symbol's bars only.** The ``DELETE`` is keyed to ``(market,
+          symbol)``, so every other symbol on the exchange calendar is untouched.
+        - **Never a derived row.** Ranks, detections, digests and run records are
+          left exactly as they were computed on the old basis. §3.5's finding that
+          nearly every quantity in the method is a ratio — invariant to a uniform
+          rescale — makes recomputing them immaterial, so a repair is bars-only by
+          construction (issue #102).
+
+        Returns the number of rows written (the delete's count is not reported: the
+        caller wants the new series' size, and a repair always overwrites).
+        """
+        self._cursor().execute(
+            "DELETE FROM bars WHERE market = ? AND symbol = ?", [market, symbol]
+        )
+        return self.append_bars(market, symbol, bars)
+
     def append_ranks(self, market: str, session: date, rows: list[Rank]) -> int:
         """Append a session's rank rows, then prune outside the 2-year window.
 

@@ -12,13 +12,14 @@ from __future__ import annotations
 
 import bisect
 import hashlib
+import math
 import time
 from collections import Counter
 from datetime import date, datetime
 from pathlib import Path
 from typing import Callable
 
-from .bars import clean_bars, parse_bars
+from .bars import Bar, clean_bars, parse_bars
 from .detection import Detection, detect, detection_gate
 from .digest import build_digest, render_digest
 from .labels import select_fetches
@@ -511,6 +512,32 @@ def _incremental_start(last: date | None, calendar: list[date]) -> date | None:
     return calendar[max(0, count - 1 - OVERLAP_SESSIONS)]
 
 
+# A corporate action rescales every prior adjusted close by one factor, so a real
+# rebasis moves the overlap's adjusted closes by a discrete ratio — dividends by
+# tenths of a percent up, splits by whole multiples. Ordinary night-to-night
+# provider rounding sits far below this, so a relative tolerance of 0.01% cleanly
+# separates a seam from float noise: below it, no repair request is spent.
+DRIFT_REL_TOL = 1e-4
+
+
+def _adjustment_drift(stored: list[Bar], fetched: list[Bar]) -> bool:
+    """Does the freshly-fetched overlap disagree with stored history's basis?
+
+    Compares adjusted closes on the sessions the two series share — the incremental
+    overlap (spec §3.6, issue #102). ``True`` on the first session whose adjusted
+    close differs by more than :data:`DRIFT_REL_TOL`, the signature of a
+    corporate-action rebasis. A cold start (no shared sessions) never drifts.
+    """
+    fetched_adj = {b.session: b.adj_close for b in fetched}
+    for b in stored:
+        other = fetched_adj.get(b.session)
+        if other is not None and not math.isclose(
+            b.adj_close, other, rel_tol=DRIFT_REL_TOL
+        ):
+            return True
+    return False
+
+
 def run_market_universe(
     store: Store,
     source: Source,
@@ -643,7 +670,30 @@ def run_market_universe(
         if resolution.status == "resolved":
             bars = clean_bars(parse_bars(resolution.bars), market, now)
             if bars:
-                store.append_bars(market, resolution.symbol, bars)
+                symbol = resolution.symbol
+                # Adjustment-drift detection and repair (spec §3.6, issue #102).
+                # An incremental fetch (start is not None) re-requests ~20 sessions
+                # of overlap; comparing those adjusted closes against stored history
+                # catches a corporate-action rebasis for free. On disagreement the
+                # stored series is *wrong*, not stale — appending the new-basis
+                # overlap would write a seam the detector reads as real price
+                # action — so this symbol is full-refetched now (start=None ->
+                # period="max") and its bars replaced, rather than waiting for its
+                # turn in #101's rolling full-depth slice. The repair is bars-only:
+                # derived rows stay as computed (§3.5's ratio invariance). If the
+                # refetch comes back short of a full series the stored bars are
+                # left untouched — better a stale-but-consistent history than one
+                # we seam ourselves — and the drift is caught again next night.
+                if starts.get(symbol) is not None and _adjustment_drift(
+                    store.bars(market, symbol), bars
+                ):
+                    repaired = clean_bars(
+                        parse_bars(source.resolve(symbol).bars), market, now
+                    )
+                    if repaired:
+                        store.replace_bars(market, symbol, repaired)
+                else:
+                    store.append_bars(market, symbol, bars)
         if done % PROGRESS_EVERY == 0 or done == len(to_resolve):
             # The last line is not redundant with summarize_pull: it marks the
             # end of the *pull*, and the stages after it (universe, ranks,

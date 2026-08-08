@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import ChartSheet, { type SheetTarget } from "./ChartSheet";
 import MiniChart from "./MiniChart";
 import { NightEmpty, Panel, useBodyRead } from "./Panel";
@@ -134,6 +134,66 @@ export default function Setups({
 
           const filtersActive = ticker !== "" || sector !== null;
 
+          // The body is one of three exclusive states — a filter-inflicted empty,
+          // a night-inflicted empty, or the grid. An if/else chain rather than a
+          // nested ternary so each state reads on its own.
+          let body: ReactNode;
+          if (total === 0 && filtersActive) {
+            // A recoverable, filter-inflicted empty (spec §7.4): the click that
+            // un-empties it is on screen.
+            body = (
+              <div className="empty-filter">
+                <p>No detected name matches the current filter.</p>
+                <button
+                  type="button"
+                  className="chip-clear"
+                  onClick={() => {
+                    setTicker("");
+                    clearSector();
+                  }}
+                >
+                  Clear filters
+                </button>
+              </div>
+            );
+          } else if (total === 0) {
+            // A thin night gets no special copy — the header count is the whole
+            // explanation (spec §5.2). A plain fact, never an apology.
+            body = <NightEmpty>No names cleared every gate tonight.</NightEmpty>;
+          } else {
+            body = (
+              <>
+                {/* The grid reflows by card width, never a fixed column count
+                    (spec §5.2). Under the sheet it drops to two columns and the
+                    clicked card keeps its outline — both driven off
+                    `data-sheet-open` since jsdom computes no CSS. */}
+                <div
+                  className="setups-grid"
+                  data-sheet-open={sheet !== null || undefined}
+                >
+                  {shown.map((c) => (
+                    <SetupCard
+                      key={c.symbol}
+                      candidate={c}
+                      market={market}
+                      active={sheet?.symbol === c.symbol}
+                      onOpen={() => openSheet(c)}
+                    />
+                  ))}
+                </div>
+                {more > 0 && (
+                  <button
+                    type="button"
+                    className="setups-more"
+                    onClick={() => setCap((n) => n + RENDER_CAP)}
+                  >
+                    Show {more} more
+                  </button>
+                )}
+              </>
+            );
+          }
+
           return (
             <div className="setups">
               <div className="setups-controls">
@@ -181,59 +241,7 @@ export default function Setups({
                 </p>
               </div>
 
-              {total === 0 ? (
-                filtersActive ? (
-                  // A recoverable, filter-inflicted empty (spec §7.4): the click
-                  // that un-empties it is on screen.
-                  <div className="empty-filter">
-                    <p>No detected name matches the current filter.</p>
-                    <button
-                      type="button"
-                      className="chip-clear"
-                      onClick={() => {
-                        setTicker("");
-                        clearSector();
-                      }}
-                    >
-                      Clear filters
-                    </button>
-                  </div>
-                ) : (
-                  // A thin night gets no special copy — the header count is the
-                  // whole explanation (spec §5.2). A plain fact, never an apology.
-                  <NightEmpty>No names cleared every gate tonight.</NightEmpty>
-                )
-              ) : (
-                <>
-                  {/* The grid reflows by card width, never a fixed column count
-                      (spec §5.2). Under the sheet it drops to two columns and the
-                      clicked card keeps its outline — both driven off
-                      `data-sheet-open` since jsdom computes no CSS. */}
-                  <div
-                    className="setups-grid"
-                    data-sheet-open={sheet !== null || undefined}
-                  >
-                    {shown.map((c) => (
-                      <SetupCard
-                        key={c.symbol}
-                        candidate={c}
-                        market={market}
-                        active={sheet?.symbol === c.symbol}
-                        onOpen={() => openSheet(c)}
-                      />
-                    ))}
-                  </div>
-                  {more > 0 && (
-                    <button
-                      type="button"
-                      className="setups-more"
-                      onClick={() => setCap((n) => n + RENDER_CAP)}
-                    >
-                      Show {more} more
-                    </button>
-                  )}
-                </>
-              )}
+              {body}
             </div>
           );
         }}

@@ -14,6 +14,7 @@ import {
   type RegimeResponse,
   type RunsResponse,
 } from "./api/client";
+import Setups from "./Setups";
 
 // ── The three URL axes (spec §3.5) ───────────────────────────────────────────
 //
@@ -582,6 +583,19 @@ function Screen({
         <p className="screen-placeholder">
           The {sector} pack for {market} lands in a later ticket.
         </p>
+      </section>
+    );
+  }
+
+  // The Setups screen (spec §5.2): the card grid, wired to the candidate read via
+  // Panel/useBodyRead and to the chart sheet via each card's ticker button and
+  // mini chart. The tabpanel is named by its tab; the per-panel <h2> is visually
+  // hidden because the screen's header row is the count line, not a title.
+  if (tab === "setups") {
+    return (
+      <section id="active-tabpanel" role="tabpanel" aria-labelledby="tab-setups" tabIndex={0}>
+        <h2 className="sr-only">Setups</h2>
+        <Setups market={market} />
       </section>
     );
   }

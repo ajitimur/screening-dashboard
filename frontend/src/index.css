@@ -326,3 +326,169 @@
   height: 56px;
   cursor: pointer;
 }
+
+/*
+ * The Setups screen (spec §5.2): the grid IS the screen. Column count is not
+ * fixed — card width is — so `auto-fill, minmax(360px, 1fr)` reflows 3-up at
+ * 1440 and 2-up at 1280. Under the chart sheet it drops to a fixed 2 columns
+ * (the opposite of the Board's freeze-columns choice — there is no rail here),
+ * driven off `data-sheet-open` so it is a real state, not a media guess.
+ */
+.setups {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.setups-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.setups-search,
+.setups-sector {
+  padding: 0.375rem 0.625rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  font: inherit;
+}
+.setups-count {
+  margin: 0 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+.setups-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 1rem;
+}
+.setups-grid[data-sheet-open] {
+  grid-template-columns: repeat(2, 1fr);
+}
+.setups-more {
+  justify-self: start;
+  padding: 0.5rem 1rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+/*
+ * The Setups card (spec §5.2): the Board card's anatomy plus the mini chart. An
+ * `<article>` named by its ticker; the clicked card keeps an active outline so it
+ * survives the reflow under the sheet and you do not lose your place.
+ */
+.setup-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.875rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+.setup-card[data-active] {
+  outline: 2px solid var(--color-focus-core);
+  outline-offset: 1px;
+}
+.setup-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.setup-card-head .ticker-select {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-ticker);
+  font-weight: 600;
+  cursor: pointer;
+}
+.setup-card-head .stars {
+  font-family: var(--font-mono);
+}
+.new-badge {
+  padding: 0.0625rem 0.375rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: var(--text-micro);
+  letter-spacing: 0.04em;
+}
+.setup-card-head .sector-chip {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+.setup-stats {
+  display: flex;
+  gap: 1rem;
+  margin: 0;
+}
+.setup-stats div {
+  display: flex;
+  flex-direction: column;
+}
+.setup-stats dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+.setup-stats dd {
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+/*
+ * The stop-width bar (spec §5.2 / §4.6): the stop width as a proportion of ADR,
+ * labelled `stop N×ADR`. Colour never carries the meaning — the label does
+ * (§8.9); `affordable` (sub-1×ADR) is the one tint kept.
+ */
+.stopw-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.stopw-bar {
+  flex: 1;
+  height: 0.5rem;
+  background: var(--color-bg);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+.stopw-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-text-muted);
+}
+.stopw-bar-fill.affordable {
+  background: var(--color-green);
+}
+.stopw-bar-label {
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+  white-space: nowrap;
+}
+
+/*
+ * A carried-filter chip (spec §5.6): the sector arrives dismissible and visible.
+ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: var(--text-micro);
+}
+.chip-clear {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}

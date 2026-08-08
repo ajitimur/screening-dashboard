@@ -296,6 +296,20 @@ class Store:
     def close(self) -> None:
         self._con.close()
 
+    def _cursor(self) -> duckdb.DuckDBPyConnection:
+        """A fresh cursor over the shared database, for one query.
+
+        A DuckDB Python connection is not safe for concurrent use, but the read
+        route handlers are plain ``def`` — Starlette dispatches them to its
+        threadpool, so several run at once on different threads. Sharing the one
+        ``self._con`` across them intermittently 500s (issue #93). ``cursor()``
+        hands each query its own execution context over the *same* underlying
+        database, which is the documented multi-thread pattern: reads still run
+        in parallel, no global lock serialises them (spec §7.3). Every read and
+        write method below goes through here rather than touching ``self._con``.
+        """
+        return self._con.cursor()
+
     # -- writes (append-only) ---------------------------------------------
 
     def discard_session(self, market: str, session: date) -> int:
@@ -314,7 +328,7 @@ class Store:
         so the write-once guarantee (spec §7.2) still holds over everything a
         run ever published. Returns the number of rows discarded.
         """
-        recorded = self._con.execute(
+        recorded = self._cursor().execute(
             "SELECT 1 FROM runs WHERE market = ? AND session = ? LIMIT 1",
             [market, session],
         ).fetchone()
@@ -325,7 +339,7 @@ class Store:
             )
         discarded = 0
         for table in _DERIVED_TABLES:
-            deleted = self._con.execute(
+            deleted = self._cursor().execute(
                 f"DELETE FROM {table} WHERE market = ? AND session = ? RETURNING 1",
                 [market, session],
             ).fetchall()
@@ -333,7 +347,7 @@ class Store:
         return discarded
 
     def _guard_absent(self, table: str, market: str, session: date) -> None:
-        existing = self._con.execute(
+        existing = self._cursor().execute(
             f"SELECT 1 FROM {table} WHERE market = ? AND session = ? LIMIT 1",
             [market, session],
         ).fetchone()
@@ -355,7 +369,7 @@ class Store:
     ) -> RunRecord:
         """Record one run. Raises :class:`SessionExistsError` on a rewrite."""
         self._guard_absent("runs", market, session)
-        self._con.execute(
+        self._cursor().execute(
             "INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?)",
             [market, session, status, symbols_enumerated, symbols_resolved, created_at],
         )
@@ -371,7 +385,7 @@ class Store:
     def append_universe(self, market: str, session: date, symbols: list[str]) -> int:
         """Append a session's universe membership. Raises on a rewrite."""
         self._guard_absent("universe", market, session)
-        self._con.executemany(
+        self._cursor().executemany(
             "INSERT INTO universe VALUES (?, ?, ?)",
             [[market, session, s] for s in symbols],
         )
@@ -397,7 +411,7 @@ class Store:
             params.extend(
                 (market, symbol, b.session, b.open, b.high, b.low, b.close, b.adj_close, b.volume)
             )
-        inserted = self._con.execute(
+        inserted = self._cursor().execute(
             f"INSERT INTO bars VALUES {placeholders} ON CONFLICT DO NOTHING RETURNING 1",
             params,
         ).fetchall()
@@ -413,13 +427,13 @@ class Store:
         data and needs no wall clock.
         """
         self._guard_absent("ranks", market, session)
-        self._con.executemany(
+        self._cursor().executemany(
             "INSERT INTO ranks VALUES (?, ?, ?, ?, ?, ?)",
             [[market, session, r.symbol, r.lookback, r.percentile, r.raw_return]
              for r in rows],
         )
         cutoff = _years_before(session, RANK_RETENTION_YEARS)
-        self._con.execute(
+        self._cursor().execute(
             "DELETE FROM ranks WHERE market = ? AND session < ?", [market, cutoff]
         )
         return len(rows)
@@ -434,7 +448,7 @@ class Store:
         :class:`SessionExistsError` on a rewrite.
         """
         self._guard_absent("follow_through", market, session)
-        self._con.execute(
+        self._cursor().execute(
             "INSERT INTO follow_through VALUES (?, ?, ?, ?)",
             [market, session, broke_out, index_close],
         )
@@ -450,7 +464,7 @@ class Store:
         cached value, so the caller simply does not call this on silence (spec
         §3.3), and the ``as_of`` it stamps drives the rolling refresh.
         """
-        self._con.execute(
+        self._cursor().execute(
             "INSERT INTO labels VALUES (?, ?, ?, ?, ?) "
             "ON CONFLICT (market, symbol) DO UPDATE SET "
             "sector = excluded.sector, industry = excluded.industry, "
@@ -470,7 +484,7 @@ class Store:
         self._guard_absent("detections", market, session)
         if not rows:
             return 0
-        self._con.executemany(
+        self._cursor().executemany(
             "INSERT INTO detections VALUES "
             "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
@@ -497,7 +511,7 @@ class Store:
         self._guard_absent("digest_breaks", market, session)
         if not symbols:
             return 0
-        self._con.executemany(
+        self._cursor().executemany(
             "INSERT INTO digest_breaks VALUES (?, ?, ?)",
             [[market, session, s] for s in symbols],
         )
@@ -508,7 +522,7 @@ class Store:
     def rank_sessions(self, market: str) -> list[date]:
         """Every session with rank rows, oldest first — the history the sector
         board differences for its temporal delta (spec §4.4 / ticket 07 S3)."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT DISTINCT session FROM ranks WHERE market = ? ORDER BY session",
             [market],
         ).fetchall()
@@ -516,7 +530,7 @@ class Store:
 
     def detections(self, market: str, session: date) -> list[Detection]:
         """A session's detection rows, ordered by symbol."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT symbol, detector_version, trigger, stop, stopw_adr, base_len, "
             "move_gain, adr, close, cluster_k, cluster_high, cluster_low, "
             "cluster_range_adr, line_ok, touch_zones, overshoot_adr, slope, "
@@ -541,7 +555,7 @@ class Store:
         before* ``session``, or ``[]`` if none. This is what the digest reads as
         the setups whose ``trigger_yesterday`` today's close is tested against —
         the rule's recency requirement made concrete (spec §6)."""
-        latest = self._con.execute(
+        latest = self._cursor().execute(
             "SELECT max(session) FROM detections WHERE market = ? AND session < ?",
             [market, session],
         ).fetchone()[0]
@@ -554,7 +568,7 @@ class Store:
         machine record behind the digest file (spec §6). Empty on a quiet night.
         Read by the acceptance pass to count digest rows without re-parsing the
         Markdown or re-running the build (spec §8.2 B5)."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT symbol FROM digest_breaks WHERE market = ? AND session = ? "
             "ORDER BY symbol",
             [market, session],
@@ -568,7 +582,7 @@ class Store:
         the returned date, so tonight's break carries ``↺ last reported <date>``. A
         symbol absent from the map is a first-time break. Today's own session is
         excluded, so the digest never reports itself as a repeat of itself."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT symbol, max(session) FROM digest_breaks "
             "WHERE market = ? AND session < ? GROUP BY symbol",
             [market, session],
@@ -577,7 +591,7 @@ class Store:
 
     def ranks(self, market: str, session: date) -> list[Rank]:
         """A session's rank rows, ordered by symbol then lookback."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT symbol, lookback, percentile, raw_return FROM ranks "
             "WHERE market = ? AND session = ? ORDER BY symbol, lookback",
             [market, session],
@@ -588,7 +602,7 @@ class Store:
         """The rank rows of the most recent session *strictly before* ``session``,
         or ``[]`` if none. This is what the boards' ``NEW`` marker diffs against
         as "last session" (spec §4.3 / ticket 06 R10)."""
-        latest = self._con.execute(
+        latest = self._cursor().execute(
             "SELECT max(session) FROM ranks WHERE market = ? AND session < ?",
             [market, session],
         ).fetchone()[0]
@@ -599,7 +613,7 @@ class Store:
     def follow_through(self, market: str) -> list[FollowThrough]:
         """A market's breakout-follow-through rows, oldest session first — the
         forward record read to measure whether a break continued (spec §4.9)."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT session, broke_out, index_close FROM follow_through "
             "WHERE market = ? ORDER BY session",
             [market],
@@ -608,7 +622,7 @@ class Store:
 
     def bars(self, market: str, symbol: str) -> list[Bar]:
         """A symbol's stored bars, oldest session first."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT session, open, high, low, close, adj_close, volume "
             "FROM bars WHERE market = ? AND symbol = ? ORDER BY session",
             [market, symbol],
@@ -620,7 +634,7 @@ class Store:
         or ``None`` if it has no bars yet (spec §3.6)."""
         # max() is an aggregate: fetchone() is always a one-tuple, (None,) when
         # the symbol has no bars yet.
-        return self._con.execute(
+        return self._cursor().execute(
             "SELECT max(session) FROM bars WHERE market = ? AND symbol = ?",
             [market, symbol],
         ).fetchone()[0]
@@ -629,7 +643,7 @@ class Store:
         """The market's observed exchange calendar: the union of bar dates
         across every symbol, oldest first (spec §3.4 rule 4). No holiday table
         is ever consulted — a gap simply has no bars."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT DISTINCT session FROM bars WHERE market = ? ORDER BY session",
             [market],
         ).fetchall()
@@ -637,7 +651,7 @@ class Store:
 
     def runs(self, market: str) -> list[RunRecord]:
         """All run records for a market, newest session first."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT market, session, status, symbols_enumerated, symbols_resolved, "
             "created_at FROM runs WHERE market = ? ORDER BY session DESC",
             [market],
@@ -662,7 +676,7 @@ class Store:
         return None
 
     def universe(self, market: str, session: date) -> list[str]:
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT symbol FROM universe WHERE market = ? AND session = ? ORDER BY symbol",
             [market, session],
         ).fetchall()
@@ -670,7 +684,7 @@ class Store:
 
     def label(self, market: str, symbol: str) -> Label | None:
         """One symbol's cached label, or ``None`` if never fetched."""
-        row = self._con.execute(
+        row = self._cursor().execute(
             "SELECT symbol, sector, industry, as_of FROM labels "
             "WHERE market = ? AND symbol = ?",
             [market, symbol],
@@ -680,7 +694,7 @@ class Store:
     def labels(self, market: str) -> dict[str, Label]:
         """The whole label cache for a market, keyed by symbol — what the
         rolling-refresh policy reads to find the stalest names (spec §3.3)."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT symbol, sector, industry, as_of FROM labels WHERE market = ?",
             [market],
         ).fetchall()
@@ -690,7 +704,7 @@ class Store:
         """Yesterday's membership: the universe of the most recent session
         *strictly before* ``session``, or ``[]`` if none. This is what the
         hysteresis band and sticky membership read as "yesterday" (spec §4.1)."""
-        latest = self._con.execute(
+        latest = self._cursor().execute(
             "SELECT max(session) FROM universe WHERE market = ? AND session < ?",
             [market, session],
         ).fetchone()[0]

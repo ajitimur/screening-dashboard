@@ -3,6 +3,7 @@ import { act, cleanup, render, screen, waitFor, within } from "@testing-library/
 import App from "./App";
 import {
   regimeResponse,
+  resolveRoute,
   runRecord,
   runTriggerResponse,
   runsResponse,
@@ -72,8 +73,11 @@ describe("the shell — chrome", () => {
   it("gives the active panel a heading that is the panel's name", async () => {
     stubFetch(vi);
     render(<App />);
-    // Board is the default landing (spec §5).
-    expect(await screen.findByRole("heading", { level: 2, name: "Board" })).toBeInTheDocument();
+    // Board is the default landing (spec §5); it is a composite whose sub-panels
+    // are each named by their own <h2> (spec §8.5), one of which is the rail.
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Where money is rotating" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("tabpanel", { name: "Board" })).toBeInTheDocument();
   });
 
@@ -261,7 +265,10 @@ describe("the shell — run-on-open lifecycle", () => {
             }),
           );
         }
-        return okJson(regimeResponse({ market: "IDX" }));
+        // The Board now mounts once a session publishes and issues its own body
+        // reads (candidates/leaders/sectors); serve those from the fixtures so
+        // this run-lifecycle stub is not the one endpoint the screen crashes on.
+        return okJson(resolveRoute({}, url, opts?.method ?? "GET"));
       }),
     );
     try {
@@ -291,7 +298,7 @@ describe("the shell — the URL contract", () => {
   it("navigates on a tab click, writing the tab to the bar and swapping the panel", async () => {
     stubFetch(vi);
     render(<App />);
-    await screen.findByRole("heading", { level: 2, name: "Board" });
+    await screen.findByRole("tabpanel", { name: "Board" });
     // A cold open is bare `/` — defaults are omitted (spec §3.5).
     expect(window.location.search).toBe("");
 
@@ -375,7 +382,7 @@ describe("the shell — the URL contract", () => {
     await screen.findByText("Leaders, IDX");
 
     act(() => screen.getByRole("tab", { name: "Board" }).click()); // push → must not announce
-    await screen.findByRole("heading", { level: 2, name: "Board" });
+    await screen.findByRole("tabpanel", { name: "Board" });
     expect(screen.queryByText("Leaders, IDX")).not.toBeInTheDocument();
     expect(screen.queryByText("Board, IDX")).not.toBeInTheDocument();
   });
@@ -405,20 +412,20 @@ describe("the shell — the URL contract", () => {
 });
 
 describe("the shell — unhonourable URLs fall back and rewrite (spec §3.5)", () => {
-  const cases: Array<{ url: string; canonical: string; heading: string }> = [
-    { url: "/?market=XYZ", canonical: "", heading: "Board" }, // unknown market → default
-    { url: "/?tab=workbench", canonical: "", heading: "Board" }, // dissolved screen → Board
-    { url: "/?tab=sectors&sector=Nonesuch", canonical: "?tab=sectors", heading: "Sectors" }, // unknown sector → list
-    { url: "/?tab=sectors&sector=", canonical: "?tab=sectors", heading: "Sectors" }, // empty sector → list
+  const cases: Array<{ url: string; canonical: string; panel: string }> = [
+    { url: "/?market=XYZ", canonical: "", panel: "Board" }, // unknown market → default
+    { url: "/?tab=workbench", canonical: "", panel: "Board" }, // dissolved screen → Board
+    { url: "/?tab=sectors&sector=Nonesuch", canonical: "?tab=sectors", panel: "Sectors" }, // unknown sector → list
+    { url: "/?tab=sectors&sector=", canonical: "?tab=sectors", panel: "Sectors" }, // empty sector → list
   ];
 
-  for (const { url, canonical, heading } of cases) {
-    it(`${url} → ${canonical || "/"} (the ${heading} screen)`, async () => {
+  for (const { url, canonical, panel } of cases) {
+    it(`${url} → ${canonical || "/"} (the ${panel} screen)`, async () => {
       window.history.replaceState(null, "", url);
       stubFetch(vi);
       render(<App />);
       expect(
-        await screen.findByRole("heading", { level: 2, name: heading }),
+        await screen.findByRole("tabpanel", { name: panel }),
       ).toBeInTheDocument();
       // Rewritten via `replace` so no dead destination survives to be replayed.
       await waitFor(() => expect(window.location.search).toBe(canonical));

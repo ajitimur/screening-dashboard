@@ -13,6 +13,12 @@ export type RunTriggerResponse = components["schemas"]["RunTriggerResponse"];
 export type BoardsResponse = components["schemas"]["LeadersResponse"];
 export type Board = components["schemas"]["Leader"];
 export type BoardRow = components["schemas"]["LeaderRow"];
+// The v2 names, over the renamed `/api/leaders` endpoint (spec §4.4). The v2
+// Leaders screen reads these; the v1 `Board*` aliases above stay until the v1
+// screen dies in the integration commit (spec §10.2).
+export type LeadersResponse = components["schemas"]["LeadersResponse"];
+export type Leader = components["schemas"]["Leader"];
+export type LeaderRow = components["schemas"]["LeaderRow"];
 export type SectorsResponse = components["schemas"]["SectorsResponse"];
 export type SectorStrength = components["schemas"]["SectorStrength"];
 export type IndustryStrength = components["schemas"]["IndustryStrength"];
@@ -44,6 +50,15 @@ export async function fetchBoards(market: string): Promise<BoardsResponse> {
   const resp = await fetch(`/api/boards/${market}`);
   if (!resp.ok) throw new Error(`GET /api/boards/${market} → ${resp.status}`);
   return (await resp.json()) as BoardsResponse;
+}
+
+// The v2 read (spec §4.4): `/api/boards` was renamed `/api/leaders`, so *Board*
+// is free to name the composite home screen. The v1 `fetchBoards` above keeps
+// hitting the `/api/boards` alias until the v1 screen is removed.
+export async function fetchLeaders(market: string): Promise<LeadersResponse> {
+  const resp = await fetch(`/api/leaders/${market}`);
+  if (!resp.ok) throw new Error(`GET /api/leaders/${market} → ${resp.status}`);
+  return (await resp.json()) as LeadersResponse;
 }
 
 export async function fetchSectors(market: string): Promise<SectorsResponse> {

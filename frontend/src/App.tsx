@@ -14,6 +14,7 @@ import {
   type RegimeResponse,
   type RunsResponse,
 } from "./api/client";
+import Leaders from "./Leaders";
 
 // ── The three URL axes (spec §3.5) ───────────────────────────────────────────
 //
@@ -589,9 +590,13 @@ function Screen({
   return (
     <section id="active-tabpanel" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0}>
       <h2>{tabLabel(tab)}</h2>
-      <p className="screen-placeholder">
-        The {tabLabel(tab)} screen for {market} lands in a later ticket.
-      </p>
+      {tab === "leaders" ? (
+        <Leaders market={market} />
+      ) : (
+        <p className="screen-placeholder">
+          The {tabLabel(tab)} screen for {market} lands in a later ticket.
+        </p>
+      )}
     </section>
   );
 }

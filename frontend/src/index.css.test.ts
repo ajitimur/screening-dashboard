@@ -84,6 +84,19 @@ describe("the v2 token set (spec §3.2, §8.3)", () => {
     expect(sheet).toMatch(/box-shadow:\s*var\(--shadow-shell\)/);
   });
 
+  it("lays the Board out as 1fr + 384px, collapsing the rail under the sheet (spec §5.1)", () => {
+    const grid = css.match(/\.board-grid\s*\{[\s\S]*?\}/)?.[0] ?? "";
+    // Heroes/strip left at 1fr, the rotation rail in a fixed 384px right column.
+    expect(grid).toMatch(/grid-template-columns:\s*1fr\s+384px/);
+    // When the sheet is open the rail collapses to one column so the hero grid
+    // keeps its two columns rather than reflowing on every open.
+    const open = css.match(/\.board-grid--sheet-open\s*\{[\s\S]*?\}/)?.[0] ?? "";
+    expect(open).toMatch(/grid-template-columns:\s*1fr\b/);
+    // The hero grid stays two columns regardless of the rail's state.
+    const hero = css.match(/\.hero-grid\s*\{[\s\S]*?\}/)?.[0] ?? "";
+    expect(hero).toMatch(/grid-template-columns:\s*repeat\(2,\s*1fr\)/);
+  });
+
   it("closes the tree-shaking trap: sector + regime scales live in a plain :root", () => {
     // Tailwind v4 tree-shakes @theme vars no utility class mentions. The sector
     // scale and regime pairs are read only from a runtime var(), so they must be

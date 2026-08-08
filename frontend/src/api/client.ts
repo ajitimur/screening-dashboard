@@ -13,6 +13,11 @@ export type RunTriggerResponse = components["schemas"]["RunTriggerResponse"];
 export type BoardsResponse = components["schemas"]["LeadersResponse"];
 export type Board = components["schemas"]["Leader"];
 export type BoardRow = components["schemas"]["LeaderRow"];
+// The renamed names (spec §4.4): v2 screens read `Leaders`/`LeaderRow`, held here
+// beside the v1 `Board*` aliases so a v2 screen names the endpoint as it now is.
+export type LeadersResponse = components["schemas"]["LeadersResponse"];
+export type Leader = components["schemas"]["Leader"];
+export type LeaderRow = components["schemas"]["LeaderRow"];
 export type SectorsResponse = components["schemas"]["SectorsResponse"];
 export type SectorStrength = components["schemas"]["SectorStrength"];
 export type IndustryStrength = components["schemas"]["IndustryStrength"];

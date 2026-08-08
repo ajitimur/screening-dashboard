@@ -14,6 +14,7 @@ import {
   type RegimeResponse,
   type RunsResponse,
 } from "./api/client";
+import Board from "./Board";
 
 // ── The three URL axes (spec §3.5) ───────────────────────────────────────────
 //
@@ -313,7 +314,15 @@ export default function App() {
         </p>
       );
     }
-    return <Screen tab={tab} market={market} sector={sector} navigate={navigate} />;
+    return (
+      <Screen
+        tab={tab}
+        market={market}
+        sector={sector}
+        navigate={navigate}
+        universeSize={runs.universe_size}
+      />
+    );
   }
 
   return (
@@ -562,12 +571,31 @@ function Screen({
   market,
   sector,
   navigate,
+  universeSize,
 }: {
   tab: Tab;
   market: Market;
   sector: string | null;
   navigate: (patch: Partial<Destination>) => void;
+  universeSize: number | null;
 }) {
+  // The Board (spec §5.1): the composite landing screen, wired here as the first
+  // of the four to leave placeholder status. It sits inside the tabpanel the
+  // semantics require (spec §8.5), named by the Board tab; its own `<h2>`s name
+  // its panels. The other three screens and the drill-down remain placeholders
+  // until #87–89.
+  if (tab === "board") {
+    return (
+      <section id="active-tabpanel" role="tabpanel" aria-labelledby="tab-board" tabIndex={0}>
+        <Board
+          market={market}
+          universeSize={universeSize}
+          navigate={(patch) => navigate(patch as Partial<Destination>)}
+        />
+      </section>
+    );
+  }
+
   // Sector detail is a drill-down, not a tab: it keeps the Sectors tab lit and
   // the breadcrumb is the honest control (spec §5 / §8.5).
   if (tab === "sectors" && sector) {

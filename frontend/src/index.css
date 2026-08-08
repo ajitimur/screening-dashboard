@@ -326,3 +326,310 @@
   height: 56px;
   cursor: pointer;
 }
+
+/*
+ * The Board (spec §5.1). Two columns: heroes and the leaders strip in the left
+ * column at `1fr`, the rotation rail in a fixed 384px right column. When the
+ * chart sheet opens the rail collapses and the sheet takes its place, so the
+ * hero grid keeps its two columns rather than reflowing on every open — a chart
+ * is opened constantly, and reflowing the primary content each time is the worse
+ * failure.
+ */
+.board-grid {
+  display: grid;
+  grid-template-columns: 1fr 384px;
+  gap: 1.5rem;
+  align-items: start;
+}
+.board-grid--sheet-open {
+  /* Rail collapsed: one column for the left content; the fixed sheet overlays
+     the space the rail vacated. The hero grid inside keeps its two columns. */
+  grid-template-columns: 1fr;
+  /* Keep the left content clear of the docked sheet at the right edge. */
+  margin-inline-end: min(560px, 90vw);
+}
+
+/* The left column is a flex column so the strip can stretch to the bottom. */
+.board-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-height: 0;
+}
+
+.board-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 1rem;
+}
+.board-panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+.board-panel-head h2 {
+  margin: 0;
+  font-size: var(--text-head);
+  flex: 1;
+}
+.board-jump {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  cursor: pointer;
+}
+
+/* The funnel — one line under the hero section header (spec §5.1). Muted, meta
+   sized, never a stat panel. */
+.board-funnel {
+  margin: 0.25rem 0 0.75rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-family: var(--font-mono);
+}
+
+/* No placeholder slots (spec §5.1): the grid holds only the real cards, so two
+   cards then the next section is honest. Two columns, kept even under the sheet. */
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.hero-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+/* The source card stays visibly lit while its sheet is open (spec §6.2). */
+.hero-card.is-active {
+  outline: 2px solid var(--color-focus-core);
+  outline-offset: 1px;
+}
+.hero-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* The ticker is a real <button> — the one door for click, Enter, Space and tap
+   (spec §6.1) — carrying the dotted-underline affordance since the focus ring is
+   keyboard-only and hover pointer-only (spec §8.3). */
+.ticker {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-ticker);
+  color: var(--color-text);
+  cursor: pointer;
+  text-decoration: underline dotted var(--color-affordance);
+  text-underline-offset: 3px;
+}
+.stars {
+  font-size: var(--text-meta);
+  color: var(--color-text-muted);
+}
+.badge-new {
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.375rem;
+  background: var(--color-text);
+  color: var(--color-card);
+  font-size: var(--text-micro);
+  letter-spacing: 0.04em;
+}
+.sector-chip {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--text-micro);
+  color: var(--color-text-muted);
+}
+.sector-swatch {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+
+/* TRIGGER · STOP · DIST as a <dl> so a screen reader pairs each label with its
+   value (spec §8.5). */
+.hero-stats {
+  display: flex;
+  gap: 1rem;
+  margin: 0;
+}
+.hero-stats div {
+  display: flex;
+  flex-direction: column;
+}
+.hero-stats dt {
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+}
+.hero-stats dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-stat);
+}
+
+/* The stop-width bar (spec §5.1/§5.0): green/amber/red fill by width, with the
+   ×ADR multiple in the label so colour is never the sole carrier. */
+.stop-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.stop-bar-track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+.stop-bar-fill {
+  display: block;
+  height: 100%;
+}
+.stop-bar-fill--tight {
+  background: var(--color-green);
+}
+.stop-bar-fill--mid {
+  background: var(--color-amber);
+}
+.stop-bar-fill--wide {
+  background: var(--color-red);
+}
+.stop-bar-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* The leaders strip stretches to the bottom of the left column and scrolls
+   internally past its nominal height (spec §5.1) — a healthy night fills the
+   frame because the strip is genuinely long, a two-card night is short on
+   purpose. No fixed height: min-height keeps 1.4.4 (spec §3.2). */
+.board-left .board-panel:last-child {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.leaders-strip-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+.leaders-strip {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body);
+}
+.leaders-strip th,
+.leaders-strip td {
+  text-align: left;
+  padding: 0.25rem 0.5rem;
+}
+.leaders-strip thead th {
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  position: sticky;
+  top: 0;
+  background: var(--color-surface);
+}
+.leaders-strip .ticker {
+  font-size: var(--text-body);
+}
+.strip-return,
+.strip-breadth {
+  font-family: var(--font-mono);
+}
+
+/*
+ * The rotation rail — centre-anchored diverging bars (spec §5.1/§8.4): left
+ * negative, right positive, so a bar growing away from the centre says what the
+ * panel is named for. The signed value carries the sign in text, so the meaning
+ * survives without colour (spec §1.4.1).
+ */
+.rotation-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.rotation-bar-btn {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0.25rem;
+  cursor: pointer;
+  text-align: left;
+}
+.rotation-name {
+  font-size: var(--text-meta);
+}
+.rotation-track {
+  position: relative;
+  height: 10px;
+  background: var(--color-bg);
+  border-radius: 2px;
+}
+/* The centre line the bars diverge from. */
+.rotation-track::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-fill-faint);
+}
+.rotation-fill {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+}
+.rotation-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--color-text-muted);
+  justify-self: end;
+}
+
+/* Static skeletons at real dimensions (spec §7.6) — never a shimmer, never a
+   spinner, never a collapsing text node. */
+.hero-grid-skeleton,
+.leaders-strip-skeleton,
+.rotation-skeleton {
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+.hero-grid-skeleton {
+  min-height: 180px;
+}
+.leaders-strip-skeleton {
+  min-height: 240px;
+}
+.rotation-skeleton {
+  min-height: 160px;
+}

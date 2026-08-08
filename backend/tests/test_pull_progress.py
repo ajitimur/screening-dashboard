@@ -50,7 +50,7 @@ class _Client:
     def enumerate(self, market):
         return self._instruments[market]
 
-    def fetch(self, symbol):
+    def fetch(self, symbol, start=None):
         return self._behaviour(symbol)
 
     def fetch_info(self, symbol):

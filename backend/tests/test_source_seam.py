@@ -76,7 +76,7 @@ class FakeClient:
     def enumerate(self, market):
         return self._instruments[market]
 
-    def fetch(self, symbol):
+    def fetch(self, symbol, start=None):
         self.fetch_calls.append(symbol)
         outcomes = self._responses.get(symbol, [[]])
         seen = self.fetch_calls.count(symbol) - 1

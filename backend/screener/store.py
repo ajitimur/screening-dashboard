@@ -30,10 +30,11 @@ from .regime import FollowThrough
 # follow-through capture (spec §4.9); v4 the detections table (spec §4.5); v5
 # extends detections with the star score's three derived signals (spec §4.7); v6
 # the digest_breaks table — the reported-break record behind the repeat marker (§6);
-# v7 the run_failures table — the per-symbol record of why a pull fell short (#91).
+# v7 the run_failures table — the per-symbol record of why a pull fell short (#91);
+# v8 the refusals table — the persisted per-symbol refusal verdict (spec §3.6, #100).
 # Recorded in the database on open (``schema_meta``) and reconciled against it by
 # :meth:`Store._migrate`, so an older file is upgraded rather than crashed into.
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 _SCHEMA = """
 -- The schema this database has been reconciled to. Written on every open, so
@@ -188,6 +189,26 @@ CREATE TABLE IF NOT EXISTS run_failures (
     status   TEXT    NOT NULL,  -- the source's stated outcome: unresolved | refused
     counted  BOOLEAN NOT NULL,  -- did it sit in the completeness gate's denominator?
     PRIMARY KEY (market, session, symbol)
+);
+
+-- The persisted per-symbol refusal verdict (spec §3.6, issue #100). A *stated*
+-- refusal — the provider naming the periods it will serve instead of answering —
+-- fires only on the unbounded ``period="max"`` request, so it is detectable only
+-- on a symbol's cold start. The nightly incremental fetch passes ``start=``,
+-- which sets ``period`` to ``None`` and cannot draw the refusal: left to re-probe,
+-- a refused listing would collapse into ordinary silence and drag the gate again
+-- (#47). So the verdict is recorded once, here, keyed (market, symbol) like the
+-- label cache — a slow-moving fact about a name, not a per-session observation —
+-- and every later night skips the symbol entirely rather than re-probing it.
+-- ``as_of`` stamps the session the refusal was first observed. Deliberately NOT a
+-- dated derived table: it must survive a session recompute (it is not in
+-- ``_DERIVED_TABLES``), because the refusal is a fact about the listing, not the
+-- run that noticed it.
+CREATE TABLE IF NOT EXISTS refusals (
+    market  TEXT NOT NULL,
+    symbol  TEXT NOT NULL,
+    as_of   DATE NOT NULL,
+    PRIMARY KEY (market, symbol)
 );
 """
 
@@ -567,7 +588,36 @@ class Store:
         )
         return len(rows)
 
+    def mark_refused(self, market: str, symbol: str, as_of: date) -> None:
+        """Persist a symbol's stated refusal verdict (spec §3.6, issue #100).
+
+        Recorded once, off the cold-start fetch that is the only place a refusal
+        can surface. Idempotent by construction: a symbol already recorded keeps
+        its first ``as_of`` (``ON CONFLICT DO NOTHING``), because it is never
+        re-probed and so never re-observed anyway — the guard is defensive, not a
+        real second write. Not a dated append: the refusal is a cross-session
+        fact about the listing, so it lives outside the write-once derived
+        streams and survives a session recompute.
+        """
+        self._cursor().execute(
+            "INSERT INTO refusals VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+            [market, symbol, as_of],
+        )
+
     # -- reads -------------------------------------------------------------
+
+    def refusals(self, market: str) -> set[str]:
+        """Every symbol the provider has refused history for (spec §3.6, #100).
+
+        What the nightly pull reads to skip re-probing a refused listing: a
+        symbol here is excluded from the fetch and held out of the completeness
+        gate, exactly as a freshly-refused one is, computed once instead of every
+        run.
+        """
+        rows = self._cursor().execute(
+            "SELECT symbol FROM refusals WHERE market = ?", [market]
+        ).fetchall()
+        return {r[0] for r in rows}
 
     def run_failures(self, market: str, session: date) -> list[ResolutionFailure]:
         """A session's non-resolving candidates, ordered by symbol (issue #91)."""

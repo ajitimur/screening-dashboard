@@ -65,7 +65,7 @@ class _FakeClient:
     def enumerate(self, market):
         return self._instruments
 
-    def fetch(self, symbol):
+    def fetch(self, symbol, start=None):
         outcome = self._outcomes.get(symbol, [])
         if outcome == "refused":
             raise PermanentlyUnavailableError(f"{symbol}: period 'max' is invalid")

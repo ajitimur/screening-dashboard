@@ -214,3 +214,48 @@ def test_a_column_that_changed_type_is_refused_rather_than_reinterpreted(tmp_pat
 
     with pytest.raises(SchemaDriftError, match="runs.session"):
         Store.open(path)
+
+
+# -- the persisted refusal verdict (issue #100) -------------------------------
+
+
+def test_a_refusal_verdict_is_persisted_and_read_back_per_market(store: Store):
+    # The stated refusal fires only on a cold start, so it is recorded once and
+    # read back to skip re-probing the listing (spec §3.6). It is a per-market
+    # fact and never bleeds across markets.
+    store.mark_refused("US", "CAIIW", date(2026, 8, 4))
+    store.mark_refused("US", "TRTN$A", date(2026, 8, 4))
+    store.mark_refused("IDX", "XXXX.JK", date(2026, 8, 4))
+
+    assert store.refusals("US") == {"CAIIW", "TRTN$A"}
+    assert store.refusals("IDX") == {"XXXX.JK"}
+    assert store.refusals("SG") == set()
+
+
+def test_marking_a_refusal_is_idempotent(store: Store):
+    # A persisted-refused symbol is never re-probed, so a second write should not
+    # happen — but the guard keeps the first verdict if one ever does, rather
+    # than raising like the write-once dated streams do.
+    store.mark_refused("US", "CAIIW", date(2026, 8, 4))
+    store.mark_refused("US", "CAIIW", date(2026, 8, 5))
+
+    assert store.refusals("US") == {"CAIIW"}
+
+
+def test_the_refusals_table_is_added_to_an_older_store(tmp_path):
+    # A database from before the verdict existed gains the table on open, like
+    # every other additive schema change (issue #100 rides the v7->v8 bump).
+    path = tmp_path / "old.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("CREATE TABLE runs (market TEXT NOT NULL, session DATE NOT NULL)")
+    con.close()
+
+    store = Store.open(path)
+    try:
+        store.mark_refused("US", "CAIIW", date(2026, 8, 4))
+        assert store.refusals("US") == {"CAIIW"}
+        assert store._con.execute(
+            "SELECT version FROM schema_meta"
+        ).fetchone()[0] == SCHEMA_VERSION
+    finally:
+        store.close()

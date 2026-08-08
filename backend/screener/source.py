@@ -31,6 +31,7 @@ from __future__ import annotations
 import threading
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
+from datetime import date
 from dataclasses import dataclass, field
 from itertools import islice
 from typing import Callable, Iterable, Iterator, Literal, Protocol
@@ -146,9 +147,15 @@ class SourceClient(Protocol):
 
     def enumerate(self, market: str) -> list[Instrument]: ...
 
-    def fetch(self, symbol: str) -> list:
+    def fetch(self, symbol: str, start: date | None = None) -> list:
         """Return the symbol's bars, or an empty list for silence. Raises
-        :class:`RateLimitedError` on a 429."""
+        :class:`RateLimitedError` on a 429.
+
+        ``start`` selects the request window (spec §3.6): ``None`` is a cold
+        start asking for full history (``period="max"``); a date fetches from
+        that session forward. The distinction is load-bearing — a *stated*
+        refusal only fires on the unbounded request, so it is detectable only on
+        the cold start (issue #100)."""
 
     def fetch_info(self, symbol: str) -> dict:
         """Return the symbol's ``.info``-style dict (``sector`` and ``industry``
@@ -290,7 +297,7 @@ class Source:
         self._pacer.wait()
         return self._client.enumerate(market)
 
-    def resolve(self, symbol: str) -> Resolution:
+    def resolve(self, symbol: str, start: date | None = None) -> Resolution:
         """Fetch a symbol's bars, paced and backed off, as a result type.
 
         Silence — an empty result *or* a persistent 429, indistinguishable by
@@ -301,12 +308,19 @@ class Source:
         is nothing to wait out. It returns ``refused`` on the first attempt
         rather than burning the full retry budget and its backoff sleeps on a
         listing that will never resolve.
+
+        ``start`` is the incremental window (spec §3.6, issue #100): ``None`` is
+        a cold start (full history), a date fetches from that session forward.
+        The refusal can only surface on the cold start — passing ``start`` sets
+        the provider's ``period`` to ``None``, so a refused listing collapses
+        into silence, which is why the caller persists the verdict instead of
+        re-probing it every night.
         """
         delay = self._backoff_base
         for attempt in range(1, self._max_attempts + 1):
             self._pacer.wait()
             try:
-                bars = self._client.fetch(symbol)
+                bars = self._client.fetch(symbol, start)
             except RateLimitedError:
                 bars = []  # a 429 is silence too — back off and retry
             except PermanentlyUnavailableError:
@@ -363,7 +377,7 @@ class YFinanceSourceClient:
             return parse_idx_screener(self._screen_idx())
         raise ValueError(f"unknown market {market!r}")
 
-    def fetch(self, symbol: str) -> list:
+    def fetch(self, symbol: str, start: date | None = None) -> list:
         """Download a symbol's bars. Empty on silence; raises on a 429 or a
         stated refusal.
 
@@ -374,7 +388,17 @@ class YFinanceSourceClient:
         worth keeping. ``history`` lets the typed error through, so a listing
         Yahoo will not serve is answered once instead of retried four times.
 
-        Only two of those typed errors are special: a 429 is retryable, and a
+        ``start`` picks the request window (spec §3.6, issue #100). ``None`` is a
+        cold start — ``period="max"``, the full history — and is the *only*
+        request that can draw the stated refusal: yfinance raises
+        ``YFInvalidPeriodError`` inside ``elif period and period not in
+        validRanges``, and passing ``start`` sets ``period`` to ``None``, so the
+        branch never fires. A date fetches incrementally from that session
+        forward; the caller always overlaps stored history so a healthy fetch
+        still returns rows (rule 5), and persists the refusal verdict off the
+        cold start rather than trying to reconstruct it here.
+
+        Only two of the typed errors are special: a 429 is retryable, and a
         *stated* refusal (``YFInvalidPeriodError`` — "period 'max' is invalid")
         is answered once (spec §3.2). Every other error is the silence
         ``download`` used to swallow — a dead or delisted ticker raises
@@ -389,7 +413,14 @@ class YFinanceSourceClient:
         # asks for the exception itself, which is the whole point of the call.
         yf.config.debug.hide_exceptions = False
         try:
-            frame = yf.Ticker(symbol).history(period="max", auto_adjust=False)
+            # A cold start asks for the whole history; an incremental fetch asks
+            # from ``start`` forward, which leaves ``period`` unset (issue #100).
+            history = yf.Ticker(symbol).history
+            frame = (
+                history(period="max", auto_adjust=False)
+                if start is None
+                else history(start=start, auto_adjust=False)
+            )
         except Exception as exc:  # yfinance raises its own exception types
             if type(exc).__name__ == "YFRateLimitError":
                 raise RateLimitedError(symbol) from exc
@@ -449,6 +480,7 @@ def resolve_all(
     symbols: Iterable[str],
     *,
     workers: int = DEFAULT_RESOLVE_WORKERS,
+    start_for: Callable[[str], date | None] | None = None,
 ) -> Iterator[Resolution]:
     """Resolve many symbols concurrently, yielding each result as it lands.
 
@@ -457,6 +489,11 @@ def resolve_all(
     stated refusal, and per-symbol backoff on silence (spec §3.2/§3.3) all hold
     exactly as they did sequentially. The only change is how many are in flight,
     and :class:`Pacer` keeps the aggregate rate at the same cap regardless.
+
+    ``start_for`` maps a symbol to its incremental start (spec §3.6, issue #100):
+    a symbol with stored bars fetches from ``last_stored − 20 sessions``, a
+    cold-start symbol from ``None`` (full history). Left unset every symbol is a
+    cold start, which is the pre-incremental behaviour.
 
     Results arrive in **completion order, not input order** — a symbol that
     burns its full retry budget lands long after ones queued behind it. Callers
@@ -471,21 +508,24 @@ def resolve_all(
 
     ``workers=1`` skips the pool entirely and runs the plain sequential loop.
     """
+    def resolve_one(symbol: str) -> Resolution:
+        return source.resolve(symbol, start_for(symbol) if start_for else None)
+
     if workers <= 1:
         for symbol in symbols:
-            yield source.resolve(symbol)
+            yield resolve_one(symbol)
         return
 
     remaining = iter(symbols)
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="resolve") as pool:
-        pending = {pool.submit(source.resolve, s) for s in islice(remaining, workers * 2)}
+        pending = {pool.submit(resolve_one, s) for s in islice(remaining, workers * 2)}
         while pending:
             done: set[Future[Resolution]]
             done, pending = wait(pending, return_when=FIRST_COMPLETED)
             for future in done:
                 yield future.result()
                 for symbol in islice(remaining, 1):
-                    pending.add(pool.submit(source.resolve, symbol))
+                    pending.add(pool.submit(resolve_one, symbol))
 
 
 def resolve_market(

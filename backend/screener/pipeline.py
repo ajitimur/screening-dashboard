@@ -10,6 +10,7 @@ before asserting on rows.
 
 from __future__ import annotations
 
+import bisect
 import time
 from collections import Counter
 from datetime import date, datetime
@@ -43,6 +44,17 @@ DEFAULT_DIGESTS_DIR = _REPO_ROOT / "data" / "digests"
 # A run that resolved less than this share of enumerated symbols is quarantined
 # behind a banner rather than published (spec §3.4 rule 7).
 RESOLUTION_FLOOR = 0.99
+
+# How many trading sessions of overlap the incremental nightly fetch re-requests
+# (spec §3.6, issue #100). A symbol with stored bars is pulled from this many
+# sessions before its last bar rather than at ``period="max"``. The overlap is
+# load-bearing, not a saving: §3.4 rule 5 is "zero rows is ``unresolved``, never
+# ``absent``", so a naive incremental fetch of an up-to-date name would return
+# zero new rows — byte-identical to a throttled response — and every healthy run
+# would quarantine. Re-requesting ~20 sessions means a healthy fetch always
+# returns rows, so zero rows stays unambiguously silence. ``append_bars`` is
+# ``INSERT ... ON CONFLICT DO NOTHING``, so the re-sent overlap is a free no-op.
+OVERLAP_SESSIONS = 20
 
 # A run whose *enumeration* is materially smaller than the last good run's is
 # quarantined too (spec §3.4 rule 8). Per-symbol failures are countable against a
@@ -440,6 +452,26 @@ def _compute_session(
     write_digest(store, market, session, digests_dir=digests_dir)
 
 
+def _incremental_start(last: date | None, calendar: list[date]) -> date | None:
+    """The incremental fetch window for a symbol whose last stored bar is ``last``.
+
+    ``None`` (no stored bars) is a cold start: the caller asks for full history
+    (``period="max"``), which is the one request a stated refusal can surface on
+    (spec §3.6, issue #100). Otherwise the start is :data:`OVERLAP_SESSIONS`
+    trading sessions before ``last`` on the market's observed calendar (the union
+    of stored bar dates, §3.4 rule 4) — the overlap that keeps a healthy fetch
+    returning rows so zero rows stays unambiguous silence. A symbol with fewer
+    than :data:`OVERLAP_SESSIONS` sessions of history starts at the earliest
+    observed session, which is cheap and still overlaps every stored bar.
+    """
+    if last is None:
+        return None
+    count = bisect.bisect_right(calendar, last)  # sessions on or before ``last``
+    if count == 0:
+        return None
+    return calendar[max(0, count - 1 - OVERLAP_SESSIONS)]
+
+
 def run_market_universe(
     store: Store,
     source: Source,
@@ -491,25 +523,52 @@ def run_market_universe(
     hands back one result at a time — so ingestion is as serial as it ever was.
     """
     instruments = source.enumerate(market)
-    status: dict[str, str] = {}
+    # Symbols the provider has already refused history for are skipped entirely,
+    # never re-probed (spec §3.6, issue #100). The refusal is detectable only on
+    # a cold start (``period="max"``), so once recorded it is authoritative: the
+    # symbol is seeded straight into the status map as ``refused`` and held out of
+    # the fetch and the gate, exactly as a freshly-refused one is — computed once
+    # instead of every night, and immune to a later throttled probe returning
+    # silence where the cold start once returned the stated refusal (#47).
+    refused_before = store.refusals(market)
+    status: dict[str, str] = {
+        i.symbol: "refused" for i in instruments if i.symbol in refused_before
+    }
     counts: Counter[str] = Counter()
     started = time.monotonic()
-    symbols = [i.symbol for i in instruments]
-    for done, resolution in enumerate(resolve_all(source, symbols, workers=workers), 1):
+    # The nightly fetch is incremental (spec §3.6): a symbol with stored bars is
+    # pulled from ~20 sessions before its last bar, a cold-start symbol at full
+    # history. Starts are computed here, on this thread, off the observed calendar
+    # and each symbol's last stored session — a pure map the pool then reads.
+    calendar = store.sessions(market)
+    to_resolve = [i.symbol for i in instruments if i.symbol not in refused_before]
+    starts = {
+        symbol: _incremental_start(store.last_session(market, symbol), calendar)
+        for symbol in to_resolve
+    }
+    for done, resolution in enumerate(
+        resolve_all(source, to_resolve, workers=workers, start_for=starts.get), 1
+    ):
         status[resolution.symbol] = resolution.status
         counts[resolution.status] += 1
+        if resolution.status == "refused":
+            # A cold start drew the stated refusal; persist the verdict so every
+            # later night skips this listing rather than letting a ``start=``
+            # fetch collapse it into silence and drag the gate (spec §3.6, #47).
+            store.mark_refused(market, resolution.symbol, session)
         if resolution.status == "resolved":
             bars = clean_bars(parse_bars(resolution.bars), market, now)
             if bars:
                 store.append_bars(market, resolution.symbol, bars)
-        if done % PROGRESS_EVERY == 0 or done == len(symbols):
+        if done % PROGRESS_EVERY == 0 or done == len(to_resolve):
             # The last line is not redundant with summarize_pull: it marks the
             # end of the *pull*, and the stages after it (universe, ranks,
             # detection, labels, digest) are their own stretch of silence before
             # the summary lands.
             progress(
                 progress_line(
-                    market, done, len(symbols), counts, elapsed=time.monotonic() - started
+                    market, done, len(to_resolve), counts,
+                    elapsed=time.monotonic() - started,
                 )
             )
 

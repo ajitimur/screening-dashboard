@@ -87,6 +87,12 @@ def test_common_stock_kept_and_excluded_classes_dropped():
         "Acme 5.5% Notes due 2030",
         "Acme Series A Preferred Stock",
         "Acme Pfd Series B",
+        # "Preference" is the same instrument as "Preferred" (#92): the live US
+        # enumeration carries TRTN$A under this exact wording and nothing else in
+        # the name marks it as anything but common stock.
+        "Triton International Limited 8.50% Series A Cumulative Redeemable "
+        "Perpetual Preference Shares",
+        "Acme Holdings plc 6% Preference Share",
         "Acme Capital Trust",
         "Acme Income Fund",
     ]:

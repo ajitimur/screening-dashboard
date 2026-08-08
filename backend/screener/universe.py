@@ -49,12 +49,15 @@ DENSITY_MAX_GAP = 3  # latest bar within 3 sessions of the market's latest
 # matches a security's name rather than testing what the name does (D13). Common
 # stock only; every excluded class below is matched on a whole word so that
 # **ADRs are kept** — "American Depositary Shares" contains none of these stems,
-# and preferred is matched as \bPreferred\b|\bPfd\b, never "Depositary Sh". It
-# misfires both ways (it deletes an operating bank named "... Trust", ~22 REITs,
-# MLP units, preferred-share ADRs); those costs are named and accepted (D13).
+# and the preferred class is matched as \bPreferred\b|\bPreference\b|\bPfd\b,
+# never "Depositary Sh". "Preference" is the same instrument under a second name
+# ("... Series A Cumulative Redeemable Perpetual Preference Shares", #92) and is
+# excluded on the same footing. It misfires both ways (it deletes an operating
+# bank named "... Trust", ~22 REITs, MLP units, preferred-share ADRs); those
+# costs are named and accepted (D13).
 _EXCLUDED_INSTRUMENT = re.compile(
     r"\b(?:warrants?|rights?|units?|notes?|bonds?|debentures?"
-    r"|preferred|pfd|trusts?|funds?)\b",
+    r"|preferred|preference|pfd|trusts?|funds?)\b",
     re.IGNORECASE,
 )
 

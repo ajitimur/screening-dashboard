@@ -55,6 +55,13 @@
   --shadow-shell: 0 30px 70px rgb(40 34 24 / 0.20);
   --container-shell: 82.5rem;                       /* 1320px */
 
+  /* The two-tone :focus-visible ring (spec §8.6): a dark core plus a light halo,
+     readable on any background. The forcing case is the market control and the
+     tab row, whose active item is light text on near-black, where a single dark
+     ring vanishes. One token to specify and test. */
+  --color-focus-core: #1c1b18;
+  --color-focus-halo: #f6f4ef;
+
   /* ---- type scale: the reference's, kept, 9.5px floor and all (§3.2) ---- */
   --text-micro: 0.59375rem;  /*  9.5px */
   --text-label: 0.65625rem;  /* 10.5px */
@@ -127,5 +134,86 @@
     background: var(--color-bg);
     color: var(--color-text);
     font-family: var(--font-sans);
+  }
+
+  /* One two-tone :focus-visible ring everywhere (spec §8.6). Inner light halo
+     survives on the near-black active seg item; outer dark core survives on
+     paper. `:focus-visible` only, never `:focus` — mouse clicks on 60 ticker
+     buttons and the breadcrumb must not scatter rings across a dense board. The
+     transparent outline keeps the ring visible under Windows high-contrast. */
+  :focus-visible {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    box-shadow:
+      0 0 0 2px var(--color-focus-halo),
+      0 0 0 4px var(--color-focus-core);
+  }
+}
+
+/*
+ * The full-bleed frame (spec §3.1). Header, regime band and run-status banner
+ * span the window; the content column caps at --container-shell. The page
+ * scrolls — one scroll context, nothing height-capped.
+ */
+.shell {
+  min-height: 100vh;
+}
+
+.shell-cap {
+  max-width: var(--container-shell);
+  margin-inline: auto;
+  width: 100%;
+  padding-inline: 1rem;
+}
+
+.shell-main {
+  padding-block: 1rem;
+}
+
+/*
+ * The bypass block (spec §8.5, SC 2.4.1): visually hidden until it takes focus,
+ * where it appears as a real control for a sighted keyboard user.
+ */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-card);
+  color: var(--color-text);
+}
+.skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+}
+
+/* Visually hidden but present to assistive tech — the live regions and any
+ * screen-reader-only text (spec §8.7). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * Motion house rule (spec §8.7, outside the claim). A blanket reduced-motion
+ * rule zeroing every transition, applied globally rather than per component —
+ * the four-panel skeleton shimmer during a market switch is the most
+ * motion-heavy moment in the app, produced by the most-pressed control.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

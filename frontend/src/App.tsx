@@ -1,4 +1,11 @@
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
 import {
   fetchRegime,
   fetchRuns,
@@ -6,87 +13,197 @@ import {
   type RegimeResponse,
   type RunsResponse,
 } from "./api/client";
-import Boards from "./Boards";
-import CandidateList from "./CandidateList";
-import ChartPanel from "./ChartPanel";
-import SectorTable from "./SectorTable";
+
+// ── The three URL axes (spec §3.5) ───────────────────────────────────────────
+//
+// The URL carries destinations and only destinations: market, tab, and the
+// selected sector on the drill-down. Everything else (lookback, sort, view,
+// ticker query, the open sheet's symbol) stays in memory and never reaches the
+// bar. The URL is the *source of truth*, not a mirror — there is no `useState`
+// for market/tab/sector; one hook reads `location.search`, and setting a
+// destination *is* a `pushState`.
 
 const MARKETS = ["IDX", "US"] as const;
 type Market = (typeof MARKETS)[number];
+const DEFAULT_MARKET: Market = "IDX";
 
-// The two screens, per spec §5: the market workbench and the boards. Market is
-// the top-level axis; the screen switches under it, carrying the same market.
-const SCREENS = ["Workbench", "Boards"] as const;
-type Screen = (typeof SCREENS)[number];
+const TABS = [
+  { id: "board", label: "Board" },
+  { id: "leaders", label: "Leaders" },
+  { id: "setups", label: "Setups" },
+  { id: "sectors", label: "Sectors" },
+] as const;
+type Tab = (typeof TABS)[number]["id"];
+const DEFAULT_TAB: Tab = "board";
 
-// How often the tab re-checks a run it kicked on open (spec §7.3). A run is a
+// The 11-sector GECS axis (spec §2.6). The shell validates a `?sector=` against
+// this axis; the per-market *pack* eject (a sector with no members in the new
+// market) is the Sectors screen's job, since it needs the sectors payload.
+const SECTORS = [
+  "Basic Materials",
+  "Communication Services",
+  "Consumer Cyclical",
+  "Consumer Defensive",
+  "Energy",
+  "Financial Services",
+  "Healthcare",
+  "Industrials",
+  "Real Estate",
+  "Technology",
+  "Utilities",
+] as const;
+
+interface Destination {
+  market: Market;
+  tab: Tab;
+  sector: string | null;
+}
+
+// How often the shell re-checks a run it kicked on open (spec §7.3). A run is a
 // ~9-minute pull, so a slow cadence is plenty; the poll stops as soon as the run
 // lands (run_due and running both clear).
 const RUN_POLL_MS = 2500;
 
-/**
- * The two-market tab shell (spec §5.1). Each tab reads its as-of session date
- * from the API and says so plainly when no run exists yet. The candidate list,
- * regime banner and chart panel land in later tickets against the same shell;
- * the Boards screen (§5.2) is a peer tab under the same market axis.
- */
-export default function App() {
-  const [market, setMarket] = useState<Market>("IDX");
-  const [screen, setScreen] = useState<Screen>("Workbench");
-
-  return (
-    <main>
-      <h1>Qullamaggie Screening Dashboard</h1>
-      <nav aria-label="market">
-        {MARKETS.map((m) => (
-          <button
-            key={m}
-            aria-current={m === market}
-            disabled={m === market}
-            onClick={() => setMarket(m)}
-          >
-            {m}
-          </button>
-        ))}
-      </nav>
-      <nav aria-label="screen">
-        {SCREENS.map((s) => (
-          <button
-            key={s}
-            aria-current={s === screen}
-            disabled={s === screen}
-            onClick={() => setScreen(s)}
-          >
-            {s}
-          </button>
-        ))}
-      </nav>
-      {screen === "Workbench" ? <Workbench market={market} /> : <Boards market={market} />}
-    </main>
-  );
+function tabLabel(tab: Tab): string {
+  return TABS.find((t) => t.id === tab)!.label;
 }
 
-function Workbench({ market }: { market: Market }) {
+// Serialise a destination back to a canonical `location`. Defaults are omitted
+// (spec §3.5): a cold open is bare `/`, and a param appears only as the
+// destination diverges — so "no params at all" is a permanently valid state
+// rather than something corrected on load.
+function toLocation(dest: Destination): string {
+  const p = new URLSearchParams();
+  if (dest.market !== DEFAULT_MARKET) p.set("market", dest.market);
+  if (dest.tab !== DEFAULT_TAB) p.set("tab", dest.tab);
+  if (dest.tab === "sectors" && dest.sector) p.set("sector", dest.sector);
+  const q = p.toString();
+  return q ? `/?${q}` : "/";
+}
+
+// Resolve whatever is in the bar to an honourable destination. Unhonourable
+// URLs fall back silently (spec §3.5): an unknown market → the default; the
+// dissolved `?tab=workbench` → Board; a `?sector=` the axis does not carry (or
+// present without `tab=sectors`) → the Sectors list. Never an error.
+function parseLocation(search: string): Destination {
+  const p = new URLSearchParams(search);
+
+  const rawMarket = (p.get("market") ?? "").toUpperCase();
+  const market = (MARKETS as readonly string[]).includes(rawMarket)
+    ? (rawMarket as Market)
+    : DEFAULT_MARKET;
+
+  let rawTab = p.get("tab");
+  if (rawTab === "workbench") rawTab = DEFAULT_TAB; // the dissolved screen
+  const tab = TABS.some((t) => t.id === rawTab) ? (rawTab as Tab) : DEFAULT_TAB;
+
+  let sector: string | null = null;
+  if (tab === "sectors") {
+    const rawSector = p.get("sector");
+    if (rawSector && (SECTORS as readonly string[]).includes(rawSector)) {
+      sector = rawSector;
+    }
+  }
+
+  return { market, tab, sector };
+}
+
+// The label a history navigation announces (spec §8.8): the destination on the
+// three URL axes and only those — never the mechanism ("went back to…" tells
+// the user the one thing they already know).
+function destinationLabel(dest: Destination): string {
+  if (dest.tab === "sectors" && dest.sector) {
+    return `${dest.sector}, Sectors, ${dest.market}`;
+  }
+  return `${tabLabel(dest.tab)}, ${dest.market}`;
+}
+
+/**
+ * The shell's single routing seam (spec §3.5). `location.search` is the one
+ * source of truth for market/tab/sector; `navigate` pushes a new destination,
+ * `popstate` reads one back. Unhonourable URLs are rewritten via `replace` so no
+ * dead destination survives to be replayed by back/forward.
+ */
+function useDestination(): {
+  dest: Destination;
+  navigate: (patch: Partial<Destination>) => void;
+  announcement: string;
+} {
+  const [dest, setDest] = useState<Destination>(() => parseLocation(window.location.search));
+  // The destination-change region (spec §8.7/§8.8): announces on `popstate`
+  // only, never on pushes — a tab or market click already announces through the
+  // control's own role, name and state.
+  const [announcement, setAnnouncement] = useState("");
+
+  // Canonicalise on load: an unhonourable cold-open URL is resolved and rewritten
+  // via `replace` with no announcement (spec §8.8) so back/forward never replay it.
+  useEffect(() => {
+    const canonical = toLocation(parseLocation(window.location.search));
+    if (canonical !== window.location.pathname + window.location.search) {
+      window.history.replaceState(null, "", canonical);
+    }
+  }, []);
+
+  useEffect(() => {
+    function onPop() {
+      const next = parseLocation(window.location.search);
+      const canonical = toLocation(next);
+      if (canonical !== window.location.pathname + window.location.search) {
+        window.history.replaceState(null, "", canonical);
+      }
+      setDest(next);
+      setAnnouncement(destinationLabel(next));
+    }
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const navigate = useCallback((patch: Partial<Destination>) => {
+    setDest((prev) => {
+      const next: Destination = { ...prev, ...patch };
+      // The reset rule (spec §3.4): a market switch resets the drill-down. The
+      // rest of the entity-naming reset (symbol, ticker query) lives in the
+      // screens, which key that state off `market`; view-shape state survives.
+      if (patch.market && patch.market !== prev.market) next.sector = null;
+      if (next.tab !== "sectors") next.sector = null;
+      window.history.pushState(null, "", toLocation(next));
+      return next;
+    });
+  }, []);
+
+  return { dest, navigate, announcement };
+}
+
+/**
+ * The v2 app shell (spec §3): the chrome every screen sits inside. Full-bleed
+ * frame with the content column capped at `--container-shell`; the header
+ * carries product name, as-of session, the tab row and the market control; the
+ * permanent regime band and the abnormal-only run-status banner sit beneath it.
+ * Run-on-open and its poll live here in shell lifecycle (spec §3.6), rehomed
+ * from the dissolved Workbench.
+ */
+export default function App() {
+  const { dest, navigate, announcement } = useDestination();
+  const { market, tab, sector } = dest;
+
   const [runs, setRuns] = useState<RunsResponse | null>(null);
   const [regime, setRegime] = useState<RegimeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // The one interaction: the selected candidate whose chart the panel shows
-  // (spec §5.3). Cleared when the market changes — a symbol belongs to a market.
-  const [selected, setSelected] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => setSelected(null), [market]);
-
+  // ── Shell lifecycle (spec §3.6): run-on-open + poll, keyed on market ────────
   useEffect(() => {
     let live = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     setRuns(null);
     setRegime(null);
     setError(null);
+    setDismissed(false);
 
-    // Run-on-open (spec §7.3): if the tab's last final session is missing from
-    // the store, kick a run once and poll until it lands, so a forgotten night
-    // is not silently stale. The served session stays the last *published* one
-    // throughout — a run in progress never shows a half-written session.
+    // Run-on-open: if the market's last final session is missing from the store,
+    // kick a run once and poll until it lands. The served session stays the last
+    // *published* one throughout — a run in progress never shows a half-written
+    // session.
     let triggered = false;
     const poll = async () => {
       let r: RunsResponse;
@@ -112,96 +229,249 @@ function Workbench({ market }: { market: Market }) {
     };
     poll();
 
-    // The regime is its own resource endpoint (spec §7.5); the banner reads it
-    // independently and never gates what the rest of the workbench shows.
+    // The regime is its own resource endpoint (spec §7.5); the band reads it
+    // independently and gates nothing.
     fetchRegime(market)
       .then((r) => live && setRegime(r))
-      .catch(() => {});
+      .catch(() => {
+        // A regime read failure is an identity-read failure (spec §8.7): it
+        // surfaces through the same single alert as a runs read failure.
+        if (live) setError((prev) => prev ?? "regime unavailable");
+      });
+
     return () => {
       live = false;
       if (timer) clearTimeout(timer);
     };
   }, [market]);
 
-  if (error) return <p role="alert">Could not reach the backend: {error}</p>;
-  if (!runs) return <p>Loading {market}…</p>;
+  // `document.title` per screen (spec §8.5, SC 2.4.2). It keys off the in-memory
+  // destination values whether or not the URL carries them, so 2.4.2 is
+  // discharged independently of the routing decision. **Not an announcement
+  // mechanism** (spec §8.5) — the destination region owns that.
+  useEffect(() => {
+    const screen = tab === "sectors" && sector ? sector : tabLabel(tab);
+    document.title = `${screen} · ${market} · Screening Dashboard`;
+  }, [tab, sector, market]);
 
-  // A run kicked on open (or a scheduled one) is in flight: show a progress
-  // state above whatever the last published session was (spec §7.3).
-  const progress = runs.running ? (
-    <p role="status" className="run-progress">
-      Running tonight's {market} pull — fetching the latest session…
-    </p>
-  ) : null;
-
-  // A run that crashed publishes nothing and clears `running`, which on its own
-  // looks exactly like never having run at all. Say so instead: the empty state
-  // reads as "nothing happened tonight" and would quietly hide a market that is
-  // failing every single time it is opened.
-  const failure = runs.run_error ? (
-    <p role="alert" className="run-failed">
-      Tonight's {market} run failed: {runs.run_error}
-    </p>
-  ) : null;
-
-  if (!runs.latest) {
-    // No run has published yet: an in-progress first run (progress state), a run
-    // that failed, or an explicit empty state — never a fabricated date.
-    return (
-      <section aria-label={`${market} workbench`}>
-        {progress ?? failure ?? (
-          <p className="empty-state">No run yet for {market}. Nothing to show tonight.</p>
-        )}
-      </section>
-    );
-  }
-
-  // The newest run attempt is quarantined when it failed the completeness or
-  // enumeration gate (spec §3.4 rules 7–8): the served `latest` session is then
-  // older than the last attempt, so the tab carries a stale banner. Runs arrive
-  // newest-first, so runs[0] is the last attempt.
-  const newest = runs.runs[0];
-  const stale = newest !== undefined && newest.status === "quarantined";
+  const asOf = runs?.latest?.session ?? null;
 
   return (
-    <section aria-label={`${market} workbench`}>
-      {progress}
-      {failure}
-      {stale && (
-        <p role="status" className="quarantine-banner">
-          Tonight's {market} run was quarantined — showing the last good session{" "}
-          <time dateTime={runs.latest.session}>{runs.latest.session}</time>.
-        </p>
-      )}
-      {regime?.session && <RegimeBanner market={market} regime={regime} />}
-      <p className="as-of">
-        As of session <time dateTime={runs.latest.session}>{runs.latest.session}</time>
+    <div className="shell">
+      {/* Bypass block (spec §8.5, SC 2.4.1): a visually-hidden skip link that
+          appears on focus — landmarks alone do nothing for a sighted keyboard
+          user. */}
+      <a className="skip-link" href="#main-content">
+        Skip to content
+      </a>
+
+      <header className="shell-header" role="banner">
+        <div className="shell-cap shell-header-row">
+          <h1 className="shell-product">Screening Dashboard</h1>
+          {asOf && (
+            <p className="shell-asof">
+              As of <time dateTime={asOf}>{asOf}</time>
+            </p>
+          )}
+          <TabRow tab={tab} onSelect={(t) => navigate({ tab: t })} />
+          <MarketControl market={market} onSelect={(m) => navigate({ market: m })} />
+        </div>
+      </header>
+
+      {/* The destination-change live region (spec §8.7/§8.8). Visually hidden;
+          announces on `popstate` only. A polite live region — kept off
+          `role="status"` so it does not collide with the run-status banner.
+          Named for its behaviour, not its original market-switch trigger. */}
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {announcement}
       </p>
-      {runs.universe_size !== null && (
-        <p className="universe-size">
-          Universe: <strong>{runs.universe_size}</strong> tradeable names
-        </p>
+
+      {/* The identity-read failure — the app's single `role="alert"` (spec §8.7,
+          §11.7): fires when `/api/runs` or `/api/regime` cannot be reached. */}
+      {error ? (
+        <div className="shell-cap">
+          <p role="alert" className="identity-error">
+            Could not reach the backend: {error}
+          </p>
+        </div>
+      ) : (
+        <div className="shell-cap">
+          {/* 1. The permanent regime band (spec §3.3): v1's full §4.9 banner,
+              on every screen, gating nothing. Absent only before the first run
+              publishes a session. */}
+          {regime?.session && <RegimeBanner market={market} regime={regime} />}
+          {/* 2. The run-status banner — only when abnormal (spec §3.3). */}
+          <RunStatus
+            market={market}
+            runs={runs}
+            dismissed={dismissed}
+            onDismiss={() => setDismissed(true)}
+          />
+        </div>
       )}
-      {/* The candidate list — the only list in the app, tonight's detections
-          made readable (spec §5.1). Its own resource endpoint, sorted by star
-          score descending (spec §4.7); the regime never reorders it.
-          Clicking a row selects it; only the chart panel swaps (spec §5.3). */}
-      <CandidateList market={market} selected={selected} onSelect={setSelected} />
-      {/* The chart panel beside the list: click a row, see its chart (§5.1). */}
-      <ChartPanel market={market} symbol={selected} />
-      {/* The sector board reads the same as-of session (spec §4.4). The regime
-          note (S7) wires in once ticket 10's /api/regime banner lands. */}
-      <SectorTable market={market} />
-    </section>
+
+      <main id="main-content" className="shell-cap shell-main">
+        <Screen tab={tab} market={market} sector={sector} navigate={navigate} />
+      </main>
+    </div>
   );
 }
 
 /**
- * The persistent regime banner (spec §4.9). Advisory only: it carries state,
- * the sizing posture in *words*, breadth and the as-of session date, and gates
- * nothing — the candidate list is identical in all three states. Below 25 index
- * bars the state is undefined (warming up), which carries no posture. One banner
- * per market, never combined into a global verdict.
+ * The tab row (spec §8.5): a `role="tablist"` with roving tabindex — arrows move
+ * and activate, Tab escapes, each panel associated by `aria-controls` /
+ * `aria-labelledby`. A tab change is a `pushState` destination (spec §3.5).
+ */
+function TabRow({ tab, onSelect }: { tab: Tab; onSelect: (t: Tab) => void }) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  function onKeyDown(e: ReactKeyboardEvent, index: number) {
+    let next = index;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (index + 1) % TABS.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp")
+      next = (index - 1 + TABS.length) % TABS.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = TABS.length - 1;
+    else return;
+    e.preventDefault();
+    onSelect(TABS[next].id);
+    refs.current[next]?.focus();
+  }
+
+  return (
+    <div role="tablist" aria-label="Screens" className="tab-row">
+      {TABS.map((t, i) => {
+        const selected = t.id === tab;
+        return (
+          <button
+            key={t.id}
+            ref={(el) => (refs.current[i] = el)}
+            role="tab"
+            id={`tab-${t.id}`}
+            aria-selected={selected}
+            aria-controls="active-tabpanel"
+            tabIndex={selected ? 0 : -1}
+            className="tab"
+            onClick={() => onSelect(t.id)}
+            onKeyDown={(e) => onKeyDown(e, i)}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * The market control (spec §8.5): a `radiogroup`, **not** tabs — a market switch
+ * resets entity state and refetches, it does not reveal a sibling panel, so
+ * calling it a tablist would promise a `tabpanel` that does not exist.
+ */
+function MarketControl({
+  market,
+  onSelect,
+}: {
+  market: Market;
+  onSelect: (m: Market) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label="Market" className="market-control">
+      {MARKETS.map((m) => {
+        const checked = m === market;
+        return (
+          <button
+            key={m}
+            role="radio"
+            aria-checked={checked}
+            tabIndex={checked ? 0 : -1}
+            className="market-item"
+            onClick={() => onSelect(m)}
+          >
+            {m}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * The run-status banner (spec §3.3) — shell chrome shown **only when abnormal**:
+ * a run in progress, a run that failed, or a quarantined latest serving the last
+ * good session. Polite (`role="status"`, spec §8.7 / §11.7) — the app's single
+ * `role="alert"` is reserved for an identity-read failure. Dismissible.
+ */
+function RunStatus({
+  market,
+  runs,
+  dismissed,
+  onDismiss,
+}: {
+  market: Market;
+  runs: RunsResponse | null;
+  dismissed: boolean;
+  onDismiss: () => void;
+}) {
+  if (!runs) {
+    // The identity read is still in flight (spec §8.7: `aria-busy`).
+    return (
+      <p role="status" aria-busy="true" className="run-loading">
+        Loading {market}…
+      </p>
+    );
+  }
+
+  let body: ReactNode = null;
+  let kind = "";
+  if (runs.running) {
+    kind = "run-progress";
+    body = <>Running tonight&apos;s {market} pull — fetching the latest session…</>;
+  } else if (runs.run_error) {
+    kind = "run-failed";
+    body = (
+      <>
+        Tonight&apos;s {market} run failed: {runs.run_error}
+      </>
+    );
+  } else if (!runs.latest) {
+    // Nothing has ever published: an honest empty state, distinct from a
+    // run-failed banner (spec Appendix A). Not a status region — nothing changed.
+    return <p className="empty-state">No run yet for {market}. Nothing to show tonight.</p>;
+  } else {
+    // A quarantined latest attempt: the served `latest` is older than the last
+    // attempt, so the shell carries a stale banner (spec §3.4 rules 7–8). Runs
+    // arrive newest-first, so runs[0] is the last attempt.
+    const newest = runs.runs[0];
+    if (newest?.status === "quarantined") {
+      kind = "quarantine-banner";
+      body = (
+        <>
+          Tonight&apos;s {market} run was quarantined — showing the last good session{" "}
+          <time dateTime={runs.latest.session}>{runs.latest.session}</time>.
+        </>
+      );
+    }
+  }
+
+  if (!body || dismissed) return null;
+
+  return (
+    <p role="status" className={kind}>
+      {body}{" "}
+      <button type="button" className="run-status-dismiss" onClick={onDismiss}>
+        Dismiss
+      </button>
+    </p>
+  );
+}
+
+/**
+ * The persistent regime band (spec §4.9 / §3.3). Advisory only: it carries
+ * state, the sizing posture in *words*, breadth and the as-of session date, and
+ * gates nothing. Below 25 index bars the state is undefined (warming up), which
+ * carries no posture. One band per market, never a combined global verdict; the
+ * reference's coloured pill is rejected (spec §3.3).
  */
 function RegimeBanner({ market, regime }: { market: Market; regime: RegimeResponse }) {
   const { state, posture, breadth, session } = regime;
@@ -224,6 +494,53 @@ function RegimeBanner({ market, regime }: { market: Market; regime: RegimeRespon
       {breadthPct !== null && <> · Breadth {breadthPct}</>}
       {" · as of "}
       <time dateTime={session ?? undefined}>{session}</time>
+    </section>
+  );
+}
+
+/**
+ * The active screen (spec §5). The four screens (Board, Leaders, Setups,
+ * Sectors) and the sector drill-down land in later tickets (#82/#83); the shell
+ * renders each tab's panel with the per-panel heading and the `tabpanel`
+ * association the semantics (spec §8.5) require. Screens receive `market` and
+ * reset their entity-naming state (selected symbol, ticker query) off it, while
+ * view-shape state survives (spec §3.4).
+ */
+function Screen({
+  tab,
+  market,
+  sector,
+  navigate,
+}: {
+  tab: Tab;
+  market: Market;
+  sector: string | null;
+  navigate: (patch: Partial<Destination>) => void;
+}) {
+  // Sector detail is a drill-down, not a tab: it keeps the Sectors tab lit and
+  // the breadcrumb is the honest control (spec §5 / §8.5).
+  if (tab === "sectors" && sector) {
+    return (
+      <section id="active-tabpanel" role="tabpanel" aria-labelledby="tab-sectors" tabIndex={0}>
+        <nav aria-label="Breadcrumb" className="breadcrumb">
+          <button type="button" className="breadcrumb-back" onClick={() => navigate({ sector: null })}>
+            Sectors
+          </button>
+        </nav>
+        <h2>{sector}</h2>
+        <p className="screen-placeholder">
+          The {sector} pack for {market} lands in #83.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section id="active-tabpanel" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0}>
+      <h2>{tabLabel(tab)}</h2>
+      <p className="screen-placeholder">
+        The {tabLabel(tab)} screen for {market} lands in a later ticket.
+      </p>
     </section>
   );
 }

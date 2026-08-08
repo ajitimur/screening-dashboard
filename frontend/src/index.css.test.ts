@@ -56,6 +56,25 @@ describe("the v2 token set (spec §3.2, §8.3)", () => {
     expect(css).toMatch(/--text-ticker:/);
   });
 
+  it("carries the two-tone :focus-visible ring, never :focus (spec §8.6)", () => {
+    // A dark core plus a light halo, so the ring survives on the near-black
+    // active seg item and on paper alike.
+    expect(css).toMatch(/--color-focus-core:\s*#1c1b18/i);
+    expect(css).toMatch(/--color-focus-halo:\s*#f6f4ef/i);
+    // The ring lives under :focus-visible and carries both tones.
+    const ring = css.match(/:focus-visible\s*\{[\s\S]*?\}/)?.[0] ?? "";
+    expect(ring).toMatch(/--color-focus-halo/);
+    expect(ring).toMatch(/--color-focus-core/);
+    // The ring must not be keyed off a bare element `:focus` — that would
+    // scatter rings on mouse clicks across a dense board. The only `:focus` use
+    // is the skip link becoming visible, which carries no ring.
+    expect(css).not.toMatch(/\*:focus\s*\{/);
+  });
+
+  it("zeroes transitions under prefers-reduced-motion, globally (spec §8.7)", () => {
+    expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+  });
+
   it("closes the tree-shaking trap: sector + regime scales live in a plain :root", () => {
     // Tailwind v4 tree-shakes @theme vars no utility class mentions. The sector
     // scale and regime pairs are read only from a runtime var(), so they must be

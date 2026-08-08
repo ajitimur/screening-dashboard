@@ -1,18 +1,17 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import App from "./App";
-import type {
-  CandidatesResponse,
-  ChartResponse,
-  RegimeResponse,
-  RunRecord,
-  RunsResponse,
-  SectorsResponse,
-} from "./api/client";
+import {
+  regimeResponse,
+  runRecord,
+  runTriggerResponse,
+  runsResponse,
+  stubFetch,
+  type ApiRoutes,
+} from "./api/fixtures";
 
-// The chart panel drives a canvas jsdom cannot render; stub the library so the
-// workbench-level interaction test can mount it (its data is asserted in
-// ChartPanel.test.tsx). Harmless for the tests that never select a row.
+// The chart canvas jsdom cannot render; stub the library so the shell mounts
+// (no screen renders it yet, but the mock keeps a future import harmless).
 vi.mock("lightweight-charts", () => ({
   createChart: () => ({
     addSeries: () => ({ setData: () => {} }),
@@ -25,308 +24,175 @@ vi.mock("lightweight-charts", () => ({
   HistogramSeries: "Histogram",
 }));
 
+beforeEach(() => {
+  // The URL is the source of truth (spec §3.5); reset it to a bare cold open so
+  // one test's destination does not leak into the next.
+  window.history.replaceState(null, "", "/");
+});
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
-function noRegime(market: string): RegimeResponse {
-  return { market, session: null, state: null, posture: null, breadth: null };
-}
+// ── Chrome (spec §3.3, §8.5) ─────────────────────────────────────────────────
 
-function emptyCandidates(market: string): CandidatesResponse {
-  return { market, session: null, ordered_by: "score", candidates: [] };
-}
+describe("the shell — chrome", () => {
+  it("carries product name, as-of session, the tab row and the market control", async () => {
+    stubFetch(vi);
+    render(<App />);
 
-// Route the mocked fetch by endpoint: /api/runs/* returns the run records,
-// /api/sectors/* returns the sector board, /api/regime/* the regime banner and
-// /api/candidates/* the candidate list — each empty/off by default so the
-// run-focused tests need not supply any of them.
-function mockApi(
-  runsByMarket: Record<string, RunsResponse>,
-  regimeByMarket: Record<string, RegimeResponse> = {},
-  sectorsByMarket: Record<string, SectorsResponse> = {},
-) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string) => {
-      const market = url.split("/").pop()!.toUpperCase();
-      const body = url.includes("/api/sectors/")
-        ? (sectorsByMarket[market] ?? emptySectors(market))
-        : url.includes("/api/candidates/")
-          ? emptyCandidates(market)
-          : url.includes("/regime/")
-            ? (regimeByMarket[market] ?? noRegime(market))
-            : runsByMarket[market];
-      return { ok: true, json: async () => body } as Response;
-    }),
-  );
-}
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
+      "Screening Dashboard",
+    );
+    // As-of session, from the last published run (also echoed by the regime band).
+    expect((await screen.findAllByText("2026-08-04")).length).toBeGreaterThan(0);
+    // The tab row is a tablist (spec §8.5)...
+    const tablist = screen.getByRole("tablist", { name: /screens/i });
+    expect(within(tablist).getByRole("tab", { name: "Board" })).toBeInTheDocument();
+    expect(within(tablist).getByRole("tab", { name: "Sectors" })).toBeInTheDocument();
+    // ...and the market control is a radiogroup, NOT a tablist (spec §8.5).
+    const markets = screen.getByRole("radiogroup", { name: /market/i });
+    expect(within(markets).getByRole("radio", { name: "IDX" })).toBeChecked();
+    expect(within(markets).getByRole("radio", { name: "US" })).not.toBeChecked();
+  });
 
-// Most tests do not care about the regime banner; default it off (session null).
-function mockRuns(byMarket: Record<string, RunsResponse>) {
-  mockApi(byMarket);
-}
+  it("exposes a skip link and the banner/main landmarks", async () => {
+    stubFetch(vi);
+    render(<App />);
+    await screen.findAllByText("2026-08-04");
 
-describe("the two market tabs", () => {
-  it("renders the last run's as-of session date", async () => {
-    mockRuns({
-      IDX: runs("IDX", "2026-08-04"),
-      US: empty("US"),
+    expect(screen.getByRole("banner")).toBeInTheDocument();
+    expect(screen.getByRole("main")).toBeInTheDocument();
+    const skip = screen.getByRole("link", { name: /skip to content/i });
+    expect(skip).toHaveAttribute("href", "#main-content");
+  });
+
+  it("gives the active panel a heading that is the panel's name", async () => {
+    stubFetch(vi);
+    render(<App />);
+    // Board is the default landing (spec §5).
+    expect(await screen.findByRole("heading", { level: 2, name: "Board" })).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel", { name: "Board" })).toBeInTheDocument();
+  });
+
+  it("sets document.title to the screen and market (spec §8.5, SC 2.4.2)", async () => {
+    stubFetch(vi);
+    render(<App />);
+    await screen.findAllByText("2026-08-04");
+    expect(document.title).toBe("Board · IDX · Screening Dashboard");
+
+    act(() => screen.getByRole("radio", { name: "US" }).click());
+    await waitFor(() => expect(document.title).toBe("Board · US · Screening Dashboard"));
+  });
+});
+
+// ── The permanent regime band (spec §3.3 / §4.9) ─────────────────────────────
+
+describe("the shell — regime band", () => {
+  it("shows state, sizing posture in words, breadth and as-of date", async () => {
+    stubFetch(vi, {
+      regime: (m) =>
+        regimeResponse({ market: m, state: "FRIENDLY", posture: "full size", breadth: 0.5 }),
     });
     render(<App />);
-    expect(await screen.findByText("2026-08-04")).toBeInTheDocument();
-  });
-
-  it("shows an explicit empty state when no run exists", async () => {
-    mockRuns({ IDX: empty("IDX"), US: empty("US") });
-    render(<App />);
-    expect(await screen.findByText(/No run yet for IDX/)).toBeInTheDocument();
-  });
-
-  it("says a run failed rather than showing the never-ran empty state", async () => {
-    // A crashed run publishes nothing and clears `running`, so the response is
-    // otherwise identical to one where no run ever happened. Without saying so
-    // the tab kicks a run into the same wall on every open, in silence (#46).
-    mockRuns({
-      IDX: { ...empty("IDX"), run_due: true, run_error: "universe already has rows" },
-      US: empty("US"),
-    });
-    render(<App />);
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      /Tonight's IDX run failed: universe already has rows/,
-    );
-    expect(screen.queryByText(/No run yet for IDX/)).not.toBeInTheDocument();
-  });
-
-  it("shows tonight's universe size", async () => {
-    mockRuns({ IDX: runs("IDX", "2026-08-04", 288), US: empty("US") });
-    render(<App />);
-    expect(await screen.findByText("288")).toBeInTheDocument();
-  });
-
-  it("switches the as-of date when the US tab is selected", async () => {
-    mockRuns({
-      IDX: runs("IDX", "2026-08-04"),
-      US: runs("US", "2026-08-05"),
-    });
-    render(<App />);
-    expect(await screen.findByText("2026-08-04")).toBeInTheDocument();
-
-    act(() => screen.getByRole("button", { name: "US" }).click());
-    await waitFor(() => expect(screen.getByText("2026-08-05")).toBeInTheDocument());
-  });
-
-  it("banners a quarantined latest run while serving the last good session", async () => {
-    // Newest run (08-05) quarantined; last published (08-04) keeps serving.
-    mockRuns({
-      IDX: {
-        market: "IDX",
-        latest: run("IDX", "2026-08-04"),
-        runs: [quarantined("IDX", "2026-08-05"), run("IDX", "2026-08-04")],
-        universe_size: 100,
-        run_due: false,
-        running: false,
-      },
-      US: { market: "US", latest: null, runs: [], universe_size: null, run_due: false, running: false },
-    });
-    render(<App />);
-    // The stale banner is shown...
-    expect(await screen.findByRole("status")).toHaveTextContent(/quarantined|last good/i);
-    // ...and the served session is still the last good one, dated (banner + as-of).
-    expect(screen.getAllByText("2026-08-04").length).toBeGreaterThan(0);
-  });
-
-  it("switches to the Boards screen and renders a board", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) => {
-        const market = url.split("/").pop()!.toUpperCase();
-        if (url.includes("/api/boards/")) {
-          return {
-            ok: true,
-            json: async () => ({
-              market,
-              session: "2026-08-04",
-              boards: [
-                {
-                  lookback: "1w",
-                  rows: [{ symbol: "WIN", raw_return: 0.42, breadth: 3, is_new: true, surge: true, adr: 0.05 }],
-                },
-              ],
-            }),
-          } as Response;
-        }
-        if (url.includes("/api/sectors/")) {
-          return { ok: true, json: async () => emptySectors(market) } as Response;
-        }
-        if (url.includes("/api/candidates/")) {
-          return { ok: true, json: async () => emptyCandidates(market) } as Response;
-        }
-        return { ok: true, json: async () => runs(market, "2026-08-04") } as Response;
-      }),
-    );
-    render(<App />);
-    await screen.findByText("2026-08-04"); // workbench first
-
-    act(() => screen.getByRole("button", { name: "Boards" }).click());
-    expect(await screen.findByRole("table", { name: /1w/ })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: /ADR/i })).not.toBeChecked();
-  });
-
-  it("shows the regime banner: state, sizing posture in words, breadth and as-of date", async () => {
-    mockApi(
-      { IDX: runs("IDX", "2026-08-04"), US: empty("US") },
-      {
-        IDX: {
-          market: "IDX",
-          session: "2026-08-04",
-          state: "FRIENDLY",
-          posture: "full size",
-          breadth: 0.5,
-        },
-      },
-    );
-    render(<App />);
-    const banner = await screen.findByLabelText(/IDX regime/i);
-    expect(banner).toHaveTextContent(/FRIENDLY/);
-    expect(banner).toHaveTextContent(/full size/); // words, not a number
-    expect(banner).toHaveTextContent(/50%/); // breadth, displayed
-    expect(banner).toHaveTextContent("2026-08-04"); // the as-of session date
-  });
-
-  it("shows a hostile regime with the sit-out posture", async () => {
-    mockApi(
-      { IDX: runs("IDX", "2026-08-04"), US: empty("US") },
-      {
-        IDX: {
-          market: "IDX",
-          session: "2026-08-04",
-          state: "HOSTILE",
-          posture: "sit out",
-          breadth: 0.1,
-        },
-      },
-    );
-    render(<App />);
-    const banner = await screen.findByLabelText(/IDX regime/i);
-    expect(banner).toHaveTextContent(/HOSTILE/);
-    expect(banner).toHaveTextContent(/sit out/);
+    const band = await screen.findByLabelText(/IDX regime/i);
+    expect(band).toHaveTextContent(/FRIENDLY/);
+    expect(band).toHaveTextContent(/full size/); // words, not a number
+    expect(band).toHaveTextContent(/50%/);
+    expect(band).toHaveTextContent("2026-08-04");
   });
 
   it("shows an undefined regime as warming up, with no posture", async () => {
-    mockApi(
-      { IDX: runs("IDX", "2026-08-04"), US: empty("US") },
-      {
-        IDX: {
-          market: "IDX",
-          session: "2026-08-04",
-          state: null,
-          posture: null,
-          breadth: null,
-        },
-      },
-    );
+    stubFetch(vi, {
+      regime: (m) =>
+        regimeResponse({ market: m, state: null, posture: null, breadth: null }),
+    });
     render(<App />);
-    const banner = await screen.findByLabelText(/IDX regime/i);
-    expect(banner).toHaveTextContent(/undefined|warming up/i);
-    expect(banner).not.toHaveTextContent(/full size|reduced|sit out/);
+    const band = await screen.findByLabelText(/IDX regime/i);
+    expect(band).toHaveTextContent(/undefined|warming up/i);
+    expect(band).not.toHaveTextContent(/full size|reduced|sit out/);
   });
 
-  it("shows no regime banner before any run has published", async () => {
-    mockApi({ IDX: empty("IDX"), US: empty("US") });
+  it("shows no regime band before the first run has published a session", async () => {
+    stubFetch(vi, {
+      runs: (m) => runsResponse({ market: m, latest: null, runs: [], universe_size: null }),
+      regime: (m) => regimeResponse({ market: m, session: null, state: null, posture: null, breadth: null }),
+    });
     render(<App />);
     await screen.findByText(/No run yet for IDX/);
     expect(screen.queryByLabelText(/IDX regime/i)).not.toBeInTheDocument();
   });
+});
 
-  it("swaps the chart panel when a candidate row is clicked, and nothing else navigates", async () => {
-    const oneCandidate: CandidatesResponse = {
-      market: "IDX",
-      session: "2026-08-04",
-      ordered_by: "score",
-      candidates: [
-        {
-          symbol: "AAA",
-          score: 3.5,
-          breakdown: [],
-          dist_adr: 1.0,
-          stopw_adr: 1.3,
-          affordable: false,
-          industry: "Semiconductors",
-          breadth: 2,
-          trigger_price: 100.0,
-          stop_price: 97.0,
-          close: 98.0,
-          sector: "Technology",
-          adr: 0.02,
-          dollar_volume: 1_000_000,
-          decile_ranks: {},
-          new_tonight: false,
-          verdict: null,
-        },
-      ],
-    };
-    const chartOf = (symbol: string): ChartResponse => ({
-      market: "IDX",
-      symbol,
-      session: "2026-08-04",
-      candles: [{ session: "2026-08-04", open: 1, high: 2, low: 0.5, close: 1.5, volume: 100 }],
-      sma10: [],
-      sma20: [],
-      sma50: [],
-      ema65: [],
-      setup: null,
-      facts: {
-        base_len: 30,
-        trigger: 100,
-        dist_adr: 1.02,
-        stopw_adr: 1.53,
-        adr: 0.02,
-        dollar_volume: 1_000_000,
-        decile_ranks: { "1m": 0.95 },
-        sector: "Technology",
-      },
+// ── The run-status banner (spec §3.3, §8.7) ──────────────────────────────────
+
+describe("the shell — run-status banner", () => {
+  it("stays absent on a healthy night", async () => {
+    stubFetch(vi);
+    render(<App />);
+    await screen.findAllByText("2026-08-04");
+    expect(screen.queryByText(/quarantined|Running tonight|run failed/i)).not.toBeInTheDocument();
+  });
+
+  it("banners a quarantined latest run while still serving the last good session", async () => {
+    stubFetch(vi, {
+      runs: (m) =>
+        runsResponse({
+          market: m,
+          latest: runRecord({ session: "2026-08-04" }),
+          runs: [
+            runRecord({ session: "2026-08-05", status: "quarantined", symbols_resolved: 50 }),
+            runRecord({ session: "2026-08-04" }),
+          ],
+        }),
     });
+    render(<App />);
+    expect(await screen.findByRole("status")).toHaveTextContent(/quarantined|last good/i);
+    expect(screen.getAllByText("2026-08-04").length).toBeGreaterThan(0);
+  });
+
+  it("says a run failed with a polite status, not the app's single alert", async () => {
+    // A crashed run publishes nothing and clears `running`; without saying so the
+    // shell kicks a run into the same wall on every open, in silence. It is a
+    // status, not an alert — the single alert is reserved for an identity-read
+    // failure (spec §8.7 / §11.7).
+    stubFetch(vi, {
+      runs: (m) =>
+        runsResponse({
+          market: m,
+          latest: null,
+          runs: [],
+          universe_size: null,
+          run_due: true,
+          run_error: "universe already has rows",
+        }),
+    });
+    render(<App />);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /IDX run failed: universe already has rows/,
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText(/No run yet for IDX/)).not.toBeInTheDocument();
+  });
+
+  it("raises the single role=alert when the identity read cannot be reached", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string) => {
-        if (url.includes("/api/candidates/"))
-          return { ok: true, json: async () => oneCandidate } as Response;
-        if (url.includes("/api/chart/")) {
-          const symbol = url.split("/").pop()!;
-          return { ok: true, json: async () => chartOf(symbol) } as Response;
-        }
-        if (url.includes("/api/sectors/")) {
-          const market = url.split("/").pop()!.toUpperCase();
-          return { ok: true, json: async () => emptySectors(market) } as Response;
-        }
-        if (url.includes("/regime/")) {
-          const market = url.split("/").pop()!.toUpperCase();
-          return { ok: true, json: async () => noRegime(market) } as Response;
-        }
-        const market = url.split("/").pop()!.toUpperCase();
-        return { ok: true, json: async () => runs(market, "2026-08-04") } as Response;
+      vi.fn(async () => {
+        throw new Error("network down");
       }),
     );
     render(<App />);
-    // Before a click the panel prompts for a selection.
-    expect(await screen.findByText(/select a candidate/i)).toBeInTheDocument();
-
-    act(() => screen.getByRole("button", { name: "AAA" }).click());
-
-    // The chart panel swapped to AAA...
-    expect(await screen.findByRole("heading", { name: "AAA" })).toBeInTheDocument();
-    expect(await screen.findByLabelText("facts")).toBeInTheDocument();
-    // ...and nothing else navigated: still the IDX market, still the Workbench.
-    expect(screen.getByRole("button", { name: "IDX" })).toHaveAttribute("aria-current", "true");
-    expect(screen.getByRole("button", { name: "Workbench" })).toHaveAttribute("aria-current", "true");
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Could not reach the backend/);
   });
+});
 
-  it("kicks a run on open when the last final session is missing, and shows progress", async () => {
-    // Run-on-open (spec §7.3): the tab opens on a store whose last final session
-    // is missing (run_due), POSTs to kick the run, shows a progress state while
-    // it is in flight, then serves the now-complete session.
+// ── Run-on-open lifecycle (spec §3.6) ────────────────────────────────────────
+
+describe("the shell — run-on-open lifecycle", () => {
+  it("kicks a run when the last final session is missing, then polls to published", async () => {
     vi.useFakeTimers();
     const okJson = (body: unknown) => ({ ok: true, json: async () => body }) as Response;
     const post = vi.fn();
@@ -336,36 +202,37 @@ describe("the two market tabs", () => {
       vi.fn(async (url: string, opts?: RequestInit) => {
         if (url.includes("/api/runs/") && opts?.method === "POST") {
           post();
-          return okJson({ market: "IDX", triggered: true, running: true });
+          return okJson(runTriggerResponse({ market: "IDX", triggered: true, running: true }));
         }
         if (url.includes("/api/runs/")) {
           getCount += 1;
-          const base = { market: "IDX", runs: [], universe_size: 100 };
           if (getCount === 1)
-            return okJson({ ...base, latest: run("IDX", "2026-08-04"), run_due: true, running: false });
+            return okJson(runsResponse({ market: "IDX", run_due: true, running: false }));
           if (getCount === 2)
-            return okJson({ ...base, latest: run("IDX", "2026-08-04"), run_due: true, running: true });
-          return okJson({ ...base, latest: run("IDX", "2026-08-05"), run_due: false, running: false });
+            return okJson(runsResponse({ market: "IDX", run_due: true, running: true }));
+          return okJson(
+            runsResponse({
+              market: "IDX",
+              latest: runRecord({ session: "2026-08-05" }),
+              runs: [runRecord({ session: "2026-08-05" })],
+              run_due: false,
+              running: false,
+            }),
+          );
         }
-        if (url.includes("/api/sectors/")) return okJson(emptySectors("IDX"));
-        if (url.includes("/api/candidates/")) return okJson(emptyCandidates("IDX"));
-        if (url.includes("/regime/")) return okJson(noRegime("IDX"));
-        return okJson(emptySectors("IDX"));
+        return okJson(regimeResponse({ market: "IDX" }));
       }),
     );
     try {
       render(<App />);
-      // The first look kicks the run.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(0);
       });
       expect(post).toHaveBeenCalledTimes(1);
-      // The next poll finds it in flight — the progress state shows.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(3000);
       });
       expect(screen.getByRole("status")).toHaveTextContent(/Running tonight's IDX/i);
-      // The run lands: the fresh session is served and the progress state clears.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(3000);
       });
@@ -375,77 +242,122 @@ describe("the two market tabs", () => {
       vi.useRealTimers();
     }
   });
+});
 
-  it("shows no banner when the latest run published", async () => {
-    mockRuns({
-      IDX: {
-        market: "IDX",
-        latest: run("IDX", "2026-08-04"),
-        runs: [run("IDX", "2026-08-04")],
-        universe_size: 100,
-        run_due: false,
-        running: false,
-      },
-      US: { market: "US", latest: null, runs: [], universe_size: null, run_due: false, running: false },
-    });
+// ── The URL contract (spec §3.5, §9.3) ───────────────────────────────────────
+
+describe("the shell — the URL contract", () => {
+  it("navigates on a tab click, writing the tab to the bar and swapping the panel", async () => {
+    stubFetch(vi);
     render(<App />);
-    expect(await screen.findByText("2026-08-04")).toBeInTheDocument();
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    await screen.findByRole("heading", { level: 2, name: "Board" });
+    // A cold open is bare `/` — defaults are omitted (spec §3.5).
+    expect(window.location.search).toBe("");
+
+    act(() => screen.getByRole("tab", { name: "Leaders" }).click());
+
+    expect(await screen.findByRole("heading", { level: 2, name: "Leaders" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Leaders" })).toHaveAttribute("aria-selected", "true");
+    expect(window.location.search).toBe("?tab=leaders");
+  });
+
+  it("switches market on a radio click, writing it to the bar and refetching", async () => {
+    const seen: string[] = [];
+    const routes: ApiRoutes = { runs: (m) => (seen.push(m), runsResponse({ market: m })) };
+    stubFetch(vi, routes);
+    render(<App />);
+    await screen.findAllByText("2026-08-04");
+    expect(seen).toContain("IDX");
+
+    act(() => screen.getByRole("radio", { name: "US" }).click());
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: "US" })).toHaveAttribute("aria-checked", "true"),
+    );
+    expect(window.location.search).toBe("?market=US");
+    await waitFor(() => expect(seen).toContain("US"));
+  });
+
+  it("a market switch resets the sector drill-down and keeps the active tab", async () => {
+    // Start on the IDX Sectors drill-down for Energy.
+    window.history.replaceState(null, "", "/?tab=sectors&sector=Energy");
+    stubFetch(vi);
+    render(<App />);
+    expect(await screen.findByRole("heading", { level: 2, name: "Energy" })).toBeInTheDocument();
+
+    act(() => screen.getByRole("radio", { name: "US" }).click());
+
+    // Sector resets (Energy discarded), the Sectors tab survives (spec §3.4).
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { level: 2, name: "Sectors" })).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("tab", { name: "Sectors" })).toHaveAttribute("aria-selected", "true");
+    expect(window.location.search).toBe("?market=US&tab=sectors");
+  });
+
+  it("back after a market switch restores the whole prior destination", async () => {
+    // The case a future reader is most likely to 'fix' into a bug (spec §9.3):
+    // back RESTORES a destination, it does not re-press the market control.
+    window.history.replaceState(null, "", "/?tab=sectors&sector=Energy");
+    stubFetch(vi);
+    render(<App />);
+    await screen.findByRole("heading", { level: 2, name: "Energy" });
+
+    act(() => screen.getByRole("radio", { name: "US" }).click());
+    await screen.findByRole("heading", { level: 2, name: "Sectors" });
+    expect(window.location.search).toBe("?market=US&tab=sectors");
+
+    act(() => window.history.back());
+
+    // Back returns to IDX / Sectors / Energy — sector and all.
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { level: 2, name: "Energy" })).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("radio", { name: "IDX" })).toHaveAttribute("aria-checked", "true");
+    expect(window.location.search).toBe("?tab=sectors&sector=Energy");
+  });
+
+  it("a popstate announces the destination on the three axes — and nothing is asserted about focus", async () => {
+    // Deliberately assert nothing about focus (spec §8.8, §9.3): a history
+    // navigation moves no focus, and a later reader must not 'fix' that gap.
+    window.history.replaceState(null, "", "/?tab=leaders");
+    stubFetch(vi);
+    render(<App />);
+    await screen.findByRole("heading", { level: 2, name: "Leaders" });
+
+    act(() => screen.getByRole("radio", { name: "US" }).click()); // push US/Leaders
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: "US" })).toHaveAttribute("aria-checked", "true"),
+    );
+
+    act(() => window.history.back()); // popstate → IDX/Leaders
+
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: "IDX" })).toHaveAttribute("aria-checked", "true"),
+    );
+    // The destination region carries the axes, never the mechanism.
+    const region = screen.getByText("Leaders, IDX");
+    expect(region).toBeInTheDocument();
   });
 });
 
-function runs(market: string, session: string, universe_size = 100): RunsResponse {
-  return {
-    market,
-    latest: run(market, session),
-    runs: [run(market, session)],
-    universe_size,
-    run_due: false,
-    running: false,
-  };
-}
+describe("the shell — unhonourable URLs fall back and rewrite (spec §3.5)", () => {
+  const cases: Array<{ url: string; canonical: string; heading: string }> = [
+    { url: "/?market=XYZ", canonical: "", heading: "Board" }, // unknown market → default
+    { url: "/?tab=workbench", canonical: "", heading: "Board" }, // dissolved screen → Board
+    { url: "/?tab=sectors&sector=Nonesuch", canonical: "?tab=sectors", heading: "Sectors" }, // unknown sector → list
+    { url: "/?tab=sectors&sector=", canonical: "?tab=sectors", heading: "Sectors" }, // empty sector → list
+  ];
 
-function empty(market: string): RunsResponse {
-  return { market, latest: null, runs: [], universe_size: null, run_due: false, running: false };
-}
-
-function run(market: string, session: string): RunRecord {
-  return {
-    market,
-    session,
-    status: "published",
-    symbols_enumerated: 100,
-    symbols_resolved: 100,
-    created_at: `${session}T22:00:00`,
-  };
-}
-
-function quarantined(market: string, session: string): RunRecord {
-  return { ...run(market, session), status: "quarantined", symbols_resolved: 50 };
-}
-
-const SECTORS = [
-  "Basic Materials", "Communication Services", "Consumer Cyclical",
-  "Consumer Defensive", "Energy", "Financial Services", "Healthcare",
-  "Industrials", "Real Estate", "Technology", "Utilities",
-];
-const LOOKBACKS = ["1w", "1m", "3m", "6m", "12m"];
-
-function emptySectors(market: string): SectorsResponse {
-  return {
-    market,
-    session: null,
-    taxonomy: "GECS",
-    sectors: SECTORS.map((sector) => ({
-      sector,
-      members: 0,
-      shares: Object.fromEntries(LOOKBACKS.map((lb) => [lb, 0])),
-      decile_counts: Object.fromEntries(LOOKBACKS.map((lb) => [lb, 0])),
-      shape_differential: 0,
-      temporal_delta: null,
-      rotation_eligible: false,
-      delta_low_confidence: true,
-    })),
-    industries: [],
-  };
-}
+  for (const { url, canonical, heading } of cases) {
+    it(`${url} → ${canonical || "/"} (the ${heading} screen)`, async () => {
+      window.history.replaceState(null, "", url);
+      stubFetch(vi);
+      render(<App />);
+      expect(
+        await screen.findByRole("heading", { level: 2, name: heading }),
+      ).toBeInTheDocument();
+      // Rewritten via `replace` so no dead destination survives to be replayed.
+      await waitFor(() => expect(window.location.search).toBe(canonical));
+    });
+  }
+});

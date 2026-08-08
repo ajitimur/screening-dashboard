@@ -20,7 +20,7 @@ import duckdb
 from .bars import Bar
 from .detection import Detection
 from .labels import Label
-from .models import RunRecord, RunStatus
+from .models import ResolutionFailure, RunRecord, RunStatus
 from .ranks import Rank
 from .regime import FollowThrough
 
@@ -29,10 +29,11 @@ from .regime import FollowThrough
 # v2 adds the sector/industry label cache (spec §3.3); v3 the breakout
 # follow-through capture (spec §4.9); v4 the detections table (spec §4.5); v5
 # extends detections with the star score's three derived signals (spec §4.7); v6
-# the digest_breaks table — the reported-break record behind the repeat marker (§6).
+# the digest_breaks table — the reported-break record behind the repeat marker (§6);
+# v7 the run_failures table — the per-symbol record of why a pull fell short (#91).
 # Recorded in the database on open (``schema_meta``) and reconciled against it by
 # :meth:`Store._migrate`, so an older file is upgraded rather than crashed into.
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 _SCHEMA = """
 -- The schema this database has been reconciled to. Written on every open, so
@@ -166,6 +167,28 @@ CREATE TABLE IF NOT EXISTS digest_breaks (
     symbol   TEXT NOT NULL,
     PRIMARY KEY (market, session, symbol)
 );
+
+-- Why a run's pull fell short: one row per enumerated candidate that did **not**
+-- come back with bars, carrying the outcome the source stated (issue #91). The
+-- run record's two integers say a pull was incomplete; they cannot say whether
+-- 548 US names went silent under throttling or the listing file carries
+-- instruments the provider serves no history for, and those have opposite fixes.
+-- The per-symbol outcomes exist only while the run is in flight, so this is the
+-- one place they survive. ``counted`` is whether the symbol sat in the
+-- completeness gate's denominator — a refused or instrument-type-excluded
+-- listing is recorded but held out of the gate (§3.4 rule 7, issue #90), and
+-- that distinction is exactly what makes a quarantine legible. Written for the
+-- session the pull was measured against, published or quarantined; a clean pull
+-- writes no rows.
+CREATE TABLE IF NOT EXISTS run_failures (
+    market   TEXT    NOT NULL,
+    session  DATE    NOT NULL,
+    symbol   TEXT    NOT NULL,
+    name     TEXT    NOT NULL,
+    status   TEXT    NOT NULL,  -- the source's stated outcome: unresolved | refused
+    counted  BOOLEAN NOT NULL,  -- did it sit in the completeness gate's denominator?
+    PRIMARY KEY (market, session, symbol)
+);
 """
 
 # Rank history is kept on a rolling window this many years deep; older sessions
@@ -197,7 +220,14 @@ class SessionExistsError(RuntimeError):
 # deliberately not here: bars are the ingest substrate, committed per symbol so a
 # killed pull keeps what it already fetched (spec §3.3), and a re-pull appends
 # them idempotently rather than recomputing them.
-_DERIVED_TABLES = ("universe", "ranks", "follow_through", "detections", "digest_breaks")
+_DERIVED_TABLES = (
+    "universe",
+    "ranks",
+    "follow_through",
+    "detections",
+    "digest_breaks",
+    "run_failures",
+)
 
 
 class SchemaDriftError(RuntimeError):
@@ -517,7 +547,42 @@ class Store:
         )
         return len(symbols)
 
+    def append_run_failures(
+        self, market: str, session: date, rows: list[ResolutionFailure]
+    ) -> int:
+        """Record why a session's pull fell short. Raises on a rewrite.
+
+        Dated and append-only like every derived stream (spec §7.2), and written
+        for a quarantined session as much as a published one — a quarantine is
+        precisely the run that needs explaining (issue #91). A clean pull writes
+        no rows; the guard still marks the session as recorded, so an empty
+        result reads as "nothing failed" rather than "nothing was kept".
+        """
+        self._guard_absent("run_failures", market, session)
+        if not rows:
+            return 0
+        self._cursor().executemany(
+            "INSERT INTO run_failures VALUES (?, ?, ?, ?, ?, ?)",
+            [[market, session, f.symbol, f.name, f.status, f.counted] for f in rows],
+        )
+        return len(rows)
+
     # -- reads -------------------------------------------------------------
+
+    def run_failures(self, market: str, session: date) -> list[ResolutionFailure]:
+        """A session's non-resolving candidates, ordered by symbol (issue #91)."""
+        rows = self._cursor().execute(
+            "SELECT symbol, name, status, counted FROM run_failures "
+            "WHERE market = ? AND session = ? ORDER BY symbol",
+            [market, session],
+        ).fetchall()
+        return [
+            ResolutionFailure(
+                market=market, session=session,
+                symbol=r[0], name=r[1], status=r[2], counted=r[3],
+            )
+            for r in rows
+        ]
 
     def rank_sessions(self, market: str) -> list[date]:
         """Every session with rank rows, oldest first — the history the sector

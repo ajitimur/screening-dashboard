@@ -17,7 +17,7 @@ from .bars import clean_bars, parse_bars
 from .detection import Detection, detect, detection_gate
 from .digest import build_digest, render_digest
 from .labels import select_fetches
-from .models import RunRecord
+from .models import ResolutionFailure, RunRecord
 from .ranks import Rank, rank_table
 from .regime import index_broke_out
 from .source import MARKET_INDEX, Instrument, Source, resolve_market
@@ -229,6 +229,91 @@ def write_digest(
     return path
 
 
+# How many failing symbols the run's log line names before it defers to the
+# stored record. The table holds every one of them; the log exists so a person
+# reading a launchd file can tell throttling from listing quality at a glance,
+# and 20 names is enough to see which it is without burying the file.
+FAILURE_SAMPLE = 20
+
+
+def summarize_pull(record: RunRecord, failures: list[ResolutionFailure]) -> str:
+    """One human-readable block explaining how a run's pull went (issue #91).
+
+    The scheduled jobs capture stdout to a log file, and until now the only
+    thing that landed there was a single status line — a quarantined run said
+    that it had quarantined and nothing about why. This is what a person reads
+    first: the gate's own arithmetic, the failures split by stated outcome, and
+    a bounded sample of the symbols. The full list is in the store's
+    ``run_failures`` table, which this deliberately does not try to replace.
+    """
+    lines = [
+        f"{record.market}: {record.status} run for {record.session} — "
+        f"{record.symbols_resolved}/{record.symbols_enumerated} measurable "
+        "candidates resolved"
+    ]
+    if not failures:
+        return lines[0]
+    counted = [f for f in failures if f.counted]
+    unresolved = [f for f in counted if f.status == "unresolved"]
+    refused = [f for f in failures if f.status == "refused"]
+    excluded = [f for f in failures if not f.counted and f.status != "refused"]
+    lines.append(
+        f"{record.market}: {len(failures)} enumerated candidates left no bars — "
+        f"{len(unresolved)} silent and counted against the gate, "
+        f"{len(refused)} refused by the provider, "
+        f"{len(excluded)} silent but excluded on instrument type"
+    )
+    for label, group in (
+        ("silent, counted", unresolved),
+        ("refused", refused),
+    ):
+        if not group:
+            continue
+        sample = ", ".join(f.symbol for f in group[:FAILURE_SAMPLE])
+        more = "" if len(group) <= FAILURE_SAMPLE else f", … +{len(group) - FAILURE_SAMPLE} more"
+        lines.append(f"{record.market}:   {label}: {sample}{more}")
+    lines.append(
+        f"{record.market}: full per-symbol detail in run_failures "
+        f"({record.market}, {record.session})"
+    )
+    return "\n".join(lines)
+
+
+def _resolution_failures(
+    market: str,
+    session: date,
+    candidates: list[Instrument],
+    status: dict[str, str],
+) -> list[ResolutionFailure]:
+    """Every enumerated candidate that came back with no bars, and why (#91).
+
+    One row per candidate whose outcome was not ``resolved``, carrying the
+    source's stated outcome and whether the symbol sat in the completeness
+    gate's denominator. The two together are what separate the diagnoses a bare
+    count cannot: a wall of ``unresolved`` names that *count* is a throttled
+    pull, and a wall of ``refused`` or instrument-type-excluded ones that do not
+    is a listing file carrying instruments the provider never serves (#90).
+
+    References — the index, ETFs — are not here: they are enumerated but were
+    never part of the tradeable denominator (§3.4 rule 7), so their silence is a
+    different question than the one this record exists to answer.
+    """
+    return [
+        ResolutionFailure(
+            market=market,
+            session=session,
+            symbol=i.symbol,
+            name=i.name,
+            status=status[i.symbol],
+            # Mirrors the gate above: only a common-stock listing the source did
+            # not refuse was ever measured against the floor.
+            counted=is_common_stock(i.name) and status[i.symbol] != "refused",
+        )
+        for i in candidates
+        if status[i.symbol] != "resolved"
+    ]
+
+
 def _sessions_to_backfill(store: Store, market: str, target: date) -> list[date]:
     """Every session the run must compute, ascending, up to and including ``target``.
 
@@ -358,9 +443,18 @@ def run_market_universe(
     measurable = [s for s in tradeable if status[s] != "refused"]
     resolved = [s for s in measurable if status[s] == "resolved"]
     published = len(resolved) >= RESOLUTION_FLOOR * len(measurable)
+    # Why the pull fell short, per symbol, before the counts collapse it to two
+    # integers (issue #91). The per-symbol outcomes live only inside this
+    # function; a quarantine that records nothing else can be diagnosed no other
+    # way than re-running the pull by hand against the live provider.
+    failures = _resolution_failures(market, session, candidate_instruments, status)
     if not published:
         # A throttled pull quarantines the whole run: no universe, no ranks, no
-        # backfill — the last good data keeps serving (spec §3.4 rule 7).
+        # backfill — the last good data keeps serving (spec §3.4 rule 7). The
+        # failure rows are written *first*: the run record is the commit point,
+        # so a run that dies in between leaves them as debris the next run
+        # clears, never a run record pointing at an explanation that is missing.
+        store.append_run_failures(market, session, failures)
         return store.append_run(
             market,
             session,
@@ -398,6 +492,13 @@ def run_market_universe(
             # never per backfilled night (spec §7.3).
             refresh_labels_now=backfill_session == session,
         )
+        if backfill_session == session:
+            # The failures describe *this* pull, so they belong to the target
+            # session only — a backfilled night was computed from bars already on
+            # disk and had no pull of its own to fall short (issue #91). Written
+            # inside the loop, after ``discard_session`` has cleared the session
+            # and before its run record commits it.
+            store.append_run_failures(market, session, failures)
         record = store.append_run(
             market,
             backfill_session,

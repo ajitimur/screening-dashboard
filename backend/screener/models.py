@@ -40,6 +40,28 @@ class RunRecord(BaseModel):
     created_at: datetime
 
 
+class ResolutionFailure(BaseModel):
+    """One enumerated candidate a run got no bars for (issue #91).
+
+    The run record says *how many* symbols fell short; this says *which* and
+    *why*, which is the difference between a diagnosable quarantine and one that
+    can only be investigated by re-running the pull by hand. ``status`` is the
+    source's stated outcome — ``unresolved`` is silence that survived retries
+    (the shape of a throttled pull), ``refused`` is the provider stating it
+    serves no history for this listing (the shape of a listing-quality problem).
+    ``counted`` is whether the symbol sat in the completeness gate's denominator:
+    refused and instrument-type-excluded listings are recorded but held out of
+    it (§3.4 rule 7, issue #90), so a quarantine's arithmetic is legible too.
+    """
+
+    market: str
+    session: date
+    symbol: str
+    name: str
+    status: str
+    counted: bool
+
+
 class RunsResponse(BaseModel):
     """Run records for one market, newest first.
 

@@ -29,6 +29,14 @@ const LOOKBACKS = [
 ] as const;
 type LookbackKey = (typeof LOOKBACKS)[number]["key"];
 
+// Table / grid: a `radiogroup`, not an on/off — the grid is the mini-chart
+// surface, a peer view not a modifier (spec §5.3).
+const VIEWS = [
+  { key: "table", label: "Table" },
+  { key: "grid", label: "Grid" },
+] as const;
+type ViewKey = (typeof VIEWS)[number]["key"];
+
 // Sub-4% ADR is the floor the one toggle hides (spec §5.3). A fraction of price.
 const LOW_ADR = 0.04;
 
@@ -87,7 +95,7 @@ export default function Leaders({ market }: { market: string }) {
   // ── View-shape state — SURVIVES a market switch (spec §3.4) ────────────────
   const [lookback, setLookback] = useState<LookbackKey>("1w");
   const [sort, setSort] = useState<SortState>({ key: "return", dir: "desc" });
-  const [view, setView] = useState<"table" | "grid">("table");
+  const [view, setView] = useState<ViewKey>("table");
   // The one liquidity floor an ungated universe has, so it **defaults ON** — a
   // deliberate divergence from v1 (spec §5.3). Its consequence is that a user can
   // hit a zero-row table having never touched a control, which must read as
@@ -192,7 +200,7 @@ function LeadersBody({
   market: string;
   lookback: LookbackKey;
   sort: SortState;
-  view: "table" | "grid";
+  view: ViewKey;
   ticker: string;
   sector: string;
   hideLowAdr: boolean;
@@ -269,8 +277,8 @@ function ControlBar({
 }: {
   lookback: LookbackKey;
   onLookback: (k: LookbackKey) => void;
-  view: "table" | "grid";
-  onView: (v: "table" | "grid") => void;
+  view: ViewKey;
+  onView: (v: ViewKey) => void;
   ticker: string;
   onTicker: (v: string) => void;
   sector: string;
@@ -281,44 +289,11 @@ function ControlBar({
 }) {
   return (
     <div className="leaders-controls">
-      {/* Lookback: a segmented control — a `radiogroup`, exactly one active. */}
-      <div role="radiogroup" aria-label="Lookback" className="segmented lookback">
-        {LOOKBACKS.map((lb) => {
-          const active = lb.key === lookback;
-          return (
-            <button
-              key={lb.key}
-              role="radio"
-              aria-checked={active}
-              tabIndex={active ? 0 : -1}
-              className="seg-item"
-              onClick={() => onLookback(lb.key)}
-            >
-              {lb.label}
-            </button>
-          );
-        })}
-      </div>
+      {/* Lookback: a segmented control — exactly one active. */}
+      <Segmented label="Lookback" className="lookback" options={LOOKBACKS} value={lookback} onChange={onLookback} />
 
-      {/* Table / grid: a `radiogroup`, not an on/off — the grid is the mini-chart
-          surface, a peer view not a modifier (spec §5.3). */}
-      <div role="radiogroup" aria-label="View" className="segmented view">
-        {(["table", "grid"] as const).map((v) => {
-          const active = v === view;
-          return (
-            <button
-              key={v}
-              role="radio"
-              aria-checked={active}
-              tabIndex={active ? 0 : -1}
-              className="seg-item"
-              onClick={() => onView(v)}
-            >
-              {v === "table" ? "Table" : "Grid"}
-            </button>
-          );
-        })}
-      </div>
+      {/* Table / grid: a peer view, not an on/off (spec §5.3). */}
+      <Segmented label="View" className="view" options={VIEWS} value={view} onChange={onView} />
 
       <label className="ticker-search">
         Ticker
@@ -346,6 +321,43 @@ function ControlBar({
         <input type="checkbox" checked={hideLowAdr} onChange={(e) => onHideLowAdr(e.target.checked)} />
         Hide sub-4% ADR names
       </label>
+    </div>
+  );
+}
+
+// A segmented control — a `radiogroup` where exactly one item is active, with
+// roving `tabIndex` so it takes a single tab stop. Both the lookback and the
+// table/grid toggle are this same shape (spec §5.3); only their options differ.
+function Segmented<K extends string>({
+  label,
+  className,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  className: string;
+  options: readonly { key: K; label: string }[];
+  value: K;
+  onChange: (key: K) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className={`segmented ${className}`}>
+      {options.map((opt) => {
+        const active = opt.key === value;
+        return (
+          <button
+            key={opt.key}
+            role="radio"
+            aria-checked={active}
+            tabIndex={active ? 0 : -1}
+            className="seg-item"
+            onClick={() => onChange(opt.key)}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

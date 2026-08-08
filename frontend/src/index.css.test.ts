@@ -75,6 +75,15 @@ describe("the v2 token set (spec §3.2, §8.3)", () => {
     expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)/);
   });
 
+  it("docks the chart sheet at min(560px, 90vw), fixed, with a shadow (spec §6)", () => {
+    const sheet = css.match(/\.chart-sheet\s*\{[\s\S]*?\}/)?.[0] ?? "";
+    // The min() is load-bearing: a fixed 560px would swallow a 200%-zoom viewport.
+    expect(sheet).toMatch(/width:\s*min\(560px,\s*90vw\)/);
+    expect(sheet).toMatch(/position:\s*fixed/);
+    expect(sheet).toMatch(/right:\s*0/);
+    expect(sheet).toMatch(/box-shadow:\s*var\(--shadow-shell\)/);
+  });
+
   it("closes the tree-shaking trap: sector + regime scales live in a plain :root", () => {
     // Tailwind v4 tree-shakes @theme vars no utility class mentions. The sector
     // scale and regime pairs are read only from a runtime var(), so they must be

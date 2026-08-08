@@ -64,8 +64,17 @@ export async function fetchCandidates(market: string): Promise<CandidatesRespons
   return (await resp.json()) as CandidatesResponse;
 }
 
-export async function fetchChart(market: string, symbol: string): Promise<ChartResponse> {
-  const resp = await fetch(`/api/chart/${market}/${symbol}`);
+// `bars` caps the window the read returns (spec §6.4 / ticket #77): the mini
+// charts ask for 60 so a thumbnail never ships a full price history, and the
+// sheet asks for the same 60 so a mini already on screen makes the open a cache
+// hit (the shared-cache point of §6.4). Omitted → the backend's default window.
+export async function fetchChart(
+  market: string,
+  symbol: string,
+  bars?: number | null,
+): Promise<ChartResponse> {
+  const query = bars == null ? "" : `?bars=${bars}`;
+  const resp = await fetch(`/api/chart/${market}/${symbol}${query}`);
   if (!resp.ok) throw new Error(`GET /api/chart/${market}/${symbol} → ${resp.status}`);
   return (await resp.json()) as ChartResponse;
 }

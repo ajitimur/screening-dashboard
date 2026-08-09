@@ -424,7 +424,7 @@ def _resolution_failures(
                 status=outcome,
                 # Mirrors the gate above: only a common-stock listing the source
                 # did not refuse was ever measured against the floor.
-                counted=is_common_stock(i.name) and outcome != "refused",
+                counted=is_common_stock(i.symbol, i.name) and outcome != "refused",
             )
         )
     return failures
@@ -644,7 +644,7 @@ def run_market_universe(
     # This changes nothing about what the universe *is*: both slices were
     # already outside the completeness gate's denominator below, so pre-fetch
     # filtering leaves ``measurable`` and every derived count identical. On IDX
-    # the enumeration carries no security names, so ``is_common_stock("")`` is
+    # the enumeration carries no security names and no "$", so ``is_common_stock`` is
     # True and the candidate filter is a correct no-op there.
     index_symbol = MARKET_INDEX[market]
     to_resolve = [
@@ -653,7 +653,7 @@ def run_market_universe(
         if i.symbol not in refused_before
         and (
             (i.role == "reference" and i.symbol == index_symbol)
-            or (i.role == "candidate" and is_common_stock(i.name))
+            or (i.role == "candidate" and is_common_stock(i.symbol, i.name))
         )
     ]
     # The nightly fetch is incremental (spec §3.6): a symbol with stored bars is
@@ -742,7 +742,9 @@ def run_market_universe(
     # holds the instrument-type exclusions that were never fetched — those read
     # a default ``"unresolved"`` below (they produced no bars, which is the
     # truth), never a KeyError.
-    tradeable = [i.symbol for i in candidate_instruments if is_common_stock(i.name)]
+    tradeable = [
+        i.symbol for i in candidate_instruments if is_common_stock(i.symbol, i.name)
+    ]
     measurable = [s for s in tradeable if status[s] != "refused"]
     resolved = [s for s in measurable if status[s] == "resolved"]
     published = len(resolved) >= RESOLUTION_FLOOR * len(measurable)
@@ -894,7 +896,9 @@ def run_market_from_source(
     """
     instruments, resolutions = resolve_market(source, market)
     names = {i.symbol: i.name for i in instruments}
-    tradeable = [r for r in resolutions if is_common_stock(names.get(r.symbol, ""))]
+    tradeable = [
+        r for r in resolutions if is_common_stock(r.symbol, names.get(r.symbol, ""))
+    ]
     enumerated = [r.symbol for r in tradeable if r.status != "refused"]
     resolved = [r.symbol for r in tradeable if r.status == "resolved"]
     return run_market(

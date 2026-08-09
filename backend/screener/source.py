@@ -9,6 +9,12 @@ It does two things and only two things reach the network through it:
 - **resolve** a symbol to its bars, paced and backed off, returning a *result
   type* — never a bare list.
 
+The symbol a caller passes is always the enumeration's own — the Nasdaq form for
+US, which every stored row is keyed by. Where the provider spells it differently
+(a share class is ``BRK.B`` in the listing file and ``BRK-B`` on the wire, #105)
+the translation happens at the request itself, in :func:`provider_symbol`, and
+is invisible above this module.
+
 The load-bearing behaviour is a failure mode, not a feature. **Yahoo fails as
 silence** (spec §3.2): a throttled request returns an empty result that is
 byte-identical to a genuinely dead name. No per-symbol care can separate the two
@@ -28,6 +34,7 @@ and every test fakes *this* boundary — nothing else needs the network.
 
 from __future__ import annotations
 
+import re
 import threading
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
@@ -151,6 +158,10 @@ class SourceClient(Protocol):
         """Return the symbol's bars, or an empty list for silence. Raises
         :class:`RateLimitedError` on a 429.
 
+        ``symbol`` is always the enumeration's own form; translating it to
+        whatever the provider answers to (:func:`provider_symbol`) is the
+        client's business, not the caller's.
+
         ``start`` selects the request window (spec §3.6): ``None`` is a cold
         start asking for full history (``period="max"``); a date fetches from
         that session forward. The distinction is load-bearing — a *stated*
@@ -225,6 +236,36 @@ def parse_idx_screener(symbols: list[str]) -> list[Instrument]:
     instruments = [Instrument(market="IDX", symbol=MARKET_INDEX["IDX"], role="reference")]
     instruments.extend(Instrument(market="IDX", symbol=s, role="candidate") for s in symbols)
     return instruments
+
+
+# -- the provider's wire form -------------------------------------------------
+
+# A US share class is written with a dot in the Nasdaq listing files and with a
+# dash by the provider: ``BRK.B`` is silence, ``BRK-B`` is Berkshire Hathaway
+# (#105). 23 US listings — Berkshire, Brown-Forman, Heico, Moog, Molson Coors,
+# Lennar among them — resolved as nothing every night for this alone.
+#
+# The Nasdaq form is the *identity*: the enumeration, the store's bars, the
+# universe rows and every derived stream are keyed by it, and rewriting it in
+# the listing file would rename symbols mid-history. So the dash exists only on
+# the wire, applied where the request is issued and nowhere above.
+#
+# A *class* suffix is a single letter; a Yahoo *exchange* suffix is longer
+# (``BBCA.JK``), and IDX's whole enumeration carries one — matching only the
+# single-letter form leaves that market untouched.
+_SHARE_CLASS = re.compile(r"[A-Z]+\.[A-Z]")
+
+
+def provider_symbol(symbol: str) -> str:
+    """The form the provider answers to for ``symbol``.
+
+    Identity for everything but a dotted US share class, which becomes the
+    provider's dash form. Applied at the request itself, so callers keep the
+    Nasdaq symbol as the name for the thing.
+    """
+    if _SHARE_CLASS.fullmatch(symbol):
+        return symbol.replace(".", "-")
+    return symbol
 
 
 # -- pacing -------------------------------------------------------------------
@@ -381,6 +422,9 @@ class YFinanceSourceClient:
         """Download a symbol's bars. Empty on silence; raises on a 429 or a
         stated refusal.
 
+        The request goes out under :func:`provider_symbol` — the dash form for a
+        US share class (#105) — while everything above keeps the Nasdaq symbol.
+
         Goes through ``Ticker.history`` rather than ``yfinance.download``:
         ``download`` catches everything the fetch raised, prints it, and hands
         back an empty frame, which flattens a refusal the provider *stated* into
@@ -415,7 +459,7 @@ class YFinanceSourceClient:
         try:
             # A cold start asks for the whole history; an incremental fetch asks
             # from ``start`` forward, which leaves ``period`` unset (issue #100).
-            history = yf.Ticker(symbol).history
+            history = yf.Ticker(provider_symbol(symbol)).history
             frame = (
                 history(period="max", auto_adjust=False)
                 if start is None
@@ -445,7 +489,7 @@ class YFinanceSourceClient:
         import yfinance as yf
 
         try:
-            info = yf.Ticker(symbol).info
+            info = yf.Ticker(provider_symbol(symbol)).info
         except Exception as exc:  # yfinance raises its own YFRateLimitError type
             if type(exc).__name__ == "YFRateLimitError":
                 raise RateLimitedError(symbol) from exc

@@ -357,3 +357,34 @@ def test_instrument_type_excluded_listings_do_not_drag_the_completeness_gate(sto
     assert record.status == "published"
     assert record.symbols_enumerated == 90, "instrument-type exclusions stayed out of the denominator"
     assert record.symbols_resolved == 90
+
+
+def test_preferreds_marked_only_by_their_symbol_leave_the_denominator(store: Store):
+    # The same failure mode as the warrants above, reappearing through a
+    # punctuation the name-based rule cannot see (#105). Nasdaq writes a
+    # preferred or depositary series with "$" and its name says nothing —
+    # "7.125% Series H", "Depositary Shares" — so all nine sat in the US
+    # denominator, were fetched, came back silent, and were counted against a
+    # floor they were never meant to be measured by.
+    preferreds = ["DBRG$H", "DBRG$I", "DBRG$J", "EQH$A", "MET$E",
+                  "MS$F", "NLY$F", "STT$G", "TFC$I"]
+    instruments = {
+        "US": parse_us_listings(
+            "Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares\n"
+            + "".join(f"S{i}|Corp {i} - Common Stock|Q|N|N|100|N|N\n" for i in range(90)),
+            "ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol\n"
+            + "".join(f"{s}|Bank Corp Depositary Shares|N|{s}|N|100|N|{s}\n" for s in preferreds),
+        )
+    }
+    responses = {f"S{i}": [["bar"]] for i in range(90)}
+    responses.update({s: [[]] for s in preferreds})
+    client = FakeClient(instruments=instruments, responses=responses)
+    src, _ = make_source(client)
+
+    record = run_market_from_source(
+        store, "US", date(2026, 8, 6), src, now=datetime(2026, 8, 6, 22, 10)
+    )
+
+    assert record.status == "published"
+    assert record.symbols_enumerated == 90, "symbol-marked preferreds stayed out of the denominator"
+    assert record.symbols_resolved == 90

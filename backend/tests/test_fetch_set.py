@@ -8,9 +8,10 @@ enumeration alone:
   bars read by any code path; the other ~5,581 ETFs are enumerated but never
   looked at. So only the index is fetched among reference-role instruments.
 - **Instrument-type exclusions.** ``is_common_stock`` already drops warrants,
-  rights, units and preferreds from the universe (§4.1) and ``measurable``
-  already refuses to count them, but the filter ran *after* the fetch. Run it
-  first and an excluded name is never fetched.
+  rights, units and preferreds from the universe (§4.1) — by name, and by the
+  "$" in the symbol for the preferreds whose name gives nothing away (#105) —
+  and ``measurable`` already refuses to count them, but the filter ran *after*
+  the fetch. Run it first and an excluded name is never fetched.
 
 Neither changes what the universe *is*: the completeness gate's denominator is
 identical, because both slices were already outside it. This is a placement
@@ -83,6 +84,15 @@ def test_only_the_index_and_common_stocks_are_ever_fetched(store, tmp_path):
         Instrument(market="US", symbol=f"W{i}", role="candidate", name=f"Corp {i} Warrant")
         for i in range(4)
     ]
+    # Preferreds and depositary shares, whose *names* admit to nothing (#105):
+    # only the "$" in the symbol marks them, and they must be filtered out of
+    # the fetch set on it exactly as the named exclusions are.
+    instruments += [
+        Instrument(market="US", symbol="DBRG$H", role="candidate",
+                   name="DigitalBridge Group, Inc. 7.125% Series H"),
+        Instrument(market="US", symbol="MET$E", role="candidate",
+                   name="MetLife, Inc. Depositary Shares"),
+    ]
     bars = {"^IXIC": [_row(s, close=100.0, volume=1) for s in sessions]}
     bars.update({f"S{i}": [_row(s, close=2000.0, volume=1_000_000) for s in sessions] for i in range(5)})
 
@@ -96,3 +106,4 @@ def test_only_the_index_and_common_stocks_are_ever_fetched(store, tmp_path):
     assert sorted(set(client.fetched)) == sorted(["^IXIC", "S0", "S1", "S2", "S3", "S4"])
     assert not any(s.startswith("ETF") for s in client.fetched)
     assert not any(s.startswith("W") for s in client.fetched)
+    assert not any("$" in s for s in client.fetched)

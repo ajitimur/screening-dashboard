@@ -23,16 +23,19 @@ from .bars import Bar, clean_bars, parse_bars
 from .detection import Detection, detect, detection_gate
 from .digest import build_digest, render_digest
 from .labels import select_fetches
-from .models import ResolutionFailure, RunRecord
+from .models import SILENT_STATUSES, ResolutionFailure, RunRecord
 from .ranks import Rank, rank_table
 from .regime import index_broke_out
 from .source import (
     DEFAULT_RESOLVE_WORKERS,
     MARKET_INDEX,
+    SWEEP_WORKERS,
     Instrument,
+    Resolution,
     Source,
     resolve_all,
     resolve_market,
+    sweep_silence,
 )
 from .store import Store
 from .universe import is_common_stock, rebuild_universe
@@ -345,6 +348,30 @@ def _duration(seconds: float) -> str:
     return f"{minutes // 60}h{minutes % 60:02d}m"
 
 
+def sweep_rest_line(market: str, silent: int, pause: float) -> str:
+    """The heartbeat before a tail sweep's rest (issue #104).
+
+    A pull that stops dead for five minutes with nothing on stdout is exactly the
+    wedged-or-working ambiguity the heartbeats exist to break (issue #96), and
+    the rest is the longest single silence the run has. So it is announced
+    *before* it is taken, with how many symbols it is being taken for.
+    """
+    return (
+        f"{market}: sweep — resting {_duration(pause)} before re-asking "
+        f"{silent:,} silent symbols"
+    )
+
+
+def sweep_result_line(market: str, recovered: int, silent: int) -> str:
+    """What the tail sweep got back — the run's own diagnosis of its silence.
+
+    A high recovery rate says the pull was throttled and the sweep is doing the
+    job this issue opened for; near-zero says the silence is the listings, and
+    the rests are being spent for nothing.
+    """
+    return f"{market}: sweep recovered {recovered:,} of {silent:,} silent symbols"
+
+
 def summarize_pull(record: RunRecord, failures: list[ResolutionFailure]) -> str:
     """One human-readable block explaining how a run's pull went (issue #91).
 
@@ -363,17 +390,20 @@ def summarize_pull(record: RunRecord, failures: list[ResolutionFailure]) -> str:
     if not failures:
         return lines[0]
     counted = [f for f in failures if f.counted]
-    unresolved = [f for f in counted if f.status == "unresolved"]
+    silent = [f for f in counted if f.status in SILENT_STATUSES]
+    throttled = [f for f in silent if f.status == "throttled"]
     refused = [f for f in failures if f.status == "refused"]
     excluded = [f for f in failures if not f.counted and f.status != "refused"]
     lines.append(
         f"{record.market}: {len(failures)} enumerated candidates left no bars — "
-        f"{len(unresolved)} silent and counted against the gate, "
+        f"{len(silent)} silent and counted against the gate "
+        f"({len(throttled)} throttled, {len(silent) - len(throttled)} answered "
+        "empty, both after the tail sweep), "
         f"{len(refused)} refused by the provider, "
         f"{len(excluded)} silent but excluded on instrument type"
     )
     for label, group in (
-        ("silent, counted", unresolved),
+        ("silent, counted", silent),
         ("refused", refused),
     ):
         if not group:
@@ -388,20 +418,71 @@ def summarize_pull(record: RunRecord, failures: list[ResolutionFailure]) -> str:
     return "\n".join(lines)
 
 
+def _ingest_bars(
+    store: Store,
+    source: Source,
+    market: str,
+    resolution: Resolution,
+    *,
+    start: date | None,
+    now: datetime,
+) -> None:
+    """Persist one resolution's bars, repairing an adjustment drift if it shows.
+
+    A no-op for anything that produced no bars — silence and refusals are
+    verdicts the caller records, not data. Shared by the pull loop and the tail
+    sweep (issue #104) so a symbol that answered on the second asking is stored
+    exactly as one that answered on the first.
+
+    Adjustment-drift detection and repair (spec §3.6, issue #102): an incremental
+    fetch (``start`` is not None) re-requests ~20 sessions of overlap, and
+    comparing those adjusted closes against stored history catches a
+    corporate-action rebasis for free. On disagreement the stored series is
+    *wrong*, not stale — appending the new-basis overlap would write a seam the
+    detector reads as real price action — so the symbol is full-refetched now
+    (``start=None`` -> ``period="max"``) and its bars replaced, rather than
+    waiting for its turn in #101's rolling full-depth slice. The repair is
+    bars-only: derived rows stay as computed (§3.5's ratio invariance). If the
+    refetch comes back short of a full series the stored bars are left untouched
+    — better a stale-but-consistent history than one we seam ourselves — and the
+    drift is caught again next night.
+    """
+    if resolution.status != "resolved":
+        return
+    bars = clean_bars(parse_bars(resolution.bars), market, now)
+    if not bars:
+        return
+    symbol = resolution.symbol
+    if start is not None and _adjustment_drift(store.bars(market, symbol), bars):
+        repaired = clean_bars(parse_bars(source.resolve(symbol).bars), market, now)
+        if repaired:
+            store.replace_bars(market, symbol, repaired)
+        return
+    store.append_bars(market, symbol, bars)
+
+
 def _resolution_failures(
     market: str,
     session: date,
     candidates: list[Instrument],
     status: dict[str, str],
+    throttled: set[str],
 ) -> list[ResolutionFailure]:
     """Every enumerated candidate that came back with no bars, and why (#91).
 
     One row per candidate whose outcome was not ``resolved``, carrying the
     source's stated outcome and whether the symbol sat in the completeness
     gate's denominator. The two together are what separate the diagnoses a bare
-    count cannot: a wall of ``unresolved`` names that *count* is a throttled
-    pull, and a wall of ``refused`` or instrument-type-excluded ones that do not
-    is a listing file carrying instruments the provider never serves (#90).
+    count cannot: a wall of silent names that *count* is a throttled pull, and a
+    wall of ``refused`` or instrument-type-excluded ones that do not is a listing
+    file carrying instruments the provider never serves (#90).
+
+    Silence itself splits in two here (issue #104): a symbol in ``throttled``
+    was answered with a 429 rather than an empty frame, and having survived both
+    the retries and the tail sweep's rests it says the session's pacing is still
+    too hot — where an empty answer, after the same treatment, says the listing.
+    The distinction is recorded and nothing else: both statuses count, and the
+    run reached its verdict without consulting either.
 
     References — the index, ETFs — are not here: they are enumerated but were
     never part of the tradeable denominator (§3.4 rule 7), so their silence is a
@@ -415,6 +496,8 @@ def _resolution_failures(
         outcome = status.get(i.symbol, "unresolved")
         if outcome == "resolved":
             continue
+        if i.symbol in throttled:
+            outcome = "throttled"
         failures.append(
             ResolutionFailure(
                 market=market,
@@ -612,6 +695,13 @@ def run_market_universe(
     source's, unchanged, and concurrency spends the 12 req/s budget rather than
     raising it. Every store write stays on this thread — :func:`resolve_all`
     hands back one result at a time — so ingestion is as serial as it ever was.
+
+    Whatever the pull could not get, it rests and asks again before the gate ever
+    sees it (:func:`sweep_silence`, issue #104): silence in the last stretch of a
+    long pull is usually the pull's own exhaustion, and a name written off there
+    quarantines a run over listings that are perfectly alive. A swept symbol is
+    counted, ingested and recorded exactly as one that answered the first time —
+    the sweep revises the pull's verdicts, it does not run beside them.
     """
     instruments = source.enumerate(market)
     # Symbols the provider has already refused history for are skipped entirely,
@@ -626,6 +716,10 @@ def run_market_universe(
         i.symbol: "refused" for i in instruments if i.symbol in refused_before
     }
     counts: Counter[str] = Counter()
+    # Which silences the provider *stated* (a 429) rather than answered empty.
+    # Both are silence and both count against the gate; they are separated only
+    # in the failure record, where the difference is the diagnosis (issue #104).
+    throttled: set[str] = set()
     started = time.monotonic()
     # Shrink the fetch set before the resolve loop ever starts (issue #99). Two
     # slices of the enumeration are known from the enumeration alone to be
@@ -686,33 +780,11 @@ def run_market_universe(
             # later night skips this listing rather than letting a ``start=``
             # fetch collapse it into silence and drag the gate (spec §3.6, #47).
             store.mark_refused(market, resolution.symbol, session)
-        if resolution.status == "resolved":
-            bars = clean_bars(parse_bars(resolution.bars), market, now)
-            if bars:
-                symbol = resolution.symbol
-                # Adjustment-drift detection and repair (spec §3.6, issue #102).
-                # An incremental fetch (start is not None) re-requests ~20 sessions
-                # of overlap; comparing those adjusted closes against stored history
-                # catches a corporate-action rebasis for free. On disagreement the
-                # stored series is *wrong*, not stale — appending the new-basis
-                # overlap would write a seam the detector reads as real price
-                # action — so this symbol is full-refetched now (start=None ->
-                # period="max") and its bars replaced, rather than waiting for its
-                # turn in #101's rolling full-depth slice. The repair is bars-only:
-                # derived rows stay as computed (§3.5's ratio invariance). If the
-                # refetch comes back short of a full series the stored bars are
-                # left untouched — better a stale-but-consistent history than one
-                # we seam ourselves — and the drift is caught again next night.
-                if starts.get(symbol) is not None and _adjustment_drift(
-                    store.bars(market, symbol), bars
-                ):
-                    repaired = clean_bars(
-                        parse_bars(source.resolve(symbol).bars), market, now
-                    )
-                    if repaired:
-                        store.replace_bars(market, symbol, repaired)
-                else:
-                    store.append_bars(market, symbol, bars)
+        if resolution.status == "unresolved" and resolution.throttled:
+            throttled.add(resolution.symbol)
+        _ingest_bars(
+            store, source, market, resolution, start=starts.get(resolution.symbol), now=now
+        )
         if done % PROGRESS_EVERY == 0 or done == len(to_resolve):
             # The last line is not redundant with summarize_pull: it marks the
             # end of the *pull*, and the stages after it (universe, ranks,
@@ -724,6 +796,59 @@ def run_market_universe(
                     elapsed=time.monotonic() - started,
                 )
             )
+
+    # The tail sweep (issue #104). Silence at the end of a long pull is far more
+    # often the pull's own exhaustion than a fact about the listing — 310 of one
+    # US run's 339 silences landed in its last 500 symbols, and every one of them
+    # returned a full history when asked again minutes later. So the run rests
+    # and asks again before letting those names reach the gate. This is the same
+    # loop body as above, deliberately: a swept symbol is ingested, counted and
+    # recorded exactly as it would have been had it answered the first time.
+    silent = [s for s in to_resolve if status.get(s) == "unresolved"]
+    recovered = revised = 0
+    for resolution in sweep_silence(
+        source,
+        silent,
+        # Never wider than the pull itself: a caller that asked for a sequential
+        # pull gets a sequential sweep, and the sweep is a taper below whatever
+        # it was given.
+        workers=min(SWEEP_WORKERS, workers),
+        start_for=starts.get,
+        on_rest=lambda pause, waiting: progress(sweep_rest_line(market, waiting, pause)),
+    ):
+        # Every result here supersedes a verdict the loop above already counted,
+        # so the counts move rather than grow — a swept symbol is one symbol
+        # however many times it was asked.
+        was = status[resolution.symbol]
+        if resolution.status != was:
+            counts[was] -= 1
+            counts[resolution.status] += 1
+            status[resolution.symbol] = resolution.status
+            revised += 1
+        if resolution.status == "unresolved" and resolution.throttled:
+            throttled.add(resolution.symbol)
+        else:
+            throttled.discard(resolution.symbol)
+        recovered += resolution.status == "resolved"
+        if resolution.status == "refused":
+            store.mark_refused(market, resolution.symbol, session)
+        _ingest_bars(
+            store, source, market, resolution, start=starts.get(resolution.symbol), now=now
+        )
+    if silent:
+        progress(sweep_result_line(market, recovered, len(silent)))
+    if revised:
+        # The pull's last heartbeat counted silence the sweep has since answered,
+        # and left alone it is the run's final word on stdout. Same line, same
+        # totals, corrected outcomes — emitted only when there is a correction to
+        # make, so a sweep that got nothing back does not restate the pull's own
+        # accurate tally.
+        progress(
+            progress_line(
+                market, len(to_resolve), len(to_resolve), counts,
+                elapsed=time.monotonic() - started,
+            )
+        )
 
     candidate_instruments = [i for i in instruments if i.role == "candidate"]
     candidates = [i.symbol for i in candidate_instruments]
@@ -752,7 +877,9 @@ def run_market_universe(
     # integers (issue #91). The per-symbol outcomes live only inside this
     # function; a quarantine that records nothing else can be diagnosed no other
     # way than re-running the pull by hand against the live provider.
-    failures = _resolution_failures(market, session, candidate_instruments, status)
+    failures = _resolution_failures(
+        market, session, candidate_instruments, status, throttled
+    )
     if not published:
         recorded = store.run(market, session)
         if recorded is not None and recorded.status == "published":

@@ -41,7 +41,7 @@ from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from datetime import date
 from dataclasses import dataclass, field
 from itertools import islice
-from typing import Callable, Iterable, Iterator, Literal, Protocol
+from typing import Callable, Iterable, Iterator, Literal, Protocol, Sequence
 
 from pydantic import BaseModel
 
@@ -66,6 +66,31 @@ DEFAULT_BACKOFF_BASE = 1.0
 # past it buys anything. Every run resolved every symbol with zero 429s. This
 # spends the pacing budget; it does not raise it.
 DEFAULT_RESOLVE_WORKERS = DEFAULT_RATE_PER_SEC
+
+# The tail sweep (issue #104): how long to rest before re-asking a pull's silent
+# symbols, once per entry, and how many resolves to run while doing it.
+#
+# A US pull resolved 5,161 of 5,500 and put 310 of the 339 silences in its last
+# 500 symbols — one contiguous alphabetical block, at the far end of an ~8-minute
+# fetch, every name of which returned a full ten-year history when asked again a
+# few minutes later. So the cap above is not what those requests hit: 12 req/s
+# was measured over 30 symbols, and what bites after thousands of them in one
+# session is a *sustained* ceiling — a per-session or per-hour allowance that no
+# per-second pacing can spend its way around.
+#
+# Per-symbol backoff cannot wait that out either. Four attempts spread over seven
+# seconds are all inside the same exhausted window, so the retry budget is spent
+# before the allowance has refilled. The only thing the evidence says works is
+# rest, which is what this is: two of them, escalating, each followed by a pass
+# over whatever is still silent. The rate cap is untouched — the sweep runs at a
+# quarter of the pull's workers, which is a lower sustained rate at the same
+# ceiling, because a pass that re-throttles is a pass that answered nothing.
+#
+# The cost is bounded and paid only when it is needed: a clean pull rests not at
+# all, and the second rest fires only if the first one left something silent. A
+# nightly run can afford six minutes; a market that never publishes cannot.
+SWEEP_PAUSES = (60.0, 300.0)
+SWEEP_WORKERS = max(1, DEFAULT_RESOLVE_WORKERS // 4)
 
 # One index per market, ingested like anything else but never rankable — its
 # role is ``reference`` (spec §2, §4.9).
@@ -128,6 +153,12 @@ class Resolution:
     symbol: str
     status: ResolutionStatus
     bars: list = field(default_factory=list)
+    # Whether the silence was one the provider *stated* — a 429 — rather than an
+    # empty answer (issue #104). It changes nothing about the policy: both are
+    # silence, both are retried, both are unresolved-not-absent. It is carried
+    # because the two point at different remedies, and a quarantine that cannot
+    # say which one it hit can only be diagnosed by re-running the pull by hand.
+    throttled: bool = False
 
 
 @dataclass(frozen=True)
@@ -338,6 +369,16 @@ class Source:
         self._pacer.wait()
         return self._client.enumerate(market)
 
+    def pause(self, seconds: float) -> None:
+        """Stop asking for ``seconds`` — the sweep's rest (issue #104).
+
+        Waiting *between* requests is the pacer's job; this is waiting between
+        whole passes of a pull, which the pacer knows nothing about. It goes
+        through the source's injected clock for the same reason every other wait
+        does: a test drives the rest in virtual time rather than sleeping.
+        """
+        self._sleep(seconds)
+
     def resolve(self, symbol: str, start: date | None = None) -> Resolution:
         """Fetch a symbol's bars, paced and backed off, as a result type.
 
@@ -358,12 +399,16 @@ class Source:
         re-probing it every night.
         """
         delay = self._backoff_base
+        throttled = False
         for attempt in range(1, self._max_attempts + 1):
             self._pacer.wait()
             try:
                 bars = self._client.fetch(symbol, start)
             except RateLimitedError:
-                bars = []  # a 429 is silence too — back off and retry
+                # A 429 is silence too — back off and retry. It is *recorded*
+                # silence, though: unlike an empty answer the provider named
+                # this one, so the verdict carries which it was (issue #104).
+                bars, throttled = [], True
             except PermanentlyUnavailableError:
                 return Resolution(symbol, "refused", [])
             if bars:
@@ -371,7 +416,7 @@ class Source:
             if attempt < self._max_attempts:
                 self._sleep(delay)
                 delay *= 2
-        return Resolution(symbol, "unresolved", [])
+        return Resolution(symbol, "unresolved", [], throttled=throttled)
 
     def resolve_labels(self, symbol: str) -> LabelResolution:
         """Fetch a symbol's sector and industry, paced and backed off.
@@ -570,6 +615,59 @@ def resolve_all(
                 yield future.result()
                 for symbol in islice(remaining, 1):
                     pending.add(pool.submit(resolve_one, symbol))
+
+
+def sweep_silence(
+    source: Source,
+    symbols: Iterable[str],
+    *,
+    pauses: Sequence[float] = SWEEP_PAUSES,
+    workers: int = SWEEP_WORKERS,
+    start_for: Callable[[str], date | None] | None = None,
+    on_rest: Callable[[float, int], None] | None = None,
+) -> Iterator[Resolution]:
+    """Re-ask a pull's silent symbols, resting first (issue #104).
+
+    Silence that survived a symbol's own retries is not, on this provider,
+    reliably a fact about the symbol: at the end of a long pull it is far more
+    often a fact about the *pull*, and the same request answers in full once the
+    provider has been left alone for a minute. So the run does not write those
+    names off where they fell. It collects them, rests, and asks again — the
+    isolation retry that diagnosed the problem, done by the run itself.
+
+    Yields **one final resolution per symbol handed in** — the verdict as of the
+    last rest, which supersedes the one the pull reached. Most are unchanged;
+    the caller applies each as a revision rather than an addition, so a symbol is
+    counted, logged and ingested exactly once however many times it was asked.
+    A symbol yields as soon as it is answered — resolved, or refused — and is not
+    carried into a later rest, because no amount of waiting improves on an
+    answer. Only silence is carried, and it is yielded after the last one.
+
+    Each entry of ``pauses`` buys one rest and one pass over what is still
+    silent, so the sweeps stop early when the silence does. ``start_for`` is the
+    pull's own incremental window (spec §3.6), passed through unchanged — a
+    recovered symbol appends where it left off rather than re-downloading ten
+    years. ``on_rest`` is called with the pause and how many symbols are about to
+    be re-asked, *before* the wait: five silent minutes on stdout is the
+    wedged-or-working ambiguity the heartbeat exists to break (issue #96).
+    """
+    silent = list(symbols)
+    for attempt, pause in enumerate(pauses, 1):
+        if not silent:
+            return
+        if on_rest is not None:
+            on_rest(pause, len(silent))
+        source.pause(pause)
+        last_rest = attempt == len(pauses)
+        still_silent: list[str] = []
+        for resolution in resolve_all(
+            source, silent, workers=workers, start_for=start_for
+        ):
+            if resolution.status == "unresolved" and not last_rest:
+                still_silent.append(resolution.symbol)
+            else:
+                yield resolution
+        silent = still_silent
 
 
 def resolve_market(

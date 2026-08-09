@@ -40,15 +40,32 @@ class RunRecord(BaseModel):
     created_at: datetime
 
 
+# Why a candidate left no bars, as recorded. This is a wider vocabulary than the
+# source's own :data:`screener.source.ResolutionStatus`, and deliberately so: the
+# resolution *policy* has no use for the difference between an empty answer and a
+# stated 429 — both are silence, both retried, both unresolved-not-absent — while
+# the person reading a quarantine afterwards has nothing else to go on (#104).
+FailureStatus = Literal["unresolved", "throttled", "refused"]
+
+# The two of those that are *silence*: a symbol that produced no bars and no
+# explanation. They behave identically everywhere the run reasons about
+# completeness — both re-asked by the tail sweep, both counted against the gate.
+SILENT_STATUSES: tuple[FailureStatus, ...] = ("unresolved", "throttled")
+
+
 class ResolutionFailure(BaseModel):
     """One enumerated candidate a run got no bars for (issue #91).
 
     The run record says *how many* symbols fell short; this says *which* and
     *why*, which is the difference between a diagnosable quarantine and one that
     can only be investigated by re-running the pull by hand. ``status`` is the
-    source's stated outcome — ``unresolved`` is silence that survived retries
-    (the shape of a throttled pull), ``refused`` is the provider stating it
-    serves no history for this listing (the shape of a listing-quality problem).
+    source's stated outcome — ``throttled`` is silence the provider stated (a
+    429) and ``unresolved`` is silence it answered empty, both of them surviving
+    the retries *and* the tail sweep's rests (issue #104); ``refused`` is the
+    provider stating it serves no history for this listing (the shape of a
+    listing-quality problem). Silence that is throttled at the end of all that
+    says the pacing is still too hot for the session; silence that is empty says
+    the listing, which are opposite fixes.
     ``counted`` is whether the symbol sat in the completeness gate's denominator:
     refused and instrument-type-excluded listings are recorded but held out of
     it (§3.4 rule 7, issue #90), so a quarantine's arithmetic is legible too.
@@ -58,7 +75,7 @@ class ResolutionFailure(BaseModel):
     session: date
     symbol: str
     name: str
-    status: str
+    status: FailureStatus
     counted: bool
 
 

@@ -186,7 +186,11 @@ CREATE TABLE IF NOT EXISTS run_failures (
     session  DATE    NOT NULL,
     symbol   TEXT    NOT NULL,
     name     TEXT    NOT NULL,
-    status   TEXT    NOT NULL,  -- the source's stated outcome: unresolved | refused
+    -- the source's stated outcome: unresolved | throttled | refused. The first
+    -- two are both silence and both count against the gate; "throttled" is the
+    -- silence the provider stated with a 429, kept apart because it survived the
+    -- tail sweep's rests and so points at pacing rather than the listing (#104).
+    status   TEXT    NOT NULL,
     counted  BOOLEAN NOT NULL,  -- did it sit in the completeness gate's denominator?
     PRIMARY KEY (market, session, symbol)
 );

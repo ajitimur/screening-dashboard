@@ -285,10 +285,14 @@ def test_the_run_heartbeats_while_the_pull_is_still_in_flight(store: Store, tmp_
     )
 
     # One line per PROGRESS_EVERY symbols, plus a last one closing out the pull.
-    assert len(lines) == 3
-    assert lines[0].startswith(f"IDX: pull {PROGRESS_EVERY:,}/{total:,}")
-    assert lines[1].startswith(f"IDX: pull {PROGRESS_EVERY * 2:,}/{total:,}")
-    assert lines[2].startswith(f"IDX: pull {total:,}/{total:,}")
+    # The tail sweep's own lines (issue #104) land after all of these and are a
+    # different heartbeat, so the pull's account is read on its own.
+    pull_lines = [ln for ln in lines if ln.startswith("IDX: pull")]
+    assert len(pull_lines) == 3
+    assert pull_lines[0].startswith(f"IDX: pull {PROGRESS_EVERY:,}/{total:,}")
+    assert pull_lines[1].startswith(f"IDX: pull {PROGRESS_EVERY * 2:,}/{total:,}")
+    assert pull_lines[2].startswith(f"IDX: pull {total:,}/{total:,}")
+    assert lines[:3] == pull_lines[:3], "a sweep line interleaved with the pull's"
 
 
 def test_the_run_ingests_bars_on_the_calling_thread(store: Store, tmp_path):

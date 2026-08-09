@@ -13,7 +13,7 @@ deliberately both:
   night is invisible until you notice the as-of date).
 
 This module owns the *decision* both mechanisms share — is the last final
-session missing? — and renders the plists. The run itself is
+session missing or quarantined? — and renders the plists. The run itself is
 :func:`screener.pipeline.run_market_universe`; the background coordinator that
 run-on-open drives is :class:`screener.runner.RunManager`.
 """
@@ -25,6 +25,7 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from .bars import EXCHANGE, is_final
+from .models import RunRecord
 
 # The market-local hour each scheduled job fires at, *after* that market's close
 # (spec §7.3): ≥19:00 WIB for IDX (the 2026-08-04 bar was measured final at 19:49
@@ -64,18 +65,28 @@ def last_final_session(market: str, now: datetime) -> date:
     return session
 
 
-def run_is_due(latest_session: date | None, market: str, now: datetime) -> bool:
-    """Is a run due — is the last final session missing from the store?
+def run_is_due(last: RunRecord | None, market: str, now: datetime) -> bool:
+    """Is a run due — is the last final session missing or quarantined?
 
-    ``latest_session`` is the store's last *published* session (``None`` when no
-    run has published). A run is due when that session is behind
-    :func:`last_final_session` — the one predicate the scheduled job checks on
-    fire and the tab checks on open, so the two mechanisms cannot disagree about
-    what "tonight" is.
+    ``last`` is the store's last run of **any** status (:meth:`Store.last_run`),
+    ``None`` when the market has never run. A run is due when that session is
+    behind :func:`last_final_session`, or when it *is* the last final session but
+    quarantined — the one predicate the scheduled job checks on fire and the tab
+    checks on open, so the two mechanisms cannot disagree about what "tonight" is.
+
+    Measuring against the last *published* session instead was the shape of issue
+    #103: a quarantined session is invisible to that reading, so this stayed True
+    for the same date every firing while :meth:`Store.append_run` refused the
+    second row — every retry paying the full pull and then crashing. Reading the
+    last row of any status makes the two agree: a quarantined night is due
+    because it is *retriable* (:meth:`Store.discard_session` supersedes it),
+    not because it looks absent, and a published one is never due twice.
     """
-    if latest_session is None:
+    if last is None:
         return True
-    return latest_session < last_final_session(market, now)
+    if last.session < last_final_session(market, now):
+        return True
+    return last.status == "quarantined"
 
 
 def launchd_plist(

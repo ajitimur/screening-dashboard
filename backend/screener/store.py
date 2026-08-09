@@ -237,7 +237,9 @@ class SessionExistsError(RuntimeError):
 
 
 # The derived streams one session computes — every table keyed (market, session)
-# and guarded by :meth:`Store._guard_absent`, minus ``runs`` itself. ``bars`` is
+# and guarded by :meth:`Store._guard_absent`, minus ``runs`` itself, which is the
+# commit point over them rather than one of them (:meth:`discard_session` clears
+# it separately, and only for a session that never published). ``bars`` is
 # deliberately not here: bars are the ingest substrate, committed per symbol so a
 # killed pull keeps what it already fetched (spec §3.3), and a re-pull appends
 # them idempotently rather than recomputing them.
@@ -364,32 +366,39 @@ class Store:
     # -- writes (append-only) ---------------------------------------------
 
     def discard_session(self, market: str, session: date) -> int:
-        """Drop the derived rows of a session that was never stamped with a run.
+        """Drop the rows of a session that never published, so it can be redone.
 
         A run computes a session's derived streams and stamps its run record
         **last**, which makes the run record the commit point — every read keys
         off the last *published* run, so a session without one was never visible
-        to anyone. A run that dies in between therefore leaves rows belonging to
-        no session: debris, not history. Left in place they are permanent, and
-        :meth:`_guard_absent` refuses to let any later run recompute that
-        session, so one interrupted run wedges the market for good.
+        to anyone. Two kinds of session sit in that state, and both must be
+        recomputable or the write-once guard (:meth:`_guard_absent`) turns one
+        bad night into a permanent one:
 
-        Clearing them is not a rewrite of recorded history. A session that
-        *does* carry a run record — published or quarantined — is refused here,
-        so the write-once guarantee (spec §7.2) still holds over everything a
-        run ever published. Returns the number of rows discarded.
+        - **No run record at all** — a run that died mid-session, leaving rows
+          belonging to no session: debris, not history (issue #46).
+        - **A quarantined run record** — the pull fell below the completeness
+          floor, so it wrote no universe, no ranks, nothing anyone read; only
+          the run row and its failure rows (issue #103). Its own row is what
+          made a same-day retry crash instead of running, so the row goes too.
+
+        Clearing either is not a rewrite of recorded history. A **published**
+        session is refused here, so the write-once guarantee (spec §7.2) holds
+        over everything a run ever published — the one invariant this method
+        exists not to break. The failure rows go with the quarantine that wrote
+        them: they explain *that* attempt's shortfall, and outliving their run
+        record would leave them read as the retry's account of itself.
+
+        Returns the number of rows discarded, the run record included.
         """
-        recorded = self._cursor().execute(
-            "SELECT 1 FROM runs WHERE market = ? AND session = ? LIMIT 1",
-            [market, session],
-        ).fetchone()
-        if recorded is not None:
+        recorded = self.run(market, session)
+        if recorded is not None and recorded.status == "published":
             raise SessionExistsError(
-                f"({market}, {session}) carries a run record; a recorded "
-                "session's derived rows are never discarded"
+                f"({market}, {session}) carries a published run record; a "
+                "published session's rows are never discarded"
             )
         discarded = 0
-        for table in _DERIVED_TABLES:
+        for table in (*_DERIVED_TABLES, "runs"):
             deleted = self._cursor().execute(
                 f"DELETE FROM {table} WHERE market = ? AND session = ? RETURNING 1",
                 [market, session],
@@ -816,6 +825,45 @@ class Store:
             if record.status == "published":
                 return record
         return None
+
+    def run(self, market: str, session: date) -> RunRecord | None:
+        """One session's run record, or ``None`` if it never ran.
+
+        The keyed read behind every "has this session already been written, and
+        how did it end" question — the two callers that ask it (the write-once
+        guard in :meth:`discard_session` and the pipeline's refusal to quarantine
+        over a published session) would otherwise each scan the market's whole
+        run history to answer about one date.
+        """
+        row = self._cursor().execute(
+            "SELECT market, session, status, symbols_enumerated, symbols_resolved, "
+            "created_at FROM runs WHERE market = ? AND session = ?",
+            [market, session],
+        ).fetchone()
+        if row is None:
+            return None
+        return RunRecord(
+            market=row[0],
+            session=row[1],
+            status=row[2],
+            symbols_enumerated=row[3],
+            symbols_resolved=row[4],
+            created_at=row[5],
+        )
+
+    def last_run(self, market: str) -> RunRecord | None:
+        """The last run of **any** status — what this market has already written.
+
+        The sibling question to :meth:`latest_run`, and the one the scheduler
+        asks (:func:`screener.schedule.run_is_due`). Reading a quarantined
+        session through ``latest_run`` reports it as *absent*, which is a
+        different claim from *not published*: the store holds a row for it, and
+        the guard that keeps sessions write-once refuses a second one. So the
+        decision to run is made against the last row that exists, and the row's
+        ``status`` decides whether that session is retriable (issue #103).
+        """
+        records = self.runs(market)
+        return records[0] if records else None
 
     def universe(self, market: str, session: date) -> list[str]:
         rows = self._cursor().execute(

@@ -99,13 +99,16 @@ def create_app(
         # missing (``run_due``) and whether a run is already in flight
         # (``running``), so opening it kicks a run and shows a progress state
         # without ever serving a half-written session — the served ``latest`` is
-        # the last *published* run throughout.
+        # the last *published* run throughout. ``run_due`` is measured against the
+        # last run of *any* status instead: a quarantined last final session is
+        # due (it published nothing and is retriable) but is not an as-of session
+        # (issue #103), so the two reads ask different questions of the store.
         return RunsResponse(
             market=market,
             latest=latest,
             runs=store.runs(market),
             universe_size=len(store.universe(market, latest.session)) if latest else None,
-            run_due=run_is_due(latest.session if latest else None, market, clock()),
+            run_due=run_is_due(store.last_run(market), market, clock()),
             running=run_manager.is_running(market) if run_manager else False,
             # A run that crashed clears ``running`` and publishes nothing, which
             # is indistinguishable from never having run at all. Surface the

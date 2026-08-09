@@ -36,15 +36,14 @@ def run_once(
     now: datetime,
     digests_dir: Path = DEFAULT_DIGESTS_DIR,
 ) -> RunRecord | None:
-    """Run ``market``'s pipeline for the last final session, if it is missing.
+    """Run ``market``'s pipeline for the last final session, if it is due.
 
     Returns the resulting :class:`RunRecord`, or ``None`` when the store already
-    holds the last final session (nothing was due). ``now`` must be
-    timezone-aware; it fixes both the finality decision and the session run.
+    holds the last final session as a *published* run (nothing was due — a
+    quarantined one is retried, issue #103). ``now`` must be timezone-aware; it
+    fixes both the finality decision and the session run.
     """
-    latest = store.latest_run(market)
-    latest_session = latest.session if latest else None
-    if not run_is_due(latest_session, market, now):
+    if not run_is_due(store.last_run(market), market, now):
         return None
     session = last_final_session(market, now)
     return run_market_universe(

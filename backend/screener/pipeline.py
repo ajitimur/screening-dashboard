@@ -440,21 +440,38 @@ def _sessions_to_backfill(store: Store, market: str, target: date) -> list[date]
     the last published session and no later than ``target`` — a week away costs
     a handful of these and leaves no hole.
 
-    Only **absent** sessions are returned: a session that already carries a run
-    record (published *or* quarantined) is skipped, because derived rows are
-    written once and never rewritten (spec §7.2). ``target`` is always included
-    when it is itself absent, so a holiday with no bar still stamps a run and the
-    tab stops re-triggering. On a *first* run — no prior published session — only
-    ``target`` is computed rather than the entire ten-year history.
+    Only sessions that never **published** are returned. A published session is
+    skipped, because derived rows are written once and never rewritten (spec
+    §7.2). A *quarantined* one is not skipped: it wrote no universe and no ranks,
+    so it is a hole in the derived streams rather than recorded history, and the
+    session — target or older night — is recomputed from the bars now on disk
+    (:meth:`Store.discard_session` supersedes its run row, issue #103).
+    ``target`` is always included when it has not published, so a holiday with no
+    bar still stamps a run and the tab stops re-triggering.
+
+    Where the fill *starts* is the last published session, or — before anything
+    has ever published — the earliest run record on file, so a market whose only
+    rows are quarantines fills every night it fell short instead of leaving them
+    permanently empty. That is still bounded by the number of nights the market
+    has run, never the entire ten-year history: a genuinely first run has no rows
+    at all and computes ``target`` alone.
     """
-    recorded = {r.session for r in store.runs(market)}
-    latest = store.latest_run(market)
+    records = store.runs(market)
+    published = {r.session for r in records if r.status == "published"}
+    # A published floor is exclusive and a quarantined one inclusive; both fall
+    # out of one ``floor <= s`` because the published sessions are filtered off
+    # the result below.
+    floor = (
+        max(published)
+        if published
+        else min((r.session for r in records), default=None)
+    )
     out: list[date] = []
-    if latest is not None:
-        out = [s for s in store.sessions(market) if latest.session < s <= target]
+    if floor is not None:
+        out = [s for s in store.sessions(market) if floor <= s <= target]
     if target not in out:
         out.append(target)
-    return sorted(s for s in out if s not in recorded)
+    return sorted(s for s in out if s not in published)
 
 
 def _compute_session(
@@ -577,15 +594,17 @@ def run_market_universe(
     (§6). ``now`` must be timezone-aware for the finality rule.
 
     ``session`` is the *target* — the latest final session (spec §7.3). The bars
-    are pulled once, then **every absent session** between the last computed one
-    and the target is recomputed from them, ascending, so stopping the job for a
-    week and restarting leaves no hole in any derivable stream (acceptance A5).
-    Backfill fills only absent sessions; a session already recorded is never
-    rewritten. An absent session that nonetheless carries derived rows is debris
-    from an interrupted run — the run record is stamped last, so a run that died
-    mid-session left rows belonging to no session — and is discarded before the
-    session is recomputed, so one killed run cannot wedge a market for good.
-    The returned record is the target session's run.
+    are pulled once, then **every session that has not published** between the
+    last published one and the target is recomputed from them, ascending, so
+    stopping the job for a week and restarting leaves no hole in any derivable
+    stream (acceptance A5). A *published* session is never rewritten. The two
+    kinds of unpublished session are both recomputed and both first cleared
+    (:meth:`Store.discard_session`): derived rows carried by a session with no run
+    record are debris from a run that died before stamping it (issue #46), and a
+    quarantined session is an attempt that wrote no universe and no ranks, so it
+    is superseded rather than left to refuse every retry until the calendar rolls
+    (issue #103). The returned record is the target session's run, or ``None``
+    when the target had already published and there was nothing to compute.
 
     The pull runs ``workers`` resolves at once and heartbeats every
     :data:`PROGRESS_EVERY` symbols (issue #96). Both are properties of the *loop*
@@ -733,11 +752,27 @@ def run_market_universe(
     # way than re-running the pull by hand against the live provider.
     failures = _resolution_failures(market, session, candidate_instruments, status)
     if not published:
+        recorded = store.run(market, session)
+        if recorded is not None and recorded.status == "published":
+            # This session already published, and a throttled pull is not grounds
+            # to take that back: a quarantine written over it would replace a
+            # served session with a banner on strictly worse evidence. Nothing is
+            # recorded and the published record stands — the same "nothing to
+            # compute" answer the publishing path below gives for a session that
+            # is already in the store.
+            return None
         # A throttled pull quarantines the whole run: no universe, no ranks, no
-        # backfill — the last good data keeps serving (spec §3.4 rule 7). The
-        # failure rows are written *first*: the run record is the commit point,
-        # so a run that dies in between leaves them as debris the next run
-        # clears, never a run record pointing at an explanation that is missing.
+        # backfill — the last good data keeps serving (spec §3.4 rule 7).
+        # Whatever this session already held is cleared first: debris from a run
+        # that died mid-session (issue #46), or an earlier attempt's quarantine
+        # and its failure rows (issue #103). Both are rows nobody ever read, and
+        # leaving either in place would make this attempt die on the write-once
+        # guard instead of recording that it fell short.
+        store.discard_session(market, session)
+        # The failure rows are written *before* the run record: the run record is
+        # the commit point, so a run that dies in between leaves them as debris
+        # the next run clears, never a run record pointing at an explanation that
+        # is missing.
         store.append_run_failures(market, session, failures)
         return store.append_run(
             market,
@@ -761,8 +796,9 @@ def run_market_universe(
         # derived streams but before stamping its run record — rows that belong
         # to no session, and that the write-once guard would otherwise refuse to
         # let this run recompute, wedging the market permanently. The sessions
-        # reaching here are by construction unrecorded, so anything found is
-        # debris from an interrupted run and is cleared before recomputing.
+        # reaching here have by construction never published, so anything found
+        # is either that debris or an earlier attempt's quarantine (issue #103),
+        # and both are cleared before recomputing.
         store.discard_session(market, backfill_session)
         _compute_session(
             store,

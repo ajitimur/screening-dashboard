@@ -950,7 +950,10 @@ the digest is backfillable over history, and a corrected rubric can be replayed 
 
 **Derived rows are written once and never rewritten.** They are a point-in-time record of what was
 knowable that night; rewriting them after a rescale would inject look-ahead into the very streams
-that exist *because* they are unbiased. Backfill only ever fills **absent** sessions.
+that exist *because* they are unbiased. Backfill only ever fills sessions that never
+**published** — an absent one, or a **quarantined** one, which wrote no universe and no ranks and so
+is a hole in the derived streams rather than a record of them (issue #103). A published session is
+never recomputed.
 
 **Every detection row must carry a `detector_version`.** Two detector-definition changes have
 already happened (the base/cluster swap, and `line_ok`'s demotion, which starts writing ~59% more

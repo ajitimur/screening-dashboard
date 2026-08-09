@@ -31,11 +31,11 @@ def test_run_writes_run_and_universe_rows(store: Store):
     assert record.status == "published"
     assert record.symbols_resolved == 3
     assert store.universe("US", date(2026, 8, 4)) == ["AAA", "BBB", "CCC"]
-    assert store.latest_run("US") == record
+    assert store.last_published_run("US") == record
 
 
 def test_tonight_is_the_max_session(seeded_store: Store):
-    assert seeded_store.latest_run("IDX").session == date(2026, 8, 4)
+    assert seeded_store.last_published_run("IDX").session == date(2026, 8, 4)
     assert [r.session for r in seeded_store.runs("IDX")] == [
         date(2026, 8, 4),
         date(2026, 8, 3),
@@ -72,7 +72,7 @@ def test_run_below_resolution_floor_is_quarantined_and_writes_no_universe(store:
     # A quarantined run must not replace good data: no universe rows, and it is
     # not the as-of session the tab would render.
     assert store.universe("US", date(2026, 8, 5)) == []
-    assert store.latest_run("US") is None
+    assert store.last_published_run("US") is None
 
 
 def test_materially_smaller_enumeration_is_quarantined_at_full_resolution(store: Store):
@@ -99,7 +99,7 @@ def test_materially_smaller_enumeration_is_quarantined_at_full_resolution(store:
     assert record.symbols_resolved == record.symbols_enumerated  # 100% resolved
     assert store.universe("US", date(2026, 8, 5)) == []
     # The last good run keeps serving behind the banner.
-    assert store.latest_run("US").session == date(2026, 8, 4)
+    assert store.last_published_run("US").session == date(2026, 8, 4)
 
 
 def test_modest_enumeration_shrinkage_within_tolerance_still_publishes(store: Store):
@@ -120,7 +120,7 @@ def test_modest_enumeration_shrinkage_within_tolerance_still_publishes(store: St
         now=datetime(2026, 8, 5, 22, 10),
     )
     assert record.status == "published"
-    assert store.latest_run("US").session == date(2026, 8, 5)
+    assert store.last_published_run("US").session == date(2026, 8, 5)
 
 
 def test_enumeration_baseline_is_the_last_good_run_not_a_quarantined_one(store: Store):
@@ -148,7 +148,7 @@ def test_enumeration_baseline_is_the_last_good_run_not_a_quarantined_one(store: 
         now=datetime(2026, 8, 6, 22, 10),
     )
     assert record.status == "quarantined"
-    assert store.latest_run("US").session == date(2026, 8, 4)
+    assert store.last_published_run("US").session == date(2026, 8, 4)
 
 
 def test_quarantine_is_per_market(store: Store):
@@ -165,18 +165,18 @@ def test_quarantine_is_per_market(store: Store):
         enumerated=us_enum, resolved=us_enum[:50],  # throttled, well below floor
         now=datetime(2026, 8, 5, 22, 10),
     )
-    assert store.latest_run("US") is None
-    assert store.latest_run("IDX").session == date(2026, 8, 5)
+    assert store.last_published_run("US") is None
+    assert store.last_published_run("IDX").session == date(2026, 8, 5)
 
 
 # -- retrying a quarantined session (issue #103) ------------------------------
 
 
 def test_last_run_is_the_last_row_of_any_status(store: Store):
-    # ``latest_run`` answers "what does the tab render" and so skips quarantines;
-    # the scheduler needs the other question — "what has this market already
-    # written" — or a quarantined session looks absent and is pulled again from
-    # scratch every firing.
+    # ``last_published_run`` answers "what does the tab render" and so skips
+    # quarantines; the scheduler needs the other question — "what has this market
+    # already written" — or a quarantined session looks absent and is pulled again
+    # from scratch every firing.
     enumerated = [f"S{i}" for i in range(100)]
     run_market(
         store, "US", date(2026, 8, 4),
@@ -189,7 +189,7 @@ def test_last_run_is_the_last_row_of_any_status(store: Store):
         now=datetime(2026, 8, 5, 22, 10),
     )  # quarantined
 
-    assert store.latest_run("US").session == date(2026, 8, 4)
+    assert store.last_published_run("US").session == date(2026, 8, 4)
     assert store.last_run("US").session == date(2026, 8, 5)
     assert store.last_run("US").status == "quarantined"
 
@@ -220,7 +220,7 @@ def test_a_quarantined_session_is_discarded_so_it_can_be_retried(store: Store):
         now=datetime(2026, 8, 5, 23, 0),
     )
     assert record.status == "published"
-    assert store.latest_run("US").session == date(2026, 8, 5)
+    assert store.last_published_run("US").session == date(2026, 8, 5)
 
 
 def test_discarding_a_quarantined_session_clears_its_failure_rows(store: Store):

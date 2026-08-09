@@ -123,7 +123,7 @@ def test_a_quarantined_session_is_retried_and_published_the_same_day(store, tmp_
     )
 
     assert retry is not None and retry.status == "published"
-    assert store.latest_run("US").session == target
+    assert store.last_published_run("US").session == target
     assert store.universe("US", target), "the retry computed the session's streams"
     assert store.ranks("US", target)
     # One row per session, always: the retry superseded the quarantine rather
@@ -205,4 +205,4 @@ def test_an_older_quarantined_night_is_filled_by_a_later_run(store, tmp_path):
 
     assert store.universe("US", hole), "the quarantined night was recomputed"
     assert {r.status for r in store.runs("US")} == {"published"}
-    assert store.latest_run("US").session == target
+    assert store.last_published_run("US").session == target

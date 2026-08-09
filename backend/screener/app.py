@@ -94,7 +94,7 @@ def create_app(
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         # Run-on-open (spec §7.3): the tab reads whether its last final session is
         # missing (``run_due``) and whether a run is already in flight
         # (``running``), so opening it kicks a run and shows a progress state
@@ -140,7 +140,7 @@ def create_app(
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         if latest is None:
             # No published run yet — an explicit empty state, not a fabricated date.
             return LeadersResponse(market=market, session=None, boards=[])
@@ -173,7 +173,7 @@ def create_app(
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         if latest is None:
             # No run has published: the 11-sector axis still renders, all at 0%
             # (spec §4.4 S8), and there is no industry board yet.
@@ -213,7 +213,7 @@ def create_app(
         # the drill-down only ever links from a real sector row (spec §5.5).
         if sector not in SECTORS:
             raise HTTPException(status_code=404, detail=f"unknown sector {sector!r}")
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         if latest is None:
             # No run has published: the sector resolves but has no members yet —
             # an explicit empty state, not a fabricated date (spec §4.7).
@@ -235,7 +235,7 @@ def create_app(
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         if latest is None:
             # No published run yet — an explicit empty state, not a fabricated
             # date. The order is by score, there is simply nothing to order.
@@ -306,7 +306,7 @@ def create_app(
         # session: the detection row (the facts' base/trigger/stop), the rank
         # rows (the decile ranks) and the label cache (the sector). The chart
         # re-computes nothing about detection or ranking (spec §5.1).
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         session = latest.session if latest else None
         detection = None
         ranks_for_symbol: list = []
@@ -347,7 +347,7 @@ def create_app(
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         if latest is None:
             # No published run yet — nothing to advise, and the banner stays off.
             return RegimeResponse(

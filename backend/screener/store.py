@@ -819,21 +819,38 @@ class Store:
             for r in rows
         ]
 
-    def latest_run(self, market: str) -> RunRecord | None:
-        """The last *published* run — the as-of session the tab renders."""
+    def last_published_run(self, market: str) -> RunRecord | None:
+        """The last run that **published** — the as-of session the tab renders.
+
+        Every read surface keys off this: a quarantined run wrote no universe and
+        no ranks, so it is not a session anything can be rendered from.
+        """
         for record in self.runs(market):
             if record.status == "published":
                 return record
         return None
 
+    def last_run(self, market: str) -> RunRecord | None:
+        """The last run of **any** status — what this market has already written.
+
+        The scheduler's question (:func:`screener.schedule.run_is_due`), and a
+        different one from :meth:`last_published_run`: a quarantined session is
+        not *absent*, the store holds a row for it and the write-once guard
+        refuses a second one. So the decision to run is made against the last row
+        that exists, and that row's ``status`` decides whether the session is
+        retriable (issue #103).
+        """
+        records = self.runs(market)
+        return records[0] if records else None
+
     def run(self, market: str, session: date) -> RunRecord | None:
         """One session's run record, or ``None`` if it never ran.
 
-        The keyed read behind every "has this session already been written, and
-        how did it end" question — the two callers that ask it (the write-once
-        guard in :meth:`discard_session` and the pipeline's refusal to quarantine
-        over a published session) would otherwise each scan the market's whole
-        run history to answer about one date.
+        The keyed read behind "has this session already been written, and how did
+        it end" — the two callers that ask it (the write-once guard in
+        :meth:`discard_session` and the pipeline's refusal to quarantine over a
+        published session) would otherwise each scan the market's whole run
+        history to answer about one date.
         """
         row = self._cursor().execute(
             "SELECT market, session, status, symbols_enumerated, symbols_resolved, "
@@ -850,20 +867,6 @@ class Store:
             symbols_resolved=row[4],
             created_at=row[5],
         )
-
-    def last_run(self, market: str) -> RunRecord | None:
-        """The last run of **any** status — what this market has already written.
-
-        The sibling question to :meth:`latest_run`, and the one the scheduler
-        asks (:func:`screener.schedule.run_is_due`). Reading a quarantined
-        session through ``latest_run`` reports it as *absent*, which is a
-        different claim from *not published*: the store holds a row for it, and
-        the guard that keeps sessions write-once refuses a second one. So the
-        decision to run is made against the last row that exists, and the row's
-        ``status`` decides whether that session is retriable (issue #103).
-        """
-        records = self.runs(market)
-        return records[0] if records else None
 
     def universe(self, market: str, session: date) -> list[str]:
         rows = self._cursor().execute(

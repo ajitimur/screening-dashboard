@@ -120,7 +120,7 @@ def run_market(
     last *published* run — a quarantined run must not lower the bar, or a slow
     leak of shrinking pulls would each pass against the previous shrunk attempt.
     """
-    last_good = store.latest_run(market)
+    last_good = store.last_published_run(market)
     enumeration_ok = (
         last_good is None
         or len(enumerated) >= ENUMERATION_FLOOR * last_good.symbols_enumerated

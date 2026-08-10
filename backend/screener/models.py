@@ -22,6 +22,12 @@ from .regime import RegimeState
 # it resolved < ~99% of enumerated symbols (v1-spec §3.4 rule 7 / A2).
 RunStatus = Literal["published", "quarantined"]
 
+# Sector/industry labels are yfinance GECS, one taxonomy on both markets. Every
+# sector-bearing response records it, because the labels carry a single ``as_of``
+# and no effective period — a relabel silently rewrites history, so naming the
+# taxonomy on the wire is the one thing that makes the gap legible (spec §2.6).
+Taxonomy = Literal["GECS"]
+
 
 class RunRecord(BaseModel):
     """One row of the append-only ``runs`` table, keyed ``(market, session)``."""
@@ -32,6 +38,45 @@ class RunRecord(BaseModel):
     symbols_enumerated: int
     symbols_resolved: int
     created_at: datetime
+
+
+# Why a candidate left no bars, as recorded. This is a wider vocabulary than the
+# source's own :data:`screener.source.ResolutionStatus`, and deliberately so: the
+# resolution *policy* has no use for the difference between an empty answer and a
+# stated 429 — both are silence, both retried, both unresolved-not-absent — while
+# the person reading a quarantine afterwards has nothing else to go on (#104).
+FailureStatus = Literal["unresolved", "throttled", "refused"]
+
+# The two of those that are *silence*: a symbol that produced no bars and no
+# explanation. They behave identically everywhere the run reasons about
+# completeness — both re-asked by the tail sweep, both counted against the gate.
+SILENT_STATUSES: tuple[FailureStatus, ...] = ("unresolved", "throttled")
+
+
+class ResolutionFailure(BaseModel):
+    """One enumerated candidate a run got no bars for (issue #91).
+
+    The run record says *how many* symbols fell short; this says *which* and
+    *why*, which is the difference between a diagnosable quarantine and one that
+    can only be investigated by re-running the pull by hand. ``status`` is the
+    source's stated outcome — ``throttled`` is silence the provider stated (a
+    429) and ``unresolved`` is silence it answered empty, both of them surviving
+    the retries *and* the tail sweep's rests (issue #104); ``refused`` is the
+    provider stating it serves no history for this listing (the shape of a
+    listing-quality problem). Silence that is throttled at the end of all that
+    says the pacing is still too hot for the session; silence that is empty says
+    the listing, which are opposite fixes.
+    ``counted`` is whether the symbol sat in the completeness gate's denominator:
+    refused and instrument-type-excluded listings are recorded but held out of
+    it (§3.4 rule 7, issue #90), so a quarantine's arithmetic is legible too.
+    """
+
+    market: str
+    session: date
+    symbol: str
+    name: str
+    status: FailureStatus
+    counted: bool
 
 
 class RunsResponse(BaseModel):
@@ -77,13 +122,24 @@ class RunTriggerResponse(BaseModel):
     running: bool
 
 
-class BoardRow(BaseModel):
+class LeaderRow(BaseModel):
     """One leaderboard row: a name ranked on **pure return**, plus its furniture
-    (spec §4.3 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks currently
-    led — a persistence count, *not* a quality score); ``is_new`` marks absence
-    from this board last session; ``surge`` flags a 1w name up ≥30% over the week;
-    ``adr`` is a column for the toggle, never the sort key, ``None`` when it cannot
-    be computed."""
+    (spec §4.3 / §4.4 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks
+    currently led — a persistence count, *not* a quality score); ``is_new`` marks
+    absence from this board last session; ``surge`` flags a 1w name up ≥30% over
+    the week; ``adr`` is a column for the toggle, never the sort key, ``None`` when
+    it cannot be computed.
+
+    ``sector`` and ``dollar_volume`` are the two **phase-1** additions (spec §4.4):
+    both cheap, since the read already loads exactly these names' bars for the ADR
+    column and sector is a store lookup. Without them the phase-1 control bar would
+    ship with two live controls and two dead ones. ``sector`` is ``None`` when the
+    label was never fetched; ``dollar_volume`` is ``None`` when the name's bars
+    could not supply it, the same guard the ADR column carries.
+
+    ``tier`` and ``rs_pctile`` are **phase-2**, typed nullable and returning
+    ``None`` until the cross-sectional tier banding lands in the run (spec §4.4).
+    """
 
     symbol: str
     raw_return: float
@@ -91,17 +147,32 @@ class BoardRow(BaseModel):
     is_new: bool
     surge: bool
     adr: float | None
+    # Phase-1 (spec §4.4): the sector label and §4.1 median-20d liquidity.
+    sector: str | None
+    dollar_volume: float | None
+    # Phase-2 (spec §4.4): the tier band (1%/2%/3%) and relative-strength
+    # percentile, both nullable until the run computes the banding.
+    tier: str | None = None
+    rs_pctile: float | None = None
 
 
-class Board(BaseModel):
-    """One market's leaderboard for a single lookback (spec §5.2)."""
+class Leader(BaseModel):
+    """One market's leaderboard for a single lookback (spec §5.2 / §5.3).
+
+    ``cutoffs`` is a per-lookback block that sits **beside** the rows — the
+    cutoff-return summary at the tier-band boundaries — never repeated on every
+    row (spec §4.4). Phase-2, so ``None`` until the banding lands.
+    """
 
     lookback: str
-    rows: list[BoardRow]
+    rows: list[LeaderRow]
+    cutoffs: dict[str, float] | None = None
 
 
-class BoardsResponse(BaseModel):
-    """The five leaderboards for one market, off the nightly path (spec §5.2).
+class LeadersResponse(BaseModel):
+    """The five leaderboards for one market, off the nightly path (spec §5.2 /
+    §5.3). Formerly ``/api/boards``; renamed because *Board* now names the
+    composite home screen (spec §10.2).
 
     ``session`` is the as-of session the boards were ranked on — the latest
     published run — or ``None`` when no run has published yet, which the tab shows
@@ -110,7 +181,7 @@ class BoardsResponse(BaseModel):
 
     market: str
     session: date | None
-    boards: list[Board]
+    boards: list[Leader]
 
 
 class SectorStrength(BaseModel):
@@ -169,8 +240,65 @@ class SectorsResponse(BaseModel):
 
     market: str
     session: date | None
+    # The taxonomy the sector/industry labels came from — always ``"GECS"``
+    # (spec §2.6 / §4.5). Recorded even here, where the axis renders unchanged.
+    taxonomy: Taxonomy = "GECS"
     sectors: list[SectorStrength]
     industries: list[IndustryStrength]
+
+
+class SectorMember(BaseModel):
+    """One name inside a sector's drill-down (spec §5.5).
+
+    The member list behind a sector row: what the Sectors screen drills into. A
+    member is a universe name carrying this sector's label that appears in the
+    session's rank table, so every field is read off that table (§4.3) — nothing
+    is recomputed here.
+
+    Phase-1 fields, all per-lookback so the client's lookback switch re-renders
+    without a refetch: ``returns`` (the raw per-lookback return), ``pctile_universe``
+    (the percentile, **named for its population** — this repo ranks over the whole
+    universe, applying no tradability filter, so the field must not borrow a name
+    that means ``gated`` elsewhere), and ``top_decile`` (whether the name is in
+    that lookback's top decile, ``percentile ≥ TOP_DECILE`` — the per-name decile
+    badge, P1). A lookback the name is not ranked in (a recent listing) is simply
+    absent from all three maps.
+
+    Phase-2 fields, typed nullable and always ``None`` today:
+    - ``pct_of_52w_high`` — no 52-week high is computed anywhere yet (§1.3).
+    - ``verdict`` — the detector's grade, where **``None`` means *not evaluated***,
+      a different fact from ``extended`` (spec §2.1): a pack contains names the
+      detector never ran on.
+    """
+
+    symbol: str
+    # lookback -> raw return; only the lookbacks the name is ranked in.
+    returns: dict[str, float]
+    # lookback -> percentile in [0, 1] over the *universe* population.
+    pctile_universe: dict[str, float]
+    # lookback -> whether the name is in that lookback's top decile.
+    top_decile: dict[str, bool]
+    # P2: distance below the 52-week high; ``None`` — not computed anywhere today.
+    pct_of_52w_high: float | None
+    # P2: detector verdict; ``None`` means *not evaluated*, not ``extended`` (§2.1).
+    verdict: str | None
+
+
+class SectorDetailResponse(BaseModel):
+    """The member list behind one sector — the drill-down (spec §5.5 / §4.5).
+
+    ``sector`` echoes the resolved label (the path segment is URL-encoded, GECS
+    labels carrying spaces such as ``Consumer Cyclical``). ``members`` is sorted
+    by symbol; it is empty when no run has published (``session`` is ``None``, the
+    explicit empty state) or when a valid sector simply has no members tonight.
+    ``taxonomy`` is always ``"GECS"`` (§2.6).
+    """
+
+    market: str
+    session: date | None
+    sector: str
+    taxonomy: Taxonomy = "GECS"
+    members: list[SectorMember]
 
 
 class ScoreRow(BaseModel):
@@ -187,18 +315,37 @@ class ScoreRow(BaseModel):
 
 
 class Candidate(BaseModel):
-    """One row of the candidate list — a detection made readable (spec §5.1).
+    """One row of the candidate list — a detection made readable (spec §5.1 / §4.3).
 
-    Five columns off the detection row. ``score`` is the star score (0–5) and the
-    sort key of the list; ``breakdown`` carries its eight-row rubric so the chart
-    panel can reconstruct the arithmetic (spec §4.7). ``dist_adr`` is the distance
-    to the trigger in ADR (``(trigger − close) / adr_abs``); ``stopw_adr`` is the
-    stop width in ADR (``(trigger − cluster_low) / adr_abs``, the watchlist stop
-    of §4.6). The stop column **never filters** — instead the affordable sub-1×ADR
-    minority is flagged (``affordable``), the inverse of marking the ~92%
-    unaffordable majority. ``industry`` is the theme layer (``None`` if the label
-    was never fetched); ``breadth`` is the ``k/5`` badge, a persistence count and
-    **not** a quality score.
+    ``score`` is the star score (0–5) and the sort key of the list; ``breakdown``
+    carries its eight-row rubric so the row (or the chart panel) can reconstruct
+    the arithmetic (spec §4.7). ``dist_adr`` is the distance to the trigger in ADR
+    (``(trigger − close) / adr_abs``); ``stopw_adr`` is the stop width in ADR
+    (``(trigger − cluster_low) / adr_abs``, the watchlist stop of §4.6). The stop
+    column **never filters** — instead the affordable sub-1×ADR minority is flagged
+    (``affordable``), the inverse of marking the ~92% unaffordable majority.
+    ``industry`` is the theme layer (``None`` if the label was never fetched);
+    ``breadth`` is the ``k/5`` badge, a persistence count and **not** a quality
+    score.
+
+    The **chart-facts fold** (spec §4.3): so a Setups card can show trigger, stop
+    and distance without a per-symbol chart fetch, the fields that lived only in
+    the chart bundle now ride the row too — projected from the *same* detection,
+    which is the single source both endpoints render from. ``trigger_price`` /
+    ``stop_price`` are the **borrowed** names for the overlay's trigger (cluster
+    high) and stop (cluster low) — v1 had no word for them; ``risk_adr`` is
+    **refused** (that quantity is ``stopw_adr`` and keeps its name). ``sector`` is
+    new on this row, which carried ``industry`` only; both are wanted.
+    ``dollar_volume`` and ``sector`` are ``None`` when the bars/label could not
+    supply them, and ``decile_ranks`` omits a lookback the name is not ranked in —
+    mirroring the chart facts block exactly.
+
+    ``new_tonight`` (P1) is true exactly for names absent from the previous
+    session's detected rows — the row-level fact that replaces the reference's
+    standalone new-ready panel. ``verdict`` (P2) is typed now and returned ``None``.
+    ``breakdown`` is typed nullable because at P2 the list will carry non-``detected``
+    rows whose star score is undefined; on a P1 detected row it is always the
+    eight-row rubric.
 
     Nothing here marks a ``line_ok`` failure: the fit's quality is a **silent
     tiebreak** that orders the list but is never surfaced in the row (spec §4.7).
@@ -206,12 +353,28 @@ class Candidate(BaseModel):
 
     symbol: str
     score: float
-    breakdown: list[ScoreRow]
+    breakdown: list[ScoreRow] | None
     dist_adr: float
     stopw_adr: float
     affordable: bool
     industry: str | None
     breadth: int
+    # -- the chart-facts fold (spec §4.3): the numbers a Setups card needs without
+    # a per-symbol chart fetch, projected from the same detection row.
+    trigger_price: float          # overlay.trigger — the breakout level (borrowed)
+    stop_price: float             # overlay.stop — the cluster-low watchlist stop (borrowed)
+    close: float
+    sector: str | None            # GECS sector; ``None`` if never fetched (new on the row)
+    adr: float
+    # Median unadjusted close × volume over 20 traded bars (§4.1). ``None`` if the
+    # name's bars could not supply it.
+    dollar_volume: float | None
+    # lookback -> percentile in [0, 1]; a lookback the name is not ranked in is absent.
+    decile_ranks: dict[str, float]
+    # Newly detected — absent from last session's ``detected`` rows (P1, §2.4).
+    new_tonight: bool
+    # Phase-2 detector verdict; typed now, returned ``None`` (§4.3).
+    verdict: str | None = None
 
 
 class CandidatesResponse(BaseModel):

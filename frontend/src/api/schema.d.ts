@@ -4,23 +4,6 @@
  */
 
 export interface paths {
-    "/api/boards/{market}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Boards */
-        get: operations["get_boards_api_boards__market__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/candidates/{market}": {
         parameters: {
             query?: never;
@@ -47,6 +30,26 @@ export interface paths {
         };
         /** Get Chart */
         get: operations["get_chart_api_chart__market___symbol__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/leaders/{market}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Leaders
+         * @description The five leaderboards for one market (spec §4.4).
+         */
+        get: operations["get_leaders_api_leaders__market__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -107,94 +110,101 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sectors/{market}/{sector}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sector Detail */
+        get: operations["get_sector_detail_api_sectors__market___sector__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * Board
-         * @description One market's leaderboard for a single lookback (spec §5.2).
-         */
-        Board: {
-            /** Lookback */
-            lookback: string;
-            /** Rows */
-            rows: components["schemas"]["BoardRow"][];
-        };
-        /**
-         * BoardRow
-         * @description One leaderboard row: a name ranked on **pure return**, plus its furniture
-         *     (spec §4.3 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks currently
-         *     led — a persistence count, *not* a quality score); ``is_new`` marks absence
-         *     from this board last session; ``surge`` flags a 1w name up ≥30% over the week;
-         *     ``adr`` is a column for the toggle, never the sort key, ``None`` when it cannot
-         *     be computed.
-         */
-        BoardRow: {
-            /** Adr */
-            adr: number | null;
-            /** Breadth */
-            breadth: number;
-            /** Is New */
-            is_new: boolean;
-            /** Raw Return */
-            raw_return: number;
-            /** Surge */
-            surge: boolean;
-            /** Symbol */
-            symbol: string;
-        };
-        /**
-         * BoardsResponse
-         * @description The five leaderboards for one market, off the nightly path (spec §5.2).
-         *
-         *     ``session`` is the as-of session the boards were ranked on — the latest
-         *     published run — or ``None`` when no run has published yet, which the tab shows
-         *     as an explicit empty state.
-         */
-        BoardsResponse: {
-            /** Boards */
-            boards: components["schemas"]["Board"][];
-            /** Market */
-            market: string;
-            /** Session */
-            session: string | null;
-        };
-        /**
          * Candidate
-         * @description One row of the candidate list — a detection made readable (spec §5.1).
+         * @description One row of the candidate list — a detection made readable (spec §5.1 / §4.3).
          *
-         *     Five columns off the detection row. ``score`` is the star score (0–5) and the
-         *     sort key of the list; ``breakdown`` carries its eight-row rubric so the chart
-         *     panel can reconstruct the arithmetic (spec §4.7). ``dist_adr`` is the distance
-         *     to the trigger in ADR (``(trigger − close) / adr_abs``); ``stopw_adr`` is the
-         *     stop width in ADR (``(trigger − cluster_low) / adr_abs``, the watchlist stop
-         *     of §4.6). The stop column **never filters** — instead the affordable sub-1×ADR
-         *     minority is flagged (``affordable``), the inverse of marking the ~92%
-         *     unaffordable majority. ``industry`` is the theme layer (``None`` if the label
-         *     was never fetched); ``breadth`` is the ``k/5`` badge, a persistence count and
-         *     **not** a quality score.
+         *     ``score`` is the star score (0–5) and the sort key of the list; ``breakdown``
+         *     carries its eight-row rubric so the row (or the chart panel) can reconstruct
+         *     the arithmetic (spec §4.7). ``dist_adr`` is the distance to the trigger in ADR
+         *     (``(trigger − close) / adr_abs``); ``stopw_adr`` is the stop width in ADR
+         *     (``(trigger − cluster_low) / adr_abs``, the watchlist stop of §4.6). The stop
+         *     column **never filters** — instead the affordable sub-1×ADR minority is flagged
+         *     (``affordable``), the inverse of marking the ~92% unaffordable majority.
+         *     ``industry`` is the theme layer (``None`` if the label was never fetched);
+         *     ``breadth`` is the ``k/5`` badge, a persistence count and **not** a quality
+         *     score.
+         *
+         *     The **chart-facts fold** (spec §4.3): so a Setups card can show trigger, stop
+         *     and distance without a per-symbol chart fetch, the fields that lived only in
+         *     the chart bundle now ride the row too — projected from the *same* detection,
+         *     which is the single source both endpoints render from. ``trigger_price`` /
+         *     ``stop_price`` are the **borrowed** names for the overlay's trigger (cluster
+         *     high) and stop (cluster low) — v1 had no word for them; ``risk_adr`` is
+         *     **refused** (that quantity is ``stopw_adr`` and keeps its name). ``sector`` is
+         *     new on this row, which carried ``industry`` only; both are wanted.
+         *     ``dollar_volume`` and ``sector`` are ``None`` when the bars/label could not
+         *     supply them, and ``decile_ranks`` omits a lookback the name is not ranked in —
+         *     mirroring the chart facts block exactly.
+         *
+         *     ``new_tonight`` (P1) is true exactly for names absent from the previous
+         *     session's detected rows — the row-level fact that replaces the reference's
+         *     standalone new-ready panel. ``verdict`` (P2) is typed now and returned ``None``.
+         *     ``breakdown`` is typed nullable because at P2 the list will carry non-``detected``
+         *     rows whose star score is undefined; on a P1 detected row it is always the
+         *     eight-row rubric.
          *
          *     Nothing here marks a ``line_ok`` failure: the fit's quality is a **silent
          *     tiebreak** that orders the list but is never surfaced in the row (spec §4.7).
          */
         Candidate: {
+            /** Adr */
+            adr: number;
             /** Affordable */
             affordable: boolean;
             /** Breadth */
             breadth: number;
             /** Breakdown */
-            breakdown: components["schemas"]["ScoreRow"][];
+            breakdown: components["schemas"]["ScoreRow"][] | null;
+            /** Close */
+            close: number;
+            /** Decile Ranks */
+            decile_ranks: {
+                [key: string]: number;
+            };
             /** Dist Adr */
             dist_adr: number;
+            /** Dollar Volume */
+            dollar_volume: number | null;
             /** Industry */
             industry: string | null;
+            /** New Tonight */
+            new_tonight: boolean;
             /** Score */
             score: number;
+            /** Sector */
+            sector: string | null;
+            /** Stop Price */
+            stop_price: number;
             /** Stopw Adr */
             stopw_adr: number;
             /** Symbol */
             symbol: string;
+            /** Trigger Price */
+            trigger_price: number;
+            /** Verdict */
+            verdict?: string | null;
         };
         /**
          * CandidatesResponse
@@ -336,6 +346,83 @@ export interface components {
             };
         };
         /**
+         * Leader
+         * @description One market's leaderboard for a single lookback (spec §5.2 / §5.3).
+         *
+         *     ``cutoffs`` is a per-lookback block that sits **beside** the rows — the
+         *     cutoff-return summary at the tier-band boundaries — never repeated on every
+         *     row (spec §4.4). Phase-2, so ``None`` until the banding lands.
+         */
+        Leader: {
+            /** Cutoffs */
+            cutoffs?: {
+                [key: string]: number;
+            } | null;
+            /** Lookback */
+            lookback: string;
+            /** Rows */
+            rows: components["schemas"]["LeaderRow"][];
+        };
+        /**
+         * LeaderRow
+         * @description One leaderboard row: a name ranked on **pure return**, plus its furniture
+         *     (spec §4.3 / §4.4 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks
+         *     currently led — a persistence count, *not* a quality score); ``is_new`` marks
+         *     absence from this board last session; ``surge`` flags a 1w name up ≥30% over
+         *     the week; ``adr`` is a column for the toggle, never the sort key, ``None`` when
+         *     it cannot be computed.
+         *
+         *     ``sector`` and ``dollar_volume`` are the two **phase-1** additions (spec §4.4):
+         *     both cheap, since the read already loads exactly these names' bars for the ADR
+         *     column and sector is a store lookup. Without them the phase-1 control bar would
+         *     ship with two live controls and two dead ones. ``sector`` is ``None`` when the
+         *     label was never fetched; ``dollar_volume`` is ``None`` when the name's bars
+         *     could not supply it, the same guard the ADR column carries.
+         *
+         *     ``tier`` and ``rs_pctile`` are **phase-2**, typed nullable and returning
+         *     ``None`` until the cross-sectional tier banding lands in the run (spec §4.4).
+         */
+        LeaderRow: {
+            /** Adr */
+            adr: number | null;
+            /** Breadth */
+            breadth: number;
+            /** Dollar Volume */
+            dollar_volume: number | null;
+            /** Is New */
+            is_new: boolean;
+            /** Raw Return */
+            raw_return: number;
+            /** Rs Pctile */
+            rs_pctile?: number | null;
+            /** Sector */
+            sector: string | null;
+            /** Surge */
+            surge: boolean;
+            /** Symbol */
+            symbol: string;
+            /** Tier */
+            tier?: string | null;
+        };
+        /**
+         * LeadersResponse
+         * @description The five leaderboards for one market, off the nightly path (spec §5.2 /
+         *     §5.3). Formerly ``/api/boards``; renamed because *Board* now names the
+         *     composite home screen (spec §10.2).
+         *
+         *     ``session`` is the as-of session the boards were ranked on — the latest
+         *     published run — or ``None`` when no run has published yet, which the tab shows
+         *     as an explicit empty state.
+         */
+        LeadersResponse: {
+            /** Boards */
+            boards: components["schemas"]["Leader"][];
+            /** Market */
+            market: string;
+            /** Session */
+            session: string | null;
+        };
+        /**
          * MaPoint
          * @description One point of a moving-average line series — the value at a session. The
          *     line skips the leading bars where the window has not yet filled, so a series
@@ -468,6 +555,76 @@ export interface components {
             weight: number;
         };
         /**
+         * SectorDetailResponse
+         * @description The member list behind one sector — the drill-down (spec §5.5 / §4.5).
+         *
+         *     ``sector`` echoes the resolved label (the path segment is URL-encoded, GECS
+         *     labels carrying spaces such as ``Consumer Cyclical``). ``members`` is sorted
+         *     by symbol; it is empty when no run has published (``session`` is ``None``, the
+         *     explicit empty state) or when a valid sector simply has no members tonight.
+         *     ``taxonomy`` is always ``"GECS"`` (§2.6).
+         */
+        SectorDetailResponse: {
+            /** Market */
+            market: string;
+            /** Members */
+            members: components["schemas"]["SectorMember"][];
+            /** Sector */
+            sector: string;
+            /** Session */
+            session: string | null;
+            /**
+             * Taxonomy
+             * @default GECS
+             * @constant
+             */
+            taxonomy: "GECS";
+        };
+        /**
+         * SectorMember
+         * @description One name inside a sector's drill-down (spec §5.5).
+         *
+         *     The member list behind a sector row: what the Sectors screen drills into. A
+         *     member is a universe name carrying this sector's label that appears in the
+         *     session's rank table, so every field is read off that table (§4.3) — nothing
+         *     is recomputed here.
+         *
+         *     Phase-1 fields, all per-lookback so the client's lookback switch re-renders
+         *     without a refetch: ``returns`` (the raw per-lookback return), ``pctile_universe``
+         *     (the percentile, **named for its population** — this repo ranks over the whole
+         *     universe, applying no tradability filter, so the field must not borrow a name
+         *     that means ``gated`` elsewhere), and ``top_decile`` (whether the name is in
+         *     that lookback's top decile, ``percentile ≥ TOP_DECILE`` — the per-name decile
+         *     badge, P1). A lookback the name is not ranked in (a recent listing) is simply
+         *     absent from all three maps.
+         *
+         *     Phase-2 fields, typed nullable and always ``None`` today:
+         *     - ``pct_of_52w_high`` — no 52-week high is computed anywhere yet (§1.3).
+         *     - ``verdict`` — the detector's grade, where **``None`` means *not evaluated***,
+         *       a different fact from ``extended`` (spec §2.1): a pack contains names the
+         *       detector never ran on.
+         */
+        SectorMember: {
+            /** Pct Of 52W High */
+            pct_of_52w_high: number | null;
+            /** Pctile Universe */
+            pctile_universe: {
+                [key: string]: number;
+            };
+            /** Returns */
+            returns: {
+                [key: string]: number;
+            };
+            /** Symbol */
+            symbol: string;
+            /** Top Decile */
+            top_decile: {
+                [key: string]: boolean;
+            };
+            /** Verdict */
+            verdict: string | null;
+        };
+        /**
          * SectorStrength
          * @description One sector's leadership and rotation numbers (spec §4.4 / ticket 07 S2–S8).
          *
@@ -516,6 +673,12 @@ export interface components {
             sectors: components["schemas"]["SectorStrength"][];
             /** Session */
             session: string | null;
+            /**
+             * Taxonomy
+             * @default GECS
+             * @constant
+             */
+            taxonomy: "GECS";
         };
         /**
          * SetupOverlay
@@ -581,37 +744,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    get_boards_api_boards__market__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                market: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BoardsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_candidates_api_candidates__market__get: {
         parameters: {
             query?: never;
@@ -645,7 +777,9 @@ export interface operations {
     };
     get_chart_api_chart__market___symbol__get: {
         parameters: {
-            query?: never;
+            query?: {
+                bars?: number | null;
+            };
             header?: never;
             path: {
                 market: string;
@@ -662,6 +796,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChartResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_leaders_api_leaders__market__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                market: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeadersResponse"];
                 };
             };
             /** @description Validation Error */
@@ -786,6 +951,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SectorsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sector_detail_api_sectors__market___sector__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                market: string;
+                sector: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectorDetailResponse"];
                 };
             };
             /** @description Validation Error */

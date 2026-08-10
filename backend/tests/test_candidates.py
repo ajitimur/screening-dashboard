@@ -141,3 +141,57 @@ def test_missing_industry_and_absent_breadth_degrade_gracefully():
     [c] = build_candidates([_det("AAA")], [], {}, {})
     assert c.industry is None  # label never fetched
     assert c.breadth == 0      # in no lookback's top decile
+
+
+def test_chart_facts_are_folded_onto_the_row():
+    # A Setups card renders trigger/stop/distance without a per-symbol chart fetch:
+    # the fields that lived only in the chart bundle now ride the candidate row,
+    # projected from the same detection (spec §4.3). trigger_price/stop_price are
+    # the borrowed names for the overlay's trigger (cluster high) and stop
+    # (cluster low); risk_adr is NOT adopted — stopw_adr keeps its name.
+    det = _det("AAA", trigger=100.0, close=98.0, cluster_low=97.0, adr=0.06)
+    ranks = [Rank("AAA", "1m", 0.95, 1.2), Rank("AAA", "3m", 0.90, 1.1)]
+    [c] = build_candidates(
+        [det], ranks, {}, {"AAA": "Technology"},
+        dollar_volume_of={"AAA": 1234.0}, prev_detected={"OLD"},
+    )
+    assert c.trigger_price == 100.0            # overlay.trigger = cluster high
+    assert c.stop_price == 97.0                # overlay.stop = cluster low
+    assert c.close == 98.0
+    assert c.sector == "Technology"            # new on the row; industry stays too
+    assert c.adr == 0.06
+    assert c.dollar_volume == 1234.0
+    assert c.decile_ranks == {"1m": 0.95, "3m": 0.90}
+    assert not hasattr(c, "risk_adr")          # refused vocabulary — stopw_adr stays
+    assert c.stopw_adr > 0
+
+
+def test_verdict_and_breakdown_are_typed_nullable():
+    # Phase-2 fields typed now: verdict is null (P2), breakdown is the eight-row
+    # rubric on a detected row (null only on non-detected rows, which P1 has none).
+    [c] = build_candidates([_det("AAA")], _decile("AAA"), {}, {})
+    assert c.verdict is None
+    assert c.breakdown is not None and len(c.breakdown) == 8
+
+
+def test_new_tonight_is_absence_from_the_previous_sessions_detections():
+    # true exactly for names absent from last session's detected rows.
+    rows = build_candidates(
+        [_det("FRESH"), _det("HELD")],
+        _decile("FRESH") + _decile("HELD"),
+        {}, {},
+        prev_detected={"HELD", "GONE"},
+    )
+    by_sym = {c.symbol: c for c in rows}
+    assert by_sym["FRESH"].new_tonight is True   # not detected last session
+    assert by_sym["HELD"].new_tonight is False   # carried over from last session
+
+
+def test_dollar_volume_and_sector_degrade_to_none():
+    # No bars supplied and no cached sector: both come back None rather than a
+    # fabricated zero, mirroring the chart facts block.
+    [c] = build_candidates([_det("AAA")], [], {}, {})
+    assert c.dollar_volume is None
+    assert c.sector is None
+    assert c.decile_ranks == {}
+    assert c.new_tonight is True  # empty prev set → every name is new

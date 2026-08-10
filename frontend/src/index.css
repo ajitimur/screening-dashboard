@@ -1,0 +1,1356 @@
+/*
+ * The v2 styling floor — Tailwind v4, CSS-first, and the token set (spec §3.2).
+ *
+ * This is the reference's paper palette with the neutral ramp and semantic trio
+ * DARKENED for contrast; the palette is deliberately not adopted wholesale. Every
+ * lifted value is measured against §8.3's ratio table, not eyeballed.
+ */
+@import "tailwindcss";
+
+/* Both fonts self-hosted via @fontsource — no CDN <link>, no network at runtime. */
+@import "@fontsource/space-grotesk/400.css";
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/600.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+
+@theme {
+  /* Wipe the stock scales so our red/green/amber names don't collide with
+     Tailwind's built-in colour scales (spec §3.2). */
+  --color-*: initial;
+
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* ---- paper palette (§3.2) ---- */
+  --color-bg: #e7e4de;        /* paper ground */
+  --color-surface: #f6f4ef;
+  --color-card: #ffffff;
+  --color-border: #e8e2d8;
+  --color-text: #1c1b18;      /* 13.57 on bg */
+
+  /* Darkened neutrals + semantic trio (§8.3). The reference's lighter values
+     were measured against paper and rejected; these are the lifts (old hexes
+     kept out of source on purpose — see index.css.test.ts):
+       text-muted -> #6b665c   (4.50 on the worst background)
+       green      -> #17703e   (5.58 on surface)
+       amber      -> #8a6215   (4.98 on surface)
+       red        -> #b03d26   (5.39 on surface) */
+  --color-text-muted: #6b665c; /* carries every 9.5px label in the app */
+  --color-green: #17703e;
+  --color-amber: #8a6215;
+  --color-red: #b03d26;
+
+  /* fill-faint: was --color-text-faint #a09a8e (2.20 on bg, dead as a text
+     token). Non-text fill only, lifted past 1.4.11's 3:1 floor on bg (§8.3). */
+  --color-fill-faint: #7c776d; /* ~3.5:1 on bg */
+
+  /* The ticker's dotted underline as its own token at a 3:1 floor — the old
+     `underline #b3ab9d` (2.07) split off from the text uses (§8.3). */
+  --color-affordance: #8f8879; /* ~3.0:1 on bg */
+
+  --radius-card: 1.125rem;                          /* 18px */
+  --shadow-shell: 0 30px 70px rgb(40 34 24 / 0.20);
+  --container-shell: 82.5rem;                       /* 1320px */
+
+  /* The two-tone :focus-visible ring (spec §8.6): a dark core plus a light halo,
+     readable on any background. The forcing case is the market control and the
+     tab row, whose active item is light text on near-black, where a single dark
+     ring vanishes. One token to specify and test. */
+  --color-focus-core: #1c1b18;
+  --color-focus-halo: #f6f4ef;
+
+  /* ---- type scale: the reference's, kept, 9.5px floor and all (§3.2) ---- */
+  --text-micro: 0.59375rem;  /*  9.5px */
+  --text-label: 0.65625rem;  /* 10.5px */
+  --text-meta: 0.71875rem;   /* 11.5px */
+  --text-body: 0.8125rem;    /* 13px   */
+  --text-head: 0.9375rem;    /* 15px   */
+  --text-stat: 1rem;         /* 16px   */
+  --text-ticker: 1.25rem;    /* 20px   */
+
+  /* Sector scale — ten hues, unchanged from the reference (§3.2). Declared here
+     as theme tokens *and* restated in :root below, because they are read only
+     from a runtime var() and would otherwise be tree-shaken away. */
+  --color-sector-technology: #2f7d5b;
+  --color-sector-financials: #2a6f97;
+  --color-sector-industrials: #b5651d;
+  --color-sector-communication: #8e5572;
+  --color-sector-consumer-cyclical: #c9843e;
+  --color-sector-healthcare: #4c9a8f;
+  --color-sector-utilities: #7a8a5e;
+  --color-sector-energy: #a8453a;
+  --color-sector-materials: #9c7a3c;
+  --color-sector-defensive: #6b7d8a;
+
+  /* Regime band pairs (§4.9 states): text · background · border. */
+  --color-regime-ok: #17703e;
+  --color-regime-ok-bg: #e7f2ea;
+  --color-regime-ok-br: #b9dcc4;
+  --color-regime-warn: #8a6215;
+  --color-regime-warn-bg: #f6ecd8;
+  --color-regime-warn-br: #e6cf9e;
+  --color-regime-stop: #b03d26;
+  --color-regime-stop-bg: #f6e3dd;
+  --color-regime-stop-br: #e8c3b8;
+}
+
+/*
+ * The tree-shaking trap, closed (spec §3.2, map #59). Tailwind v4 drops any
+ * @theme variable no utility class mentions. The sector scale and the regime
+ * pairs are consumed only through a runtime `var()` — sector colours as an
+ * inline `style` read by `bg-(--sector)`, regime pairs likewise — so no class
+ * names them and they would vanish from the emitted CSS, leaving bars and dots
+ * uncoloured with no error. Restating them in a plain :root keeps them in the
+ * sheet regardless of what any utility mentions.
+ */
+:root {
+  --color-sector-technology: #2f7d5b;
+  --color-sector-financials: #2a6f97;
+  --color-sector-industrials: #b5651d;
+  --color-sector-communication: #8e5572;
+  --color-sector-consumer-cyclical: #c9843e;
+  --color-sector-healthcare: #4c9a8f;
+  --color-sector-utilities: #7a8a5e;
+  --color-sector-energy: #a8453a;
+  --color-sector-materials: #9c7a3c;
+  --color-sector-defensive: #6b7d8a;
+
+  --color-regime-ok: #17703e;
+  --color-regime-ok-bg: #e7f2ea;
+  --color-regime-ok-br: #b9dcc4;
+  --color-regime-warn: #8a6215;
+  --color-regime-warn-bg: #f6ecd8;
+  --color-regime-warn-br: #e6cf9e;
+  --color-regime-stop: #b03d26;
+  --color-regime-stop-bg: #f6e3dd;
+  --color-regime-stop-br: #e8c3b8;
+}
+
+@layer base {
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+  }
+
+  /* One two-tone :focus-visible ring everywhere (spec §8.6). Inner light halo
+     survives on the near-black active seg item; outer dark core survives on
+     paper. `:focus-visible` only, never `:focus` — mouse clicks on 60 ticker
+     buttons and the breadcrumb must not scatter rings across a dense board. The
+     transparent outline keeps the ring visible under Windows high-contrast. */
+  :focus-visible {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    box-shadow:
+      0 0 0 2px var(--color-focus-halo),
+      0 0 0 4px var(--color-focus-core);
+  }
+}
+
+/*
+ * The full-bleed frame (spec §3.1). Header, regime band and run-status banner
+ * span the window; the content column caps at --container-shell. The page
+ * scrolls — one scroll context, nothing height-capped.
+ */
+.shell {
+  min-height: 100vh;
+}
+
+.shell-cap {
+  max-width: var(--container-shell);
+  margin-inline: auto;
+  width: 100%;
+  padding-inline: 1rem;
+}
+
+.shell-main {
+  padding-block: 1rem;
+}
+
+/*
+ * The bypass block (spec §8.5, SC 2.4.1): visually hidden until it takes focus,
+ * where it appears as a real control for a sighted keyboard user.
+ */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-card);
+  color: var(--color-text);
+}
+.skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+}
+
+/* Visually hidden but present to assistive tech — the live regions and any
+ * screen-reader-only text (spec §8.7). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * Motion house rule (spec §8.7, outside the claim). A blanket reduced-motion
+ * rule zeroing every transition, applied globally rather than per component —
+ * the four-panel skeleton shimmer during a market switch is the most
+ * motion-heavy moment in the app, produced by the most-pressed control.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/*
+ * The chart sheet (spec §6). A right-docked overlay floating above the content
+ * with a shadow — NOT a squeeze of the content column. Width is
+ * `min(560px, 90vw)`: the `min()` is load-bearing, not decorative — at 200% zoom
+ * on the 1280 target the effective viewport is 640px, where a fixed 560px sheet
+ * would cover ~87% of it. Full height, fixed to the right edge. No backdrop: the
+ * page stays interactive behind it, which is what makes click-down-the-list work.
+ */
+.chart-sheet {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(560px, 90vw);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  padding: 1rem;
+  background: var(--color-card);
+  box-shadow: var(--shadow-shell);
+}
+
+.chart-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chart-sheet-title {
+  margin: 0;
+  flex: 1;
+}
+
+/* The verdict badge is neutral — no colour (spec §6.3): a symbol surface should
+   not re-score the name with a hue the row already spent its verdict on. */
+.verdict-badge {
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+}
+
+.chart-sheet-sector {
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+
+.chart-sheet-close {
+  margin-inline-start: auto;
+  border: 0;
+  background: transparent;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* The canvas slot keeps its height whether the read is in flight, ready or dead,
+   so a failed chart replaces the canvas ONLY without collapsing the layout
+   beneath it (spec §7.7). */
+.chart-sheet-canvas {
+  min-height: 320px;
+}
+
+/* A static skeleton (spec §7.6) — never a shimmer, never a spinner. */
+.chart-skeleton {
+  height: 320px;
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+
+.chart-sheet-canvas-error,
+.chart-sheet-nobase {
+  color: var(--color-text-muted);
+}
+
+.ma-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-micro);
+}
+.ma-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.ma-swatch {
+  display: inline-block;
+  width: 0.75rem;
+  height: 2px;
+}
+
+/*
+ * The mini chart (spec §6.4): a decorative thumbnail on Setups cards and the
+ * Leaders grid. A fixed frame so a slow or dead read leaves a hole the card's
+ * layout already accounted for, not a jump.
+ */
+.mini-chart {
+  height: 56px;
+  cursor: pointer;
+}
+
+/*
+ * The Setups screen (spec §5.2): the grid IS the screen. Column count is not
+ * fixed — card width is — so `auto-fill, minmax(360px, 1fr)` reflows 3-up at
+ * 1440 and 2-up at 1280. Under the chart sheet it drops to a fixed 2 columns
+ * (the opposite of the Board's freeze-columns choice — there is no rail here),
+ * driven off `data-sheet-open` so it is a real state, not a media guess.
+ */
+.setups {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.setups-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.setups-search,
+.setups-sector {
+  padding: 0.375rem 0.625rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  font: inherit;
+}
+.setups-count {
+  margin: 0 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+.setups-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 1rem;
+}
+.setups-grid[data-sheet-open] {
+  grid-template-columns: repeat(2, 1fr);
+}
+.setups-more {
+  justify-self: start;
+  padding: 0.5rem 1rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+/*
+ * The Setups card (spec §5.2): the Board card's anatomy plus the mini chart. An
+ * `<article>` named by its ticker; the clicked card keeps an active outline so it
+ * survives the reflow under the sheet and you do not lose your place.
+ */
+.setup-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.875rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+.setup-card[data-active] {
+  outline: 2px solid var(--color-focus-core);
+  outline-offset: 1px;
+}
+.setup-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.setup-card-head .ticker-select {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-ticker);
+  font-weight: 600;
+  cursor: pointer;
+}
+.setup-card-head .stars {
+  font-family: var(--font-mono);
+}
+.new-badge {
+  padding: 0.0625rem 0.375rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: var(--text-micro);
+  letter-spacing: 0.04em;
+}
+.setup-card-head .sector-chip {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+.setup-stats {
+  display: flex;
+  gap: 1rem;
+  margin: 0;
+}
+.setup-stats div {
+  display: flex;
+  flex-direction: column;
+}
+.setup-stats dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+.setup-stats dd {
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+/*
+ * The stop-width bar (spec §5.2 / §4.6): the stop width as a proportion of ADR,
+ * labelled `stop N×ADR`. Colour never carries the meaning — the label does
+ * (§8.9); `affordable` (sub-1×ADR) is the one tint kept.
+ */
+.stopw-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.stopw-bar {
+  flex: 1;
+  height: 0.5rem;
+  background: var(--color-bg);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+.stopw-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-text-muted);
+}
+.stopw-bar-fill.affordable {
+  background: var(--color-green);
+}
+.stopw-bar-label {
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+  white-space: nowrap;
+}
+
+/*
+ * A carried-filter chip (spec §5.6): the sector arrives dismissible and visible.
+ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: var(--text-micro);
+}
+.chip-clear {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+/*
+ * The Board (spec §5.1). Two columns: heroes and the leaders strip in the left
+ * column at `1fr`, the rotation rail in a fixed 384px right column. When the
+ * chart sheet opens the rail collapses and the sheet takes its place, so the
+ * hero grid keeps its two columns rather than reflowing on every open — a chart
+ * is opened constantly, and reflowing the primary content each time is the worse
+ * failure.
+ */
+.board-grid {
+  display: grid;
+  grid-template-columns: 1fr 384px;
+  gap: 1.5rem;
+  align-items: start;
+}
+.board-grid--sheet-open {
+  /* Rail collapsed: one column for the left content; the fixed sheet overlays
+     the space the rail vacated. The hero grid inside keeps its two columns. */
+  grid-template-columns: 1fr;
+  /* Keep the left content clear of the docked sheet at the right edge. */
+  margin-inline-end: min(560px, 90vw);
+}
+
+/* The left column is a flex column so the strip can stretch to the bottom. */
+.board-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-height: 0;
+}
+
+.board-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 1rem;
+}
+.board-panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+.board-panel-head h2 {
+  margin: 0;
+  font-size: var(--text-head);
+  flex: 1;
+}
+.board-jump {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  cursor: pointer;
+}
+
+/* The funnel — one line under the hero section header (spec §5.1). Muted, meta
+   sized, never a stat panel. */
+.board-funnel {
+  margin: 0.25rem 0 0.75rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-family: var(--font-mono);
+}
+
+/* No placeholder slots (spec §5.1): the grid holds only the real cards, so two
+   cards then the next section is honest. Two columns, kept even under the sheet. */
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.hero-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+/* The source card stays visibly lit while its sheet is open (spec §6.2). */
+.hero-card.is-active {
+  outline: 2px solid var(--color-focus-core);
+  outline-offset: 1px;
+}
+.hero-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* The ticker is a real <button> — the one door for click, Enter, Space and tap
+   (spec §6.1) — carrying the dotted-underline affordance since the focus ring is
+   keyboard-only and hover pointer-only (spec §8.3). */
+.ticker {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-ticker);
+  color: var(--color-text);
+  cursor: pointer;
+  text-decoration: underline dotted var(--color-affordance);
+  text-underline-offset: 3px;
+}
+.stars {
+  font-size: var(--text-meta);
+  color: var(--color-text-muted);
+}
+.badge-new {
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.375rem;
+  background: var(--color-text);
+  color: var(--color-card);
+  font-size: var(--text-micro);
+  letter-spacing: 0.04em;
+}
+.sector-chip {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--text-micro);
+  color: var(--color-text-muted);
+}
+.sector-swatch {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+
+/* TRIGGER · STOP · DIST as a <dl> so a screen reader pairs each label with its
+   value (spec §8.5). */
+.hero-stats {
+  display: flex;
+  gap: 1rem;
+  margin: 0;
+}
+.hero-stats div {
+  display: flex;
+  flex-direction: column;
+}
+.hero-stats dt {
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+}
+.hero-stats dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-stat);
+}
+
+/* The stop-width bar (spec §5.1/§5.0): green/amber/red fill by width, with the
+   ×ADR multiple in the label so colour is never the sole carrier. */
+.stop-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.stop-bar-track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+.stop-bar-fill {
+  display: block;
+  height: 100%;
+}
+.stop-bar-fill--tight {
+  background: var(--color-green);
+}
+.stop-bar-fill--mid {
+  background: var(--color-amber);
+}
+.stop-bar-fill--wide {
+  background: var(--color-red);
+}
+.stop-bar-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* The leaders strip stretches to the bottom of the left column and scrolls
+   internally past its nominal height (spec §5.1) — a healthy night fills the
+   frame because the strip is genuinely long, a two-card night is short on
+   purpose. No fixed height: min-height keeps 1.4.4 (spec §3.2). */
+.board-left .board-panel:last-child {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.leaders-strip-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+.leaders-strip {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body);
+}
+.leaders-strip th,
+.leaders-strip td {
+  text-align: left;
+  padding: 0.25rem 0.5rem;
+}
+.leaders-strip thead th {
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  position: sticky;
+  top: 0;
+  background: var(--color-surface);
+}
+.leaders-strip .ticker {
+  font-size: var(--text-body);
+}
+.strip-return,
+.strip-breadth {
+  font-family: var(--font-mono);
+}
+
+/*
+ * The rotation rail — centre-anchored diverging bars (spec §5.1/§8.4): left
+ * negative, right positive, so a bar growing away from the centre says what the
+ * panel is named for. The signed value carries the sign in text, so the meaning
+ * survives without colour (spec §1.4.1).
+ */
+.rotation-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.rotation-bar-btn {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0.25rem;
+  cursor: pointer;
+  text-align: left;
+}
+.rotation-name {
+  font-size: var(--text-meta);
+}
+.rotation-track {
+  position: relative;
+  height: 10px;
+  background: var(--color-bg);
+  border-radius: 2px;
+}
+/* The centre line the bars diverge from. */
+.rotation-track::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-fill-faint);
+}
+.rotation-fill {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+}
+.rotation-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--color-text-muted);
+  justify-self: end;
+}
+
+/* Static skeletons at real dimensions (spec §7.6) — never a shimmer, never a
+   spinner, never a collapsing text node. */
+.hero-grid-skeleton,
+.leaders-strip-skeleton,
+.rotation-skeleton {
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+.hero-grid-skeleton {
+  min-height: 180px;
+}
+.leaders-strip-skeleton {
+  min-height: 240px;
+}
+.rotation-skeleton {
+  min-height: 160px;
+}
+
+/*
+ * The Sectors screen (spec §5.4): stacked bands, not peer panels side by side —
+ * the decile table is too wide to sit beside a square plot, so the two rotation
+ * models stack (and the phase-2 RRG appends above). One column, gap between
+ * bands; no reserved slot for the plot.
+ */
+.sectors-bands {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.band-subtitle {
+  margin: 0 0 0.75rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+.pullback-note {
+  margin: 0 0 0.75rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+  font-style: italic;
+}
+.band-skeleton {
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--color-text-muted) 12%, transparent);
+}
+
+/* Every sector-bearing mark is a real button into detail (spec §5.4). Styled as
+   an inline link, not a chunky control, so a dense board stays readable. */
+.sector-link,
+.ticker-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ticker-link {
+  font-family: var(--font-mono);
+}
+.rotation-ineligible {
+  color: var(--color-text-muted);
+}
+.kn {
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+
+/* The sector detail page (spec §5.5). */
+.breadcrumb {
+  margin: 0 0 0.25rem;
+  font-size: var(--text-micro);
+}
+.breadcrumb-back {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.lookback-control {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin: 0.75rem 0;
+}
+.member-return {
+  position: relative;
+}
+.return-bar {
+  display: inline-block;
+  height: 0.5rem;
+  margin-right: 0.4rem;
+  background: color-mix(in srgb, var(--color-text-muted) 35%, transparent);
+  vertical-align: middle;
+}
+.decile-badge {
+  font-size: var(--text-micro);
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--color-green) 18%, transparent);
+  color: var(--color-green);
+}
+/* The empty decile cell is a muted dash, not a badge — the absence of top-decile
+   membership is stated plainly, never dressed up as a status (spec §5.5). */
+.decile-badge-empty {
+  color: var(--color-text-muted);
+}
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * The v2 shell chrome, Leaders and Sectors (issue #95). These components shipped
+ * markup ahead of their styles: 42 class names that matched no rule, so the tab
+ * bar, the market toggle, the regime/run-status/identity chrome and two whole
+ * screens rendered as unstyled text runs. Every rule below REUSES the tokens and
+ * the panel/card/table treatments already in this sheet — no new one-off palette.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+/* ── The shell header (spec §3.1/§3.3) ────────────────────────────────────── */
+.shell-header {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+.shell-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem 1.25rem;
+  padding-block: 0.875rem;
+}
+.shell-product {
+  margin: 0;
+  font-size: var(--text-head);
+  font-weight: 700;
+}
+.shell-asof {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-meta);
+  font-family: var(--font-mono);
+}
+
+/* The tab row (spec §8.5). The current tab is distinct by WEIGHT plus a solid
+   underline bar, never by colour alone (spec §8.4). The 2px transparent border
+   reserves the space so selecting a tab does not shift the row. */
+.tab-row {
+  display: flex;
+  gap: 0.25rem;
+  margin-inline-start: auto;
+}
+.tab {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 0.375rem 0.75rem;
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.tab[aria-selected="true"] {
+  color: var(--color-text);
+  font-weight: 600;
+  border-bottom-color: var(--color-text);
+}
+
+/* The market control (spec §8.5) — a segmented pill. The selected market is
+   filled near-black with light text AND bold, so it reads without colour (§8.4);
+   this is the active seg item the focus halo is tuned for (spec §8.6). */
+.market-control {
+  display: inline-flex;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.market-item {
+  border: 0;
+  background: transparent;
+  padding: 0.375rem 0.75rem;
+  font: inherit;
+  font-size: var(--text-meta);
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.market-item + .market-item {
+  border-inline-start: 1px solid var(--color-border);
+}
+.market-item[aria-checked="true"] {
+  background: var(--color-text);
+  color: var(--color-card);
+  font-weight: 600;
+}
+
+/* The shell-owned body states (spec §7.1/§7.2/§7.3). */
+.shell-loading {
+  color: var(--color-text-muted);
+}
+/* The no-run-yet / placeholder statements: a plain muted fact, never dressed as
+   an error (spec §7.2/§7.4). */
+.empty-state,
+.screen-placeholder {
+  margin: 2rem 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+}
+.no-run-yet {
+  font-family: var(--font-mono);
+}
+/* The identity-read failure: the app's single role="alert", with no screen
+   behind it (spec §7.1/§8.7). Framed with the stop palette so it reads as the
+   hard failure it is. */
+.identity-error {
+  margin: 1.5rem 0;
+  padding: 0.875rem 1rem;
+  background: var(--color-regime-stop-bg);
+  border: 1px solid var(--color-regime-stop-br);
+  border-inline-start: 3px solid var(--color-red);
+  border-radius: 0.5rem;
+  color: var(--color-regime-stop);
+  font-size: var(--text-body);
+}
+
+/* The permanent regime band (spec §3.3/§4.9): state · posture · breadth · as-of.
+   data-state tints the frame with the regime pairs; the state is spelled out in
+   the copy, so the tint is supplementary, never the sole carrier (spec §8.4). */
+.regime-banner {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.875rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  font-size: var(--text-meta);
+}
+.regime-banner[data-state="FRIENDLY"] {
+  background: var(--color-regime-ok-bg);
+  border-color: var(--color-regime-ok-br);
+  color: var(--color-regime-ok);
+}
+.regime-banner[data-state="CHOPPY"] {
+  background: var(--color-regime-warn-bg);
+  border-color: var(--color-regime-warn-br);
+  color: var(--color-regime-warn);
+}
+.regime-banner[data-state="HOSTILE"] {
+  background: var(--color-regime-stop-bg);
+  border-color: var(--color-regime-stop-br);
+  color: var(--color-regime-stop);
+}
+
+/* The run-status banner (spec §3.3) — shown only when abnormal, one polite
+   register. Neutral-framed like the regime band; the kind carries a leading
+   accent rule, but the copy already names the state (spec §8.4). */
+.run-progress,
+.run-failed,
+.quarantine-banner {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.875rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-inline-start-width: 3px;
+  border-radius: 0.5rem;
+  font-size: var(--text-meta);
+}
+.run-failed {
+  border-inline-start-color: var(--color-red);
+}
+.quarantine-banner {
+  border-inline-start-color: var(--color-amber);
+}
+.run-status-dismiss {
+  margin-inline-start: auto;
+  padding: 0.125rem 0.5rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font: inherit;
+  font-size: var(--text-micro);
+  cursor: pointer;
+}
+
+/* ── The Leaders screen (spec §5.3) ───────────────────────────────────────── */
+.leaders-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+/* A segmented control (lookback, view) — a radiogroup of joined buttons; the
+   active item is filled near-black, matching the market control (spec §5.3). */
+.segmented {
+  display: inline-flex;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.leaders-controls .lookback,
+.leaders-controls .view {
+  align-self: end;
+}
+.seg-item {
+  border: 0;
+  background: transparent;
+  padding: 0.375rem 0.625rem;
+  font: inherit;
+  font-size: var(--text-meta);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.seg-item + .seg-item {
+  border-inline-start: 1px solid var(--color-border);
+}
+.seg-item[aria-checked="true"] {
+  background: var(--color-text);
+  color: var(--color-card);
+  font-weight: 600;
+}
+
+/* The ticker search and sector select: a micro label stacked over the field. */
+.ticker-search,
+.sector-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ticker-search input,
+.sector-select select {
+  padding: 0.375rem 0.5rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--color-text);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.adr-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  align-self: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+
+/* The sortable column headers (spec §5.3): the header IS the button. */
+.sort-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* The Leaders table — cell padding and row rules so adjacent columns never
+   merge (spec §5.3). */
+.leaders-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body);
+}
+.leaders-table th,
+.leaders-table td {
+  padding: 0.375rem 0.625rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+.leaders-table thead th {
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+/* The grid view (spec §5.3): the mini-chart surface. Same rows, card shape. */
+.leaders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.leader-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+.leader-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.leader-card-facts {
+  display: flex;
+  gap: 1rem;
+  margin: 0;
+}
+.leader-card-facts div {
+  display: flex;
+  flex-direction: column;
+}
+.leader-card-facts dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.leader-card-facts dd {
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+.leaders-summary {
+  margin: 0.75rem 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+.leaders-skeleton {
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+
+/* NEW-to-leaders: a ranking-move badge, deliberately outlined and muted so it
+   never reads as the dark newly-detected badge on Setups cards (spec §5.3). */
+.badge-new-to-leaders {
+  padding: 0.0625rem 0.375rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+  letter-spacing: 0.04em;
+}
+
+/* ── The Sectors band tables (spec §5.4) ──────────────────────────────────── */
+/* The two bands render plain <table>s with no class; give them cell padding and
+   row rules so the share and its k/n fraction never merge with the next column
+   (the exact defect #95 names). */
+.sectors-bands table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body);
+}
+.sectors-bands th,
+.sectors-bands td {
+  padding: 0.375rem 0.625rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+.sectors-bands thead th {
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+.sectors-bands thead th button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+/* The below-fold ineligible group opens with a heavier rule (spec §5.4). */
+.sectors-bands tr[data-group-start="ineligible"] th,
+.sectors-bands tr[data-group-start="ineligible"] td {
+  border-top: 2px solid var(--color-border);
+}
+/* The share / shape numeric cells read as figures. */
+.share,
+.shape {
+  font-family: var(--font-mono);
+}
+
+/* ── The sector detail page (spec §5.5) ───────────────────────────────────── */
+.sector-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.breadcrumb-current {
+  color: var(--color-text-muted);
+}
+
+/* The lookback switch (spec §5.5): a radiogroup of pills, active filled. */
+.lookback-item {
+  padding: 0.25rem 0.625rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font: inherit;
+  font-size: var(--text-meta);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.lookback-item[aria-checked="true"] {
+  background: var(--color-text);
+  color: var(--color-card);
+  font-weight: 600;
+}
+/* The top-decile toggle: a single pressed-state pill (spec §5.5). */
+.top-decile-toggle {
+  align-self: start;
+  padding: 0.25rem 0.625rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  font: inherit;
+  font-size: var(--text-meta);
+  cursor: pointer;
+}
+.top-decile-toggle[aria-pressed="true"] {
+  background: var(--color-text);
+  color: var(--color-card);
+  font-weight: 600;
+}
+
+/* The member table (spec §5.5): cell padding and row rules for legibility. */
+.member-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body);
+}
+.member-table th,
+.member-table td {
+  padding: 0.375rem 0.625rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+.member-table thead th {
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+.rank {
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+}
+.return-value,
+.member-pctile {
+  font-family: var(--font-mono);
+}
+.member-decile {
+  white-space: nowrap;
+}

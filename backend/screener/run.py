@@ -22,7 +22,7 @@ from zoneinfo import ZoneInfo
 
 from .bars import EXCHANGE
 from .models import RunRecord
-from .pipeline import DEFAULT_DIGESTS_DIR, run_market_universe
+from .pipeline import DEFAULT_DIGESTS_DIR, run_market_universe, summarize_pull
 from .schedule import last_final_session, run_is_due
 from .source import Source
 from .store import Store
@@ -36,15 +36,14 @@ def run_once(
     now: datetime,
     digests_dir: Path = DEFAULT_DIGESTS_DIR,
 ) -> RunRecord | None:
-    """Run ``market``'s pipeline for the last final session, if it is missing.
+    """Run ``market``'s pipeline for the last final session, if it is due.
 
     Returns the resulting :class:`RunRecord`, or ``None`` when the store already
-    holds the last final session (nothing was due). ``now`` must be
-    timezone-aware; it fixes both the finality decision and the session run.
+    holds the last final session as a *published* run (nothing was due — a
+    quarantined one is retried, issue #103). ``now`` must be timezone-aware; it
+    fixes both the finality decision and the session run.
     """
-    latest = store.latest_run(market)
-    latest_session = latest.session if latest else None
-    if not run_is_due(latest_session, market, now):
+    if not run_is_due(store.last_run(market), market, now):
         return None
     session = last_final_session(market, now)
     return run_market_universe(
@@ -61,6 +60,11 @@ def run_live(market: str) -> RunRecord | None:
     Each call owns its store connection, so a background run never shares the
     app's read connection. Returns the :class:`RunRecord`, or ``None`` when
     nothing was due.
+
+    The run's account of its own pull is printed here, while the store is still
+    open, because this is the one path both the launchd jobs and run-on-open go
+    through — the scheduled jobs capture stdout, so a quarantined run explains
+    itself in the log file rather than only in the database (issue #91).
     """
     from .app import DEFAULT_DB_PATH
     from .source import default_source
@@ -68,7 +72,10 @@ def run_live(market: str) -> RunRecord | None:
     now = datetime.now(ZoneInfo(EXCHANGE[market]["tz"]))
     store = Store.open(DEFAULT_DB_PATH)
     try:
-        return run_once(store, default_source(), market, now=now)
+        record = run_once(store, default_source(), market, now=now)
+        if record is not None:
+            print(summarize_pull(record, store.run_failures(market, record.session)))
+        return record
     finally:
         store.close()
 
@@ -81,11 +88,11 @@ def main(argv: list[str] | None = None) -> int:
         print("usage: python -m screener.run <IDX|US>", file=sys.stderr)
         return 2
     market = args[0].upper()
-    record = run_live(market)
-    if record is None:
+    # A run that happened has already printed its own account of the pull
+    # (:func:`summarize_pull`, called in ``run_live`` while the store is open);
+    # only the no-run case is left to say here.
+    if run_live(market) is None:
         print(f"{market}: already current, no run")
-    else:
-        print(f"{market}: {record.status} run for {record.session}")
     return 0
 
 

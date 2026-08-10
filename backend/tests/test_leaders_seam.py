@@ -1,9 +1,18 @@
-"""Seam 2: the /api/boards/{market} endpoint against a fixture store.
+"""Seam 2: the /api/leaders/{market} endpoint (spec §4.4 / §10.2, issue #76).
+
+``Boards`` is renamed **Leaders** — the name *Board* now belongs to the composite
+home screen — so the endpoint and its models are ``leaders`` / ``Leader`` /
+``LeaderRow`` / ``LeadersResponse``.
 
 The boards are a read-time cut of the persisted rank table (spec §5.2): the
 endpoint reads tonight's ranks, last session's ranks (for the ``NEW`` marker) and
 each board member's bars (for the ADR column), and returns five boards of up to
 30 rows. This seam drives it end to end through TestClient.
+
+Two phase-1 leaders-row fields land here — ``sector`` and ``dollar_volume`` —
+both cheap: the read already loads exactly these names' bars for the ADR column,
+and sector is a store lookup (spec §4.4). ``tier``, ``rs_pctile`` and a
+per-lookback ``cutoffs`` block are typed nullable phase-2 and return null.
 """
 
 from datetime import date, datetime, timedelta
@@ -36,23 +45,71 @@ def _publish(store: Store, market: str, session: date) -> None:
     )
 
 
-def test_boards_endpoint_returns_five_boards(seeded_store: Store):
-    body = client_for(seeded_store).get("/api/boards/IDX").json()
+def test_leaders_endpoint_returns_five_boards(seeded_store: Store):
+    body = client_for(seeded_store).get("/api/leaders/IDX").json()
     assert body["market"] == "IDX"
     assert [b["lookback"] for b in body["boards"]] == list(LOOKBACKS)
 
 
-def test_boards_endpoint_empty_state_when_no_run(store: Store):
-    body = client_for(store).get("/api/boards/US").json()
+def test_leaders_endpoint_empty_state_when_no_run(store: Store):
+    body = client_for(store).get("/api/leaders/US").json()
     assert body["session"] is None
     assert body["boards"] == []
 
 
 def test_unknown_market_is_404(store: Store):
-    assert client_for(store).get("/api/boards/LSE").status_code == 404
+    assert client_for(store).get("/api/leaders/LSE").status_code == 404
 
 
-def test_boards_rank_on_raw_return_and_carry_furniture(store: Store):
+def test_rows_carry_sector_and_dollar_volume(store: Store):
+    session = date(2026, 8, 4)
+    _publish(store, "US", session)
+    store.append_bars("US", "WIN", _flat_bars(140.0))
+    store.upsert_label("US", "WIN", "Technology", "Semiconductors", session)
+    store.append_ranks("US", session, [Rank("WIN", "1w", 1.0, 0.40)])
+
+    row = next(
+        b for b in client_for(store).get("/api/leaders/US").json()["boards"]
+        if b["lookback"] == "1w"
+    )["rows"][0]
+    assert row["symbol"] == "WIN"
+    assert row["sector"] == "Technology"  # a store lookup
+    # median close×volume over the trailing window: 100 × 1000.
+    assert row["dollar_volume"] == 100_000.0
+
+
+def test_sector_is_null_when_label_never_fetched(store: Store):
+    session = date(2026, 8, 4)
+    _publish(store, "US", session)
+    store.append_bars("US", "NOLABEL", _flat_bars(140.0))
+    store.append_ranks("US", session, [Rank("NOLABEL", "1w", 1.0, 0.40)])
+
+    row = next(
+        b for b in client_for(store).get("/api/leaders/US").json()["boards"]
+        if b["lookback"] == "1w"
+    )["rows"][0]
+    assert row["sector"] is None
+
+
+def test_phase2_fields_are_typed_null(store: Store):
+    session = date(2026, 8, 4)
+    _publish(store, "US", session)
+    store.append_bars("US", "WIN", _flat_bars(140.0))
+    store.append_ranks("US", session, [Rank("WIN", "1w", 1.0, 0.40)])
+
+    board = next(
+        b for b in client_for(store).get("/api/leaders/US").json()["boards"]
+        if b["lookback"] == "1w"
+    )
+    # cutoffs sits beside the rows, one block per lookback board — never repeated
+    # on every row (spec §4.4). Phase-2, so null now.
+    assert board["cutoffs"] is None
+    row = board["rows"][0]
+    assert row["tier"] is None
+    assert row["rs_pctile"] is None
+
+
+def test_leaders_rank_on_raw_return_and_carry_furniture(store: Store):
     session = date(2026, 8, 4)
     _publish(store, "US", session)
     # Three names, WIN > MID > LOW on 1w; WIN also tops the 3m decile (breadth 2).
@@ -66,7 +123,7 @@ def test_boards_rank_on_raw_return_and_carry_furniture(store: Store):
     ]
     store.append_ranks("US", session, rows)
 
-    body = client_for(store).get("/api/boards/US").json()
+    body = client_for(store).get("/api/leaders/US").json()
     one_w = next(b for b in body["boards"] if b["lookback"] == "1w")
     syms = [r["symbol"] for r in one_w["rows"]]
     assert syms == ["WIN", "MID", "LOW"]  # sorted by raw return, highest first
@@ -90,7 +147,7 @@ def test_new_marker_diffs_against_last_session(store: Store):
     ])
 
     one_w = next(
-        b for b in client_for(store).get("/api/boards/US").json()["boards"]
+        b for b in client_for(store).get("/api/leaders/US").json()["boards"]
         if b["lookback"] == "1w"
     )
     by_symbol = {r["symbol"]: r for r in one_w["rows"]}

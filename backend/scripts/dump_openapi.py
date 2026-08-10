@@ -17,10 +17,15 @@ from screener.app import create_app  # noqa: E402
 OUT = Path(__file__).resolve().parents[2] / "frontend" / "src" / "api" / "openapi.json"
 
 
+def render() -> str:
+    """The exact text written to ``openapi.json`` — the single source of truth
+    for the serialization, shared with the contract-drift test."""
+    return json.dumps(create_app().openapi(), indent=2, sort_keys=True) + "\n"
+
+
 def main() -> None:
-    schema = create_app().openapi()
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n")
+    OUT.write_text(render())
     print(f"wrote {OUT}")
 
 

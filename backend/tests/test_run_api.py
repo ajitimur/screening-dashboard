@@ -60,6 +60,23 @@ def test_run_due_true_when_no_run_has_published(store: Store):
     assert body["run_due"] is True
 
 
+def test_run_due_true_when_the_last_final_session_quarantined(store: Store):
+    # Opening the tab on a night that quarantined must kick a retry: the session
+    # is on record but published nothing, so the tab is showing a banner over an
+    # older as-of date and the run that would fix it is still owed (issue #103).
+    run_market(
+        store, "IDX", date(2026, 8, 5),
+        enumerated=[f"S{i}" for i in range(100)],
+        resolved=[f"S{i}" for i in range(50)],  # under the floor
+        now=datetime(2026, 8, 5, 19, 30),
+    )
+    app = create_app(store=store, clock=lambda: FIXED_NOW)
+    body = TestClient(app).get("/api/runs/IDX").json()
+
+    assert body["latest"] is None, "a quarantined run is not an as-of session"
+    assert body["run_due"] is True
+
+
 def test_post_triggers_a_run_and_reports_running(store: Store):
     release = threading.Event()
     started = threading.Event()

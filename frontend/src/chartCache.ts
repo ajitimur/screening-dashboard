@@ -1,0 +1,48 @@
+import { fetchChart, type ChartResponse } from "./api/client";
+
+// ── One frontend chart cache (spec §6.4) ─────────────────────────────────────
+//
+// A single module-level cache keyed on `(market, symbol, bars)`, shared by the
+// mini charts and the sheet. The point is volume: a Setups grid can hold 27
+// mini charts and a Leaders grid up to 50, each lazily asking for its 60-bar
+// window; without a cache, opening the sheet on a name a mini already drew would
+// refetch, and the /api/chart read recomputes the session's rank table per call
+// (spec §6.1). So a mini's payload and the sheet's open on the same name at the
+// same window are ONE fetch.
+//
+// A rejected read is evicted rather than remembered — otherwise a single failed
+// mini would poison every later open of that name. The cache holds successes;
+// failures fall through to a fresh attempt (mini charts fail silently anyway,
+// spec §7.7).
+
+const cache = new Map<string, Promise<ChartResponse>>();
+
+function key(market: string, symbol: string, bars?: number | null): string {
+  // NUL-delimited so no symbol/market value can forge another key's string.
+  return `${market}\0${symbol}\0${bars ?? "all"}`;
+}
+
+/**
+ * Read a chart bundle through the shared cache. An in-flight or resolved read
+ * for the same `(market, symbol, bars)` is returned as-is — the same promise, so
+ * concurrent callers (many minis mounting at once) coalesce to one fetch. A
+ * rejection is evicted so the next caller retries instead of replaying it.
+ */
+export function loadChart(
+  market: string,
+  symbol: string,
+  bars?: number | null,
+): Promise<ChartResponse> {
+  const k = key(market, symbol, bars);
+  const hit = cache.get(k);
+  if (hit !== undefined) return hit;
+  const p = fetchChart(market, symbol, bars);
+  p.catch(() => cache.delete(k));
+  cache.set(k, p);
+  return p;
+}
+
+// Test-only: drop every entry so one suite's reads do not leak into the next.
+export function _clearChartCache(): void {
+  cache.clear();
+}

@@ -110,3 +110,90 @@ def test_temporal_delta_is_null_without_twenty_sessions(store: Store):
     body = client_for(store).get("/api/sectors/IDX").json()
     energy = next(s for s in body["sectors"] if s["sector"] == "Energy")
     assert energy["temporal_delta"] is None
+
+
+def test_sectors_response_carries_taxonomy(store: Store):
+    # Every sector-bearing response records the taxonomy the labels came from
+    # (spec §2.6 / §4.5) — even the empty state, which has no members.
+    body = client_for(store).get("/api/sectors/IDX").json()
+    assert body["taxonomy"] == "GECS"
+
+
+# --- Seam 7c: the /api/sectors/{market}/{sector} drill-down (spec §5.5) ---
+
+
+def test_sector_detail_returns_members_with_returns_pctile_and_decile(store: Store):
+    symbols = [f"S{i}" for i in range(4)]
+    _publish(store, "IDX", SESSION, symbols)
+    # S0 tops the 1w decile (percentile 0.95); the others sit mid-pack. Two
+    # lookbacks so the client can switch without refetching.
+    rows = [Rank("S0", "1w", 0.95, 0.30), Rank("S0", "1m", 0.60, 0.12)]
+    rows += [Rank(s, "1w", 0.50, 0.05) for s in symbols[1:]]
+    store.append_ranks("IDX", SESSION, rows)
+    for s in symbols:
+        store.upsert_label("IDX", s, "Energy", "Thermal Coal", SESSION)
+
+    body = client_for(store).get("/api/sectors/IDX/Energy").json()
+    assert body["session"] == "2026-08-04"
+    assert body["sector"] == "Energy"
+    assert body["taxonomy"] == "GECS"
+    assert [m["symbol"] for m in body["members"]] == symbols  # sorted by symbol
+
+    s0 = next(m for m in body["members"] if m["symbol"] == "S0")
+    # Per-lookback raw returns for exactly the lookbacks the name is ranked in.
+    assert abs(s0["returns"]["1w"] - 0.30) < 1e-9
+    assert abs(s0["returns"]["1m"] - 0.12) < 1e-9
+    # The percentile names its population: this repo ranks over the universe.
+    assert abs(s0["pctile_universe"]["1w"] - 0.95) < 1e-9
+    # Per-name decile: top-decile in 1w (0.95 ≥ 0.90), not in 1m (0.60).
+    assert s0["top_decile"]["1w"] is True
+    assert s0["top_decile"]["1m"] is False
+
+    s1 = next(m for m in body["members"] if m["symbol"] == "S1")
+    assert s1["top_decile"]["1w"] is False
+
+
+def test_sector_name_with_a_space_resolves(store: Store):
+    symbols = ["A", "B"]
+    _publish(store, "IDX", SESSION, symbols)
+    store.append_ranks("IDX", SESSION, [Rank(s, "1w", 0.95, 0.1) for s in symbols])
+    for s in symbols:
+        store.upsert_label("IDX", s, "Consumer Cyclical", "Auto Manufacturers", SESSION)
+
+    # The client URL-encodes the space; the server must decode it to the label.
+    body = client_for(store).get("/api/sectors/IDX/Consumer%20Cyclical").json()
+    assert body["sector"] == "Consumer Cyclical"
+    assert {m["symbol"] for m in body["members"]} == {"A", "B"}
+
+
+def test_p2_fields_are_typed_nullable_and_return_null(store: Store):
+    symbols = ["A"]
+    _publish(store, "IDX", SESSION, symbols)
+    store.append_ranks("IDX", SESSION, [Rank("A", "1w", 0.95, 0.1)])
+    store.upsert_label("IDX", "A", "Energy", "Thermal Coal", SESSION)
+
+    member = client_for(store).get("/api/sectors/IDX/Energy").json()["members"][0]
+    # P2, not computed anywhere today — nullable, and null (not evaluated).
+    assert member["pct_of_52w_high"] is None
+    assert member["verdict"] is None
+
+
+def test_sector_detail_unknown_sector_is_404(store: Store):
+    _publish(store, "IDX", SESSION, ["A"])
+    store.append_ranks("IDX", SESSION, [Rank("A", "1w", 0.95, 0.1)])
+    store.upsert_label("IDX", "A", "Energy", "Thermal Coal", SESSION)
+    # A sector outside the 11-sector GECS axis is a clean 404, never a 500.
+    assert client_for(store).get("/api/sectors/IDX/Nonsense").status_code == 404
+
+
+def test_sector_detail_unknown_market_is_404(store: Store):
+    assert client_for(store).get("/api/sectors/LSE/Energy").status_code == 404
+
+
+def test_sector_detail_empty_state_has_no_members(store: Store):
+    # No run has published: a known sector still resolves, with no members.
+    body = client_for(store).get("/api/sectors/IDX/Energy").json()
+    assert body["session"] is None
+    assert body["sector"] == "Energy"
+    assert body["taxonomy"] == "GECS"
+    assert body["members"] == []

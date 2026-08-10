@@ -6,12 +6,17 @@ import type { components } from "./schema";
 export type RunsResponse = components["schemas"]["RunsResponse"];
 export type RunRecord = components["schemas"]["RunRecord"];
 export type RunTriggerResponse = components["schemas"]["RunTriggerResponse"];
-export type BoardsResponse = components["schemas"]["BoardsResponse"];
-export type Board = components["schemas"]["Board"];
-export type BoardRow = components["schemas"]["BoardRow"];
+// The leaderboards read (spec §4.4). *Leaders* names the endpoint because
+// *Board* names the composite home screen — hence `Board.tsx` reading
+// `fetchLeaders`, which is otherwise a surprise.
+export type LeadersResponse = components["schemas"]["LeadersResponse"];
+export type Leader = components["schemas"]["Leader"];
+export type LeaderRow = components["schemas"]["LeaderRow"];
 export type SectorsResponse = components["schemas"]["SectorsResponse"];
 export type SectorStrength = components["schemas"]["SectorStrength"];
 export type IndustryStrength = components["schemas"]["IndustryStrength"];
+export type SectorDetailResponse = components["schemas"]["SectorDetailResponse"];
+export type SectorMember = components["schemas"]["SectorMember"];
 export type RegimeResponse = components["schemas"]["RegimeResponse"];
 export type CandidatesResponse = components["schemas"]["CandidatesResponse"];
 export type Candidate = components["schemas"]["Candidate"];
@@ -36,16 +41,31 @@ export async function triggerRun(market: string): Promise<RunTriggerResponse> {
   return (await resp.json()) as RunTriggerResponse;
 }
 
-export async function fetchBoards(market: string): Promise<BoardsResponse> {
-  const resp = await fetch(`/api/boards/${market}`);
-  if (!resp.ok) throw new Error(`GET /api/boards/${market} → ${resp.status}`);
-  return (await resp.json()) as BoardsResponse;
+export async function fetchLeaders(market: string): Promise<LeadersResponse> {
+  const resp = await fetch(`/api/leaders/${market}`);
+  if (!resp.ok) throw new Error(`GET /api/leaders/${market} → ${resp.status}`);
+  return (await resp.json()) as LeadersResponse;
 }
 
 export async function fetchSectors(market: string): Promise<SectorsResponse> {
   const resp = await fetch(`/api/sectors/${market}`);
   if (!resp.ok) throw new Error(`GET /api/sectors/${market} → ${resp.status}`);
   return (await resp.json()) as SectorsResponse;
+}
+
+// The sector drill-down (spec §4.5 / §5.5). The sector name needs URL-encoding —
+// GECS labels carry spaces (`Consumer Cyclical`) — spec'd explicitly rather than
+// left to whoever implements. The member rows carry per-lookback returns,
+// percentile-in-universe and per-name decile, so the client's lookback switch
+// re-renders without a refetch.
+export async function fetchSectorDetail(
+  market: string,
+  sector: string,
+): Promise<SectorDetailResponse> {
+  const resp = await fetch(`/api/sectors/${market}/${encodeURIComponent(sector)}`);
+  if (!resp.ok)
+    throw new Error(`GET /api/sectors/${market}/${sector} → ${resp.status}`);
+  return (await resp.json()) as SectorDetailResponse;
 }
 
 export async function fetchRegime(market: string): Promise<RegimeResponse> {
@@ -60,8 +80,17 @@ export async function fetchCandidates(market: string): Promise<CandidatesRespons
   return (await resp.json()) as CandidatesResponse;
 }
 
-export async function fetchChart(market: string, symbol: string): Promise<ChartResponse> {
-  const resp = await fetch(`/api/chart/${market}/${symbol}`);
+// `bars` caps the window the read returns (spec §6.4 / ticket #77): the mini
+// charts ask for 60 so a thumbnail never ships a full price history, and the
+// sheet asks for the same 60 so a mini already on screen makes the open a cache
+// hit (the shared-cache point of §6.4). Omitted → the backend's default window.
+export async function fetchChart(
+  market: string,
+  symbol: string,
+  bars?: number | null,
+): Promise<ChartResponse> {
+  const query = bars == null ? "" : `?bars=${bars}`;
+  const resp = await fetch(`/api/chart/${market}/${symbol}${query}`);
   if (!resp.ok) throw new Error(`GET /api/chart/${market}/${symbol} → ${resp.status}`);
   return (await resp.json()) as ChartResponse;
 }

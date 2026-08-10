@@ -217,6 +217,75 @@ def test_candidates_stop_column_flags_the_affordable_minority_and_filters_nothin
         store.close()
 
 
+def test_candidates_endpoint_folds_the_chart_facts_onto_the_row():
+    # A Setups card shows trigger/stop/distance without a per-symbol chart fetch:
+    # the facts ride the row, projected from the same detection (spec §4.3). Bars
+    # supply dollar_volume; a prior session supplies new_tonight.
+    from datetime import date, datetime, timedelta
+
+    from screener.bars import Bar
+    from screener.detection import DETECTOR_VERSION, Detection
+    from screener.ranks import Rank
+
+    store = Store.memory()
+    prev, session = date(2026, 8, 4), date(2026, 8, 5)
+    cal = [date(2026, 1, 1) + timedelta(days=i) for i in range(160)]
+    store.append_bars(
+        "US", "AAA", [Bar(s, 98.0, 99.0, 97.0, 98.0, 98.0, 1000) for s in cal]
+    )
+
+    def det(symbol, sess):
+        adr_abs = 0.02 * 98.0
+        return Detection(
+            symbol=symbol, session=sess, detector_version=DETECTOR_VERSION,
+            trigger=100.0, stop=3.0, stopw_adr=3.0 / adr_abs,
+            base_len=30, move_gain=103.0, adr=0.02, close=98.0,
+            cluster_k=5, cluster_high=100.0, cluster_low=97.0, cluster_range_adr=0.99,
+            line_ok=True, touch_zones=2, overshoot_adr=0.0, slope=-0.001,
+            line_end=99.9, base_low=97.0, churn_l=0.45, sma20_rising=True, dryup=0.90,
+        )
+
+    # Last session AAA was detected; tonight AAA and FRESH are — so AAA is held
+    # over (new_tonight false) and FRESH is new (absent from prev's detected rows).
+    store.append_run(
+        "US", prev, status="published", symbols_enumerated=1, symbols_resolved=1,
+        created_at=datetime(2026, 8, 4, 22, 10),
+    )
+    store.append_detections("US", prev, [det("AAA", prev)])
+    store.append_run(
+        "US", session, status="published", symbols_enumerated=2, symbols_resolved=2,
+        created_at=datetime(2026, 8, 5, 22, 10),
+    )
+    store.append_universe("US", session, ["AAA", "FRESH"])
+    store.append_detections("US", session, [det("AAA", session), det("FRESH", session)])
+    store.append_ranks("US", session, [Rank("AAA", "1m", 0.95, 1.2)])
+    store.upsert_label("US", "AAA", "Technology", "Semiconductors", session)
+    try:
+        rows = client_for(store).get("/api/candidates/US").json()["candidates"]
+        by_sym = {c["symbol"]: c for c in rows}
+        aaa = by_sym["AAA"]
+        # The folded facts, projected from the detection row.
+        assert aaa["trigger_price"] == 100.0   # overlay.trigger = cluster high
+        assert aaa["stop_price"] == 97.0       # overlay.stop = cluster low
+        assert aaa["close"] == 98.0
+        assert aaa["adr"] == 0.02
+        assert aaa["sector"] == "Technology"   # new on the row; industry stays too
+        assert aaa["industry"] == "Semiconductors"
+        assert aaa["dollar_volume"] == 98.0 * 1000  # median close×volume from bars
+        assert aaa["decile_ranks"] == {"1m": 0.95}
+        assert "risk_adr" not in aaa           # refused vocabulary — stopw_adr stays
+        # Phase-2 fields: typed nullable, returned null.
+        assert aaa["verdict"] is None
+        assert len(aaa["breakdown"]) == 8
+        # new_tonight: absence from the previous session's detected rows.
+        assert aaa["new_tonight"] is False     # detected last session
+        assert by_sym["FRESH"]["new_tonight"] is True  # not detected last session
+        # No bars for FRESH → dollar_volume degrades to null, not a fabricated zero.
+        assert by_sym["FRESH"]["dollar_volume"] is None
+    finally:
+        store.close()
+
+
 def test_candidates_endpoint_is_empty_when_no_run_published(store: Store):
     body = client_for(store).get("/api/candidates/US").json()
     assert body == {
@@ -317,6 +386,73 @@ def test_chart_of_a_name_without_a_detection_still_draws_without_facts():
         assert len(body["candles"]) == 120
         assert body["facts"] is None  # no base tonight → nothing to describe
         assert body["setup"] is None  # no base → nothing to shade or break down
+    finally:
+        store.close()
+
+
+def test_chart_bars_window_returns_the_trailing_n_candles():
+    # ?bars=N draws only the last N bars — a thumbnail costs N bars, not the full
+    # stored history (spec §4.6). The response shape is otherwise unchanged.
+    store = _chart_store()
+    try:
+        body = client_for(store).get("/api/chart/US/AAA?bars=60").json()
+        assert len(body["candles"]) == 60
+        assert body["candles"][-1]["close"] == 98.0  # still the last stored bar
+        # The response shape is unchanged — the four MA lines are still present,
+        # computed over full history and sliced to the drawn window.
+        for line in ("sma10", "sma20", "sma50", "ema65"):
+            assert len(body[line]) > 0
+        # Same bundle, just fewer bars: the facts/setup blocks are untouched.
+        assert body["facts"]["base_len"] == 30
+        assert body["setup"]["trigger"] == 100.0
+    finally:
+        store.close()
+
+
+def test_chart_without_bars_param_returns_full_history():
+    # Omitting ?bars keeps the default: the full stored series (120 bars).
+    store = _chart_store()
+    try:
+        body = client_for(store).get("/api/chart/US/AAA").json()
+        assert len(body["candles"]) == 120
+    finally:
+        store.close()
+
+
+def test_chart_window_never_admits_a_quarantined_pulls_bars():
+    # The ordering is the correctness requirement (spec §4.6): the session filter
+    # runs *before* the tail truncation. A newer pull sits in the store past the
+    # published session (quarantined, not published); a small window must still
+    # draw published bars, never the quarantined tail.
+    from datetime import date, datetime, timedelta
+
+    from screener.bars import Bar
+
+    store = Store.memory()
+    session = date(2026, 4, 30)  # the published as-of session
+    cal = [date(2026, 1, 1) + timedelta(days=i) for i in range(120)]
+    # 120 published bars up to and including the session, then 5 quarantined bars
+    # beyond it — a newer pull whose run is not published.
+    published = [Bar(s, 98.0, 99.0, 97.0, 98.0, 98.0, 1000) for s in cal]
+    quarantined = [
+        Bar(session + timedelta(days=i), 5.0, 5.0, 5.0, 5.0, 5.0, 9)
+        for i in range(1, 6)
+    ]
+    store.append_bars("US", "AAA", published + quarantined)
+    store.append_run(
+        "US", session, status="published",
+        symbols_enumerated=1, symbols_resolved=1,
+        created_at=datetime(2026, 4, 30, 22, 10),
+    )
+    store.append_universe("US", session, ["AAA"])
+    try:
+        body = client_for(store).get("/api/chart/US/AAA?bars=3").json()
+        assert len(body["candles"]) == 3
+        # Every drawn bar is on or before the published session; the quarantined
+        # tail (had truncation run first) would have filled the whole window.
+        assert all(c["session"] <= session.isoformat() for c in body["candles"])
+        assert body["candles"][-1]["session"] == session.isoformat()
+        assert all(c["close"] == 98.0 for c in body["candles"])  # none of the 5.0 tail
     finally:
         store.close()
 

@@ -96,7 +96,7 @@ class FakeBarClient:
     def enumerate(self, market):
         return self._instruments
 
-    def fetch(self, symbol):
+    def fetch(self, symbol, start=None):
         return self._bars.get(symbol, [])
 
     def fetch_info(self, symbol):
@@ -165,8 +165,8 @@ def test_one_run_publishes_a_same_dated_workbench_across_all_six_endpoints(workb
     assert len(lead["breakdown"]) == 8
     assert lead["industry"] == "Semiconductors"
 
-    # boards — five boards, and the leader tops the board it led (3m: +100%).
-    boards = client.get("/api/boards/US").json()
+    # leaders — five boards, and the leader tops the board it led (3m: +100%).
+    boards = client.get("/api/leaders/US").json()
     assert boards["session"] == stamp
     assert [b["lookback"] for b in boards["boards"]] == list(LOOKBACKS)
     three_m = next(b for b in boards["boards"] if b["lookback"] == "3m")

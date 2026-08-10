@@ -53,14 +53,25 @@ def build_candidates(
     ranks: list[Rank],
     industry_of: dict[str, str],
     sector_of: dict[str, str],
+    dollar_volume_of: dict[str, float | None] | None = None,
+    prev_detected: set[str] | frozenset[str] = frozenset(),
 ) -> list[Candidate]:
     """The candidate rows for a session, **sorted by star score** (spec §4.7/§5.1).
 
     ``industry_of`` maps symbol → industry from the label cache; a name with no
     cached label gets ``None`` rather than being dropped. ``sector_of`` maps
-    symbol → GECS sector, for the score's leave-one-out sector share. ``ranks`` is
-    the session's rank table, read for the ``k/5`` badge and the prior-move
-    percentile.
+    symbol → GECS sector, for the score's leave-one-out sector share **and** the
+    row's ``sector`` fact. ``ranks`` is the session's rank table, read for the
+    ``k/5`` badge, the prior-move percentile and the row's ``decile_ranks``.
+
+    The **chart-facts fold** (spec §4.3): a Setups card shows trigger, stop and
+    distance without a per-symbol chart fetch, so those facts ride the row too,
+    projected from the *same* detection the chart renders from. ``dollar_volume_of``
+    maps symbol → the §4.1 median-20d liquidity off its bars (``None`` when the
+    bars could not supply it, or the symbol is absent); it is the one fact not
+    carried on the detection row itself, so the caller reads bars for it exactly as
+    the chart does. ``prev_detected`` is last session's detected symbol set —
+    ``new_tonight`` is absence from it, so on the first session every name is new.
 
     The score is derived here from the detection's own signal vector plus two
     cross-sectional inputs off the same session: the prior-move decile gate and
@@ -68,7 +79,13 @@ def build_candidates(
     with ``line_ok`` failures below equal-scored accepted names — a silent
     tiebreak, ticker breaking any remaining tie for a stable order.
     """
+    dollar_volume_of = dollar_volume_of or {}
     breadth = breadth_counts(ranks)
+    # The five decile ranks per name, grouped off the same rank table the chart
+    # facts read (spec §4.3); a lookback the name is not ranked in is simply absent.
+    decile_ranks: dict[str, dict[str, float]] = {}
+    for r in ranks:
+        decile_ranks.setdefault(r.symbol, {})[r.lookback] = r.percentile
     # Prior move (§4.7): the name clears the decile gate. Every detection does by
     # construction, but computed honestly off the same rank table rather than
     # assumed. Sector confirmation is the leave-one-out 1m share (§4.4).
@@ -94,6 +111,17 @@ def build_candidates(
                     affordable=det.stopw_adr <= AFFORDABLE_ADR,
                     industry=industry_of.get(det.symbol),
                     breadth=breadth.get(det.symbol, 0),
+                    # -- the chart-facts fold (spec §4.3), from the same detection.
+                    # trigger_price/stop_price are the overlay's borrowed names for
+                    # the cluster high and cluster low (never risk_adr; §2.3).
+                    trigger_price=det.trigger,
+                    stop_price=det.cluster_low,
+                    close=det.close,
+                    sector=sector_of.get(det.symbol),
+                    adr=det.adr,
+                    dollar_volume=dollar_volume_of.get(det.symbol),
+                    decile_ranks=decile_ranks.get(det.symbol, {}),
+                    new_tonight=det.symbol not in prev_detected,
                 ),
             )
         )

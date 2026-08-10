@@ -323,7 +323,10 @@
  * layout already accounted for, not a jump.
  */
 .mini-chart {
-  height: 56px;
+  /* Kept in sync with MINI_HEIGHT in MiniChart.tsx. Tall enough that the
+     price-vs-trigger glance reads (issue #108); a fixed frame still, so a slow
+     or dead read leaves a reserved hole, not a jump. */
+  height: 176px;
   cursor: pointer;
 }
 

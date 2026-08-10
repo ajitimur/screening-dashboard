@@ -904,7 +904,12 @@ export interface operations {
     };
     trigger_run_api_runs__market__post: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Operator override (issue #111): re-pull and replace a published session after an enumeration fix, instead of the ordinary run-on-open. The swap only lands if the fresh pull clears the completeness gate, so a throttled retry cannot downgrade good data. */
+                recompute?: boolean;
+                /** @description The session to recompute (default: last final). Ignored unless recompute=true. */
+                session?: string | null;
+            };
             header?: never;
             path: {
                 market: string;

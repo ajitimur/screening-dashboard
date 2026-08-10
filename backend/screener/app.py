@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -118,7 +118,21 @@ def create_app(
         )
 
     @app.post("/api/runs/{market}", response_model=RunTriggerResponse)
-    def trigger_run(market: str) -> RunTriggerResponse:
+    def trigger_run(
+        market: str,
+        recompute: bool = Query(
+            False,
+            description="Operator override (issue #111): re-pull and replace a "
+            "published session after an enumeration fix, instead of the ordinary "
+            "run-on-open. The swap only lands if the fresh pull clears the "
+            "completeness gate, so a throttled retry cannot downgrade good data.",
+        ),
+        session: date | None = Query(
+            None,
+            description="The session to recompute (default: last final). Ignored "
+            "unless recompute=true.",
+        ),
+    ) -> RunTriggerResponse:
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
@@ -126,10 +140,17 @@ def create_app(
             # No coordinator wired (e.g. a read-only deployment without a source);
             # the tab falls back to showing the last published session unchanged.
             raise HTTPException(status_code=503, detail="run trigger not configured")
-        # Single-flight: a second open mid-run joins the running run rather than
-        # starting a duplicate (spec §7.3). The tab polls /api/runs until running
+        # ``recompute`` defaults False, so ordinary run-on-open polling — which
+        # POSTs with no query — is untouched: the override is reachable only by an
+        # explicit ``?recompute=true`` an operator opts into, never by a tab
+        # opening (issue #111). Single-flight is shared: a recompute and a
+        # run-on-open of the same market cannot race — either joins whichever is
+        # already in flight (spec §7.3). The tab polls /api/runs until running
         # clears, then reloads the now-complete session.
-        triggered = run_manager.trigger(market)
+        if recompute:
+            triggered = run_manager.trigger_recompute(market, session)
+        else:
+            triggered = run_manager.trigger(market)
         return RunTriggerResponse(
             market=market, triggered=triggered, running=run_manager.is_running(market)
         )
@@ -388,10 +409,13 @@ def _default_run_manager() -> RunManager:
     run the scheduled CLI performs, so a run-on-open and a scheduled run are
     byte-for-byte the same work. Each run owns its store connection, so the tab
     stays responsive and the write path never shares the app's read connection.
+    :func:`screener.run.recompute_live` is wired as the operator override so a
+    ``POST /api/runs/{market}?recompute=true`` re-pulls a published session
+    (issue #111) through the same coordinator and single-flight flag.
     """
-    from .run import run_live
+    from .run import recompute_live, run_live
 
-    return RunManager(run_live)
+    return RunManager(run_live, recompute_live)
 
 
 app = create_app(run_manager=_default_run_manager())

@@ -287,6 +287,49 @@ def test_discarding_a_published_session_is_still_refused(store: Store):
     assert store.universe("US", date(2026, 8, 5)) == sorted(enumerated)
 
 
+# -- superseding a published session for an operator recompute (issue #111) ---
+
+
+def test_superseding_clears_the_enumeration_streams_but_keeps_follow_through(store: Store):
+    # The gated override for correcting a bad enumeration (#111): the session's
+    # universe/ranks/... and its run record go, so the corrected pull can be
+    # written over them, but the forward regime record — a function of the index,
+    # not the candidate list — stays write-once (spec §7.2, §4.9).
+    session = date(2026, 8, 5)
+    enumerated = [f"S{i}" for i in range(100)]
+    run_market(
+        store, "US", session, enumerated=enumerated, resolved=enumerated,
+        now=datetime(2026, 8, 5, 22, 10),
+    )
+    store.append_follow_through("US", session, broke_out=True, index_close=42.0)
+
+    store.supersede_published_session("US", session)
+
+    assert store.run("US", session) is None, "the run record is cleared"
+    assert store.universe("US", session) == [], "the universe is cleared"
+    rows = store.follow_through("US")
+    assert [(r.session, r.index_close) for r in rows] == [(session, 42.0)], (
+        "the forward regime record is preserved"
+    )
+
+
+def test_superseding_a_non_published_session_is_refused(store: Store):
+    # The inverse of discard_session's guard: supersede exists only to correct
+    # *recorded* history. A quarantined session published nothing, so it is a hole
+    # to fill (discard_session), not a session to correct — refused here.
+    enumerated = [f"S{i}" for i in range(100)]
+    run_market(
+        store, "US", date(2026, 8, 5), enumerated=enumerated, resolved=enumerated[:50],
+        now=datetime(2026, 8, 5, 22, 10),
+    )
+    assert store.last_run("US").status == "quarantined"
+    with pytest.raises(SessionExistsError):
+        store.supersede_published_session("US", date(2026, 8, 5))
+    # And an absent session — one that never ran at all — is refused too.
+    with pytest.raises(SessionExistsError):
+        store.supersede_published_session("US", date(2026, 8, 4))
+
+
 # -- opening a database that older code created ------------------------------
 
 

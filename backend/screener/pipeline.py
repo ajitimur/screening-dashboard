@@ -567,6 +567,7 @@ def _compute_session(
     unresolved: set[str],
     digests_dir: Path,
     refresh_labels_now: bool,
+    capture_regime: bool = True,
 ) -> None:
     """Recompute one session's derivable streams from stored bars (stages 4–10).
 
@@ -580,6 +581,12 @@ def _compute_session(
     with the run date and never backfilled, so ``refresh_labels`` fires only on
     the target session (``refresh_labels_now``) — a missed night leaves a visible
     gap in ``labels.as_of`` rather than a fabricated per-session stamp.
+
+    ``capture_regime`` is cleared only by an operator recompute (issue #111): the
+    follow-through row is the forward, unbiased regime record, kept write-once
+    even as the enumeration-derived streams are replaced, so its already-recorded
+    row is preserved rather than re-captured (spec §7.2, §4.9). Every ordinary run
+    and backfill leaves it ``True`` and captures the stream as usual.
     """
     members = rebuild_universe(
         store, market, session, instruments=instruments, unresolved=unresolved
@@ -588,7 +595,8 @@ def _compute_session(
     rebuild_detections(store, market, session)
     if refresh_labels_now:
         refresh_labels(store, source, market, members, session)
-    capture_follow_through(store, market, session)
+    if capture_regime:
+        capture_follow_through(store, market, session)
     write_digest(store, market, session, digests_dir=digests_dir)
 
 
@@ -648,6 +656,7 @@ def run_market_universe(
     digests_dir: Path = DEFAULT_DIGESTS_DIR,
     workers: int = DEFAULT_RESOLVE_WORKERS,
     progress: Callable[[str], None] = emit_progress,
+    recompute: bool = False,
 ) -> RunRecord | None:
     """The nightly per-market run: ingest bars, rebuild the universe, record it.
 
@@ -688,6 +697,23 @@ def run_market_universe(
     is superseded rather than left to refuse every retry until the calendar rolls
     (issue #103). The returned record is the target session's run, or ``None``
     when the target had already published and there was nothing to compute.
+
+    ``recompute`` is the operator override for correcting a *published* target
+    built from a known-buggy enumeration (issue #111): it re-pulls and, **only if
+    the fresh pull clears the completeness gate**, replaces that session's
+    enumeration-derived streams (:meth:`Store.supersede_published_session`) and
+    stamps a fresh published run. The safety the issue asks for is *gating*, not a
+    transaction: a throttled recompute falls through the same gate as any run and
+    returns ``None`` with the good published session untouched (the gate is
+    checked *before* anything is cleared), so a short pull can never downgrade
+    served data to an empty session. A recompute that clears the gate and is then
+    killed mid-recompute leaves the same debris any interrupted run does — a
+    session cleared but not yet re-stamped — which the next run heals exactly as
+    it heals #46 debris; the commit point is still the run record, written last.
+    The forward regime record (follow-through) is kept, staying write-once even
+    here; write-once for published data is relaxed only for the
+    enumeration-derived streams the fix actually changes, and only on an explicit
+    operator request.
 
     The pull runs ``workers`` resolves at once and heartbeats every
     :data:`PROGRESS_EVERY` symbols (issue #96). Both are properties of the *loop*
@@ -888,7 +914,11 @@ def run_market_universe(
             # served session with a banner on strictly worse evidence. Nothing is
             # recorded and the published record stands — the same "nothing to
             # compute" answer the publishing path below gives for a session that
-            # is already in the store.
+            # is already in the store. This gate is also what keeps ``recompute``
+            # safe (issue #111): it is checked *before* the published session is
+            # cleared, so a recompute whose fresh pull falls short lands here and
+            # leaves the good session intact rather than superseding it into an
+            # empty one.
             return None
         # A throttled pull quarantines the whole run: no universe, no ranks, no
         # backfill — the last good data keeps serving (spec §3.4 rule 7).
@@ -919,16 +949,42 @@ def run_market_universe(
     # every candidate that produced no bars tonight — a refused listing among
     # them, which is right: it has no bars to reclassify from either.
     unresolved = {s for s in candidates if status.get(s, "unresolved") != "resolved"}
+    # A recompute only supersedes the target when it is *currently published* —
+    # that is the recorded history #111 exists to correct. Aimed at a session that
+    # never published (absent or quarantined), ``--recompute`` degrades to an
+    # ordinary forced run: backfill already recomputes it, so the flag simply
+    # skips the gate the scheduler would have applied.
+    recorded_target = store.run(market, session)
+    target_published = recorded_target is not None and recorded_target.status == "published"
+    # The one condition that turns this run into the gated published override: an
+    # operator recompute (issue #111) aimed at a session that is *currently
+    # published*. Anything else — an ordinary run, or a recompute of a session
+    # that never published — takes the normal discard-and-recompute path.
+    gated_override = recompute and target_published
+    # Every unpublished session up to the target is (re)computed as always. On the
+    # override the target is published, so backfill skips it (§7.2); it is added
+    # back explicitly — the one published session this run is allowed to replace,
+    # now that its fresh pull has cleared the gate above (issue #111).
+    sessions = _sessions_to_backfill(store, market, session)
+    if gated_override and session not in sessions:
+        sessions = sorted([*sessions, session])
     record: RunRecord | None = None
-    for backfill_session in _sessions_to_backfill(store, market, session):
-        # A previous run may have died after writing some of this session's
-        # derived streams but before stamping its run record — rows that belong
-        # to no session, and that the write-once guard would otherwise refuse to
-        # let this run recompute, wedging the market permanently. The sessions
-        # reaching here have by construction never published, so anything found
-        # is either that debris or an earlier attempt's quarantine (issue #103),
-        # and both are cleared before recomputing.
-        store.discard_session(market, backfill_session)
+    for backfill_session in sessions:
+        recomputing_target = gated_override and backfill_session == session
+        if recomputing_target:
+            # The gated override: drop the published target's enumeration-derived
+            # streams and its run record, keeping the forward regime record, so
+            # the corrected enumeration can be written over it (issue #111).
+            store.supersede_published_session(market, backfill_session)
+        else:
+            # A previous run may have died after writing some of this session's
+            # derived streams but before stamping its run record — rows that
+            # belong to no session, and that the write-once guard would otherwise
+            # refuse to let this run recompute, wedging the market permanently.
+            # The sessions reaching here have by construction never published, so
+            # anything found is either that debris or an earlier attempt's
+            # quarantine (issue #103), and both are cleared before recomputing.
+            store.discard_session(market, backfill_session)
         _compute_session(
             store,
             source,
@@ -940,6 +996,9 @@ def run_market_universe(
             # The label cache is as-of-only: stamp it once, on the target session,
             # never per backfilled night (spec §7.3).
             refresh_labels_now=backfill_session == session,
+            # A recompute keeps the forward regime row it preserved above rather
+            # than re-capturing it — write-once holds for that stream (issue #111).
+            capture_regime=not recomputing_target,
         )
         if backfill_session == session:
             # The failures describe *this* pull, so they belong to the target

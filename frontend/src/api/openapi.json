@@ -1398,6 +1398,37 @@
               "title": "Market",
               "type": "string"
             }
+          },
+          {
+            "description": "Operator override (issue #111): re-pull and replace a published session after an enumeration fix, instead of the ordinary run-on-open. The swap only lands if the fresh pull clears the completeness gate, so a throttled retry cannot downgrade good data.",
+            "in": "query",
+            "name": "recompute",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Operator override (issue #111): re-pull and replace a published session after an enumeration fix, instead of the ordinary run-on-open. The swap only lands if the fresh pull clears the completeness gate, so a throttled retry cannot downgrade good data.",
+              "title": "Recompute",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "The session to recompute (default: last final). Ignored unless recompute=true.",
+            "in": "query",
+            "name": "session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The session to recompute (default: last final). Ignored unless recompute=true.",
+              "title": "Session"
+            }
           }
         ],
         "responses": {

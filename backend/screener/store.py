@@ -240,21 +240,31 @@ class SessionExistsError(RuntimeError):
     """
 
 
-# The derived streams one session computes — every table keyed (market, session)
-# and guarded by :meth:`Store._guard_absent`, minus ``runs`` itself, which is the
-# commit point over them rather than one of them (:meth:`discard_session` clears
-# it separately, and only for a session that never published). ``bars`` is
-# deliberately not here: bars are the ingest substrate, committed per symbol so a
-# killed pull keeps what it already fetched (spec §3.3), and a re-pull appends
-# them idempotently rather than recomputing them.
-_DERIVED_TABLES = (
+# The enumeration-derived streams one session computes off its own pull — every
+# table keyed (market, session), guarded by :meth:`Store._guard_absent`, whose
+# contents are a function of *which symbols the run enumerated and resolved*.
+# These are exactly the streams a fixed enumeration changes, so a recompute
+# (:meth:`supersede_published_session`, issue #111) replaces them.
+#
+# ``follow_through`` is deliberately *not* here: it is the forward, unbiased
+# regime record (spec §4.9), a function of the index alone and not of the
+# candidate enumeration, and it stays write-once even under an operator
+# recompute (spec §7.2). ``runs`` is not here either — it is the commit point
+# over these streams rather than one of them, cleared separately below. ``bars``
+# is the ingest substrate, committed per symbol so a killed pull keeps what it
+# already fetched (spec §3.3), and a re-pull appends them idempotently.
+_ENUMERATION_DERIVED_TABLES = (
     "universe",
     "ranks",
-    "follow_through",
     "detections",
     "digest_breaks",
     "run_failures",
 )
+
+# Everything a run writes and :meth:`discard_session` clears for a never-published
+# session: the enumeration-derived streams *plus* the forward regime record, which
+# a session that never published never captured either.
+_DERIVED_TABLES = (*_ENUMERATION_DERIVED_TABLES, "follow_through")
 
 
 class SchemaDriftError(RuntimeError):
@@ -401,14 +411,61 @@ class Store:
                 f"({market}, {session}) carries a published run record; a "
                 "published session's rows are never discarded"
             )
+        return self._delete_session_rows((*_DERIVED_TABLES, "runs"), market, session)
+
+    def _delete_session_rows(
+        self, tables: tuple[str, ...], market: str, session: date
+    ) -> int:
+        """Delete ``(market, session)`` from each of ``tables``, counting the rows.
+
+        The shared mechanics behind :meth:`discard_session` and
+        :meth:`supersede_published_session` — they differ only in *which* tables
+        clear (and in the inverse guard each applies first), never in how a
+        session's rows are removed. Returns the total rows deleted.
+        """
         discarded = 0
-        for table in (*_DERIVED_TABLES, "runs"):
+        for table in tables:
             deleted = self._cursor().execute(
                 f"DELETE FROM {table} WHERE market = ? AND session = ? RETURNING 1",
                 [market, session],
             ).fetchall()
             discarded += len(deleted)
         return discarded
+
+    def supersede_published_session(self, market: str, session: date) -> int:
+        """Clear a **published** session's enumeration-derived rows so an operator
+        can recompute it, keeping the forward regime record (issue #111).
+
+        The deliberate inverse of :meth:`discard_session`, and gated the other
+        way: that method refuses a published session to protect write-once; this
+        one *requires* one, because it exists only to correct a session built
+        from a known-buggy enumeration (e.g. the truncated IDX universe of #110).
+        A session that never published is not superseded here — it is not
+        recorded history to correct but a hole to fill, and
+        :meth:`discard_session` already makes it retriable.
+
+        Only the :data:`_ENUMERATION_DERIVED_TABLES` and the run record go — the
+        streams a fixed enumeration changes, plus the commit point over them.
+        ``follow_through`` stays: it is the unbiased forward record, a function of
+        the index and not the candidate list, so correcting the enumeration must
+        not rewrite it (spec §7.2, §4.9). The caller re-pulls and recomputes the
+        cleared streams and stamps a fresh published run; the swap is safe only
+        because the caller clears *after* a fresh pull has cleared the
+        completeness gate, never on a throttled retry that would leave the
+        session empty.
+
+        Returns the number of rows discarded, the run record included.
+        """
+        recorded = self.run(market, session)
+        if recorded is None or recorded.status != "published":
+            raise SessionExistsError(
+                f"({market}, {session}) has no published run record; only a "
+                "published session is superseded — an absent or quarantined one "
+                "is made retriable by discard_session instead"
+            )
+        return self._delete_session_rows(
+            (*_ENUMERATION_DERIVED_TABLES, "runs"), market, session
+        )
 
     def _guard_absent(self, table: str, market: str, session: date) -> None:
         existing = self._cursor().execute(

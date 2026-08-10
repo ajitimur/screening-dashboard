@@ -103,6 +103,49 @@ def test_post_triggers_a_run_and_reports_running(store: Store):
     manager.join("IDX")
 
 
+def test_post_recompute_drives_the_operator_override_with_its_session(store: Store):
+    # ``?recompute=true`` routes to the recompute runner and passes the named
+    # session through, so an operator can correct a published session over the
+    # API (issue #111).
+    recomputed: list[tuple[str, object]] = []
+    manager = RunManager(
+        lambda market: None,
+        lambda market, session: recomputed.append((market, session)),
+    )
+    app = create_app(store=store, run_manager=manager, clock=lambda: FIXED_NOW)
+
+    resp = app_post_recompute(app, "IDX", session="2026-08-05")
+    assert resp.status_code == 200
+    assert resp.json()["triggered"] is True
+    manager.join("IDX", timeout=5)
+    assert recomputed == [("IDX", date(2026, 8, 5))]
+
+
+def test_post_without_recompute_never_touches_the_override(store: Store):
+    # The guard: an ordinary run-on-open POST — no query — must drive the plain
+    # runner, never the destructive override, however a tab polls (issue #111).
+    ran: list[str] = []
+    override: list[str] = []
+    manager = RunManager(
+        lambda market: ran.append(market),
+        lambda market, session: override.append(market),
+    )
+    app = create_app(store=store, run_manager=manager, clock=lambda: FIXED_NOW)
+
+    TestClient(app).post("/api/runs/IDX")
+    manager.join("IDX", timeout=5)
+
+    assert ran == ["IDX"]
+    assert override == [], "a plain open never triggers a recompute"
+
+
+def app_post_recompute(app, market: str, *, session: str | None = None):
+    params = {"recompute": "true"}
+    if session is not None:
+        params["session"] = session
+    return TestClient(app).post(f"/api/runs/{market}", params=params)
+
+
 def test_post_without_a_run_manager_is_503(store: Store):
     app = create_app(store=store, clock=lambda: FIXED_NOW)
     assert TestClient(app).post("/api/runs/IDX").status_code == 503

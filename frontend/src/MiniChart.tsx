@@ -10,9 +10,12 @@ const MINI_BARS = 60;
 // Prefetch a little before the frame scrolls in, so the shape is usually already
 // there when the eye arrives (spec §6.4).
 const ROOT_MARGIN = "200px";
-// A thumbnail is confirmation, not the primary read — short enough to sit under a
-// card's numbers without dominating it.
-const MINI_HEIGHT = 56;
+// The chart's height. It began as a 56px thumbnail — confirmation under the
+// numbers — but at that size the trigger/stop rules crowded the candles and you
+// could not read where price sat against them (issue #108). Grown to a full,
+// legible pane: the price-vs-trigger read is now the card's centre of gravity,
+// not a glance. Keep this in sync with `.mini-chart` height in index.css.
+const MINI_HEIGHT = 176;
 
 /**
  * A lazy mini chart (spec §6.4): the at-a-glance shape on a Setups card or a

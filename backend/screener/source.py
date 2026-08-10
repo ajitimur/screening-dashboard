@@ -96,6 +96,12 @@ SWEEP_WORKERS = max(1, DEFAULT_RESOLVE_WORKERS // 4)
 # role is ``reference`` (spec §2, §4.9).
 MARKET_INDEX = {"US": "^IXIC", "IDX": "^JKSE"}
 
+# Yahoo's screener serves the exchange one fixed-size page at a time, at most
+# this many quotes per call (issue #110). A single un-paged request returned only
+# the first page and silently truncated IDX to 250 names against the ~840 the
+# screener actually carries — so the enumeration pages by offset until the end.
+IDX_SCREEN_PAGE = 250
+
 # The Nasdaq Trader listing files (spec §3.1): common stocks plus the ETF flag
 # that separates funds. Served over HTTPS, pipe-delimited, with a trailing
 # "File Creation Time" footer line.
@@ -542,11 +548,36 @@ class YFinanceSourceClient:
         return info or {}
 
     def _screen_idx(self) -> list[str]:
+        """Enumerate every JKT-listed equity, paging the screener (issue #110).
+
+        The screener serves at most :data:`IDX_SCREEN_PAGE` quotes per call, so a
+        single request sees only the first page. Ask by ``offset`` until a short
+        (or empty) page marks the end, sorting by a stable key so successive
+        pages neither skip nor repeat a listing; overlap is deduped defensively
+        so a provider that ignores ``offset`` cannot inflate the count.
+        """
         import yfinance as yf
         from yfinance import EquityQuery
 
-        result = yf.screen(EquityQuery("eq", ["exchange", "JKT"]), size=250)
-        return [q["symbol"] for q in result.get("quotes", [])]
+        query = EquityQuery("eq", ["exchange", "JKT"])
+        seen: set[str] = set()
+        symbols: list[str] = []
+        offset = 0
+        while True:
+            result = yf.screen(
+                query, offset=offset, size=IDX_SCREEN_PAGE,
+                sortField="dayvolume", sortAsc=False,
+            )
+            quotes = result.get("quotes", [])
+            for quote in quotes:
+                symbol = quote["symbol"]
+                if symbol not in seen:
+                    seen.add(symbol)
+                    symbols.append(symbol)
+            if len(quotes) < IDX_SCREEN_PAGE:
+                break  # a short or empty page is the last one
+            offset += IDX_SCREEN_PAGE
+        return symbols
 
 
 def _http_get(url: str) -> str:

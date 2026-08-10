@@ -20,6 +20,7 @@ import types
 import pytest
 
 from screener.source import (
+    IDX_SCREEN_PAGE,
     PermanentlyUnavailableError,
     RateLimitedError,
     YFinanceSourceClient,
@@ -161,6 +162,72 @@ def test_an_incremental_fetch_asks_from_the_start_and_sets_no_period(monkeypatch
 
     assert kwargs.get("start") == date(2026, 7, 1)
     assert "period" not in kwargs
+
+
+# -- the IDX screener pages the whole exchange (issue #110) -------------------
+
+
+def _install_paging_screener(monkeypatch, all_symbols):
+    """A fake yfinance whose ``screen`` serves ``all_symbols`` one page at a time,
+    honouring ``offset``/``size`` exactly as Yahoo's screener does — so the client
+    is forced to page to see past the first :data:`IDX_SCREEN_PAGE` names."""
+    module = types.ModuleType("yfinance")
+    calls: list[int] = []
+
+    def screen(query, *, offset, size, **_kwargs):
+        calls.append(offset)
+        page = all_symbols[offset:offset + size]
+        return {"quotes": [{"symbol": s} for s in page], "total": len(all_symbols)}
+
+    module.screen = screen
+    module.EquityQuery = lambda *a, **k: object()
+    monkeypatch.setitem(sys.modules, "yfinance", module)
+    return calls
+
+
+def test_the_idx_screener_pages_the_whole_exchange(monkeypatch):
+    # A single un-paged call saw only the first 250 names and truncated the IDX
+    # universe to that (issue #110). The client must page by offset until the
+    # exchange is exhausted — here 840 names across four pages.
+    universe = [f"S{i:04d}.JK" for i in range(840)]
+    calls = _install_paging_screener(monkeypatch, universe)
+
+    symbols = YFinanceSourceClient()._screen_idx()
+
+    assert symbols == universe  # every name, in order, not just the first page
+    assert calls == [0, 250, 500, 750]  # paged by offset until a short page ended it
+
+
+def test_a_single_short_page_needs_no_second_request(monkeypatch):
+    # A market smaller than one page ends on the first call — the short page is
+    # the terminator, so there is no wasted second request.
+    universe = [f"S{i}.JK" for i in range(IDX_SCREEN_PAGE - 3)]
+    calls = _install_paging_screener(monkeypatch, universe)
+
+    assert YFinanceSourceClient()._screen_idx() == universe
+    assert calls == [0]
+
+
+def test_paging_dedupes_overlap_across_pages(monkeypatch):
+    # If the provider ignores offset and repeats a full page, dedup keeps the
+    # count honest rather than letting the same names inflate the universe.
+    module = types.ModuleType("yfinance")
+    page = [{"symbol": f"S{i}.JK"} for i in range(IDX_SCREEN_PAGE)]
+    served: list[int] = []
+
+    def screen(query, *, offset, size, **_kwargs):
+        served.append(offset)
+        # Two identical full pages, then an empty one to terminate.
+        return {"quotes": page if len(served) <= 2 else []}
+
+    module.screen = screen
+    module.EquityQuery = lambda *a, **k: object()
+    monkeypatch.setitem(sys.modules, "yfinance", module)
+
+    symbols = YFinanceSourceClient()._screen_idx()
+
+    assert len(symbols) == IDX_SCREEN_PAGE  # the repeat added nothing
+    assert len(set(symbols)) == len(symbols)
 
 
 # -- the provider's wire form for a share class (issue #105) ------------------

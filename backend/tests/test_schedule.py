@@ -1,15 +1,16 @@
 """Scheduling and run-on-open (spec §7.3, ticket 43).
 
-The domain here is pure: given ``now`` and the store's last published session,
-decide whether a run is *due* (its last final session is missing), and render
-the two per-market ``launchd`` jobs that fire the nightly run after each
-market's own close.
+The domain here is pure: given ``now`` and the store's last run of any status,
+decide whether a run is *due* (its last final session is missing or quarantined),
+and render the two per-market ``launchd`` jobs that fire the nightly run after
+each market's own close.
 """
 
 import plistlib
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
+from screener.models import RunRecord, RunStatus
 from screener.schedule import (
     RUN_HOUR,
     last_final_session,
@@ -19,6 +20,17 @@ from screener.schedule import (
 
 WIB = ZoneInfo("Asia/Jakarta")
 ET = ZoneInfo("America/New_York")
+
+
+def _run(session: date, status: RunStatus = "published") -> RunRecord:
+    return RunRecord(
+        market="IDX",
+        session=session,
+        status=status,
+        symbols_enumerated=100,
+        symbols_resolved=100 if status == "published" else 50,
+        created_at=datetime(session.year, session.month, session.day, 19, 30),
+    )
 
 
 # -- last_final_session -------------------------------------------------------
@@ -62,18 +74,27 @@ def test_run_is_due_when_the_store_is_empty():
 def test_run_is_due_when_the_last_final_session_is_missing():
     # Stored through Tuesday, but Wednesday's bar is now final — a run is due.
     now = datetime(2026, 8, 5, 20, 0, tzinfo=WIB)
-    assert run_is_due(date(2026, 8, 4), "IDX", now) is True
+    assert run_is_due(_run(date(2026, 8, 4)), "IDX", now) is True
 
 
 def test_run_is_not_due_when_the_store_has_the_last_final_session():
     now = datetime(2026, 8, 5, 20, 0, tzinfo=WIB)
-    assert run_is_due(date(2026, 8, 5), "IDX", now) is False
+    assert run_is_due(_run(date(2026, 8, 5)), "IDX", now) is False
 
 
 def test_run_is_not_due_before_tonights_close():
     # 09:00 WIB Wednesday: the last final session is Tuesday, already stored.
     now = datetime(2026, 8, 5, 9, 0, tzinfo=WIB)
-    assert run_is_due(date(2026, 8, 4), "IDX", now) is False
+    assert run_is_due(_run(date(2026, 8, 4)), "IDX", now) is False
+
+
+def test_run_is_due_when_the_last_final_session_is_quarantined():
+    # The last final session has a run record, so it is not *missing* — but it
+    # quarantined, so nothing was published for it and the fix that would let it
+    # publish must get a same-day retry rather than waiting for the calendar to
+    # roll (issue #103).
+    now = datetime(2026, 8, 5, 20, 0, tzinfo=WIB)
+    assert run_is_due(_run(date(2026, 8, 5), "quarantined"), "IDX", now) is True
 
 
 # -- launchd_plist ------------------------------------------------------------

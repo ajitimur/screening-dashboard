@@ -34,7 +34,7 @@ class _FakeClient:
     def enumerate(self, market):
         return self._instruments
 
-    def fetch(self, symbol):
+    def fetch(self, symbol, start=None):
         return self._bars.get(symbol, [])
 
     def fetch_info(self, symbol):
@@ -72,6 +72,33 @@ def test_run_once_runs_the_due_session(tmp_path):
         )
         assert record is not None
         assert record.session == date(2026, 8, 5)  # the last final session
+    finally:
+        store.close()
+
+
+def test_run_once_retries_a_quarantined_last_final_session(tmp_path):
+    # The last final session has a run record, so nothing is *missing* — but it
+    # quarantined and published nothing, so the fix that lets the pull succeed
+    # has to get its retry today rather than waiting for the calendar to roll
+    # (issue #103). Before this, the retry paid the whole pull and then died on
+    # the write-once guard.
+    store = Store.memory()
+    try:
+        from screener.pipeline import run_market
+
+        enumerated = [f"S{i}" for i in range(100)]
+        run_market(
+            store, "IDX", date(2026, 8, 5),
+            enumerated=enumerated, resolved=enumerated[:50],  # under the floor
+            now=datetime(2026, 8, 5, 19, 30),
+        )
+        assert store.last_run("IDX").status == "quarantined"
+
+        now = datetime(2026, 8, 5, 20, 0, tzinfo=WIB)
+        record = run_once(store, _source(), "IDX", now=now, digests_dir=tmp_path)
+
+        assert record is not None
+        assert (record.session, record.status) == (date(2026, 8, 5), "published")
     finally:
         store.close()
 

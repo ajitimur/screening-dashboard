@@ -55,7 +55,7 @@ class _FakeClient:
     def enumerate(self, market):
         return self._instruments
 
-    def fetch(self, symbol):
+    def fetch(self, symbol, start=None):
         return self._bars.get(symbol, [])
 
     def fetch_info(self, symbol):
@@ -103,7 +103,7 @@ def test_restart_backfills_every_derivable_stream_with_no_gap(store, tmp_path):
     for s in gap:
         assert s in run_sessions, f"no run for {s}"
         assert store.ranks("IDX", s), f"no ranks for {s}"
-    assert store.latest_run("IDX").session == last
+    assert store.last_published_run("IDX").session == last
 
 
 def test_backfill_only_fills_absent_sessions_and_never_rewrites(store, tmp_path):
@@ -189,7 +189,7 @@ def test_a_run_killed_mid_session_can_be_redone(store, tmp_path):
     )
 
     assert record is not None and record.status == "published"
-    assert store.latest_run("IDX").session == target
+    assert store.last_published_run("IDX").session == target
     assert store.ranks("IDX", target), "the redone session computed its streams"
 
 

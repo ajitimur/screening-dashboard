@@ -1,12 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
-  fetchBoards,
   fetchCandidates,
+  fetchLeaders,
   fetchSectors,
   type Candidate,
   type CandidatesResponse,
-  type BoardsResponse,
   type LeaderRow,
+  type LeadersResponse,
   type SectorStrength,
   type SectorsResponse,
 } from "./api/client";
@@ -99,16 +99,23 @@ const listedFmt = new Intl.NumberFormat("en");
  */
 export default function Board({
   market,
+  session,
   universeSize,
   navigate,
 }: {
   market: string;
+  // The as-of session the shell is serving (spec §7.3, issue #94). It is the
+  // revalidate token for every body read below, so each refetches once when a
+  // shell-triggered run publishes a new session — reusing the existing
+  // `switching`→`ready` path rather than a new per-panel loading branch. See
+  // `useBodyRead` for why (reads that landed mid-run show the pre-run board).
+  session: string | null;
   universeSize: number | null;
   navigate: (patch: { tab?: string; sector?: string | null }) => void;
 }) {
-  const candidates = useBodyRead<CandidatesResponse>(market, fetchCandidates);
-  const leaders = useBodyRead<BoardsResponse>(market, fetchBoards);
-  const sectors = useBodyRead<SectorsResponse>(market, fetchSectors);
+  const candidates = useBodyRead<CandidatesResponse>(market, fetchCandidates, session);
+  const leaders = useBodyRead<LeadersResponse>(market, fetchLeaders, session);
+  const sectors = useBodyRead<SectorsResponse>(market, fetchSectors, session);
 
   const [selected, setSelected] = useState<SheetTarget | null>(null);
   const sheetOpen = selected !== null;
@@ -369,7 +376,7 @@ function LeadersStripPanel({
   onOpen,
   onSeeAll,
 }: {
-  read: BodyRead<BoardsResponse>;
+  read: BodyRead<LeadersResponse>;
   selectedSymbol: string | null;
   onOpen: (r: LeaderRow) => void;
   onSeeAll: () => void;

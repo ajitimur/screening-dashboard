@@ -10,6 +10,7 @@ from datetime import date, datetime
 import duckdb
 import pytest
 
+from screener.models import ResolutionFailure
 from screener.pipeline import ENUMERATION_FLOOR, RESOLUTION_FLOOR, run_market
 from screener.store import (
     SCHEMA_VERSION,
@@ -30,11 +31,11 @@ def test_run_writes_run_and_universe_rows(store: Store):
     assert record.status == "published"
     assert record.symbols_resolved == 3
     assert store.universe("US", date(2026, 8, 4)) == ["AAA", "BBB", "CCC"]
-    assert store.latest_run("US") == record
+    assert store.last_published_run("US") == record
 
 
 def test_tonight_is_the_max_session(seeded_store: Store):
-    assert seeded_store.latest_run("IDX").session == date(2026, 8, 4)
+    assert seeded_store.last_published_run("IDX").session == date(2026, 8, 4)
     assert [r.session for r in seeded_store.runs("IDX")] == [
         date(2026, 8, 4),
         date(2026, 8, 3),
@@ -71,7 +72,7 @@ def test_run_below_resolution_floor_is_quarantined_and_writes_no_universe(store:
     # A quarantined run must not replace good data: no universe rows, and it is
     # not the as-of session the tab would render.
     assert store.universe("US", date(2026, 8, 5)) == []
-    assert store.latest_run("US") is None
+    assert store.last_published_run("US") is None
 
 
 def test_materially_smaller_enumeration_is_quarantined_at_full_resolution(store: Store):
@@ -98,7 +99,7 @@ def test_materially_smaller_enumeration_is_quarantined_at_full_resolution(store:
     assert record.symbols_resolved == record.symbols_enumerated  # 100% resolved
     assert store.universe("US", date(2026, 8, 5)) == []
     # The last good run keeps serving behind the banner.
-    assert store.latest_run("US").session == date(2026, 8, 4)
+    assert store.last_published_run("US").session == date(2026, 8, 4)
 
 
 def test_modest_enumeration_shrinkage_within_tolerance_still_publishes(store: Store):
@@ -119,7 +120,7 @@ def test_modest_enumeration_shrinkage_within_tolerance_still_publishes(store: St
         now=datetime(2026, 8, 5, 22, 10),
     )
     assert record.status == "published"
-    assert store.latest_run("US").session == date(2026, 8, 5)
+    assert store.last_published_run("US").session == date(2026, 8, 5)
 
 
 def test_enumeration_baseline_is_the_last_good_run_not_a_quarantined_one(store: Store):
@@ -147,7 +148,7 @@ def test_enumeration_baseline_is_the_last_good_run_not_a_quarantined_one(store: 
         now=datetime(2026, 8, 6, 22, 10),
     )
     assert record.status == "quarantined"
-    assert store.latest_run("US").session == date(2026, 8, 4)
+    assert store.last_published_run("US").session == date(2026, 8, 4)
 
 
 def test_quarantine_is_per_market(store: Store):
@@ -164,8 +165,126 @@ def test_quarantine_is_per_market(store: Store):
         enumerated=us_enum, resolved=us_enum[:50],  # throttled, well below floor
         now=datetime(2026, 8, 5, 22, 10),
     )
-    assert store.latest_run("US") is None
-    assert store.latest_run("IDX").session == date(2026, 8, 5)
+    assert store.last_published_run("US") is None
+    assert store.last_published_run("IDX").session == date(2026, 8, 5)
+
+
+# -- retrying a quarantined session (issue #103) ------------------------------
+
+
+def test_last_run_is_the_last_row_of_any_status(store: Store):
+    # ``last_published_run`` answers "what does the tab render" and so skips
+    # quarantines; the scheduler needs the other question — "what has this market
+    # already written" — or a quarantined session looks absent and is pulled again
+    # from scratch every firing.
+    enumerated = [f"S{i}" for i in range(100)]
+    run_market(
+        store, "US", date(2026, 8, 4),
+        enumerated=enumerated, resolved=enumerated,
+        now=datetime(2026, 8, 4, 22, 10),
+    )
+    run_market(
+        store, "US", date(2026, 8, 5),
+        enumerated=enumerated, resolved=enumerated[:50],
+        now=datetime(2026, 8, 5, 22, 10),
+    )  # quarantined
+
+    assert store.last_published_run("US").session == date(2026, 8, 4)
+    assert store.last_run("US").session == date(2026, 8, 5)
+    assert store.last_run("US").status == "quarantined"
+
+
+def test_last_run_is_none_on_an_untouched_market(store: Store):
+    assert store.last_run("US") is None
+
+
+def test_a_quarantined_session_is_discarded_so_it_can_be_retried(store: Store):
+    # A quarantined session published nothing — no universe, no ranks, nothing any
+    # reader ever saw — so clearing it rewrites no history. Without this the
+    # write-once guard turns a bad night into a permanent one: every retry dies on
+    # the run row the failed attempt left behind (issue #103).
+    enumerated = [f"S{i}" for i in range(100)]
+    run_market(
+        store, "US", date(2026, 8, 5),
+        enumerated=enumerated, resolved=enumerated[:50],
+        now=datetime(2026, 8, 5, 22, 10),
+    )
+    assert store.last_run("US").status == "quarantined"
+
+    store.discard_session("US", date(2026, 8, 5))
+
+    assert store.last_run("US") is None, "the quarantined row is gone"
+    record = run_market(
+        store, "US", date(2026, 8, 5),
+        enumerated=enumerated, resolved=enumerated,
+        now=datetime(2026, 8, 5, 23, 0),
+    )
+    assert record.status == "published"
+    assert store.last_published_run("US").session == date(2026, 8, 5)
+
+
+def test_discarding_a_quarantined_session_clears_its_failure_rows(store: Store):
+    # The failure rows explain *that* attempt's shortfall. Left behind they would
+    # outlive the run record they belong to and be read as the retry's own
+    # account of itself, so they go with it.
+    session = date(2026, 8, 5)
+    enumerated = [f"S{i}" for i in range(100)]
+    run_market(
+        store, "US", session,
+        enumerated=enumerated, resolved=enumerated[:50],
+        now=datetime(2026, 8, 5, 22, 10),
+    )
+    store.append_run_failures(
+        "US",
+        session,
+        [
+            ResolutionFailure(
+                market="US", session=session, symbol="S99",
+                name="Ninety Nine Inc", status="unresolved", counted=True,
+            )
+        ],
+    )
+
+    discarded = store.discard_session("US", session)
+
+    assert discarded == 2, "the failure row and the quarantined run record"
+    assert store.run_failures("US", session) == []
+
+
+def test_a_quarantined_session_behind_a_published_one_is_still_discardable(store: Store):
+    # The guard is about the session's *own* status, not the market's: a
+    # quarantined night stays discardable with a published night in front of it,
+    # and discarding it leaves that published night untouched.
+    enumerated = [f"S{i}" for i in range(100)]
+    run_market(
+        store, "US", date(2026, 8, 4),
+        enumerated=enumerated, resolved=enumerated[:50],
+        now=datetime(2026, 8, 4, 22, 10),
+    )  # quarantined
+    run_market(
+        store, "US", date(2026, 8, 5),
+        enumerated=enumerated, resolved=enumerated,
+        now=datetime(2026, 8, 5, 22, 10),
+    )  # published
+
+    store.discard_session("US", date(2026, 8, 4))
+
+    assert [r.session for r in store.runs("US")] == [date(2026, 8, 5)]
+    assert store.universe("US", date(2026, 8, 5)) == sorted(enumerated)
+
+
+def test_discarding_a_published_session_is_still_refused(store: Store):
+    # The other half of the rule: what a run *published* is never rewritten
+    # (spec §7.2), and making quarantines retriable must not soften that.
+    enumerated = [f"S{i}" for i in range(100)]
+    run_market(
+        store, "US", date(2026, 8, 5),
+        enumerated=enumerated, resolved=enumerated,
+        now=datetime(2026, 8, 5, 22, 10),
+    )
+    with pytest.raises(SessionExistsError):
+        store.discard_session("US", date(2026, 8, 5))
+    assert store.universe("US", date(2026, 8, 5)) == sorted(enumerated)
 
 
 # -- opening a database that older code created ------------------------------
@@ -214,3 +333,48 @@ def test_a_column_that_changed_type_is_refused_rather_than_reinterpreted(tmp_pat
 
     with pytest.raises(SchemaDriftError, match="runs.session"):
         Store.open(path)
+
+
+# -- the persisted refusal verdict (issue #100) -------------------------------
+
+
+def test_a_refusal_verdict_is_persisted_and_read_back_per_market(store: Store):
+    # The stated refusal fires only on a cold start, so it is recorded once and
+    # read back to skip re-probing the listing (spec §3.6). It is a per-market
+    # fact and never bleeds across markets.
+    store.mark_refused("US", "CAIIW", date(2026, 8, 4))
+    store.mark_refused("US", "TRTN$A", date(2026, 8, 4))
+    store.mark_refused("IDX", "XXXX.JK", date(2026, 8, 4))
+
+    assert store.refusals("US") == {"CAIIW", "TRTN$A"}
+    assert store.refusals("IDX") == {"XXXX.JK"}
+    assert store.refusals("SG") == set()
+
+
+def test_marking_a_refusal_is_idempotent(store: Store):
+    # A persisted-refused symbol is never re-probed, so a second write should not
+    # happen — but the guard keeps the first verdict if one ever does, rather
+    # than raising like the write-once dated streams do.
+    store.mark_refused("US", "CAIIW", date(2026, 8, 4))
+    store.mark_refused("US", "CAIIW", date(2026, 8, 5))
+
+    assert store.refusals("US") == {"CAIIW"}
+
+
+def test_the_refusals_table_is_added_to_an_older_store(tmp_path):
+    # A database from before the verdict existed gains the table on open, like
+    # every other additive schema change (issue #100 rides the v7->v8 bump).
+    path = tmp_path / "old.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("CREATE TABLE runs (market TEXT NOT NULL, session DATE NOT NULL)")
+    con.close()
+
+    store = Store.open(path)
+    try:
+        store.mark_refused("US", "CAIIW", date(2026, 8, 4))
+        assert store.refusals("US") == {"CAIIW"}
+        assert store._con.execute(
+            "SELECT version FROM schema_meta"
+        ).fetchone()[0] == SCHEMA_VERSION
+    finally:
+        store.close()

@@ -324,6 +324,7 @@ export default function App() {
       <Screen
         tab={tab}
         market={market}
+        session={asOf}
         sector={sector}
         regime={regime?.state ?? null}
         navigate={navigate}
@@ -580,6 +581,7 @@ function RegimeBanner({ market, regime }: { market: Market; regime: RegimeRespon
 function Screen({
   tab,
   market,
+  session,
   sector,
   regime,
   navigate,
@@ -587,6 +589,9 @@ function Screen({
 }: {
   tab: Tab;
   market: Market;
+  // The as-of session, passed to the Board so its body reads re-key when a
+  // shell-triggered run completes and publishes a new session (issue #94).
+  session: string | null;
   sector: string | null;
   regime: Regime | null;
   navigate: (patch: Partial<Destination>) => void;
@@ -600,6 +605,7 @@ function Screen({
       <section id="active-tabpanel" role="tabpanel" aria-labelledby="tab-board" tabIndex={0}>
         <Board
           market={market}
+          session={session}
           universeSize={universeSize}
           navigate={(patch) => navigate(patch as Partial<Destination>)}
         />

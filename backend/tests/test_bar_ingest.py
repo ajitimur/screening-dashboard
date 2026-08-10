@@ -183,7 +183,7 @@ class FakeBarClient:
     def enumerate(self, market):
         return self._instruments[market]
 
-    def fetch(self, symbol):
+    def fetch(self, symbol, start=None):
         if symbol == self._fail_on:
             raise RuntimeError(f"pull killed at {symbol}")
         return self._bars.get(symbol, [])

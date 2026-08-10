@@ -36,14 +36,24 @@ export type BodyRead<T> =
  *
  * `fetcher` is an effect dependency, so it must be stable across renders (wrap it
  * in `useCallback`); an unstable fetcher would re-fire the read every render.
+ *
+ * `revalidateToken` is the second, optional key: change it and the read re-fires
+ * through the SAME `switching`→`ready` path a market switch uses (issue #94). The
+ * shell passes the as-of session, so a run it triggered on open — whose reads
+ * landed while it was still writing, returning the pre-run (zeroed) shape — makes
+ * every mounted panel refetch exactly once when the finished session publishes,
+ * rather than stranding stale numbers with no indication they are stale. Leave it
+ * `undefined` and the read behaves exactly as before (keyed on `market` alone).
  */
 export function useBodyRead<T>(
   market: string,
   fetcher: (market: string) => Promise<T>,
+  revalidateToken?: string | number | null,
 ): BodyRead<T> {
   const [state, setState] = useState<BodyRead<T>>({ status: "loading" });
-  // Distinguishes a first paint (progressive, §7.3) from a market switch (§7.6):
-  // both are busy, but the switch must keep the frame while blanking the values.
+  // Distinguishes a first paint (progressive, §7.3) from a market switch or a
+  // run-completion revalidation (§7.6): all are busy, but the latter two must
+  // keep the frame while blanking the values so no stale number survives.
   const seen = useRef(false);
 
   useEffect(() => {
@@ -56,7 +66,7 @@ export function useBodyRead<T>(
     return () => {
       live = false;
     };
-  }, [market, fetcher]);
+  }, [market, fetcher, revalidateToken]);
 
   return state;
 }
@@ -110,9 +120,9 @@ export function Panel<T>({
  * A **night-inflicted** empty (spec §7.4). No click on screen can make it
  * non-empty, so it carries no action: it is a FACT, stated in the panel's own
  * body copy, naming the number, that **never apologises** — five detected names
- * is a *finished* screen, not a degraded one. The wording is transcribed from v1
- * per panel, not reinvented (e.g. `CandidateList.tsx:63`), so the copy is the
- * caller's; this component is only the register. Deliberately **not** a
+ * is a *finished* screen, not a degraded one. The wording was transcribed from
+ * v1 per panel, not reinvented, so the copy is the caller's; this component is
+ * only the register. Deliberately **not** a
  * `role="status"`/`role="alert"` — it is content, not an event.
  */
 export function NightEmpty({ children }: { children: ReactNode }) {

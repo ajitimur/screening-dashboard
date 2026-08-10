@@ -6,7 +6,8 @@ Universe = **liquidity + instrument type + listing age**, and nothing else:
 - **Liquidity floor** — the *median* of unadjusted ``close × volume`` over the
   trailing 20 traded bars must clear Rp 1B (IDX) / $20M (US). A median, so one
   block trade cannot lift an illiquid name over the bar (D2).
-- **Instrument type** — common stock only, excluded by security-name pattern;
+- **Instrument type** — common stock only, excluded by security-name pattern
+  and, for the preferreds the name hides, by the "$" in the symbol (#105);
   **ADRs are kept** (D13). The only non-behavioural rule in the system.
 - **Listing age** — ≥ 20 non-phantom bars, the minimum for the median and ADR
   to exist (D5).
@@ -77,9 +78,9 @@ def test_median_dollar_volume_uses_only_the_trailing_twenty():
 
 
 def test_common_stock_kept_and_excluded_classes_dropped():
-    assert is_common_stock("Apple Inc. - Common Stock")
-    assert is_common_stock("Berkshire Hathaway")
-    assert is_common_stock("")  # IDX carries no name; the screener guarantees equity
+    assert is_common_stock("AAPL", "Apple Inc. - Common Stock")
+    assert is_common_stock("BRK.B", "Berkshire Hathaway")
+    assert is_common_stock("BBCA.JK", "")  # IDX carries no name; the screener guarantees equity
     for name in [
         "Acme Corp Warrant",
         "Acme Corp Rights",
@@ -87,10 +88,50 @@ def test_common_stock_kept_and_excluded_classes_dropped():
         "Acme 5.5% Notes due 2030",
         "Acme Series A Preferred Stock",
         "Acme Pfd Series B",
+        # "Preference" is the same instrument as "Preferred" (#92): the live US
+        # enumeration carries TRTN$A under this exact wording and nothing else in
+        # the name marks it as anything but common stock.
+        "Triton International Limited 8.50% Series A Cumulative Redeemable "
+        "Perpetual Preference Shares",
+        "Acme Holdings plc 6% Preference Share",
         "Acme Capital Trust",
         "Acme Income Fund",
     ]:
-        assert not is_common_stock(name), name
+        assert not is_common_stock("ACME", name), name
+
+
+def test_preferreds_are_excluded_on_the_symbol_when_the_name_hides_them():
+    # Issue #105. Nasdaq writes a preferred or depositary series with "$", and
+    # the names carry none of the stems the pattern above matches — "7.125%
+    # Series H" and "Depositary Shares" both read as common stock. Nine of these
+    # sat in the US gate's denominator every night, fetched and silent. The
+    # symbol says what the name does not.
+    hidden = {
+        "DBRG$H": "DigitalBridge Group, Inc. 7.125% Series H",
+        "DBRG$I": "DigitalBridge Group, Inc. 7.15% Series I",
+        "DBRG$J": "DigitalBridge Group, Inc. 7.125% Series J",
+        "EQH$A": "Equitable Holdings, Inc. Depositary Shares",
+        "MET$E": "MetLife, Inc. Depositary Shares",
+        "MS$F": "Morgan Stanley Dep Shs Rpstg 1/1000th Int Prd Ser F Fxd to Flag",
+        "NLY$F": "Annaly Capital Management Inc 6.95% Series F",
+        "STT$G": "State Street Corporation Depositary shares",
+        "TFC$I": "Truist Financial Corporation Depositary Shares",
+    }
+    assert len(hidden) == 9
+    for symbol, name in hidden.items():
+        # The name alone reads as common stock — that is the defect.
+        assert is_common_stock("PLAIN", name), f"{symbol}: name-based rule misses this"
+        assert not is_common_stock(symbol, name), symbol
+
+
+def test_a_dotted_share_class_is_still_common_stock():
+    # The other half of #105: BRK.B is ordinary common stock and belongs in the
+    # universe. Only the "$" form is an instrument-type exclusion — a dot is a
+    # share class, and the dot/dash mismatch is a wire-format problem solved at
+    # the fetch boundary (``provider_symbol``), never a universe one.
+    for symbol in ["BRK.A", "BRK.B", "BF.B", "HEI.A", "MOG.A", "TAP.A", "UHAL.B", "MKC.V",
+                   "AGM.A", "CIG.C", "CRD.B", "GEF.B", "LEN.B", "WSO.B"]:
+        assert is_common_stock(symbol, "Corp Common Stock"), symbol
 
 
 def test_the_twelve_named_adrs_survive_instrument_exclusion():
@@ -111,7 +152,7 @@ def test_the_twelve_named_adrs_survive_instrument_exclusion():
         "SIMO": "Silicon Motion Technology Corporation American Depositary Shares",
     }
     for symbol, name in adrs.items():
-        assert is_common_stock(name), symbol
+        assert is_common_stock(symbol, name), symbol
 
 
 # -- density gate (§3.4 rule 3) -----------------------------------------------
@@ -267,7 +308,7 @@ class FakeBarClient:
     def enumerate(self, market):
         return self._instruments[market]
 
-    def fetch(self, symbol):
+    def fetch(self, symbol, start=None):
         return self._bars.get(symbol, [])
 
     def fetch_info(self, symbol):
@@ -305,3 +346,38 @@ def test_run_market_universe_ingests_and_builds_a_liquid_universe(store: Store, 
     assert store.label("IDX", "THIN") is None
     # Bars for all instruments (index included) were ingested on the way.
     assert len(store.bars("IDX", "^JKSE")) == 25
+
+
+def test_run_market_universe_excludes_instrument_type_listings_from_the_gate(store: Store, tmp_path):
+    # Issue #90: a US market takes the whole listing file, so ~a quarter of its
+    # candidates are warrants/rights/units/preferreds. The provider serves them
+    # no history, so they come back as silence (unresolved), and the universe
+    # throws them out on their name anyway — but the instrument-type rule runs
+    # *after* resolution. Left in the completeness denominator they hold a
+    # complete common-equity pull under the floor forever. They must sit outside
+    # the gate, so a full pull of the tradeable names publishes.
+    sessions = CAL[:25]
+    now = datetime(2026, 8, 20, 20, 0, tzinfo=WIB)
+    instruments = [Instrument(market="US", symbol="^IXIC", role="reference")]
+    # 20 common stocks that all resolve.
+    instruments += [
+        Instrument(market="US", symbol=f"S{i}", role="candidate", name=f"Corp {i} - Common Stock")
+        for i in range(20)
+    ]
+    # 10 warrants the provider serves no history for — pure silence.
+    instruments += [
+        Instrument(market="US", symbol=f"W{i}", role="candidate", name=f"Corp {i} Warrant")
+        for i in range(10)
+    ]
+    bars = {"^IXIC": [_row(s, close=100.0, volume=1) for s in sessions]}
+    bars.update({f"S{i}": [_row(s, close=2000.0, volume=1_000_000) for s in sessions] for i in range(20)})
+    source = Source(FakeBarClient({"US": instruments}, bars), rate_per_sec=1000, sleep=lambda s: None)
+
+    record = run_market_universe(store, source, "US", date(2026, 8, 20), now=now, digests_dir=tmp_path)
+
+    assert record is not None
+    assert record.status == "published"
+    # The ten warrants stayed out of the denominator; every tradeable name resolved.
+    assert record.symbols_enumerated == 20
+    assert record.symbols_resolved == 20
+    assert store.universe("US", date(2026, 8, 20)) == sorted(f"S{i}" for i in range(20))

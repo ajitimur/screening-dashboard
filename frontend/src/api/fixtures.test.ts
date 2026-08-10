@@ -46,8 +46,7 @@ describe("the shared fetch harness", () => {
   it("routes each endpoint to its typed default, sector-detail before sectors", () => {
     expect(fx.resolveRoute({}, "/api/runs/IDX")).toMatchObject({ market: "IDX" });
     expect(fx.resolveRoute({}, "/api/runs/IDX", "POST")).toMatchObject({ triggered: true });
-    expect(fx.resolveRoute({}, "/api/boards/US")).toMatchObject({ market: "US", boards: expect.any(Array) });
-    expect(fx.resolveRoute({}, "/api/leaders/US")).toMatchObject({ boards: expect.any(Array) });
+    expect(fx.resolveRoute({}, "/api/leaders/US")).toMatchObject({ market: "US", boards: expect.any(Array) });
     expect(fx.resolveRoute({}, "/api/regime/IDX")).toMatchObject({ state: "FRIENDLY" });
     expect(fx.resolveRoute({}, "/api/candidates/IDX")).toMatchObject({ ordered_by: "score" });
     expect(fx.resolveRoute({}, "/api/chart/IDX/AAA")).toMatchObject({ symbol: "AAA" });

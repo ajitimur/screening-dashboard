@@ -7,6 +7,8 @@ import {
   runRecord,
   runTriggerResponse,
   runsResponse,
+  sectorStrength,
+  sectorsResponse,
   stubFetch,
   type ApiRoutes,
 } from "./api/fixtures";
@@ -286,6 +288,100 @@ describe("the shell — run-on-open lifecycle", () => {
       });
       expect(screen.getByText("2026-08-05")).toBeInTheDocument();
       expect(screen.queryByText(/Running tonight's IDX/i)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("refetches the Board's body reads when the run it triggered completes (issue #94)", async () => {
+    // The dangerous Board defect: the reads land while the triggered run is still
+    // writing, so the rail paints the pre-run, all-zero, API-order board and
+    // never finds out when the finished session lands. The shell must re-key the
+    // reads on the session so the rail refetches the real differentials.
+    vi.useFakeTimers();
+    const okJson = (body: unknown) => ({ ok: true, json: async () => body }) as Response;
+    let getCount = 0;
+    let published = false;
+    // Before the run publishes: every sector flat at 0, in API order (the bug).
+    // After: the finished session's real differentials, Utilities on top.
+    const preRun = sectorsResponse({
+      market: "IDX",
+      session: "2026-08-04",
+      sectors: [
+        sectorStrength({ sector: "Basic Materials", shape_differential: 0 }),
+        sectorStrength({ sector: "Technology", shape_differential: 0 }),
+        sectorStrength({ sector: "Utilities", shape_differential: 0 }),
+        sectorStrength({ sector: "Energy", shape_differential: 0 }),
+        sectorStrength({ sector: "Healthcare", shape_differential: 0 }),
+      ],
+    });
+    const finished = sectorsResponse({
+      market: "IDX",
+      session: "2026-08-05",
+      sectors: [
+        sectorStrength({ sector: "Utilities", shape_differential: 0.25 }),
+        sectorStrength({ sector: "Technology", shape_differential: 0.2 }),
+        sectorStrength({ sector: "Energy", shape_differential: 0.17 }),
+      ],
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, opts?: RequestInit) => {
+        if (url.includes("/api/runs/") && opts?.method === "POST") {
+          return okJson(runTriggerResponse({ market: "IDX", triggered: true, running: true }));
+        }
+        if (url.includes("/api/runs/")) {
+          getCount += 1;
+          if (getCount === 1)
+            return okJson(runsResponse({ market: "IDX", run_due: true, running: false }));
+          if (getCount === 2)
+            return okJson(runsResponse({ market: "IDX", run_due: true, running: true }));
+          published = true;
+          return okJson(
+            runsResponse({
+              market: "IDX",
+              latest: runRecord({ session: "2026-08-05" }),
+              runs: [runRecord({ session: "2026-08-05" })],
+              run_due: false,
+              running: false,
+            }),
+          );
+        }
+        // The rail's read reflects the store's shape at the moment it is served:
+        // pre-run zeros while the run writes, real differentials once it lands.
+        if (url.includes("/api/sectors/")) return okJson(published ? finished : preRun);
+        return okJson(resolveRoute({}, url, opts?.method ?? "GET"));
+      }),
+    );
+    try {
+      render(<App />);
+      // The Board mounts on the last published session (2026-08-04) while the run
+      // writes, so the rail paints the pre-run all-zero board.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      const rail = screen.getByRole("heading", { name: "Where money is rotating" }).closest("section")!;
+      expect(within(rail).getAllByText("0pp").length).toBeGreaterThan(0);
+      expect(within(rail).queryByText("+25pp")).not.toBeInTheDocument();
+
+      // The run runs, then publishes the finished session; a final tick flushes the
+      // Board's re-keyed refetch (session 2026-08-04 → 2026-08-05).
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // The panels refetched: the rail now shows the real differentials, sorted,
+      // with no stale all-zero bar left behind.
+      expect(within(rail).getByText("+25pp")).toBeInTheDocument();
+      expect(within(rail).queryByText("0pp")).not.toBeInTheDocument();
+      const bars = within(rail).getAllByRole("button");
+      expect(bars[0]).toHaveTextContent("Utilities");
     } finally {
       vi.useRealTimers();
     }

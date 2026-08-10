@@ -114,7 +114,7 @@ def _deviates(measured: float, expected: float | None) -> bool:
 def _resolve_session(store: Store, market: str, session: date | None) -> date:
     if session is not None:
         return session
-    latest = store.latest_run(market)
+    latest = store.last_published_run(market)
     if latest is None:
         raise ValueError(f"{market} has no published run to measure")
     return latest.session

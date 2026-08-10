@@ -6,16 +6,9 @@ import type { components } from "./schema";
 export type RunsResponse = components["schemas"]["RunsResponse"];
 export type RunRecord = components["schemas"]["RunRecord"];
 export type RunTriggerResponse = components["schemas"]["RunTriggerResponse"];
-// `Boards` renamed to `Leaders` on the backend (spec §4.4 / §10.2); `/api/boards`
-// is kept as an alias so v1 keeps working until it dies in the integration
-// commit. These aliases hold the v1 names against the renamed schemas so the v1
-// screen compiles unchanged over the aliased endpoint.
-export type BoardsResponse = components["schemas"]["LeadersResponse"];
-export type Board = components["schemas"]["Leader"];
-export type BoardRow = components["schemas"]["LeaderRow"];
-// The v2 names, over the renamed `/api/leaders` endpoint (spec §4.4). The v2
-// Leaders screen reads these; the v1 `Board*` aliases above stay until the v1
-// screen dies in the integration commit (spec §10.2).
+// The leaderboards read (spec §4.4). *Leaders* names the endpoint because
+// *Board* names the composite home screen — hence `Board.tsx` reading
+// `fetchLeaders`, which is otherwise a surprise.
 export type LeadersResponse = components["schemas"]["LeadersResponse"];
 export type Leader = components["schemas"]["Leader"];
 export type LeaderRow = components["schemas"]["LeaderRow"];
@@ -48,15 +41,6 @@ export async function triggerRun(market: string): Promise<RunTriggerResponse> {
   return (await resp.json()) as RunTriggerResponse;
 }
 
-export async function fetchBoards(market: string): Promise<BoardsResponse> {
-  const resp = await fetch(`/api/boards/${market}`);
-  if (!resp.ok) throw new Error(`GET /api/boards/${market} → ${resp.status}`);
-  return (await resp.json()) as BoardsResponse;
-}
-
-// The v2 read (spec §4.4): `/api/boards` was renamed `/api/leaders`, so *Board*
-// is free to name the composite home screen. The v1 `fetchBoards` above keeps
-// hitting the `/api/boards` alias until the v1 screen is removed.
 export async function fetchLeaders(market: string): Promise<LeadersResponse> {
   const resp = await fetch(`/api/leaders/${market}`);
   if (!resp.ok) throw new Error(`GET /api/leaders/${market} → ${resp.status}`);

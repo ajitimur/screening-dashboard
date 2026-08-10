@@ -46,17 +46,35 @@ DENSITY_MIN = 16  # ≥ 16 of the last 20 sessions non-phantom (§3.4 rule 3)
 DENSITY_MAX_GAP = 3  # latest bar within 3 sessions of the market's latest
 
 # Instrument-type exclusion — the *only* non-behavioural rule in the system: it
-# matches a security's name rather than testing what the name does (D13). Common
+# matches a security's name rather than testing what the name does (D13), with a
+# second, symbol-based half below for the classes the name hides. Common
 # stock only; every excluded class below is matched on a whole word so that
 # **ADRs are kept** — "American Depositary Shares" contains none of these stems,
-# and preferred is matched as \bPreferred\b|\bPfd\b, never "Depositary Sh". It
-# misfires both ways (it deletes an operating bank named "... Trust", ~22 REITs,
-# MLP units, preferred-share ADRs); those costs are named and accepted (D13).
+# and the preferred class is matched as \bPreferred\b|\bPreference\b|\bPfd\b,
+# never "Depositary Sh". "Preference" is the same instrument under a second name
+# ("... Series A Cumulative Redeemable Perpetual Preference Shares", #92) and is
+# excluded on the same footing. It misfires both ways (it deletes an operating
+# bank named "... Trust", ~22 REITs, MLP units, preferred-share ADRs); those
+# costs are named and accepted (D13).
 _EXCLUDED_INSTRUMENT = re.compile(
     r"\b(?:warrants?|rights?|units?|notes?|bonds?|debentures?"
-    r"|preferred|pfd|trusts?|funds?)\b",
+    r"|preferred|preference|pfd|trusts?|funds?)\b",
     re.IGNORECASE,
 )
+
+# The same exclusion, read off the *symbol* where the name will not admit to it
+# (#105). Nasdaq writes a preferred or depositary series with "$" — ``DBRG$H``,
+# ``MET$E`` — and the names that go with them ("... 7.125% Series H", "MetLife,
+# Inc. Depositary Shares") carry none of the stems above, so the name-based rule
+# reads them as common stock. Nine of them were fetched every night, came back
+# silent, and were counted against a floor they were never meant to be measured
+# by. The symbol says what the name does not.
+#
+# Only "$" is an exclusion. A *dot* in a US symbol is a share class (``BRK.B``),
+# which is ordinary common stock and belongs in the universe; that the provider
+# spells it with a dash is a wire-format problem, solved at the fetch boundary
+# (:func:`screener.source.provider_symbol`), not here.
+_PREFERRED_SERIES_MARK = "$"
 
 
 @dataclass(frozen=True)
@@ -98,12 +116,19 @@ def median_dollar_volume(bars: list[Bar]) -> float:
     return _median([b.dollar_volume for b in recent])
 
 
-def is_common_stock(name: str) -> bool:
-    """Is ``name`` common stock — i.e. not in any excluded instrument class?
+def is_common_stock(symbol: str, name: str) -> bool:
+    """Is this listing common stock — i.e. not in any excluded instrument class?
+
+    Reads both halves of a listing's identity because neither alone is enough:
+    the name catches the classes that say what they are ("... Warrant", "...
+    Series A Preferred Stock"), and the symbol catches the preferreds and
+    depositary shares whose name does not (#105).
 
     An empty name is common stock: IDX carries no security name and the screener
     already guarantees ``quoteType: EQUITY`` (D13). ADRs are kept.
     """
+    if _PREFERRED_SERIES_MARK in symbol:
+        return False
     return _EXCLUDED_INSTRUMENT.search(name) is None
 
 
@@ -131,7 +156,7 @@ def _is_member(candidate: Candidate, market: str, market_sessions: list[date],
         # Silence is not evidence of absence: carry yesterday's classification
         # forward unchanged (§3.4 rule 6). Never evicted on a failed fetch.
         return was_member
-    if not is_common_stock(candidate.name):
+    if not is_common_stock(candidate.symbol, candidate.name):
         return False
     if len(candidate.bars) < MIN_LISTING_BARS:
         return False

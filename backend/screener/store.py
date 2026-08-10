@@ -20,7 +20,7 @@ import duckdb
 from .bars import Bar
 from .detection import Detection
 from .labels import Label
-from .models import RunRecord, RunStatus
+from .models import ResolutionFailure, RunRecord, RunStatus
 from .ranks import Rank
 from .regime import FollowThrough
 
@@ -29,10 +29,12 @@ from .regime import FollowThrough
 # v2 adds the sector/industry label cache (spec §3.3); v3 the breakout
 # follow-through capture (spec §4.9); v4 the detections table (spec §4.5); v5
 # extends detections with the star score's three derived signals (spec §4.7); v6
-# the digest_breaks table — the reported-break record behind the repeat marker (§6).
+# the digest_breaks table — the reported-break record behind the repeat marker (§6);
+# v7 the run_failures table — the per-symbol record of why a pull fell short (#91);
+# v8 the refusals table — the persisted per-symbol refusal verdict (spec §3.6, #100).
 # Recorded in the database on open (``schema_meta``) and reconciled against it by
 # :meth:`Store._migrate`, so an older file is upgraded rather than crashed into.
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 8
 
 _SCHEMA = """
 -- The schema this database has been reconciled to. Written on every open, so
@@ -166,6 +168,52 @@ CREATE TABLE IF NOT EXISTS digest_breaks (
     symbol   TEXT NOT NULL,
     PRIMARY KEY (market, session, symbol)
 );
+
+-- Why a run's pull fell short: one row per enumerated candidate that did **not**
+-- come back with bars, carrying the outcome the source stated (issue #91). The
+-- run record's two integers say a pull was incomplete; they cannot say whether
+-- 548 US names went silent under throttling or the listing file carries
+-- instruments the provider serves no history for, and those have opposite fixes.
+-- The per-symbol outcomes exist only while the run is in flight, so this is the
+-- one place they survive. ``counted`` is whether the symbol sat in the
+-- completeness gate's denominator — a refused or instrument-type-excluded
+-- listing is recorded but held out of the gate (§3.4 rule 7, issue #90), and
+-- that distinction is exactly what makes a quarantine legible. Written for the
+-- session the pull was measured against, published or quarantined; a clean pull
+-- writes no rows.
+CREATE TABLE IF NOT EXISTS run_failures (
+    market   TEXT    NOT NULL,
+    session  DATE    NOT NULL,
+    symbol   TEXT    NOT NULL,
+    name     TEXT    NOT NULL,
+    -- the source's stated outcome: unresolved | throttled | refused. The first
+    -- two are both silence and both count against the gate; "throttled" is the
+    -- silence the provider stated with a 429, kept apart because it survived the
+    -- tail sweep's rests and so points at pacing rather than the listing (#104).
+    status   TEXT    NOT NULL,
+    counted  BOOLEAN NOT NULL,  -- did it sit in the completeness gate's denominator?
+    PRIMARY KEY (market, session, symbol)
+);
+
+-- The persisted per-symbol refusal verdict (spec §3.6, issue #100). A *stated*
+-- refusal — the provider naming the periods it will serve instead of answering —
+-- fires only on the unbounded ``period="max"`` request, so it is detectable only
+-- on a symbol's cold start. The nightly incremental fetch passes ``start=``,
+-- which sets ``period`` to ``None`` and cannot draw the refusal: left to re-probe,
+-- a refused listing would collapse into ordinary silence and drag the gate again
+-- (#47). So the verdict is recorded once, here, keyed (market, symbol) like the
+-- label cache — a slow-moving fact about a name, not a per-session observation —
+-- and every later night skips the symbol entirely rather than re-probing it.
+-- ``as_of`` stamps the session the refusal was first observed. Deliberately NOT a
+-- dated derived table: it must survive a session recompute (it is not in
+-- ``_DERIVED_TABLES``), because the refusal is a fact about the listing, not the
+-- run that noticed it.
+CREATE TABLE IF NOT EXISTS refusals (
+    market  TEXT NOT NULL,
+    symbol  TEXT NOT NULL,
+    as_of   DATE NOT NULL,
+    PRIMARY KEY (market, symbol)
+);
 """
 
 # Rank history is kept on a rolling window this many years deep; older sessions
@@ -193,11 +241,20 @@ class SessionExistsError(RuntimeError):
 
 
 # The derived streams one session computes — every table keyed (market, session)
-# and guarded by :meth:`Store._guard_absent`, minus ``runs`` itself. ``bars`` is
+# and guarded by :meth:`Store._guard_absent`, minus ``runs`` itself, which is the
+# commit point over them rather than one of them (:meth:`discard_session` clears
+# it separately, and only for a session that never published). ``bars`` is
 # deliberately not here: bars are the ingest substrate, committed per symbol so a
 # killed pull keeps what it already fetched (spec §3.3), and a re-pull appends
 # them idempotently rather than recomputing them.
-_DERIVED_TABLES = ("universe", "ranks", "follow_through", "detections", "digest_breaks")
+_DERIVED_TABLES = (
+    "universe",
+    "ranks",
+    "follow_through",
+    "detections",
+    "digest_breaks",
+    "run_failures",
+)
 
 
 class SchemaDriftError(RuntimeError):
@@ -296,36 +353,57 @@ class Store:
     def close(self) -> None:
         self._con.close()
 
+    def _cursor(self) -> duckdb.DuckDBPyConnection:
+        """A fresh cursor over the shared database, for one query.
+
+        A DuckDB Python connection is not safe for concurrent use, but the read
+        route handlers are plain ``def`` — Starlette dispatches them to its
+        threadpool, so several run at once on different threads. Sharing the one
+        ``self._con`` across them intermittently 500s (issue #93). ``cursor()``
+        hands each query its own execution context over the *same* underlying
+        database, which is the documented multi-thread pattern: reads still run
+        in parallel, no global lock serialises them (spec §7.3). Every read and
+        write method below goes through here rather than touching ``self._con``.
+        """
+        return self._con.cursor()
+
     # -- writes (append-only) ---------------------------------------------
 
     def discard_session(self, market: str, session: date) -> int:
-        """Drop the derived rows of a session that was never stamped with a run.
+        """Drop the rows of a session that never published, so it can be redone.
 
         A run computes a session's derived streams and stamps its run record
         **last**, which makes the run record the commit point — every read keys
         off the last *published* run, so a session without one was never visible
-        to anyone. A run that dies in between therefore leaves rows belonging to
-        no session: debris, not history. Left in place they are permanent, and
-        :meth:`_guard_absent` refuses to let any later run recompute that
-        session, so one interrupted run wedges the market for good.
+        to anyone. Two kinds of session sit in that state, and both must be
+        recomputable or the write-once guard (:meth:`_guard_absent`) turns one
+        bad night into a permanent one:
 
-        Clearing them is not a rewrite of recorded history. A session that
-        *does* carry a run record — published or quarantined — is refused here,
-        so the write-once guarantee (spec §7.2) still holds over everything a
-        run ever published. Returns the number of rows discarded.
+        - **No run record at all** — a run that died mid-session, leaving rows
+          belonging to no session: debris, not history (issue #46).
+        - **A quarantined run record** — the pull fell below the completeness
+          floor, so it wrote no universe, no ranks, nothing anyone read; only
+          the run row and its failure rows (issue #103). Its own row is what
+          made a same-day retry crash instead of running, so the row goes too.
+
+        Clearing either is not a rewrite of recorded history. A **published**
+        session is refused here, so the write-once guarantee (spec §7.2) holds
+        over everything a run ever published — the one invariant this method
+        exists not to break. The failure rows go with the quarantine that wrote
+        them: they explain *that* attempt's shortfall, and outliving their run
+        record would leave them read as the retry's account of itself.
+
+        Returns the number of rows discarded, the run record included.
         """
-        recorded = self._con.execute(
-            "SELECT 1 FROM runs WHERE market = ? AND session = ? LIMIT 1",
-            [market, session],
-        ).fetchone()
-        if recorded is not None:
+        recorded = self.run(market, session)
+        if recorded is not None and recorded.status == "published":
             raise SessionExistsError(
-                f"({market}, {session}) carries a run record; a recorded "
-                "session's derived rows are never discarded"
+                f"({market}, {session}) carries a published run record; a "
+                "published session's rows are never discarded"
             )
         discarded = 0
-        for table in _DERIVED_TABLES:
-            deleted = self._con.execute(
+        for table in (*_DERIVED_TABLES, "runs"):
+            deleted = self._cursor().execute(
                 f"DELETE FROM {table} WHERE market = ? AND session = ? RETURNING 1",
                 [market, session],
             ).fetchall()
@@ -333,7 +411,7 @@ class Store:
         return discarded
 
     def _guard_absent(self, table: str, market: str, session: date) -> None:
-        existing = self._con.execute(
+        existing = self._cursor().execute(
             f"SELECT 1 FROM {table} WHERE market = ? AND session = ? LIMIT 1",
             [market, session],
         ).fetchone()
@@ -355,7 +433,7 @@ class Store:
     ) -> RunRecord:
         """Record one run. Raises :class:`SessionExistsError` on a rewrite."""
         self._guard_absent("runs", market, session)
-        self._con.execute(
+        self._cursor().execute(
             "INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?)",
             [market, session, status, symbols_enumerated, symbols_resolved, created_at],
         )
@@ -371,7 +449,7 @@ class Store:
     def append_universe(self, market: str, session: date, symbols: list[str]) -> int:
         """Append a session's universe membership. Raises on a rewrite."""
         self._guard_absent("universe", market, session)
-        self._con.executemany(
+        self._cursor().executemany(
             "INSERT INTO universe VALUES (?, ?, ?)",
             [[market, session, s] for s in symbols],
         )
@@ -397,11 +475,38 @@ class Store:
             params.extend(
                 (market, symbol, b.session, b.open, b.high, b.low, b.close, b.adj_close, b.volume)
             )
-        inserted = self._con.execute(
+        inserted = self._cursor().execute(
             f"INSERT INTO bars VALUES {placeholders} ON CONFLICT DO NOTHING RETURNING 1",
             params,
         ).fetchall()
         return len(inserted)
+
+    def replace_bars(self, market: str, symbol: str, bars: list[Bar]) -> int:
+        """Delete one symbol's bars and rewrite them — the drift repair (§3.6, #102).
+
+        A deliberate, narrow exception to :meth:`append_bars`' write-once rule
+        (spec §7.2). When the incremental overlap shows a symbol's stored history
+        sits on a stale adjustment basis — a corporate-action rebasis — those bars
+        are *wrong*, not merely stale, and no ``ON CONFLICT DO NOTHING`` append can
+        fix a row that already exists. §7.2 exists so a *throttled* run cannot
+        silently rewrite good data; a rebasis is the opposite case, so this rewrite
+        is scoped as hard as it can be:
+
+        - **One symbol's bars only.** The ``DELETE`` is keyed to ``(market,
+          symbol)``, so every other symbol on the exchange calendar is untouched.
+        - **Never a derived row.** Ranks, detections, digests and run records are
+          left exactly as they were computed on the old basis. §3.5's finding that
+          nearly every quantity in the method is a ratio — invariant to a uniform
+          rescale — makes recomputing them immaterial, so a repair is bars-only by
+          construction (issue #102).
+
+        Returns the number of rows written (the delete's count is not reported: the
+        caller wants the new series' size, and a repair always overwrites).
+        """
+        self._cursor().execute(
+            "DELETE FROM bars WHERE market = ? AND symbol = ?", [market, symbol]
+        )
+        return self.append_bars(market, symbol, bars)
 
     def append_ranks(self, market: str, session: date, rows: list[Rank]) -> int:
         """Append a session's rank rows, then prune outside the 2-year window.
@@ -413,13 +518,13 @@ class Store:
         data and needs no wall clock.
         """
         self._guard_absent("ranks", market, session)
-        self._con.executemany(
+        self._cursor().executemany(
             "INSERT INTO ranks VALUES (?, ?, ?, ?, ?, ?)",
             [[market, session, r.symbol, r.lookback, r.percentile, r.raw_return]
              for r in rows],
         )
         cutoff = _years_before(session, RANK_RETENTION_YEARS)
-        self._con.execute(
+        self._cursor().execute(
             "DELETE FROM ranks WHERE market = ? AND session < ?", [market, cutoff]
         )
         return len(rows)
@@ -434,7 +539,7 @@ class Store:
         :class:`SessionExistsError` on a rewrite.
         """
         self._guard_absent("follow_through", market, session)
-        self._con.execute(
+        self._cursor().execute(
             "INSERT INTO follow_through VALUES (?, ?, ?, ?)",
             [market, session, broke_out, index_close],
         )
@@ -450,7 +555,7 @@ class Store:
         cached value, so the caller simply does not call this on silence (spec
         §3.3), and the ``as_of`` it stamps drives the rolling refresh.
         """
-        self._con.execute(
+        self._cursor().execute(
             "INSERT INTO labels VALUES (?, ?, ?, ?, ?) "
             "ON CONFLICT (market, symbol) DO UPDATE SET "
             "sector = excluded.sector, industry = excluded.industry, "
@@ -470,7 +575,7 @@ class Store:
         self._guard_absent("detections", market, session)
         if not rows:
             return 0
-        self._con.executemany(
+        self._cursor().executemany(
             "INSERT INTO detections VALUES "
             "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
@@ -497,18 +602,82 @@ class Store:
         self._guard_absent("digest_breaks", market, session)
         if not symbols:
             return 0
-        self._con.executemany(
+        self._cursor().executemany(
             "INSERT INTO digest_breaks VALUES (?, ?, ?)",
             [[market, session, s] for s in symbols],
         )
         return len(symbols)
 
+    def append_run_failures(
+        self, market: str, session: date, rows: list[ResolutionFailure]
+    ) -> int:
+        """Record why a session's pull fell short. Raises on a rewrite.
+
+        Dated and append-only like every derived stream (spec §7.2), and written
+        for a quarantined session as much as a published one — a quarantine is
+        precisely the run that needs explaining (issue #91). A clean pull writes
+        no rows; the guard still marks the session as recorded, so an empty
+        result reads as "nothing failed" rather than "nothing was kept".
+        """
+        self._guard_absent("run_failures", market, session)
+        if not rows:
+            return 0
+        self._cursor().executemany(
+            "INSERT INTO run_failures VALUES (?, ?, ?, ?, ?, ?)",
+            [[market, session, f.symbol, f.name, f.status, f.counted] for f in rows],
+        )
+        return len(rows)
+
+    def mark_refused(self, market: str, symbol: str, as_of: date) -> None:
+        """Persist a symbol's stated refusal verdict (spec §3.6, issue #100).
+
+        Recorded once, off the cold-start fetch that is the only place a refusal
+        can surface. Idempotent by construction: a symbol already recorded keeps
+        its first ``as_of`` (``ON CONFLICT DO NOTHING``), because it is never
+        re-probed and so never re-observed anyway — the guard is defensive, not a
+        real second write. Not a dated append: the refusal is a cross-session
+        fact about the listing, so it lives outside the write-once derived
+        streams and survives a session recompute.
+        """
+        self._cursor().execute(
+            "INSERT INTO refusals VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+            [market, symbol, as_of],
+        )
+
     # -- reads -------------------------------------------------------------
+
+    def refusals(self, market: str) -> set[str]:
+        """Every symbol the provider has refused history for (spec §3.6, #100).
+
+        What the nightly pull reads to skip re-probing a refused listing: a
+        symbol here is excluded from the fetch and held out of the completeness
+        gate, exactly as a freshly-refused one is, computed once instead of every
+        run.
+        """
+        rows = self._cursor().execute(
+            "SELECT symbol FROM refusals WHERE market = ?", [market]
+        ).fetchall()
+        return {r[0] for r in rows}
+
+    def run_failures(self, market: str, session: date) -> list[ResolutionFailure]:
+        """A session's non-resolving candidates, ordered by symbol (issue #91)."""
+        rows = self._cursor().execute(
+            "SELECT symbol, name, status, counted FROM run_failures "
+            "WHERE market = ? AND session = ? ORDER BY symbol",
+            [market, session],
+        ).fetchall()
+        return [
+            ResolutionFailure(
+                market=market, session=session,
+                symbol=r[0], name=r[1], status=r[2], counted=r[3],
+            )
+            for r in rows
+        ]
 
     def rank_sessions(self, market: str) -> list[date]:
         """Every session with rank rows, oldest first — the history the sector
         board differences for its temporal delta (spec §4.4 / ticket 07 S3)."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT DISTINCT session FROM ranks WHERE market = ? ORDER BY session",
             [market],
         ).fetchall()
@@ -516,7 +685,7 @@ class Store:
 
     def detections(self, market: str, session: date) -> list[Detection]:
         """A session's detection rows, ordered by symbol."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT symbol, detector_version, trigger, stop, stopw_adr, base_len, "
             "move_gain, adr, close, cluster_k, cluster_high, cluster_low, "
             "cluster_range_adr, line_ok, touch_zones, overshoot_adr, slope, "
@@ -541,7 +710,7 @@ class Store:
         before* ``session``, or ``[]`` if none. This is what the digest reads as
         the setups whose ``trigger_yesterday`` today's close is tested against —
         the rule's recency requirement made concrete (spec §6)."""
-        latest = self._con.execute(
+        latest = self._cursor().execute(
             "SELECT max(session) FROM detections WHERE market = ? AND session < ?",
             [market, session],
         ).fetchone()[0]
@@ -554,7 +723,7 @@ class Store:
         machine record behind the digest file (spec §6). Empty on a quiet night.
         Read by the acceptance pass to count digest rows without re-parsing the
         Markdown or re-running the build (spec §8.2 B5)."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT symbol FROM digest_breaks WHERE market = ? AND session = ? "
             "ORDER BY symbol",
             [market, session],
@@ -568,7 +737,7 @@ class Store:
         the returned date, so tonight's break carries ``↺ last reported <date>``. A
         symbol absent from the map is a first-time break. Today's own session is
         excluded, so the digest never reports itself as a repeat of itself."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT symbol, max(session) FROM digest_breaks "
             "WHERE market = ? AND session < ? GROUP BY symbol",
             [market, session],
@@ -577,7 +746,7 @@ class Store:
 
     def ranks(self, market: str, session: date) -> list[Rank]:
         """A session's rank rows, ordered by symbol then lookback."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT symbol, lookback, percentile, raw_return FROM ranks "
             "WHERE market = ? AND session = ? ORDER BY symbol, lookback",
             [market, session],
@@ -588,7 +757,7 @@ class Store:
         """The rank rows of the most recent session *strictly before* ``session``,
         or ``[]`` if none. This is what the boards' ``NEW`` marker diffs against
         as "last session" (spec §4.3 / ticket 06 R10)."""
-        latest = self._con.execute(
+        latest = self._cursor().execute(
             "SELECT max(session) FROM ranks WHERE market = ? AND session < ?",
             [market, session],
         ).fetchone()[0]
@@ -599,7 +768,7 @@ class Store:
     def follow_through(self, market: str) -> list[FollowThrough]:
         """A market's breakout-follow-through rows, oldest session first — the
         forward record read to measure whether a break continued (spec §4.9)."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT session, broke_out, index_close FROM follow_through "
             "WHERE market = ? ORDER BY session",
             [market],
@@ -608,7 +777,7 @@ class Store:
 
     def bars(self, market: str, symbol: str) -> list[Bar]:
         """A symbol's stored bars, oldest session first."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT session, open, high, low, close, adj_close, volume "
             "FROM bars WHERE market = ? AND symbol = ? ORDER BY session",
             [market, symbol],
@@ -620,7 +789,7 @@ class Store:
         or ``None`` if it has no bars yet (spec §3.6)."""
         # max() is an aggregate: fetchone() is always a one-tuple, (None,) when
         # the symbol has no bars yet.
-        return self._con.execute(
+        return self._cursor().execute(
             "SELECT max(session) FROM bars WHERE market = ? AND symbol = ?",
             [market, symbol],
         ).fetchone()[0]
@@ -629,7 +798,7 @@ class Store:
         """The market's observed exchange calendar: the union of bar dates
         across every symbol, oldest first (spec §3.4 rule 4). No holiday table
         is ever consulted — a gap simply has no bars."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT DISTINCT session FROM bars WHERE market = ? ORDER BY session",
             [market],
         ).fetchall()
@@ -637,7 +806,7 @@ class Store:
 
     def runs(self, market: str) -> list[RunRecord]:
         """All run records for a market, newest session first."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT market, session, status, symbols_enumerated, symbols_resolved, "
             "created_at FROM runs WHERE market = ? ORDER BY session DESC",
             [market],
@@ -654,15 +823,57 @@ class Store:
             for r in rows
         ]
 
-    def latest_run(self, market: str) -> RunRecord | None:
-        """The last *published* run — the as-of session the tab renders."""
+    def last_published_run(self, market: str) -> RunRecord | None:
+        """The last run that **published** — the as-of session the tab renders.
+
+        Every read surface keys off this: a quarantined run wrote no universe and
+        no ranks, so it is not a session anything can be rendered from.
+        """
         for record in self.runs(market):
             if record.status == "published":
                 return record
         return None
 
+    def last_run(self, market: str) -> RunRecord | None:
+        """The last run of **any** status — what this market has already written.
+
+        The scheduler's question (:func:`screener.schedule.run_is_due`), and a
+        different one from :meth:`last_published_run`: a quarantined session is
+        not *absent*, the store holds a row for it and the write-once guard
+        refuses a second one. So the decision to run is made against the last row
+        that exists, and that row's ``status`` decides whether the session is
+        retriable (issue #103).
+        """
+        records = self.runs(market)
+        return records[0] if records else None
+
+    def run(self, market: str, session: date) -> RunRecord | None:
+        """One session's run record, or ``None`` if it never ran.
+
+        The keyed read behind "has this session already been written, and how did
+        it end" — the two callers that ask it (the write-once guard in
+        :meth:`discard_session` and the pipeline's refusal to quarantine over a
+        published session) would otherwise each scan the market's whole run
+        history to answer about one date.
+        """
+        row = self._cursor().execute(
+            "SELECT market, session, status, symbols_enumerated, symbols_resolved, "
+            "created_at FROM runs WHERE market = ? AND session = ?",
+            [market, session],
+        ).fetchone()
+        if row is None:
+            return None
+        return RunRecord(
+            market=row[0],
+            session=row[1],
+            status=row[2],
+            symbols_enumerated=row[3],
+            symbols_resolved=row[4],
+            created_at=row[5],
+        )
+
     def universe(self, market: str, session: date) -> list[str]:
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT symbol FROM universe WHERE market = ? AND session = ? ORDER BY symbol",
             [market, session],
         ).fetchall()
@@ -670,7 +881,7 @@ class Store:
 
     def label(self, market: str, symbol: str) -> Label | None:
         """One symbol's cached label, or ``None`` if never fetched."""
-        row = self._con.execute(
+        row = self._cursor().execute(
             "SELECT symbol, sector, industry, as_of FROM labels "
             "WHERE market = ? AND symbol = ?",
             [market, symbol],
@@ -680,7 +891,7 @@ class Store:
     def labels(self, market: str) -> dict[str, Label]:
         """The whole label cache for a market, keyed by symbol — what the
         rolling-refresh policy reads to find the stalest names (spec §3.3)."""
-        rows = self._con.execute(
+        rows = self._cursor().execute(
             "SELECT symbol, sector, industry, as_of FROM labels WHERE market = ?",
             [market],
         ).fetchall()
@@ -690,7 +901,7 @@ class Store:
         """Yesterday's membership: the universe of the most recent session
         *strictly before* ``session``, or ``[]`` if none. This is what the
         hysteresis band and sticky membership read as "yesterday" (spec §4.1)."""
-        latest = self._con.execute(
+        latest = self._cursor().execute(
             "SELECT max(session) FROM universe WHERE market = ? AND session < ?",
             [market, session],
         ).fetchone()[0]

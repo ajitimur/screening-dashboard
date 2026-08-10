@@ -10,19 +10,35 @@ before asserting on rows.
 
 from __future__ import annotations
 
+import bisect
+import hashlib
+import math
+import time
+from collections import Counter
 from datetime import date, datetime
 from pathlib import Path
+from typing import Callable
 
-from .bars import clean_bars, parse_bars
+from .bars import Bar, clean_bars, parse_bars
 from .detection import Detection, detect, detection_gate
 from .digest import build_digest, render_digest
 from .labels import select_fetches
-from .models import RunRecord
+from .models import SILENT_STATUSES, ResolutionFailure, RunRecord
 from .ranks import Rank, rank_table
 from .regime import index_broke_out
-from .source import MARKET_INDEX, Instrument, Source, resolve_market
+from .source import (
+    DEFAULT_RESOLVE_WORKERS,
+    MARKET_INDEX,
+    SWEEP_WORKERS,
+    Instrument,
+    Resolution,
+    Source,
+    resolve_all,
+    resolve_market,
+    sweep_silence,
+)
 from .store import Store
-from .universe import rebuild_universe
+from .universe import is_common_stock, rebuild_universe
 
 # Where the nightly digest files land: data/digests/<market>/<session>.md, one
 # dated Markdown file per market per session (spec §6 / §7.5). Resolved from this
@@ -34,6 +50,17 @@ DEFAULT_DIGESTS_DIR = _REPO_ROOT / "data" / "digests"
 # behind a banner rather than published (spec §3.4 rule 7).
 RESOLUTION_FLOOR = 0.99
 
+# How many trading sessions of overlap the incremental nightly fetch re-requests
+# (spec §3.6, issue #100). A symbol with stored bars is pulled from this many
+# sessions before its last bar rather than at ``period="max"``. The overlap is
+# load-bearing, not a saving: §3.4 rule 5 is "zero rows is ``unresolved``, never
+# ``absent``", so a naive incremental fetch of an up-to-date name would return
+# zero new rows — byte-identical to a throttled response — and every healthy run
+# would quarantine. Re-requesting ~20 sessions means a healthy fetch always
+# returns rows, so zero rows stays unambiguously silence. ``append_bars`` is
+# ``INSERT ... ON CONFLICT DO NOTHING``, so the re-sent overlap is a free no-op.
+OVERLAP_SESSIONS = 20
+
 # A run whose *enumeration* is materially smaller than the last good run's is
 # quarantined too (spec §3.4 rule 8). Per-symbol failures are countable against a
 # known denominator (RESOLUTION_FLOOR); a truncated enumeration moves the
@@ -42,6 +69,37 @@ RESOLUTION_FLOOR = 0.99
 # gate — a drop past 10% of the last good run is a failed pull, not a shrinking
 # exchange (~84 IDX / ~694 US names vanishing overnight).
 ENUMERATION_FLOOR = 0.90
+
+# How many nights the rolling full-depth refetch cycles over (spec §3.6, issue
+# #101). Each night a deterministic 1-of-:data:`FULL_DEPTH_CYCLE` slice of the
+# fetch set is refetched at full depth (``period="max"``) *instead of*
+# incrementally, so §3.6's periodic full refetch never re-creates the whole-
+# universe throttle wall a single weekly pull would. 30 keeps the slice at
+# ~1/30 of the fetch set (~183 of ~5,500 US names a night) — well below the
+# incremental pull's cost — while guaranteeing every symbol a full refetch
+# inside a 30-night window. It is not 1/5: change 6's within-night rebasis
+# repair collapses this slice's job to corrections older than the overlap
+# window, rare and self-correcting, so a coarser cadence is enough.
+FULL_DEPTH_CYCLE = 30
+
+
+def _full_depth_today(symbol: str, session: date) -> bool:
+    """Whether ``symbol`` is in ``session``'s rolling full-depth slice (§3.6, #101).
+
+    A pure, deterministic hash partition of the symbol against the session date —
+    no persisted "last full fetch" state, exactly reproducible in tests and
+    self-balancing across the fetch set. The symbol is hashed to one of
+    :data:`FULL_DEPTH_CYCLE` buckets (a stable SHA-256, *not* the process-salted
+    :func:`hash`, so the verdict is identical across runs and machines), and the
+    session's ordinal selects tonight's bucket. Over any :data:`FULL_DEPTH_CYCLE`
+    consecutive sessions each bucket is chosen exactly once, so every symbol
+    receives exactly one full-depth fetch per cycle. A symbol in tonight's slice
+    is fetched at full depth *instead of* incrementally, never both, so the
+    nightly request count stays flat and ``status[symbol]`` stays single-valued.
+    """
+    digest = hashlib.sha256(symbol.encode("utf-8")).digest()
+    bucket = int.from_bytes(digest[:8], "big") % FULL_DEPTH_CYCLE
+    return bucket == session.toordinal() % FULL_DEPTH_CYCLE
 
 
 def run_market(
@@ -65,7 +123,7 @@ def run_market(
     last *published* run — a quarantined run must not lower the bar, or a slow
     leak of shrinking pulls would each pass against the previous shrunk attempt.
     """
-    last_good = store.latest_run(market)
+    last_good = store.last_published_run(market)
     enumeration_ok = (
         last_good is None
         or len(enumerated) >= ENUMERATION_FLOOR * last_good.symbols_enumerated
@@ -229,6 +287,232 @@ def write_digest(
     return path
 
 
+# How many failing symbols the run's log line names before it defers to the
+# stored record. The table holds every one of them; the log exists so a person
+# reading a launchd file can tell throttling from listing quality at a glance,
+# and 20 names is enough to see which it is without burying the file.
+FAILURE_SAMPLE = 20
+
+# How often the pull says where it has got to (issue #96). :func:`summarize_pull`
+# is a *post-mortem*: it lands once, at the end, so for the length of the pull
+# itself the log said nothing at all and a healthy run partway through its
+# enumeration looked exactly like a wedged one. This is the live signal. Every
+# 250 symbols is a line every ~20s at the paced rate — frequent enough to see
+# movement, sparse enough that a US pull adds ~30 lines to the log rather than
+# 7,300 (the per-symbol account is the ``run_failures`` record, issue #91).
+PROGRESS_EVERY = 250
+
+
+def emit_progress(line: str) -> None:
+    """Print a heartbeat line to stdout, flushed.
+
+    The flush is the load-bearing part. The scheduled jobs redirect stdout to a
+    launchd log file (spec §7.3), and a redirected stream is block-buffered, so
+    without it an hour of heartbeats would sit in a 4KB buffer and reach the file
+    only when the run ended — which is precisely the silence they exist to break.
+    """
+    print(line, flush=True)
+
+
+def progress_line(
+    market: str, done: int, total: int, counts: Counter[str], *, elapsed: float
+) -> str:
+    """One heartbeat: how far the pull has got, and how much longer it has.
+
+    The counts are broken out rather than summed because *which* way a symbol
+    failed is the diagnosis (issue #91): a rising ``silent`` count while the run
+    is in flight is a throttled pull, and a person watching can kill it an hour
+    before the completeness gate would have. ``refused`` rising instead is
+    listing quality, which is not worth waking up for.
+
+    The estimate is a flat extrapolation of the rate so far. That is honest for
+    this loop — every symbol costs one paced request, so the only thing that
+    skews it is the retry budget the silent ones burn, and those are already
+    spread through the enumeration rather than clustered at the end.
+    """
+    remaining = total - done
+    eta = f", ~{_duration(elapsed / done * remaining)} left" if done and remaining else ""
+    return (
+        f"{market}: pull {done:,}/{total:,} — {counts['resolved']:,} resolved, "
+        f"{counts['unresolved']:,} silent, {counts['refused']:,} refused{eta}"
+    )
+
+
+def _duration(seconds: float) -> str:
+    """A rough wall-clock span, at the coarsest unit that still says something."""
+    minutes = int(seconds // 60)
+    if minutes < 1:
+        return f"{int(seconds)}s"
+    if minutes < 60:
+        return f"{minutes}m"
+    return f"{minutes // 60}h{minutes % 60:02d}m"
+
+
+def sweep_rest_line(market: str, silent: int, pause: float) -> str:
+    """The heartbeat before a tail sweep's rest (issue #104).
+
+    A pull that stops dead for five minutes with nothing on stdout is exactly the
+    wedged-or-working ambiguity the heartbeats exist to break (issue #96), and
+    the rest is the longest single silence the run has. So it is announced
+    *before* it is taken, with how many symbols it is being taken for.
+    """
+    return (
+        f"{market}: sweep — resting {_duration(pause)} before re-asking "
+        f"{silent:,} silent symbols"
+    )
+
+
+def sweep_result_line(market: str, recovered: int, silent: int) -> str:
+    """What the tail sweep got back — the run's own diagnosis of its silence.
+
+    A high recovery rate says the pull was throttled and the sweep is doing the
+    job this issue opened for; near-zero says the silence is the listings, and
+    the rests are being spent for nothing.
+    """
+    return f"{market}: sweep recovered {recovered:,} of {silent:,} silent symbols"
+
+
+def summarize_pull(record: RunRecord, failures: list[ResolutionFailure]) -> str:
+    """One human-readable block explaining how a run's pull went (issue #91).
+
+    The scheduled jobs capture stdout to a log file, and until now the only
+    thing that landed there was a single status line — a quarantined run said
+    that it had quarantined and nothing about why. This is what a person reads
+    first: the gate's own arithmetic, the failures split by stated outcome, and
+    a bounded sample of the symbols. The full list is in the store's
+    ``run_failures`` table, which this deliberately does not try to replace.
+    """
+    lines = [
+        f"{record.market}: {record.status} run for {record.session} — "
+        f"{record.symbols_resolved}/{record.symbols_enumerated} measurable "
+        "candidates resolved"
+    ]
+    if not failures:
+        return lines[0]
+    counted = [f for f in failures if f.counted]
+    silent = [f for f in counted if f.status in SILENT_STATUSES]
+    throttled = [f for f in silent if f.status == "throttled"]
+    refused = [f for f in failures if f.status == "refused"]
+    excluded = [f for f in failures if not f.counted and f.status != "refused"]
+    lines.append(
+        f"{record.market}: {len(failures)} enumerated candidates left no bars — "
+        f"{len(silent)} silent and counted against the gate "
+        f"({len(throttled)} throttled, {len(silent) - len(throttled)} answered "
+        "empty, both after the tail sweep), "
+        f"{len(refused)} refused by the provider, "
+        f"{len(excluded)} silent but excluded on instrument type"
+    )
+    for label, group in (
+        ("silent, counted", silent),
+        ("refused", refused),
+    ):
+        if not group:
+            continue
+        sample = ", ".join(f.symbol for f in group[:FAILURE_SAMPLE])
+        more = "" if len(group) <= FAILURE_SAMPLE else f", … +{len(group) - FAILURE_SAMPLE} more"
+        lines.append(f"{record.market}:   {label}: {sample}{more}")
+    lines.append(
+        f"{record.market}: full per-symbol detail in run_failures "
+        f"({record.market}, {record.session})"
+    )
+    return "\n".join(lines)
+
+
+def _ingest_bars(
+    store: Store,
+    source: Source,
+    market: str,
+    resolution: Resolution,
+    *,
+    start: date | None,
+    now: datetime,
+) -> None:
+    """Persist one resolution's bars, repairing an adjustment drift if it shows.
+
+    A no-op for anything that produced no bars — silence and refusals are
+    verdicts the caller records, not data. Shared by the pull loop and the tail
+    sweep (issue #104) so a symbol that answered on the second asking is stored
+    exactly as one that answered on the first.
+
+    Adjustment-drift detection and repair (spec §3.6, issue #102): an incremental
+    fetch (``start`` is not None) re-requests ~20 sessions of overlap, and
+    comparing those adjusted closes against stored history catches a
+    corporate-action rebasis for free. On disagreement the stored series is
+    *wrong*, not stale — appending the new-basis overlap would write a seam the
+    detector reads as real price action — so the symbol is full-refetched now
+    (``start=None`` -> ``period="max"``) and its bars replaced, rather than
+    waiting for its turn in #101's rolling full-depth slice. The repair is
+    bars-only: derived rows stay as computed (§3.5's ratio invariance). If the
+    refetch comes back short of a full series the stored bars are left untouched
+    — better a stale-but-consistent history than one we seam ourselves — and the
+    drift is caught again next night.
+    """
+    if resolution.status != "resolved":
+        return
+    bars = clean_bars(parse_bars(resolution.bars), market, now)
+    if not bars:
+        return
+    symbol = resolution.symbol
+    if start is not None and _adjustment_drift(store.bars(market, symbol), bars):
+        repaired = clean_bars(parse_bars(source.resolve(symbol).bars), market, now)
+        if repaired:
+            store.replace_bars(market, symbol, repaired)
+        return
+    store.append_bars(market, symbol, bars)
+
+
+def _resolution_failures(
+    market: str,
+    session: date,
+    candidates: list[Instrument],
+    status: dict[str, str],
+    throttled: set[str],
+) -> list[ResolutionFailure]:
+    """Every enumerated candidate that came back with no bars, and why (#91).
+
+    One row per candidate whose outcome was not ``resolved``, carrying the
+    source's stated outcome and whether the symbol sat in the completeness
+    gate's denominator. The two together are what separate the diagnoses a bare
+    count cannot: a wall of silent names that *count* is a throttled pull, and a
+    wall of ``refused`` or instrument-type-excluded ones that do not is a listing
+    file carrying instruments the provider never serves (#90).
+
+    Silence itself splits in two here (issue #104): a symbol in ``throttled``
+    was answered with a 429 rather than an empty frame, and having survived both
+    the retries and the tail sweep's rests it says the session's pacing is still
+    too hot — where an empty answer, after the same treatment, says the listing.
+    The distinction is recorded and nothing else: both statuses count, and the
+    run reached its verdict without consulting either.
+
+    References — the index, ETFs — are not here: they are enumerated but were
+    never part of the tradeable denominator (§3.4 rule 7), so their silence is a
+    different question than the one this record exists to answer.
+    """
+    # An instrument-type exclusion is no longer fetched (issue #99), so it
+    # carries no status — it produced no bars, so ``"unresolved"`` is the honest
+    # default and keeps the record identical to when the filter ran post-fetch.
+    failures: list[ResolutionFailure] = []
+    for i in candidates:
+        outcome = status.get(i.symbol, "unresolved")
+        if outcome == "resolved":
+            continue
+        if i.symbol in throttled:
+            outcome = "throttled"
+        failures.append(
+            ResolutionFailure(
+                market=market,
+                session=session,
+                symbol=i.symbol,
+                name=i.name,
+                status=outcome,
+                # Mirrors the gate above: only a common-stock listing the source
+                # did not refuse was ever measured against the floor.
+                counted=is_common_stock(i.symbol, i.name) and outcome != "refused",
+            )
+        )
+    return failures
+
+
 def _sessions_to_backfill(store: Store, market: str, target: date) -> list[date]:
     """Every session the run must compute, ascending, up to and including ``target``.
 
@@ -239,21 +523,38 @@ def _sessions_to_backfill(store: Store, market: str, target: date) -> list[date]
     the last published session and no later than ``target`` — a week away costs
     a handful of these and leaves no hole.
 
-    Only **absent** sessions are returned: a session that already carries a run
-    record (published *or* quarantined) is skipped, because derived rows are
-    written once and never rewritten (spec §7.2). ``target`` is always included
-    when it is itself absent, so a holiday with no bar still stamps a run and the
-    tab stops re-triggering. On a *first* run — no prior published session — only
-    ``target`` is computed rather than the entire ten-year history.
+    Only sessions that never **published** are returned. A published session is
+    skipped, because derived rows are written once and never rewritten (spec
+    §7.2). A *quarantined* one is not skipped: it wrote no universe and no ranks,
+    so it is a hole in the derived streams rather than recorded history, and the
+    session — target or older night — is recomputed from the bars now on disk
+    (:meth:`Store.discard_session` supersedes its run row, issue #103).
+    ``target`` is always included when it has not published, so a holiday with no
+    bar still stamps a run and the tab stops re-triggering.
+
+    Where the fill *starts* is the last published session, or — before anything
+    has ever published — the earliest run record on file, so a market whose only
+    rows are quarantines fills every night it fell short instead of leaving them
+    permanently empty. That is still bounded by the number of nights the market
+    has run, never the entire ten-year history: a genuinely first run has no rows
+    at all and computes ``target`` alone.
     """
-    recorded = {r.session for r in store.runs(market)}
-    latest = store.latest_run(market)
+    records = store.runs(market)
+    published = {r.session for r in records if r.status == "published"}
+    # A published floor is exclusive and a quarantined one inclusive; both fall
+    # out of one ``floor <= s`` because the published sessions are filtered off
+    # the result below.
+    floor = (
+        max(published)
+        if published
+        else min((r.session for r in records), default=None)
+    )
     out: list[date] = []
-    if latest is not None:
-        out = [s for s in store.sessions(market) if latest.session < s <= target]
+    if floor is not None:
+        out = [s for s in store.sessions(market) if floor <= s <= target]
     if target not in out:
         out.append(target)
-    return sorted(s for s in out if s not in recorded)
+    return sorted(s for s in out if s not in published)
 
 
 def _compute_session(
@@ -291,6 +592,52 @@ def _compute_session(
     write_digest(store, market, session, digests_dir=digests_dir)
 
 
+def _incremental_start(last: date | None, calendar: list[date]) -> date | None:
+    """The incremental fetch window for a symbol whose last stored bar is ``last``.
+
+    ``None`` (no stored bars) is a cold start: the caller asks for full history
+    (``period="max"``), which is the one request a stated refusal can surface on
+    (spec §3.6, issue #100). Otherwise the start is :data:`OVERLAP_SESSIONS`
+    trading sessions before ``last`` on the market's observed calendar (the union
+    of stored bar dates, §3.4 rule 4) — the overlap that keeps a healthy fetch
+    returning rows so zero rows stays unambiguous silence. A symbol with fewer
+    than :data:`OVERLAP_SESSIONS` sessions of history starts at the earliest
+    observed session, which is cheap and still overlaps every stored bar.
+    """
+    if last is None:
+        return None
+    count = bisect.bisect_right(calendar, last)  # sessions on or before ``last``
+    if count == 0:
+        return None
+    return calendar[max(0, count - 1 - OVERLAP_SESSIONS)]
+
+
+# A corporate action rescales every prior adjusted close by one factor, so a real
+# rebasis moves the overlap's adjusted closes by a discrete ratio — dividends by
+# tenths of a percent up, splits by whole multiples. Ordinary night-to-night
+# provider rounding sits far below this, so a relative tolerance of 0.01% cleanly
+# separates a seam from float noise: below it, no repair request is spent.
+DRIFT_REL_TOL = 1e-4
+
+
+def _adjustment_drift(stored: list[Bar], fetched: list[Bar]) -> bool:
+    """Does the freshly-fetched overlap disagree with stored history's basis?
+
+    Compares adjusted closes on the sessions the two series share — the incremental
+    overlap (spec §3.6, issue #102). ``True`` on the first session whose adjusted
+    close differs by more than :data:`DRIFT_REL_TOL`, the signature of a
+    corporate-action rebasis. A cold start (no shared sessions) never drifts.
+    """
+    fetched_adj = {b.session: b.adj_close for b in fetched}
+    for b in stored:
+        fresh = fetched_adj.get(b.session)
+        if fresh is not None and not math.isclose(
+            b.adj_close, fresh, rel_tol=DRIFT_REL_TOL
+        ):
+            return True
+    return False
+
+
 def run_market_universe(
     store: Store,
     source: Source,
@@ -299,17 +646,25 @@ def run_market_universe(
     *,
     now: datetime,
     digests_dir: Path = DEFAULT_DIGESTS_DIR,
+    workers: int = DEFAULT_RESOLVE_WORKERS,
+    progress: Callable[[str], None] = emit_progress,
 ) -> RunRecord | None:
     """The nightly per-market run: ingest bars, rebuild the universe, record it.
 
-    Enumerates the market, resolves every instrument once through the paced,
+    Enumerates the market, resolves the *fetch set* once through the paced,
     backed-off source, and persists each resolved symbol's clean bars the moment
-    they arrive (spec §3.1–3.4). The completeness gate is measured over
-    *candidates* only — references (the index, ETFs) are enumerated but not part
-    of the tradeable denominator (§3.4 rule 7). Below the floor the run is
-    quarantined and writes no universe (and no ranks), so a throttled pull cannot
-    shrink good data. Above it the universe is rebuilt from the freshly-ingested
-    bars — with the candidates that stayed unresolved carrying yesterday's
+    they arrive (spec §3.1–3.4). The fetch set is the enumeration minus the two
+    slices nothing keeps (issue #99): only the market index is fetched among
+    references — the other ETFs are enumerated but no code path reads their bars
+    — and only common-stock candidates are fetched, the instrument-type filter
+    running before the loop rather than after it. The completeness gate is
+    measured over *candidates* only — references (the index, ETFs) are
+    enumerated but not part of the tradeable denominator (§3.4 rule 7), and its
+    denominator is unchanged by the pre-fetch filter because both dropped slices
+    were already outside it. Below the floor the run is quarantined and writes no
+    universe (and no ranks), so a throttled pull cannot shrink good data. Above
+    it the universe is rebuilt from the freshly-ingested bars — with the
+    candidates that stayed unresolved carrying yesterday's
     classification (§3.4 rule 6) — then ranked, so the session leaves the shared
     rank substrate every downstream stage reads (§4.3). With ranks in hand the
     detector runs against every member, emitting a dated detection row for each
@@ -322,39 +677,232 @@ def run_market_universe(
     (§6). ``now`` must be timezone-aware for the finality rule.
 
     ``session`` is the *target* — the latest final session (spec §7.3). The bars
-    are pulled once, then **every absent session** between the last computed one
-    and the target is recomputed from them, ascending, so stopping the job for a
-    week and restarting leaves no hole in any derivable stream (acceptance A5).
-    Backfill fills only absent sessions; a session already recorded is never
-    rewritten. An absent session that nonetheless carries derived rows is debris
-    from an interrupted run — the run record is stamped last, so a run that died
-    mid-session left rows belonging to no session — and is discarded before the
-    session is recomputed, so one killed run cannot wedge a market for good.
-    The returned record is the target session's run.
+    are pulled once, then **every session that has not published** between the
+    last published one and the target is recomputed from them, ascending, so
+    stopping the job for a week and restarting leaves no hole in any derivable
+    stream (acceptance A5). A *published* session is never rewritten. The two
+    kinds of unpublished session are both recomputed and both first cleared
+    (:meth:`Store.discard_session`): derived rows carried by a session with no run
+    record are debris from a run that died before stamping it (issue #46), and a
+    quarantined session is an attempt that wrote no universe and no ranks, so it
+    is superseded rather than left to refuse every retry until the calendar rolls
+    (issue #103). The returned record is the target session's run, or ``None``
+    when the target had already published and there was nothing to compute.
+
+    The pull runs ``workers`` resolves at once and heartbeats every
+    :data:`PROGRESS_EVERY` symbols (issue #96). Both are properties of the *loop*
+    only: the pacing cap, the backoff and the resolution semantics are the
+    source's, unchanged, and concurrency spends the 12 req/s budget rather than
+    raising it. Every store write stays on this thread — :func:`resolve_all`
+    hands back one result at a time — so ingestion is as serial as it ever was.
+
+    Whatever the pull could not get, it rests and asks again before the gate ever
+    sees it (:func:`sweep_silence`, issue #104): silence in the last stretch of a
+    long pull is usually the pull's own exhaustion, and a name written off there
+    quarantines a run over listings that are perfectly alive. A swept symbol is
+    counted, ingested and recorded exactly as one that answered the first time —
+    the sweep revises the pull's verdicts, it does not run beside them.
     """
     instruments = source.enumerate(market)
-    status: dict[str, str] = {}
-    for instrument in instruments:
-        resolution = source.resolve(instrument.symbol)
-        status[instrument.symbol] = resolution.status
-        if resolution.status == "resolved":
-            bars = clean_bars(parse_bars(resolution.bars), market, now)
-            if bars:
-                store.append_bars(market, instrument.symbol, bars)
+    # Symbols the provider has already refused history for are skipped entirely,
+    # never re-probed (spec §3.6, issue #100). The refusal is detectable only on
+    # a cold start (``period="max"``), so once recorded it is authoritative: the
+    # symbol is seeded straight into the status map as ``refused`` and held out of
+    # the fetch and the gate, exactly as a freshly-refused one is — computed once
+    # instead of every night, and immune to a later throttled probe returning
+    # silence where the cold start once returned the stated refusal (#47).
+    refused_before = store.refusals(market)
+    status: dict[str, str] = {
+        i.symbol: "refused" for i in instruments if i.symbol in refused_before
+    }
+    counts: Counter[str] = Counter()
+    # Which silences the provider *stated* (a 429) rather than answered empty.
+    # Both are silence and both count against the gate; they are separated only
+    # in the failure record, where the difference is the diagnosis (issue #104).
+    throttled: set[str] = set()
+    started = time.monotonic()
+    # Shrink the fetch set before the resolve loop ever starts (issue #99). Two
+    # slices of the enumeration are known from the enumeration alone to be
+    # things no code path reads or the universe ever keeps, so fetching them is
+    # pure waste — ~57% of the US pull:
+    #   - Among references, only ``MARKET_INDEX[market]`` has its bars read
+    #     (pipeline.py index ingest, app.py §4.9); the other US ETFs are
+    #     enumerated but never looked at, so only the index is fetched.
+    #   - Among candidates, only ``is_common_stock`` names can enter the
+    #     universe (§4.1); the instrument-type filter already ran on these
+    #     names, just *after* the fetch. Running it first means an excluded
+    #     name is never fetched.
+    # A refused symbol is dropped here too: its status is already seeded
+    # ``refused`` above and it is held out of the gate (spec §3.6, issue #100),
+    # so re-probing it is the same wasted fetch.
+    # This changes nothing about what the universe *is*: both slices were
+    # already outside the completeness gate's denominator below, so pre-fetch
+    # filtering leaves ``measurable`` and every derived count identical. On IDX
+    # the enumeration carries no security names and no "$", so ``is_common_stock`` is
+    # True and the candidate filter is a correct no-op there.
+    index_symbol = MARKET_INDEX[market]
+    to_resolve = [
+        i.symbol
+        for i in instruments
+        if i.symbol not in refused_before
+        and (
+            (i.role == "reference" and i.symbol == index_symbol)
+            or (i.role == "candidate" and is_common_stock(i.symbol, i.name))
+        )
+    ]
+    # The nightly fetch is incremental (spec §3.6): a symbol with stored bars is
+    # pulled from ~20 sessions before its last bar, a cold-start symbol at full
+    # history. On top of that, a rolling 1/30 slice is refetched at full depth
+    # tonight *instead of* incrementally (issue #101) — §3.6's periodic full
+    # refetch, done as a deterministic hash partition so it never re-creates the
+    # whole-universe throttle wall a single weekly pull would. A slice symbol's
+    # start is forced to None (``period="max"``) rather than its overlap window;
+    # it is never fetched at both depths, so the request count stays flat and
+    # ``status[symbol]`` stays single-valued. Starts are computed here, on this
+    # thread, off the observed calendar and each symbol's last stored session — a
+    # pure map the pool then reads.
+    calendar = store.sessions(market)
+    starts = {
+        symbol: (
+            None
+            if _full_depth_today(symbol, session)
+            else _incremental_start(store.last_session(market, symbol), calendar)
+        )
+        for symbol in to_resolve
+    }
+    for done, resolution in enumerate(
+        resolve_all(source, to_resolve, workers=workers, start_for=starts.get), 1
+    ):
+        status[resolution.symbol] = resolution.status
+        counts[resolution.status] += 1
+        if resolution.status == "refused":
+            # A cold start drew the stated refusal; persist the verdict so every
+            # later night skips this listing rather than letting a ``start=``
+            # fetch collapse it into silence and drag the gate (spec §3.6, #47).
+            store.mark_refused(market, resolution.symbol, session)
+        if resolution.status == "unresolved" and resolution.throttled:
+            throttled.add(resolution.symbol)
+        _ingest_bars(
+            store, source, market, resolution, start=starts.get(resolution.symbol), now=now
+        )
+        if done % PROGRESS_EVERY == 0 or done == len(to_resolve):
+            # The last line is not redundant with summarize_pull: it marks the
+            # end of the *pull*, and the stages after it (universe, ranks,
+            # detection, labels, digest) are their own stretch of silence before
+            # the summary lands.
+            progress(
+                progress_line(
+                    market, done, len(to_resolve), counts,
+                    elapsed=time.monotonic() - started,
+                )
+            )
 
-    candidates = [i.symbol for i in instruments if i.role == "candidate"]
-    resolved = [s for s in candidates if status[s] == "resolved"]
+    # The tail sweep (issue #104). Silence at the end of a long pull is far more
+    # often the pull's own exhaustion than a fact about the listing — 310 of one
+    # US run's 339 silences landed in its last 500 symbols, and every one of them
+    # returned a full history when asked again minutes later. So the run rests
+    # and asks again before letting those names reach the gate. This is the same
+    # loop body as above, deliberately: a swept symbol is ingested, counted and
+    # recorded exactly as it would have been had it answered the first time.
+    silent = [s for s in to_resolve if status.get(s) == "unresolved"]
+    recovered = revised = 0
+    for resolution in sweep_silence(
+        source,
+        silent,
+        # Never wider than the pull itself: a caller that asked for a sequential
+        # pull gets a sequential sweep, and the sweep is a taper below whatever
+        # it was given.
+        workers=min(SWEEP_WORKERS, workers),
+        start_for=starts.get,
+        on_rest=lambda pause, waiting: progress(sweep_rest_line(market, waiting, pause)),
+    ):
+        # Every result here supersedes a verdict the loop above already counted,
+        # so the counts move rather than grow — a swept symbol is one symbol
+        # however many times it was asked.
+        was = status[resolution.symbol]
+        if resolution.status != was:
+            counts[was] -= 1
+            counts[resolution.status] += 1
+            status[resolution.symbol] = resolution.status
+            revised += 1
+        if resolution.status == "unresolved" and resolution.throttled:
+            throttled.add(resolution.symbol)
+        else:
+            throttled.discard(resolution.symbol)
+        recovered += resolution.status == "resolved"
+        if resolution.status == "refused":
+            store.mark_refused(market, resolution.symbol, session)
+        _ingest_bars(
+            store, source, market, resolution, start=starts.get(resolution.symbol), now=now
+        )
+    if silent:
+        progress(sweep_result_line(market, recovered, len(silent)))
+    if revised:
+        # The pull's last heartbeat counted silence the sweep has since answered,
+        # and left alone it is the run's final word on stdout. Same line, same
+        # totals, corrected outcomes — emitted only when there is a correction to
+        # make, so a sweep that got nothing back does not restate the pull's own
+        # accurate tally.
+        progress(
+            progress_line(
+                market, len(to_resolve), len(to_resolve), counts,
+                elapsed=time.monotonic() - started,
+            )
+        )
+
+    candidate_instruments = [i for i in instruments if i.role == "candidate"]
+    candidates = [i.symbol for i in candidate_instruments]
     # The gate exists to catch a *throttled* pull — silence it cannot tell from a
     # dead name (spec §3.4 rule 7). A listing the provider has explicitly refused
     # to serve history for is neither: it is a stated answer, and no amount of
-    # pacing will ever turn it into bars. Counting refusals in the denominator
-    # would let a market's warrant listings alone drag a complete pull under the
-    # floor, so the gate is measured over the candidates that *could* resolve.
-    measurable = [s for s in candidates if status[s] != "refused"]
+    # pacing will ever turn it into bars. And a listing the instrument-type rule
+    # will exclude on its name — warrants, rights, units, preferreds, ~a quarter
+    # of the US enumeration — is thrown out of the universe regardless (§4.1), but
+    # that rule runs *after* resolution and the provider serves it no history, so
+    # it arrives as silence, not a refusal (issue #90). Both would let listings
+    # the universe never keeps drag a complete pull under the floor, so the gate
+    # is measured over the tradeable candidates that *could* resolve.
+    # ``tradeable`` is exactly the candidate slice of the fetch set above, so
+    # every symbol here carries a status. The wider ``candidates`` list still
+    # holds the instrument-type exclusions that were never fetched — those read
+    # a default ``"unresolved"`` below (they produced no bars, which is the
+    # truth), never a KeyError.
+    tradeable = [
+        i.symbol for i in candidate_instruments if is_common_stock(i.symbol, i.name)
+    ]
+    measurable = [s for s in tradeable if status[s] != "refused"]
+    resolved = [s for s in measurable if status[s] == "resolved"]
     published = len(resolved) >= RESOLUTION_FLOOR * len(measurable)
+    # Why the pull fell short, per symbol, before the counts collapse it to two
+    # integers (issue #91). The per-symbol outcomes live only inside this
+    # function; a quarantine that records nothing else can be diagnosed no other
+    # way than re-running the pull by hand against the live provider.
+    failures = _resolution_failures(
+        market, session, candidate_instruments, status, throttled
+    )
     if not published:
+        recorded = store.run(market, session)
+        if recorded is not None and recorded.status == "published":
+            # This session already published, and a throttled pull is not grounds
+            # to take that back: a quarantine written over it would replace a
+            # served session with a banner on strictly worse evidence. Nothing is
+            # recorded and the published record stands — the same "nothing to
+            # compute" answer the publishing path below gives for a session that
+            # is already in the store.
+            return None
         # A throttled pull quarantines the whole run: no universe, no ranks, no
         # backfill — the last good data keeps serving (spec §3.4 rule 7).
+        # Whatever this session already held is cleared first: debris from a run
+        # that died mid-session (issue #46), or an earlier attempt's quarantine
+        # and its failure rows (issue #103). Both are rows nobody ever read, and
+        # leaving either in place would make this attempt die on the write-once
+        # guard instead of recording that it fell short.
+        store.discard_session(market, session)
+        # The failure rows are written *before* the run record: the run record is
+        # the commit point, so a run that dies in between leaves them as debris
+        # the next run clears, never a run record pointing at an explanation that
+        # is missing.
+        store.append_run_failures(market, session, failures)
         return store.append_run(
             market,
             session,
@@ -370,15 +918,16 @@ def run_market_universe(
     # Sticky classification (spec §3.4 rule 6) carries yesterday's verdict for
     # every candidate that produced no bars tonight — a refused listing among
     # them, which is right: it has no bars to reclassify from either.
-    unresolved = {s for s in candidates if status[s] != "resolved"}
+    unresolved = {s for s in candidates if status.get(s, "unresolved") != "resolved"}
     record: RunRecord | None = None
     for backfill_session in _sessions_to_backfill(store, market, session):
         # A previous run may have died after writing some of this session's
         # derived streams but before stamping its run record — rows that belong
         # to no session, and that the write-once guard would otherwise refuse to
         # let this run recompute, wedging the market permanently. The sessions
-        # reaching here are by construction unrecorded, so anything found is
-        # debris from an interrupted run and is cleared before recomputing.
+        # reaching here have by construction never published, so anything found
+        # is either that debris or an earlier attempt's quarantine (issue #103),
+        # and both are cleared before recomputing.
         store.discard_session(market, backfill_session)
         _compute_session(
             store,
@@ -392,6 +941,13 @@ def run_market_universe(
             # never per backfilled night (spec §7.3).
             refresh_labels_now=backfill_session == session,
         )
+        if backfill_session == session:
+            # The failures describe *this* pull, so they belong to the target
+            # session only — a backfilled night was computed from bars already on
+            # disk and had no pull of its own to fall short (issue #91). Written
+            # inside the loop, after ``discard_session`` has cleared the session
+            # and before its run record commits it.
+            store.append_run_failures(market, session, failures)
         record = store.append_run(
             market,
             backfill_session,
@@ -457,10 +1013,21 @@ def run_market_from_source(
     for the same reason it is not retried: it is a stated answer, not the silence
     the floor is there to detect, and it would otherwise pull a complete pull
     under the floor.
+
+    An instrument-type-excluded listing — a warrant, right, unit or preferred —
+    drops out for the same reason, and it is the larger population (issue #90):
+    the universe throws it away on its name regardless (§4.1), but that rule runs
+    *after* resolution, and the provider serves no history for most of them, so
+    they arrive as silence rather than a stated refusal. Left in the denominator
+    they fail every night and hold a complete common-equity pull under the floor.
     """
-    _instruments, resolutions = resolve_market(source, market)
-    enumerated = [r.symbol for r in resolutions if r.status != "refused"]
-    resolved = [r.symbol for r in resolutions if r.status == "resolved"]
+    instruments, resolutions = resolve_market(source, market)
+    names = {i.symbol: i.name for i in instruments}
+    tradeable = [
+        r for r in resolutions if is_common_stock(r.symbol, names.get(r.symbol, ""))
+    ]
+    enumerated = [r.symbol for r in tradeable if r.status != "refused"]
+    resolved = [r.symbol for r in tradeable if r.status == "resolved"]
     return run_market(
         store, market, session, enumerated=enumerated, resolved=resolved, now=now
     )

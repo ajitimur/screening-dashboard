@@ -163,7 +163,7 @@ export const runTriggerResponse = builder<Schemas["RunTriggerResponse"]>(() => (
   running: true,
 }));
 
-// GET /api/leaders/{market} (and /api/boards/{market}, the alias)
+// GET /api/leaders/{market}
 export const leadersResponse = builder<Schemas["LeadersResponse"]>(() => ({
   market: "IDX",
   session: "2026-08-04",
@@ -265,7 +265,7 @@ export function resolveRoute(routes: ApiRoutes, url: string, method = "GET"): un
       ? (routes.runTrigger ?? ((m) => runTriggerResponse({ market: m })))(market)
       : (routes.runs ?? ((m) => runsResponse({ market: m })))(market);
   }
-  if (path.includes("/api/leaders/") || path.includes("/api/boards/"))
+  if (path.includes("/api/leaders/"))
     return (routes.leaders ?? ((m) => leadersResponse({ market: m })))(market);
   if (path.includes("/api/sectors/") && seg.length >= 4) {
     const sector = decodeURIComponent(seg[3]);

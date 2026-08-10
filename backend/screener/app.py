@@ -1,7 +1,7 @@
 """The FastAPI app: resource endpoints, and it serves the built frontend.
 
 One process on one local URL (spec §7.5). The skeleton exposes only the run
-records; §7.5's other resource endpoints (regime, candidates, sectors, boards,
+records; §7.5's other resource endpoints (regime, candidates, sectors, leaders,
 chart) land in later tickets against the same store.
 """
 
@@ -94,18 +94,21 @@ def create_app(
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         # Run-on-open (spec §7.3): the tab reads whether its last final session is
         # missing (``run_due``) and whether a run is already in flight
         # (``running``), so opening it kicks a run and shows a progress state
         # without ever serving a half-written session — the served ``latest`` is
-        # the last *published* run throughout.
+        # the last *published* run throughout. ``run_due`` is measured against the
+        # last run of *any* status instead: a quarantined last final session is
+        # due (it published nothing and is retriable) but is not an as-of session
+        # (issue #103), so the two reads ask different questions of the store.
         return RunsResponse(
             market=market,
             latest=latest,
             runs=store.runs(market),
             universe_size=len(store.universe(market, latest.session)) if latest else None,
-            run_due=run_is_due(latest.session if latest else None, market, clock()),
+            run_due=run_is_due(store.last_run(market), market, clock()),
             running=run_manager.is_running(market) if run_manager else False,
             # A run that crashed clears ``running`` and publishes nothing, which
             # is indistinguishable from never having run at all. Surface the
@@ -131,13 +134,13 @@ def create_app(
             market=market, triggered=triggered, running=run_manager.is_running(market)
         )
 
-    def _leaders(market: str) -> LeadersResponse:
-        """The five leaderboards for one market — the body of ``/api/leaders`` and
-        its ``/api/boards`` alias (spec §4.4 / §10.2)."""
+    @app.get("/api/leaders/{market}", response_model=LeadersResponse)
+    def get_leaders(market: str) -> LeadersResponse:
+        """The five leaderboards for one market (spec §4.4)."""
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         if latest is None:
             # No published run yet — an explicit empty state, not a fabricated date.
             return LeadersResponse(market=market, session=None, boards=[])
@@ -165,23 +168,12 @@ def create_app(
         ]
         return LeadersResponse(market=market, session=session, boards=boards)
 
-    @app.get("/api/leaders/{market}", response_model=LeadersResponse)
-    def get_leaders(market: str) -> LeadersResponse:
-        return _leaders(market)
-
-    # ``/api/boards`` is kept as an alias so the whole backend lands on ``main``
-    # ahead of any frontend work without breaking v1; it dies later, in the
-    # integration commit (spec §10.2 constraint 1).
-    @app.get("/api/boards/{market}", response_model=LeadersResponse)
-    def get_boards(market: str) -> LeadersResponse:
-        return _leaders(market)
-
     @app.get("/api/sectors/{market}", response_model=SectorsResponse)
     def get_sectors(market: str) -> SectorsResponse:
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         if latest is None:
             # No run has published: the 11-sector axis still renders, all at 0%
             # (spec §4.4 S8), and there is no industry board yet.
@@ -221,7 +213,7 @@ def create_app(
         # the drill-down only ever links from a real sector row (spec §5.5).
         if sector not in SECTORS:
             raise HTTPException(status_code=404, detail=f"unknown sector {sector!r}")
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         if latest is None:
             # No run has published: the sector resolves but has no members yet —
             # an explicit empty state, not a fabricated date (spec §4.7).
@@ -243,7 +235,7 @@ def create_app(
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         if latest is None:
             # No published run yet — an explicit empty state, not a fabricated
             # date. The order is by score, there is simply nothing to order.
@@ -314,7 +306,7 @@ def create_app(
         # session: the detection row (the facts' base/trigger/stop), the rank
         # rows (the decile ranks) and the label cache (the sector). The chart
         # re-computes nothing about detection or ranking (spec §5.1).
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         session = latest.session if latest else None
         detection = None
         ranks_for_symbol: list = []
@@ -355,7 +347,7 @@ def create_app(
         market = market.upper()
         if market not in MARKETS:
             raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
-        latest = store.latest_run(market)
+        latest = store.last_published_run(market)
         if latest is None:
             # No published run yet — nothing to advise, and the banner stays off.
             return RegimeResponse(

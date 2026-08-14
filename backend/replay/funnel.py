@@ -1,18 +1,29 @@
-"""A1, the funnel/recall study: liquidity and detection (PRD #114, ticket #116).
+"""A1, the funnel/recall study: liquidity, decile and detection (PRD #114,
+tickets #116, #119).
 
-The first two funnel stages, evaluated for every *replayable* executed trade at
-the session **strictly before** its entry date — the night the app would have had
-to name the stock while the entry was still ahead of the trader (PRD user story
-3). For each trade the study records whether it clears the liquidity floor and
-whether the app's detector fires on it, unmodified.
+The three funnel stages, evaluated for every *replayable* executed trade at the
+session **strictly before** its entry date — the night the app would have had to
+name the stock while the entry was still ahead of the trader (PRD user story 3).
+For each trade the study records whether it clears the liquidity floor, whether
+it sits in the top decile of that night's *replayed field*, and whether the app's
+detector fires on it — all unmodified.
 
-**Two stages, and it says so.** The funnel the app runs has three ordered gates —
-liquidity, decile, detection — but the decile gate is cross-sectional: it needs
-that night's *replayed field* to rank against, which does not exist until the A2
-chain (ticket #117) is built. So this study reports liquidity and detection only,
-names the two it has (:data:`FUNNEL_STAGES`), and states the decile stage is
-deliberately absent (:data:`DECILE_ABSENT_NOTE`) rather than quietly blending it
-away.
+**Three stages, in the app's funnel order.** The funnel the app runs has three
+ordered gates — liquidity, decile, detection (:data:`FUNNEL_STAGES`) — and A1 now
+reports all three (ticket #119 folds in the decile stage that #116 left absent).
+The decile gate is cross-sectional: it needs that night's replayed field to rank
+against, so the funnel runs the A2 forward chain (:func:`replay.chain.replay_chain`)
+to reconstruct universe membership and ranks per session, then reads each trade's
+decile result off the chain's ranks at its evaluation session. Because the decile
+depends on the replayed field's population, every decile-dependent output carries
+a coverage number against the blind-spot tickers (:attr:`FunnelReport.blind_spot_count`,
+PRD user story 22).
+
+**Absent from the field is distinguished from outside the decile.** A trade whose
+ticker is not a universe member at the evaluation session was *absent from the
+field* (:attr:`FunnelRow.decile_present` is ``False``) — a coverage gap, not a
+ranking verdict — and is kept apart from a ticker that was present but ranked
+outside the top decile (present, ``decile_pass`` ``False``).
 
 **Detection failures name a geometric condition.** The app's :func:`detect` is a
 black box that returns a base or ``None``; a bare "detection failed" would point
@@ -41,7 +52,7 @@ from __future__ import annotations
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 from datetime import date
-from typing import Callable
+from typing import Callable, Iterable, Sequence
 
 from screener.bars import Bar
 from screener.detection import (
@@ -57,23 +68,21 @@ from screener.detection import (
     _sma_close,
     detect,
 )
+from screener.detection import detection_gate
 from screener.indicators import adr as _adr
 from screener.store import Store
 from screener.universe import LIQUIDITY_FLOOR, median_dollar_volume
 
+from .chain import BURN_IN_SESSIONS, REPLAY_MARKET, replay_chain
 from .reference import ClassifiedTrade, ExecutedTrade, classify
 
-# The two stages this study evaluates, in funnel order. The decile stage sits
-# between them in the app but is absent here (see the module docstring).
+# The three stages this study evaluates, in the app's funnel order: liquidity,
+# then the cross-sectional decile gate, then detection (ticket #119 folded the
+# decile stage in; #116 landed the outer two).
 STAGE_LIQUIDITY = "liquidity"
+STAGE_DECILE = "decile"
 STAGE_DETECTION = "detection"
-FUNNEL_STAGES: tuple[str, ...] = (STAGE_LIQUIDITY, STAGE_DETECTION)
-
-DECILE_ABSENT_NOTE = (
-    "Two of the app's three funnel stages are evaluated here: liquidity and "
-    "detection. The decile stage is deliberately absent — it is cross-sectional "
-    "and needs the replayed field (ticket #117), which does not exist yet."
-)
+FUNNEL_STAGES: tuple[str, ...] = (STAGE_LIQUIDITY, STAGE_DECILE, STAGE_DETECTION)
 
 # A trade within this many market sessions of a prior entry in the same ticker is
 # a continuation entry (an add), tagged rather than dropped (PRD user story 5).
@@ -93,18 +102,27 @@ COND_CLUSTER = "cluster"          # no tight 3-7 bar cluster (size or tightness)
 
 @dataclass(frozen=True)
 class FunnelRow:
-    """One executed trade walked through the two funnel stages.
+    """One executed trade walked through the three funnel stages.
 
     Keyed to ``eval_session`` — the last market session strictly before entry.
     ``eval_session`` is ``None`` only when no session precedes the entry in the
     store's calendar (there is nothing to evaluate against); such a row passes no
     stage and its ``first_failing_stage`` is :data:`STAGE_LIQUIDITY`.
+
+    ``decile_present`` records whether the ticker was a member of the replayed
+    field at the evaluation session at all; ``decile_pass`` whether it sat in the
+    top decile of the detection lookbacks there. A ticker absent from the field
+    (``decile_present`` ``False``) is a coverage gap distinguished from one present
+    but ranked outside the decile — both fail the decile stage, but only the
+    second is a ranking verdict (PRD "A1 funnel").
     """
 
     ticker: str
     entry_date: date
     eval_session: date | None
     liquidity_pass: bool
+    decile_present: bool              # the ticker was a member of the field at all
+    decile_pass: bool                 # top decile on the detection lookbacks there
     detection_pass: bool
     failed_condition: str | None      # the geometric gate the detector failed on
     first_failing_stage: str | None   # first stage in funnel order that failed
@@ -142,19 +160,23 @@ class StageRecall:
 class FunnelReport:
     """The A1 result: per-row funnel walks plus per-stage recall.
 
-    ``stages`` names the two stages evaluated (decile absent, see
-    :data:`DECILE_ABSENT_NOTE`). No single blended recall is emitted — each stage
+    ``stages`` names the three stages evaluated, in funnel order
+    (:data:`FUNNEL_STAGES`). No single blended recall is emitted — each stage
     reports its own figure (PRD user story 2). ``condition_counts`` tallies the
     geometric condition each detection miss failed on, so the study can say which
-    condition costs the most (PRD user story 10).
+    condition costs the most (PRD user story 10). ``blind_spot_count`` is the
+    coverage figure every decile-dependent output carries, since the decile stage
+    depends on the replayed field's population (PRD user story 22).
     """
 
     rows: list[FunnelRow]
     stages: tuple[str, ...]
     liquidity: StageRecall
+    decile: StageRecall
     detection: StageRecall
     condition_counts: dict[str, int]
     continuation_count: int
+    blind_spot_count: int
 
 
 # -- evaluation session -------------------------------------------------------
@@ -277,6 +299,8 @@ def _funnel_row(
     calendar: list[date],
     market: str,
     continuation: bool,
+    members_by_session: dict[date, set[str]],
+    gate_by_session: dict[date, set[str]],
 ) -> FunnelRow:
     # Secondary signal, independent of the eval session: does the base the app
     # would look for stand on the entry session itself?
@@ -290,6 +314,8 @@ def _funnel_row(
             entry_date=trade.entry_date,
             eval_session=None,
             liquidity_pass=False,
+            decile_present=False,
+            decile_pass=False,
             detection_pass=False,
             failed_condition=None,
             first_failing_stage=STAGE_LIQUIDITY,
@@ -302,12 +328,22 @@ def _funnel_row(
     liquidity_pass = passes_liquidity(up_to_eval, market)
     mdv = median_dollar_volume(up_to_eval)
 
+    # The decile is cross-sectional: read it off the forward chain's field at the
+    # eval session. Absent from the field (not a member) is a coverage gap kept
+    # apart from present-but-outside-the-decile; both fail the decile stage.
+    members = members_by_session.get(eval_session, set())
+    gated = gate_by_session.get(eval_session, set())
+    decile_present = trade.ticker in members
+    decile_pass = trade.ticker in gated
+
     detection = detect(trade.ticker, bars, eval_session)
     detection_pass = detection is not None
     failed_condition = None if detection_pass else diagnose_detection(bars, eval_session)
 
     if not liquidity_pass:
         first_failing = STAGE_LIQUIDITY
+    elif not decile_pass:
+        first_failing = STAGE_DECILE
     elif not detection_pass:
         first_failing = STAGE_DETECTION
     else:
@@ -318,6 +354,8 @@ def _funnel_row(
         entry_date=trade.entry_date,
         eval_session=eval_session,
         liquidity_pass=liquidity_pass,
+        decile_present=decile_present,
+        decile_pass=decile_pass,
         detection_pass=detection_pass,
         failed_condition=failed_condition,
         first_failing_stage=first_failing,
@@ -328,9 +366,23 @@ def _funnel_row(
 
 
 def run_funnel(
-    trades: list[ExecutedTrade], store: Store, *, market: str = "US"
+    trades: list[ExecutedTrade],
+    store: Store,
+    *,
+    market: str = REPLAY_MARKET,
+    blind_spot_tickers: Iterable[str] = (),
+    burn_in: int = BURN_IN_SESSIONS,
+    sessions: Sequence[date] | None = None,
 ) -> FunnelReport:
-    """Walk every replayable trade through the liquidity and detection stages.
+    """Walk every replayable trade through the liquidity, decile and detection stages.
+
+    The decile stage is cross-sectional, so the funnel first runs the A2 forward
+    chain (:func:`replay.chain.replay_chain`) to reconstruct universe membership
+    and ranks per session, then reads each trade's decile result off the chain's
+    ranks at its evaluation session. ``blind_spot_tickers``, ``burn_in`` and
+    ``sessions`` are handed through to the chain; the blind-spot count rides onto
+    the report as the coverage figure every decile-dependent output must carry
+    (PRD user story 22).
 
     Blind-spot trades (ticker with no bars) get no row — they are a blind spot, not
     a stage failure. Continuation entries are tagged and kept in every denominator.
@@ -338,6 +390,19 @@ def run_funnel(
     classified = classify(trades, store, market=market)
     calendar = store.sessions(market)
     continuation = _continuation_flags(classified, calendar)
+
+    chain = replay_chain(
+        store,
+        market,
+        blind_spot_tickers=blind_spot_tickers,
+        burn_in=burn_in,
+        sessions=sessions,
+    )
+    members_by_session = {sf.session: set(sf.members) for sf in chain}
+    gate_by_session = {sf.session: detection_gate(sf.ranks) for sf in chain}
+    blind_spot_count = (
+        chain[0].blind_spot_count if chain else len(set(blind_spot_tickers))
+    )
 
     rows: list[FunnelRow] = []
     bars_cache: dict[str, list[Bar]] = {}
@@ -354,10 +419,12 @@ def run_funnel(
                 calendar,
                 market,
                 continuation[id(c.trade)],
+                members_by_session,
+                gate_by_session,
             )
         )
 
-    return _build_report(rows)
+    return _build_report(rows, blind_spot_count)
 
 
 def _stage_recall(
@@ -373,7 +440,7 @@ def _stage_recall(
     )
 
 
-def _build_report(rows: list[FunnelRow]) -> FunnelReport:
+def _build_report(rows: list[FunnelRow], blind_spot_count: int) -> FunnelReport:
     condition_counts: dict[str, int] = {}
     for r in rows:
         if r.failed_condition is not None:
@@ -384,22 +451,24 @@ def _build_report(rows: list[FunnelRow]) -> FunnelReport:
         rows=rows,
         stages=FUNNEL_STAGES,
         liquidity=_stage_recall(STAGE_LIQUIDITY, rows, lambda r: r.liquidity_pass),
+        decile=_stage_recall(STAGE_DECILE, rows, lambda r: r.decile_pass),
         detection=_stage_recall(STAGE_DETECTION, rows, lambda r: r.detection_pass),
         condition_counts=condition_counts,
         continuation_count=sum(1 for r in rows if r.continuation),
+        blind_spot_count=blind_spot_count,
     )
 
 
 def format_report(report: FunnelReport) -> str:
-    """Human-readable summary: the two stages, both recalls, condition breakdown."""
+    """Human-readable summary: the three stages, both recalls, condition breakdown."""
     lines = [
-        DECILE_ABSENT_NOTE,
-        "",
-        f"replayable trades:   {len(report.rows)}",
+        f"funnel stages: {', '.join(report.stages)}",
+        f"replayable trades:    {len(report.rows)}",
         f"continuation entries: {report.continuation_count}",
+        f"blind-spot coverage:  {report.blind_spot_count} tickers missing from the field",
         "",
     ]
-    for stage in (report.liquidity, report.detection):
+    for stage in (report.liquidity, report.decile, report.detection):
         lines.append(
             f"{stage.stage:<10} recall: {stage.passed}/{stage.total} "
             f"({stage.recall:.1%})  ex-continuation: "

@@ -24,8 +24,10 @@ import pytest
 
 from replay.funnel import (
     COND_BASE_LENGTH,
-    DECILE_ABSENT_NOTE,
     FUNNEL_STAGES,
+    STAGE_DECILE,
+    STAGE_DETECTION,
+    STAGE_LIQUIDITY,
     FunnelReport,
     diagnose_detection,
     evaluation_session,
@@ -350,14 +352,17 @@ def test_funnel_row_passes_liquidity_fails_detection_and_names_condition(store: 
     store.append_bars("US", "RAMP", _bars_from_hlc(dates, _ramp_hlc(90)))
     entry = dates[89] + timedelta(days=1)  # entry the day after the last bar
 
-    report = run_funnel(parse_trades([_funnel_record("RAMP", entry)]), store)
+    # burn_in=0 so the eval session is a measured field session: RAMP is the sole
+    # member, so it tops its own decile — the miss is at detection, not decile.
+    report = run_funnel(parse_trades([_funnel_record("RAMP", entry)]), store, burn_in=0)
 
     (row,) = report.rows
     assert row.eval_session == dates[89]
     assert row.liquidity_pass is True          # $-volume well over the US floor
+    assert row.decile_pass is True             # sole member -> tops its own decile
     assert row.detection_pass is False         # a ramp never forms a base
     assert row.failed_condition == COND_BASE_LENGTH
-    assert row.first_failing_stage == "detection"
+    assert row.first_failing_stage == STAGE_DETECTION
     # The stage recall records the miss, and it is attributed to the condition.
     assert report.detection.passed == 0
     assert report.condition_counts == {COND_BASE_LENGTH: 1}
@@ -368,10 +373,12 @@ def test_funnel_clean_base_passes_both_stages(store: Store):
     store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
     entry = dates[104] + timedelta(days=1)
 
-    report = run_funnel(parse_trades([_funnel_record("BASE", entry)]), store)
+    # burn_in=0: the eval session is measured, so BASE clears all three stages.
+    report = run_funnel(parse_trades([_funnel_record("BASE", entry)]), store, burn_in=0)
 
     (row,) = report.rows
     assert row.liquidity_pass is True
+    assert row.decile_pass is True
     assert row.detection_pass is True
     assert row.failed_condition is None
     assert row.first_failing_stage is None
@@ -436,20 +443,107 @@ def test_continuation_entry_stays_in_all_denominators(store: Store):
     assert report.detection.total_ex_continuation == 1
 
 
-# -- the report names two stages and says the decile stage is absent -------
+# -- the report names three stages in funnel order -------------------------
 
 
-def test_funnel_report_names_two_stages_decile_absent(store: Store):
+def test_funnel_report_names_three_stages_in_order(store: Store):
     dates = _daily(date(2020, 1, 1), 90)
     store.append_bars("US", "RAMP", _bars_from_hlc(dates, _ramp_hlc(90)))
     report = run_funnel(
-        parse_trades([_funnel_record("RAMP", dates[89] + timedelta(days=1))]), store
+        parse_trades([_funnel_record("RAMP", dates[89] + timedelta(days=1))]),
+        store,
+        burn_in=0,
     )
 
     assert isinstance(report, FunnelReport)
-    assert report.stages == FUNNEL_STAGES == ("liquidity", "detection")
-    assert "decile" in DECILE_ABSENT_NOTE.lower()
-    assert "absent" in DECILE_ABSENT_NOTE.lower()
+    assert report.stages == FUNNEL_STAGES == ("liquidity", "decile", "detection")
+    # Per-stage recall is emitted separately for each of the three; no blended number.
+    assert report.liquidity.stage == STAGE_LIQUIDITY
+    assert report.decile.stage == STAGE_DECILE
+    assert report.detection.stage == STAGE_DETECTION
+
+
+# -- the decile stage, folded in off the forward chain's ranks (A1) --------
+
+
+def _flat_hlc(n: int, price: float = 100.0):
+    return [(price, price, price)] * n
+
+
+def _rising_hlc(n: int, start: float = 50.0):
+    """A monotonic climb: a strong prior move so the name tops its 1m decile."""
+    return [(start + i, start + i, start + i) for i in range(n)]
+
+
+def test_funnel_row_passes_liquidity_fails_decile(store: Store):
+    """A ticker that is a field member (passes liquidity) but ranks outside the
+    top decile of the detection lookbacks fails exactly the decile stage — the
+    stage between liquidity and detection (PRD user story 8)."""
+    dates = _daily(date(2020, 1, 1), 40)
+    # LAG is flat (a dead 1m return); HI climbs hard (tops the 1m decile). Both
+    # clear the $20M floor and 20-bar listing age, so both are field members.
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
+    store.append_bars("US", "HI", _bars_from_hlc(dates, _rising_hlc(40)))
+    entry = dates[39] + timedelta(days=1)
+
+    report = run_funnel(parse_trades([_funnel_record("LAG", entry)]), store, burn_in=0)
+
+    (row,) = report.rows
+    assert row.eval_session == dates[39]
+    assert row.liquidity_pass is True     # a member: it cleared the floor
+    assert row.decile_present is True      # present in the field
+    assert row.decile_pass is False        # but ranked outside the top decile
+    assert row.first_failing_stage == STAGE_DECILE
+    # Per-stage recall is separate: liquidity kept it, the decile dropped it.
+    assert report.liquidity.passed == 1
+    assert report.decile.passed == 0
+
+
+def test_funnel_distinguishes_absent_from_field_from_outside_decile(store: Store):
+    """A ticker absent from the field at the eval session (not a member) is kept
+    apart from one present but ranked outside the decile — a coverage gap versus a
+    ranking verdict (PRD "A1 funnel")."""
+    dates = _daily(date(2020, 1, 1), 40)
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
+    store.append_bars("US", "HI", _bars_from_hlc(dates, _rising_hlc(40)))
+    # GHOST trades liquidly but only for 15 sessions — short of the 20-bar listing
+    # age — so it is never a field member: absent, not ranked.
+    store.append_bars("US", "GHOST", _bars_from_hlc(dates[25:], _flat_hlc(15)))
+    entry = dates[39] + timedelta(days=1)
+
+    report = run_funnel(
+        parse_trades(
+            [_funnel_record("LAG", entry), _funnel_record("GHOST", entry)]
+        ),
+        store,
+        burn_in=0,
+    )
+
+    by_ticker = {r.ticker: r for r in report.rows}
+    # LAG is in the field but below the decile.
+    assert by_ticker["LAG"].decile_present is True
+    assert by_ticker["LAG"].decile_pass is False
+    # GHOST cleared the floor yet never entered the field: absent, distinguished.
+    assert by_ticker["GHOST"].liquidity_pass is True
+    assert by_ticker["GHOST"].decile_present is False
+    assert by_ticker["GHOST"].decile_pass is False
+
+
+def test_funnel_decile_output_carries_blind_spot_coverage(store: Store):
+    """The decile depends on the replayed field's population, so the report carries
+    a coverage number against the blind-spot tickers (PRD user story 22)."""
+    dates = _daily(date(2020, 1, 1), 40)
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
+    entry = dates[39] + timedelta(days=1)
+
+    report = run_funnel(
+        parse_trades([_funnel_record("LAG", entry)]),
+        store,
+        burn_in=0,
+        blind_spot_tickers=["ZZZ", "YYY", "XXX"],
+    )
+
+    assert report.blind_spot_count == 3
 
 
 # -- the forward replay chain (A2): universe membership + ranks ------------

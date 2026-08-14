@@ -69,6 +69,14 @@ from replay.placement import (
     place_trade,
     run_placement,
 )
+from replay.regression import (
+    DimensionStat,
+    OutcomeRegression,
+    build_feature_vector,
+    distribution,
+    regress_dimensions,
+    run_regression,
+)
 from replay.store import WINDOW_END, WINDOW_START, build_replay_store
 from screener.bars import Bar
 from screener.detection import Detection, detect
@@ -985,3 +993,130 @@ def test_blind_spot_trade_gets_no_placement_row(store: Store):
     report = run_placement(trades, store, burn_in=104, blind_spot_tickers=["ZZZ"])
 
     assert [p.ticker for p in report.placements] == ["BASE"]
+
+
+# -- A3 outcome regression: score dimensions against MFE (ticket #121) ------
+#
+# The feature vector is reconstructed at the evaluation session (the last session
+# strictly before entry): the seven surviving score dimensions read off the app's
+# detection, plus the trade's own stop width in ADR and the ADR at entry. Each
+# dimension is regressed against MFE across executed trades; a dimension with no
+# spread in the sample is untestable, not absent. The sector dimension is gone
+# throughout, and realised R rides alongside as a descriptive statistic only.
+
+
+def test_regression_feature_vector_matches_hand_computed_values(store: Store):
+    """A feature vector is emitted per executed trade at the evaluation session,
+    and its values match what the synthetic bars hand-compute: the seven detection
+    dimensions, the ADR at entry, and the trade's own stop as a multiple of it."""
+    dates = _daily(date(2020, 1, 1), 105)
+    bars = _bars_from_hlc(dates, _textbook_base_hlc())
+    store.append_bars("US", "BASE", bars)
+    entry = dates[104] + timedelta(days=1)  # eval session is the last bar
+
+    # burn_in=104 measures only the last session, where the base ends.
+    report = run_regression(
+        parse_trades([_funnel_record("BASE", entry)]), store, burn_in=104
+    )
+
+    (vec,) = report.feature_vectors
+    assert vec.ticker == "BASE"
+    assert vec.eval_session == dates[104]
+    assert vec.detected is True
+    # The seven dimensions match the app's own detection + seven-dim score, in
+    # published order with the sector row struck.
+    det = detect("BASE", bars, dates[104])
+    assert vec.dimensions == seven_dimension_score(det, prior_move=True).breakdown
+    assert [d.dimension for d in vec.dimensions] == [
+        "Tightness", "Orderliness", "Prior move",
+        "Base length", "MA support", "Volume", "ADR",
+    ]
+    # ADR at entry: the flat top's 100.5/99.5 bars give ADR = 100.5/99.5 - 1.
+    expected_adr = 100.5 / 99.5 - 1.0
+    assert vec.adr_at_entry == pytest.approx(expected_adr)
+    # Stop width in ADR: his 3% stop as a multiple of that ADR.
+    assert vec.stop_width_adr == pytest.approx((3.0 / 100.0) / expected_adr)
+    # MFE (10sma) is the regression target; realised R rides alongside.
+    assert vec.mfe == 40.0
+    assert vec.r == 8.0
+
+
+def test_regression_dimension_without_spread_is_untestable():
+    """A dimension every trade shares — no spread — is labelled untestable, its
+    correlation absent; a dimension that varies is testable and reports one. The
+    sector dimension is absent throughout."""
+    # Two detections identical but for tightness (cluster_k): Base length is hit
+    # by both (no spread), Tightness by only one (spread).
+    hi = build_feature_vector(
+        ticker="AAA", entry_date=date(2020, 1, 3), eval_session=date(2020, 1, 2),
+        det=_det("AAA", cluster_k=6), prior_move=True,
+        adr_at_entry=0.06, stop_pct=3.0, mfe=40.0, r=8.0,
+    )
+    lo = build_feature_vector(
+        ticker="BBB", entry_date=date(2020, 1, 3), eval_session=date(2020, 1, 2),
+        det=_det("BBB", cluster_k=3), prior_move=True,
+        adr_at_entry=0.06, stop_pct=3.0, mfe=10.0, r=2.0,
+    )
+
+    stats = {s.dimension: s for s in regress_dimensions([hi, lo])}
+
+    assert "Sector" not in stats
+    assert set(stats) == {
+        "Tightness", "Orderliness", "Prior move",
+        "Base length", "MA support", "Volume", "ADR",
+    }
+    # Base length: both hit, no variance -> untestable, no correlation.
+    assert stats["Base length"].untestable is True
+    assert stats["Base length"].correlation is None
+    assert stats["Base length"].spread == 0.0
+    # Tightness: one hit, one miss -> real spread, a correlation is reported.
+    assert stats["Tightness"].untestable is False
+    assert stats["Tightness"].spread > 0.0
+    assert stats["Tightness"].correlation is not None
+    # Prior move is untestable by construction (every detection cleared the gate).
+    assert stats["Prior move"].untestable is True
+
+
+def test_regression_reports_distributions_and_drops_sector(store: Store):
+    """Realised R is reported as a descriptive statistic, and stop width in ADR
+    and ADR at entry as distributions (the two #114 findings). The sector
+    dimension is absent from the per-dimension stats, and coverage is carried."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    entry = dates[104] + timedelta(days=1)
+
+    report = run_regression(
+        parse_trades([_funnel_record("BASE", entry)]),
+        store,
+        burn_in=104,
+        blind_spot_tickers=["ZZZ", "YYY"],
+    )
+
+    assert isinstance(report, OutcomeRegression)
+    assert "Sector" not in {s.dimension for s in report.dimension_stats}
+    assert isinstance(report.dimension_stats[0], DimensionStat)
+    # Realised R alongside, never the regression target.
+    assert report.r_distribution is not None
+    assert report.r_distribution.median == 8.0
+    # The two preliminary #114 findings, reconstructed as distributions.
+    expected_adr = 100.5 / 99.5 - 1.0
+    assert report.adr_distribution.median == pytest.approx(expected_adr)
+    assert report.stop_width_adr_distribution.median == pytest.approx(
+        (3.0 / 100.0) / expected_adr
+    )
+    # Coverage rides on the field-derived output (PRD user story 22).
+    assert report.blind_spot_count == 2
+
+
+def test_distribution_percentiles_are_linear_interpolated():
+    """The distribution helper's quartiles interpolate linearly (numpy default),
+    so a hand-worked fixture value lands exactly."""
+    dist = distribution([1.0, 2.0, 3.0, 4.0, 5.0])
+    assert dist.minimum == 1.0
+    assert dist.p25 == 2.0
+    assert dist.median == 3.0
+    assert dist.p75 == 4.0
+    assert dist.maximum == 5.0
+    assert dist.mean == 3.0
+    assert dist.share_le(3.0) == pytest.approx(0.6)
+    assert distribution([]) is None

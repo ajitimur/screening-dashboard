@@ -15,6 +15,7 @@ under test is chosen rather than discovered.
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 from datetime import date, timedelta
@@ -54,9 +55,19 @@ from replay.field import (
     SEVEN_DIM_LABEL,
     SEVEN_DIM_MAX_POINTS,
     FieldSession,
+    ScoredDetection,
+    SevenDimScore,
     build_field,
     replay_field,
     seven_dimension_score,
+)
+from replay.placement import (
+    BOARD_SIZE,
+    SCOPE,
+    PlacementReport,
+    StarDistribution,
+    place_trade,
+    run_placement,
 )
 from replay.store import WINDOW_END, WINDOW_START, build_replay_store
 from screener.bars import Bar
@@ -822,3 +833,155 @@ def test_field_coverage_reflects_blind_spot_tickers_in_scope(store: Store):
     assert isinstance(last, FieldSession)
     assert last.blind_spot_count == 2
     assert "AAA" in last.members
+
+
+# -- A2 reporting (issue #120): the top-thirty hit and the star distribution --
+#
+# Where the trade sat within that night's replayed field — deliberately only two
+# statements per trade: whether it appeared at all, and whether it landed inside
+# the top thirty by star score (the board size the trader reads). Per session:
+# the star distribution of his picks against the field. No percentile is emitted.
+
+
+def _scored(symbol: str, rank: int, stars: float) -> ScoredDetection:
+    """A field candidate at a fixed star rank and score — the assertion surface."""
+    score = SevenDimScore(
+        stars=stars,
+        points=int(stars * 2),
+        max_points=SEVEN_DIM_MAX_POINTS,
+        breakdown=[],
+        label=SEVEN_DIM_LABEL,
+    )
+    return ScoredDetection(
+        symbol=symbol,
+        detection=_det(symbol, cluster_k=6),
+        score=score,
+        star_rank=rank,
+        not_taken=False,
+    )
+
+
+def _field_of(session: date, symbols_in_star_order: list[str]) -> FieldSession:
+    """A field of the given symbols in star order (rank 1 first), scores descending."""
+    scored = [
+        _scored(sym, rank=i + 1, stars=(len(symbols_in_star_order) - i) / 2)
+        for i, sym in enumerate(symbols_in_star_order)
+    ]
+    return FieldSession(
+        session=session,
+        burn_in=False,
+        members=list(symbols_in_star_order),
+        detections=scored,
+        blind_spot_count=0,
+    )
+
+
+def test_top_thirty_flag_matches_position_in_a_field_of_known_star_order():
+    """A trade's top-thirty flag matches its position in a field of known star
+    order: rank 30 is inside the board, rank 31 is outside it. The cut is the
+    app's board size, not a separately chosen constant."""
+    session = date(2020, 6, 1)
+    field = _field_of(session, [f"S{i:02d}" for i in range(35)])  # 35 in star order
+
+    inside = parse_trades([_funnel_record("S29", date(2020, 6, 2))])[0]   # rank 30
+    outside = parse_trades([_funnel_record("S30", date(2020, 6, 2))])[0]  # rank 31
+
+    assert BOARD_SIZE == 30
+    inside_p = place_trade(inside, session, field)
+    outside_p = place_trade(outside, session, field)
+
+    assert inside_p.in_field is True and inside_p.top_thirty is True
+    assert outside_p.in_field is True and outside_p.top_thirty is False
+
+
+def test_absent_from_field_is_distinguished_from_present_but_outside_top_thirty():
+    """A trade absent from the field is distinguished from one present but outside
+    the top thirty: both fail the top-thirty flag, but only one appeared at all."""
+    session = date(2020, 6, 1)
+    field = _field_of(session, [f"S{i:02d}" for i in range(35)])
+
+    present_outside = parse_trades([_funnel_record("S34", date(2020, 6, 2))])[0]
+    absent = parse_trades([_funnel_record("GHOST", date(2020, 6, 2))])[0]
+
+    present_p = place_trade(present_outside, session, field)
+    absent_p = place_trade(absent, session, field)
+
+    assert present_p.in_field is True and present_p.top_thirty is False
+    assert absent_p.in_field is False and absent_p.top_thirty is False
+    # No eval-session field at all: still recorded, still absent.
+    none_p = place_trade(absent, session, None)
+    assert none_p.in_field is False and none_p.top_thirty is False
+
+
+def test_no_rank_position_or_percentile_is_emitted_on_a_placement():
+    """No percentile or rank-position figure is emitted anywhere: a placement
+    carries the two coarse statements and a star score, never a rank or percentile."""
+    session = date(2020, 6, 1)
+    field = _field_of(session, ["AAA", "BBB"])
+    p = place_trade(parse_trades([_funnel_record("AAA", date(2020, 6, 2))])[0], session, field)
+
+    names = {f.name for f in dataclasses.fields(p)}
+    assert "star_rank" not in names
+    assert not any("percentile" in n or "rank" in n for n in names)
+
+
+def test_star_distribution_from_stars_buckets_by_score():
+    """The star distribution buckets scores; the field's spread and his picks'
+    spread are the prize — the shape, not a percentile."""
+    dist = StarDistribution.from_stars([4.5, 4.5, 2.0, 0.0])
+    assert dist.total == 4
+    assert dist.counts[4.5] == 2
+    assert dist.counts[2.0] == 1
+    assert dist.counts[0.0] == 1
+
+
+def test_run_placement_reports_hits_distribution_coverage_and_scope(store: Store):
+    """End to end over the chain: his executed trade is placed in that night's
+    field with a top-thirty hit, the picks distribution is reported against the
+    field's on the same session, coverage rides the report, and the scope is US
+    2019–2022 — never presented as an IDX expectation."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    # An entry the day after the base ends -> eval session is dates[104], the one
+    # measured session (burn_in=104), where the app's detector fires on BASE.
+    trades = parse_trades([_funnel_record("BASE", dates[104] + timedelta(days=1))])
+
+    report = run_placement(
+        trades, store, burn_in=104, blind_spot_tickers=["ZZZ", "YYY"]
+    )
+
+    assert isinstance(report, PlacementReport)
+    (placement,) = report.placements
+    assert placement.ticker == "BASE"
+    assert placement.eval_session == dates[104]
+    assert placement.in_field is True
+    assert placement.top_thirty is True          # lone member -> rank 1
+    assert placement.stars is not None
+    # The board size is the app's, not a separate constant.
+    assert report.board_size == BOARD_SIZE == 30
+    # His picks distribution against the field's on the same session.
+    assert report.picks.total == 1
+    assert report.field.total >= 1
+    assert report.picks.counts[placement.stars] == 1
+    # Coverage rides every output; scope is US 2019–2022, not IDX.
+    assert report.blind_spot_count == 2
+    assert "US" in report.scope and "2019" in report.scope
+    assert "IDX" not in report.scope
+    assert report.scope == SCOPE
+
+
+def test_blind_spot_trade_gets_no_placement_row(store: Store):
+    """A blind-spot trade (ticker with no bars) is not placed — it is a blind
+    spot, counted in coverage, never an absent-from-field verdict."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    trades = parse_trades(
+        [
+            _funnel_record("BASE", dates[104] + timedelta(days=1)),
+            _funnel_record("ZZZ", date(2020, 3, 1)),  # no bars -> blind spot
+        ]
+    )
+
+    report = run_placement(trades, store, burn_in=104, blind_spot_tickers=["ZZZ"])
+
+    assert [p.ticker for p in report.placements] == ["BASE"]

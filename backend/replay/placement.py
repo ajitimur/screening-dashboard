@@ -137,24 +137,18 @@ def place_trade(
     field is distinguished from one present but outside the top thirty: only the
     present one is ``in_field``.
     """
+    match = None
     if field is not None:
-        for det in field.detections:
-            if det.symbol == trade.ticker:
-                return TradePlacement(
-                    ticker=trade.ticker,
-                    entry_date=trade.entry_date,
-                    eval_session=eval_session,
-                    in_field=True,
-                    top_thirty=det.star_rank <= BOARD_SIZE,
-                    stars=det.score.stars,
-                )
+        match = next(
+            (det for det in field.detections if det.symbol == trade.ticker), None
+        )
     return TradePlacement(
         ticker=trade.ticker,
         entry_date=trade.entry_date,
         eval_session=eval_session,
-        in_field=False,
-        top_thirty=False,
-        stars=None,
+        in_field=match is not None,
+        top_thirty=match is not None and match.star_rank <= BOARD_SIZE,
+        stars=match.score.stars if match is not None else None,
     )
 
 

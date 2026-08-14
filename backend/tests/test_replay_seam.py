@@ -48,8 +48,17 @@ from replay.chain import (
     replay_chain,
     synthesize_instruments,
 )
+from replay.field import (
+    SEVEN_DIM_LABEL,
+    SEVEN_DIM_MAX_POINTS,
+    FieldSession,
+    build_field,
+    replay_field,
+    seven_dimension_score,
+)
 from replay.store import WINDOW_END, WINDOW_START, build_replay_store
 from screener.bars import Bar
+from screener.detection import Detection, detect
 from screener.store import Store
 
 
@@ -564,3 +573,158 @@ def test_synthesize_instruments_one_candidate_per_symbol_with_bars(store: Store)
 
 def test_burn_in_default_matches_the_prd_window():
     assert BURN_IN_SESSIONS == 126
+
+
+# -- the replayed field (A2): detections + the seven-dimension score -------
+#
+# The field stands on the forward chain: universe -> ranks -> detections ->
+# candidates -> a seven-of-eight-dimension star score. The sector dimension is
+# dropped (its history is unrecoverable), so the score totals out of nine and is
+# always labelled a seven-dimension score. The synthetic textbook base is the
+# same authored geometry the funnel tests use, run here through the whole chain.
+
+
+def _det(symbol: str, cluster_k: int) -> Detection:
+    """A hand-authored detection whose signal vector fixes every score dimension
+    but Tightness, which ``cluster_k`` flips — so two of these differ by exactly
+    the ×2 tightness weight, a clear star-score gap to order on."""
+    return Detection(
+        symbol=symbol,
+        session=date(2020, 1, 2),
+        detector_version=1,
+        trigger=100.0,
+        stop=5.0,
+        stopw_adr=0.5,
+        base_len=10,          # <= 14 -> Base length hit
+        move_gain=30.0,
+        adr=0.06,             # >= 0.05 -> ADR hit
+        close=95.0,
+        cluster_k=cluster_k,  # >= 5 -> Tightness hit
+        cluster_high=100.0,
+        cluster_low=95.0,
+        cluster_range_adr=0.5,
+        line_ok=True,
+        touch_zones=2,
+        overshoot_adr=0.0,
+        slope=0.0,
+        line_end=99.0,
+        base_low=90.0,
+        churn_l=0.4,          # in [0.30, 0.60] -> Orderliness hit
+        sma20_rising=True,    # -> MA support hit
+        dryup=0.9,            # <= 0.95 -> Volume hit
+    )
+
+
+def test_seven_dimension_score_omits_sector_and_totals_out_of_nine(store: Store):
+    """The replayed score drops the sector dimension outright: seven rows, no
+    sector, a ceiling of nine weighted points, and always the seven-dimension
+    label so it can never be confused with the app's ten-point score."""
+    dates = _daily(date(2020, 1, 1), 105)
+    bars = _bars_from_hlc(dates, _textbook_base_hlc())
+    det = detect("BASE", bars, dates[104])
+    assert det is not None
+
+    score = seven_dimension_score(det, prior_move=True)
+
+    dims = [d.dimension for d in score.breakdown]
+    assert "Sector" not in dims
+    assert len(score.breakdown) == 7
+    # The app's published order, with the sector row struck out.
+    assert dims == [
+        "Tightness",
+        "Orderliness",
+        "Prior move",
+        "Base length",
+        "MA support",
+        "Volume",
+        "ADR",
+    ]
+    assert score.max_points == SEVEN_DIM_MAX_POINTS == 9
+    assert 0 <= score.points <= 9
+    assert score.stars == score.points / 2
+    assert score.label == SEVEN_DIM_LABEL
+    assert "seven-dimension" in score.label
+
+
+def test_field_lists_symbols_in_star_order(store: Store):
+    """A field row lists its symbols in star order — score descending. Two
+    detections differing only by the ×2 tightness dimension: the tighter one
+    outranks the looser one, and the order is the score's, not alphabetical."""
+    looser = _det("AAA", cluster_k=3)   # Tightness miss -> lower score
+    tighter = _det("BBB", cluster_k=6)  # Tightness hit  -> higher score
+
+    field = build_field([looser, tighter], ranks=[])
+
+    # BBB scores higher despite sorting after AAA alphabetically -> score-driven.
+    assert [d.symbol for d in field] == ["BBB", "AAA"]
+    assert [d.star_rank for d in field] == [1, 2]
+    assert field[0].score.stars > field[1].score.stars
+    # The tightness ×2 weight is exactly the gap.
+    assert field[0].score.points - field[1].score.points == 2
+
+
+def test_replay_field_detects_over_the_universe_with_a_seven_dim_score(store: Store):
+    """The whole chain end to end: a member ranks top decile, the app's detector
+    fires on its base, and the field carries it with a seven-dimension score."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+
+    # burn_in=104 measures only the last session, where the base ends.
+    (field,) = replay_field(store, "US", burn_in=104)
+
+    assert field.session == dates[104]
+    assert "BASE" in field.members
+    assert [d.symbol for d in field.detections] == ["BASE"]
+    scored = field.detections[0]
+    assert scored.star_rank == 1
+    assert scored.score.label == SEVEN_DIM_LABEL
+    assert scored.score.max_points == 9
+
+
+def test_not_taken_detection_marked_over_the_chain(store: Store):
+    """Over the whole chain: he entered a trade elsewhere on the field session,
+    so the field's member in another name is a not-taken detection (a
+    comparison-group member, never a rejection)."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+
+    elsewhere = parse_trades([_funnel_record("OTHER", dates[104])])
+    (field,) = replay_field(store, "US", trades=elsewhere, burn_in=104)
+
+    (scored,) = field.detections
+    assert scored.symbol == "BASE"
+    assert scored.not_taken is True
+    assert field.not_taken == [scored]
+
+
+def test_not_taken_flag_distinguishes_taken_from_untaken_and_quiet_sessions():
+    """The not-taken predicate: a member is not-taken only on a session an entry
+    was made and only in a name other than the one taken. On a session with no
+    entry at all, nothing is a not-taken detection."""
+    det = _det("BASE", cluster_k=6)
+
+    # Entered elsewhere -> not-taken.
+    (elsewhere,) = build_field([det], [], entered={"OTHER"}, any_entry=True)
+    assert elsewhere.not_taken is True
+    # The name he actually took -> taken, not not-taken.
+    (taken,) = build_field([det], [], entered={"BASE"}, any_entry=True)
+    assert taken.not_taken is False
+    # A session with no entry at all -> not a comparison group.
+    (quiet,) = build_field([det], [], any_entry=False)
+    assert quiet.not_taken is False
+
+
+def test_field_coverage_reflects_blind_spot_tickers_in_scope(store: Store):
+    """Every field output carries a coverage number against the blind-spot
+    tickers in its scope (PRD user story 22)."""
+    sessions = _calendar(22)
+    _seed_series(store, "AAA", sessions, [3_000_000] * 22)
+
+    fields = replay_field(
+        store, "US", burn_in=0, blind_spot_tickers=["ZZZ", "YYY"]
+    )
+
+    last = fields[-1]
+    assert isinstance(last, FieldSession)
+    assert last.blind_spot_count == 2
+    assert "AAA" in last.members

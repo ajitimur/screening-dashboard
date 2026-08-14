@@ -67,8 +67,8 @@ from screener.detection import (
     _prior_move,
     _sma_close,
     detect,
+    detection_gate,
 )
-from screener.detection import detection_gate
 from screener.indicators import adr as _adr
 from screener.store import Store
 from screener.universe import LIQUIDITY_FLOOR, median_dollar_volume

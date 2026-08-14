@@ -17,11 +17,20 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date
+from datetime import date, timedelta
 
 import duckdb
 import pytest
 
+from replay.funnel import (
+    COND_BASE_LENGTH,
+    DECILE_ABSENT_NOTE,
+    FUNNEL_STAGES,
+    FunnelReport,
+    diagnose_detection,
+    evaluation_session,
+    run_funnel,
+)
 from replay.reference import (
     REFERENCE_FIGURES,
     DriftError,
@@ -247,3 +256,182 @@ def test_drift_detection_fails_loudly_on_mismatch(store: Store):
     assert report.total_rows != REFERENCE_FIGURES["total_rows"]
     with pytest.raises(DriftError):
         assert_matches_reference(report)
+
+
+# -- A1 funnel: liquidity and detection (ticket #116) ----------------------
+#
+# Synthetic bars are authored so the geometry under test is chosen: a monotonic
+# ramp never forms a base (fails detection at ``base_length``), and the textbook
+# base is a run-up into a tight flat top (a clean detection). Liquidity rides on
+# ``close × volume``; the fixtures below carry a $-volume well over the US floor
+# so a detection failure is never masked by a liquidity failure.
+
+
+def _bars_from_hlc(dates, hlc, *, volume: int = 1_000_000):
+    """Bars over ``dates`` from ``(high, low, close)`` triples (adj = close)."""
+    return [
+        Bar(dates[i], close, high, low, close, close, volume)
+        for i, (high, low, close) in enumerate(hlc)
+    ]
+
+
+def _daily(start: date, n: int) -> list[date]:
+    return [start + timedelta(days=i) for i in range(n)]
+
+
+def _ramp_hlc(n: int):
+    """A monotonic rise: the highest high is always today, so the base is one bar
+    long and detection fails at ``base_length`` — never a base."""
+    out = []
+    for i in range(n):
+        c = 50.0 + 0.5 * i
+        out.append((c + 0.5, c - 0.5, c))
+    return out
+
+
+def _textbook_base_hlc():
+    """60 flat bars, a run-up 50->99, then a 30-bar tight top ending today — a
+    clean detection (mirrors ``test_detection._base_series``)."""
+    hlc = [(50.5, 49.5, 50.0)] * 60
+    for i in range(1, 16):
+        p = 50.0 + (99.0 - 50.0) * i / 15
+        hlc.append((p + 0.5, p - 0.5, p))
+    hlc += [(100.5, 99.5, 100.0)] * 30
+    return hlc
+
+
+def _funnel_record(ticker: str, entry: date) -> dict:
+    return _trade_record(ticker, entry.isoformat())
+
+
+# -- the evaluation session, across weekends and holidays ------------------
+
+
+def test_evaluation_session_is_last_session_strictly_before_entry():
+    cal = [date(2020, 5, 13), date(2020, 5, 14), date(2020, 5, 15)]
+    # An entry that itself falls on a session: the session *before* it, not it.
+    assert evaluation_session(cal, date(2020, 5, 15)) == date(2020, 5, 14)
+    # Nothing precedes the first session.
+    assert evaluation_session(cal, date(2020, 5, 13)) is None
+
+
+def test_funnel_evaluation_session_skips_a_market_holiday(store: Store):
+    # Fri 05-15 is a session; Mon 05-18 is a holiday (no bar); Tue 05-19 trades.
+    # An entry on Tue must evaluate at Fri, not at the non-existent Monday.
+    sessions = [date(2020, 5, 14), date(2020, 5, 15), date(2020, 5, 19)]
+    store.append_bars("US", "HOL", _bars_from_hlc(sessions, [(11, 9, 10)] * 3))
+
+    report = run_funnel(parse_trades([_funnel_record("HOL", date(2020, 5, 19))]), store)
+
+    (row,) = report.rows
+    assert row.eval_session == date(2020, 5, 15)
+
+
+# -- stage attribution: pass liquidity, fail detection, name the condition --
+
+
+def test_funnel_row_passes_liquidity_fails_detection_and_names_condition(store: Store):
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "RAMP", _bars_from_hlc(dates, _ramp_hlc(90)))
+    entry = dates[89] + timedelta(days=1)  # entry the day after the last bar
+
+    report = run_funnel(parse_trades([_funnel_record("RAMP", entry)]), store)
+
+    (row,) = report.rows
+    assert row.eval_session == dates[89]
+    assert row.liquidity_pass is True          # $-volume well over the US floor
+    assert row.detection_pass is False         # a ramp never forms a base
+    assert row.failed_condition == COND_BASE_LENGTH
+    assert row.first_failing_stage == "detection"
+    # The stage recall records the miss, and it is attributed to the condition.
+    assert report.detection.passed == 0
+    assert report.condition_counts == {COND_BASE_LENGTH: 1}
+
+
+def test_funnel_clean_base_passes_both_stages(store: Store):
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    entry = dates[104] + timedelta(days=1)
+
+    report = run_funnel(parse_trades([_funnel_record("BASE", entry)]), store)
+
+    (row,) = report.rows
+    assert row.liquidity_pass is True
+    assert row.detection_pass is True
+    assert row.failed_condition is None
+    assert row.first_failing_stage is None
+    # The break check is a separate secondary field: the base is present on the
+    # entry session too, so it registers as a break there.
+    assert row.entry_session_break is True
+    assert report.liquidity.passed == report.detection.passed == 1
+
+
+def test_diagnose_detection_matches_the_detector_verdict(store: Store):
+    dates = _daily(date(2020, 1, 1), 105)
+    ramp = _bars_from_hlc(_daily(date(2020, 1, 1), 90), _ramp_hlc(90))
+    base = _bars_from_hlc(dates, _textbook_base_hlc())
+    # A clean base names no failing condition; a ramp names base_length.
+    assert diagnose_detection(base, dates[104]) is None
+    assert diagnose_detection(ramp, _daily(date(2020, 1, 1), 90)[89]) == COND_BASE_LENGTH
+
+
+# -- blind-spot trades get no funnel row -----------------------------------
+
+
+def test_blind_spot_trade_gets_no_funnel_row(store: Store):
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "RAMP", _bars_from_hlc(dates, _ramp_hlc(90)))
+    trades = parse_trades(
+        [
+            _funnel_record("RAMP", dates[89] + timedelta(days=1)),
+            _funnel_record("ZZZ", date(2020, 3, 1)),  # no bars -> blind spot
+        ]
+    )
+
+    report = run_funnel(trades, store)
+
+    assert [r.ticker for r in report.rows] == ["RAMP"]  # ZZZ is not a stage failure
+
+
+# -- continuation entries stay in every denominator ------------------------
+
+
+def test_continuation_entry_stays_in_all_denominators(store: Store):
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "CONT", _bars_from_hlc(dates, [(101, 99, 100)] * 90))
+    # Two entries three sessions apart in the same ticker -> the second is an add.
+    trades = parse_trades(
+        [
+            _funnel_record("CONT", dates[85]),
+            _funnel_record("CONT", dates[88]),
+        ]
+    )
+
+    report = run_funnel(trades, store)
+
+    by_entry = {r.entry_date: r for r in report.rows}
+    assert by_entry[dates[85]].continuation is False
+    assert by_entry[dates[88]].continuation is True
+    assert report.continuation_count == 1
+    # The continuation entry stays in every stage's headline denominator...
+    assert report.liquidity.total == 2
+    assert report.detection.total == 2
+    # ...and the ex-continuation figure — emitted alongside, never alone — drops it.
+    assert report.liquidity.total_ex_continuation == 1
+    assert report.detection.total_ex_continuation == 1
+
+
+# -- the report names two stages and says the decile stage is absent -------
+
+
+def test_funnel_report_names_two_stages_decile_absent(store: Store):
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "RAMP", _bars_from_hlc(dates, _ramp_hlc(90)))
+    report = run_funnel(
+        parse_trades([_funnel_record("RAMP", dates[89] + timedelta(days=1))]), store
+    )
+
+    assert isinstance(report, FunnelReport)
+    assert report.stages == FUNNEL_STAGES == ("liquidity", "detection")
+    assert "decile" in DECILE_ABSENT_NOTE.lower()
+    assert "absent" in DECILE_ABSENT_NOTE.lower()

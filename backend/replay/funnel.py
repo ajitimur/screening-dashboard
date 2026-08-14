@@ -41,6 +41,7 @@ from __future__ import annotations
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 from datetime import date
+from typing import Callable
 
 from screener.bars import Bar
 from screener.detection import (
@@ -277,6 +278,9 @@ def _funnel_row(
     market: str,
     continuation: bool,
 ) -> FunnelRow:
+    # Secondary signal, independent of the eval session: does the base the app
+    # would look for stand on the entry session itself?
+    entry_session_break = detect(trade.ticker, bars, trade.entry_date) is not None
     eval_session = evaluation_session(calendar, trade.entry_date)
 
     if eval_session is None:
@@ -289,7 +293,7 @@ def _funnel_row(
             detection_pass=False,
             failed_condition=None,
             first_failing_stage=STAGE_LIQUIDITY,
-            entry_session_break=detect(trade.ticker, bars, trade.entry_date) is not None,
+            entry_session_break=entry_session_break,
             continuation=continuation,
             median_dollar_volume=0.0,
         )
@@ -317,7 +321,7 @@ def _funnel_row(
         detection_pass=detection_pass,
         failed_condition=failed_condition,
         first_failing_stage=first_failing,
-        entry_session_break=detect(trade.ticker, bars, trade.entry_date) is not None,
+        entry_session_break=entry_session_break,
         continuation=continuation,
         median_dollar_volume=mdv,
     )
@@ -356,7 +360,9 @@ def run_funnel(
     return _build_report(rows)
 
 
-def _stage_recall(stage: str, rows: list[FunnelRow], predicate) -> StageRecall:
+def _stage_recall(
+    stage: str, rows: list[FunnelRow], predicate: Callable[[FunnelRow], bool]
+) -> StageRecall:
     ex = [r for r in rows if not r.continuation]
     return StageRecall(
         stage=stage,

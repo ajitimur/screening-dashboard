@@ -138,7 +138,7 @@ class SelectionContrast:
     precision_note: str = PRECISION_NOTE
 
 
-def _hit(breakdown: Sequence[Dimension], name: str) -> bool:
+def _dim_hit(breakdown: Sequence[Dimension], name: str) -> bool:
     for d in breakdown:
         if d.dimension == name:
             return d.hit
@@ -147,7 +147,12 @@ def _hit(breakdown: Sequence[Dimension], name: str) -> bool:
 
 def _booleans(detections: Iterable[ScoredDetection], name: str) -> list[float]:
     """The dimension's boolean (1.0 hit / 0.0 miss) across a group of detections."""
-    return [1.0 if _hit(d.score.breakdown, name) else 0.0 for d in detections]
+    return [1.0 if _dim_hit(d.score.breakdown, name) else 0.0 for d in detections]
+
+
+def _hit_rate(xs: Sequence[float]) -> float:
+    """Share of the group that hit the dimension (0.0 on an empty group)."""
+    return sum(xs) / len(xs) if xs else 0.0
 
 
 def contrast_dimensions(
@@ -183,12 +188,10 @@ def contrast_dimensions(
                 dimension=name,
                 weight=weight,
                 taken_n=len(taken_xs),
-                taken_hit_rate=sum(taken_xs) / len(taken_xs) if taken_xs else 0.0,
+                taken_hit_rate=_hit_rate(taken_xs),
                 taken_spread=taken_spread,
                 not_taken_n=len(not_taken_xs),
-                not_taken_hit_rate=(
-                    sum(not_taken_xs) / len(not_taken_xs) if not_taken_xs else 0.0
-                ),
+                not_taken_hit_rate=_hit_rate(not_taken_xs),
                 not_taken_spread=_pstdev(not_taken_xs),
                 combined_spread=combined_spread,
                 untestable_within_executed=untestable_within_executed,

@@ -28,6 +28,7 @@ the R totals are taken over.
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from dataclasses import dataclass
@@ -301,8 +302,6 @@ def main(argv: list[str] | None = None) -> int:
 
     Run as ``python -m replay.reference --store data/replay.duckdb``.
     """
-    import argparse
-
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--store", required=True, help="path to the replay store")
     parser.add_argument("--reference", default=str(DEFAULT_REFERENCE_JSON),

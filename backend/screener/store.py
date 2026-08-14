@@ -871,6 +871,16 @@ class Store:
         ).fetchall()
         return [r[0] for r in rows]
 
+    def symbols(self, market: str) -> list[str]:
+        """Every symbol the market holds bars for, alphabetical. The counterpart
+        to :meth:`sessions`: it reads the stored bars rather than any listing
+        snapshot, so it reports exactly the names present in the store."""
+        rows = self._cursor().execute(
+            "SELECT DISTINCT symbol FROM bars WHERE market = ? ORDER BY symbol",
+            [market],
+        ).fetchall()
+        return [r[0] for r in rows]
+
     def runs(self, market: str) -> list[RunRecord]:
         """All run records for a market, newest session first."""
         rows = self._cursor().execute(

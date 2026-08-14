@@ -104,16 +104,10 @@ def synthesize_instruments(store: Store, market: str = REPLAY_MARKET) -> list[In
     name, which :func:`screener.universe.is_common_stock` reads as common stock
     (the live pull already filtered instrument types before the bars were stored).
     """
-    symbols = [
-        row[0]
-        for row in store._cursor()
-        .execute(
-            "SELECT DISTINCT symbol FROM bars WHERE market = ? ORDER BY symbol",
-            [market],
-        )
-        .fetchall()
+    return [
+        Instrument(market=market, symbol=s, role="candidate")
+        for s in store.symbols(market)
     ]
-    return [Instrument(market=market, symbol=s, role="candidate") for s in symbols]
 
 
 def _check_no_gaps(sessions: Sequence[date], calendar: Sequence[date]) -> None:

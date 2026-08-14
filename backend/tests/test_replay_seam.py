@@ -77,6 +77,16 @@ from replay.regression import (
     regress_dimensions,
     run_regression,
 )
+from replay.contrast import (
+    COMPARISON_GROUP_NOTE,
+    PRECISION_NOTE,
+    DimensionContrast,
+    SelectionContrast,
+    build_contrast,
+    contrast_dimensions,
+    format_report as format_contrast_report,
+    run_contrast,
+)
 from replay.store import WINDOW_END, WINDOW_START, build_replay_store
 from screener.bars import Bar
 from screener.detection import Detection, detect
@@ -1120,3 +1130,192 @@ def test_distribution_percentiles_are_linear_interpolated():
     assert dist.mean == 3.0
     assert dist.share_le(3.0) == pytest.approx(0.6)
     assert distribution([]) is None
+
+
+# -- A3 selection contrast: executed trades vs not-taken detections (#122) ---
+#
+# The rubric's other question — which dimensions he *selects* on, as distinct from
+# which *predict* a run. Dimension hit distributions are compared between his
+# executed-trade detections (the taken members) and the not-taken detections (the
+# field he passed over the same night). There is no outcome variable at all, and
+# the not-taken detections are a comparison group, never a rejection. This partly
+# repairs the outcome regression's range restriction: a dimension flat across his
+# trades may vary once the not-taken detections restore the spread.
+
+
+def _scored_det(symbol: str, cluster_k: int, *, taken=False, not_taken=False):
+    """A field candidate carrying a real seven-dimension breakdown: ``cluster_k``
+    flips the Tightness dimension, every other dimension is hit by construction."""
+    det = _det(symbol, cluster_k)
+    return ScoredDetection(
+        symbol=symbol,
+        detection=det,
+        score=seven_dimension_score(det, prior_move=True),
+        star_rank=1,
+        not_taken=not_taken,
+        taken=taken,
+    )
+
+
+def _contrast_field(session: date, taken, not_taken, *, blind_spot_count=0):
+    """A field session carrying the given taken and not-taken detections."""
+    return FieldSession(
+        session=session,
+        burn_in=False,
+        members=[d.symbol for d in taken + not_taken],
+        detections=taken + not_taken,
+        blind_spot_count=blind_spot_count,
+    )
+
+
+def test_selection_contrast_over_a_fixture_field_with_known_members():
+    """The contrast compares dimension hit rates between his picks (taken) and the
+    not-taken detections over a fixture field of known members. Tightness, which he
+    selects on here, is hit by every pick and by only half the field he passed
+    over; the sector dimension is absent, and coverage is carried."""
+    taken = [_scored_det("P1", 6, taken=True), _scored_det("P2", 6, taken=True)]
+    not_taken = [
+        _scored_det("N1", 3, not_taken=True),  # Tightness miss
+        _scored_det("N2", 6, not_taken=True),  # Tightness hit
+    ]
+    field = _contrast_field(date(2020, 6, 1), taken, not_taken, blind_spot_count=4)
+
+    report = build_contrast([field], blind_spot_count=4)
+
+    assert isinstance(report, SelectionContrast)
+    by_dim = {c.dimension: c for c in report.dimension_contrasts}
+    assert "Sector" not in by_dim
+    assert set(by_dim) == {
+        "Tightness", "Orderliness", "Prior move",
+        "Base length", "MA support", "Volume", "ADR",
+    }
+    # He selects on Tightness: every pick hits it, half the passed-over field does.
+    assert by_dim["Tightness"].taken_hit_rate == 1.0
+    assert by_dim["Tightness"].not_taken_hit_rate == 0.5
+    # Base length is hit by everyone (the detector requires it) -> no selection.
+    assert by_dim["Base length"].taken_hit_rate == 1.0
+    assert by_dim["Base length"].not_taken_hit_rate == 1.0
+    assert report.n_executed == 2
+    assert report.n_not_taken == 2
+    assert report.blind_spot_count == 4
+
+
+def test_selection_contrast_restores_testability_from_not_taken_detections():
+    """A dimension flat across his trades alone (untestable in the outcome
+    regression) but varying once the not-taken detections are added is flagged as
+    testability-restored — the range-restriction repair. A dimension flat across
+    both groups stays untestable and is not restored."""
+    taken = [_scored_det("P1", 6, taken=True), _scored_det("P2", 6, taken=True)]
+    not_taken = [
+        _scored_det("N1", 3, not_taken=True),
+        _scored_det("N2", 3, not_taken=True),
+    ]
+
+    by_dim = {c.dimension: c for c in contrast_dimensions(taken, not_taken)}
+
+    # Tightness: all picks hit (no spread within his trades -> untestable there),
+    # the not-taken detections miss it -> the pooled sample has spread -> restored.
+    tight = by_dim["Tightness"]
+    assert tight.untestable_within_executed is True
+    assert tight.testable_in_contrast is True
+    assert tight.testability_restored is True
+    # Base length: hit by everyone in both groups -> no spread anywhere -> the
+    # comparison group restores nothing.
+    base = by_dim["Base length"]
+    assert base.untestable_within_executed is True
+    assert base.testable_in_contrast is False
+    assert base.testability_restored is False
+
+
+def test_selection_contrast_testable_within_executed_is_not_flagged_untestable():
+    """A dimension that already varies within his trades alone is not labelled
+    untestable within the executed set."""
+    taken = [_scored_det("P1", 6, taken=True), _scored_det("P2", 3, taken=True)]
+    by_dim = {c.dimension: c for c in contrast_dimensions(taken, [])}
+
+    assert by_dim["Tightness"].untestable_within_executed is False
+    assert by_dim["Tightness"].taken_spread > 0.0
+
+
+def test_selection_contrast_carries_no_outcome_variable():
+    """No outcome variable appears anywhere in the selection contrast — not on the
+    report, not on a per-dimension row. This measures selection, not prediction."""
+    contrast_names = {f.name for f in dataclasses.fields(SelectionContrast)}
+    dim_names = {f.name for f in dataclasses.fields(DimensionContrast)}
+    forbidden = ("mfe", "gain", "outcome", "correlation", "realis", "return", "_r_")
+    for name in contrast_names | dim_names:
+        assert not any(bad in name.lower() for bad in forbidden), name
+
+
+def test_selection_contrast_describes_a_comparison_group_and_no_precision():
+    """The output describes the not-taken detections as a comparison group, states
+    precision is not measurable, claims no false-positive rate, and never labels
+    the group rejected, declined or negative."""
+    report = build_contrast(
+        [_contrast_field(date(2020, 6, 1),
+                         [_scored_det("P1", 6, taken=True)],
+                         [_scored_det("N1", 3, not_taken=True)])],
+        blind_spot_count=0,
+    )
+    assert report.comparison_group_note == COMPARISON_GROUP_NOTE
+    assert report.precision_note == PRECISION_NOTE
+    assert "comparison group" in report.comparison_group_note.lower()
+    assert "precision is not measurable" in report.precision_note.lower()
+    assert "false-positive" in report.precision_note.lower()
+
+    text = format_contrast_report(report).lower()
+    assert "comparison group" in text
+    assert "precision is not measurable" in text
+    for label in ("reject", "declined", "decline", "negative"):
+        assert label not in text
+
+
+def test_selection_contrast_and_outcome_regression_remain_separate():
+    """The two A3 analyses stay apart: each runs over its own store through its own
+    code path, returns a distinct result type, and neither report carries the
+    other's table — no code path merges them into one figure. (Each runs the
+    forward chain, which persists to its store write-once, so the two cannot share
+    one store — a structural guarantee they are separate runs.)"""
+    dates = _daily(date(2020, 1, 1), 105)
+    trades = parse_trades([_funnel_record("BASE", dates[104] + timedelta(days=1))])
+
+    reg_store = Store.memory()
+    con_store = Store.memory()
+    try:
+        reg_store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+        con_store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+        regression = run_regression(trades, reg_store, burn_in=104)
+        contrast = run_contrast(trades, con_store, burn_in=104)
+    finally:
+        reg_store.close()
+        con_store.close()
+
+    assert isinstance(regression, OutcomeRegression)
+    assert isinstance(contrast, SelectionContrast)
+    reg_fields = {f.name for f in dataclasses.fields(OutcomeRegression)}
+    con_fields = {f.name for f in dataclasses.fields(SelectionContrast)}
+    # The contrast's table is not on the regression, and vice versa.
+    assert "dimension_contrasts" not in reg_fields
+    assert "dimension_stats" not in con_fields
+    assert "feature_vectors" not in con_fields
+    assert "mfe_distribution" not in con_fields
+
+
+def test_run_contrast_splits_his_pick_from_the_not_taken_field(store: Store):
+    """End to end over the chain: on a night he entered one detected name, that
+    name is his taken pick and the other detected member is a not-taken detection;
+    coverage rides the report."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASEA", _bars_from_hlc(dates, _textbook_base_hlc()))
+    store.append_bars("US", "BASEB", _bars_from_hlc(dates, _textbook_base_hlc()))
+    # Entry on the one measured session (burn_in=104): BASEA taken, BASEB not-taken.
+    trades = parse_trades([_funnel_record("BASEA", dates[104])])
+
+    report = run_contrast(
+        trades, store, burn_in=104, blind_spot_tickers=["ZZZ", "YYY"]
+    )
+
+    assert isinstance(report, SelectionContrast)
+    assert report.n_executed == 1     # BASEA, the name he entered
+    assert report.n_not_taken == 1    # BASEB, present but not entered
+    assert report.blind_spot_count == 2

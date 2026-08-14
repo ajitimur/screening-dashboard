@@ -105,7 +105,10 @@ class ScoredDetection:
     ``star_rank`` is the 1-based position in star order (score descending, the
     app's candidate order). ``not_taken`` marks a field member on a session where
     an executed trade was entered elsewhere — a comparison-group member, never a
-    rejection (PRD user story 25).
+    rejection (PRD user story 25). ``taken`` is its mirror: the field member whose
+    own name *was* the executed trade entered this session — his actual pick,
+    against which the not-taken detections are contrasted (A3 selection contrast,
+    issue #122). A quiet session (no entry) leaves both false.
     """
 
     symbol: str
@@ -113,6 +116,7 @@ class ScoredDetection:
     score: SevenDimScore
     star_rank: int
     not_taken: bool
+    taken: bool = False
 
 
 @dataclass(frozen=True)
@@ -142,6 +146,11 @@ class FieldSession:
         """The not-taken detections — the session's comparison group (§25)."""
         return [d for d in self.detections if d.not_taken]
 
+    @property
+    def taken(self) -> list[ScoredDetection]:
+        """The taken detections — the field members he actually entered here (#122)."""
+        return [d for d in self.detections if d.taken]
+
 
 def build_field(
     detections: list[Detection],
@@ -161,7 +170,8 @@ def build_field(
     ``entered`` is the set of tickers an executed trade was entered in on this
     session; ``any_entry`` is whether any trade was entered at all. A detection is
     a *not-taken detection* when a trade was entered this session but not in its
-    name (PRD user story 25).
+    name (PRD user story 25), and a *taken detection* when its own name was the one
+    entered — the two groups A3's selection contrast compares (issue #122).
     """
     entered = set(entered)
     gated = detection_gate(ranks)
@@ -177,6 +187,7 @@ def build_field(
             score=score,
             star_rank=rank,
             not_taken=any_entry and det.symbol not in entered,
+            taken=det.symbol in entered,
         )
         for rank, (det, score) in enumerate(scored, start=1)
     ]

@@ -506,6 +506,12 @@ class Store:
     def append_universe(self, market: str, session: date, symbols: list[str]) -> int:
         """Append a session's universe membership. Raises on a rewrite."""
         self._guard_absent("universe", market, session)
+        if not symbols:
+            # An empty membership is a legitimate session — a cold-started replay
+            # runs for a stretch before any name clears the listing-age and
+            # liquidity gates. executemany rejects an empty parameter list, so the
+            # session is simply recorded as having no members and read back as [].
+            return 0
         self._cursor().executemany(
             "INSERT INTO universe VALUES (?, ?, ?)",
             [[market, session, s] for s in symbols],
@@ -575,11 +581,15 @@ class Store:
         data and needs no wall clock.
         """
         self._guard_absent("ranks", market, session)
-        self._cursor().executemany(
-            "INSERT INTO ranks VALUES (?, ?, ?, ?, ?, ?)",
-            [[market, session, r.symbol, r.lookback, r.percentile, r.raw_return]
-             for r in rows],
-        )
+        if rows:
+            # As in append_universe: a session with no members has no rank rows,
+            # and executemany rejects an empty parameter list. Pruning still runs
+            # so retention rolls forward even across an empty session.
+            self._cursor().executemany(
+                "INSERT INTO ranks VALUES (?, ?, ?, ?, ?, ?)",
+                [[market, session, r.symbol, r.lookback, r.percentile, r.raw_return]
+                 for r in rows],
+            )
         cutoff = _years_before(session, RANK_RETENTION_YEARS)
         self._cursor().execute(
             "DELETE FROM ranks WHERE market = ? AND session < ?", [market, cutoff]

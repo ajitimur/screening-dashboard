@@ -57,10 +57,9 @@ from screener.score import DIMENSIONS as _SCORE_DIMENSIONS, Dimension
 from screener.store import Store
 
 from .chain import BURN_IN_SESSIONS, REPLAY_MARKET
-from .field import SECTOR_DIMENSION, seven_dimension_score
+from .field import SECTOR_DIMENSION, replay_field, seven_dimension_score
 from .funnel import evaluation_session
 from .reference import PRIMARY_EXIT, ExecutedTrade, classify, load_trades
-from .field import replay_field
 
 # The dimensions regressed here: the app's eight less the dropped sector
 # dimension, in the score's published order. Named off the app's own table so a

@@ -17,6 +17,21 @@ The counts are computed, never hard-coded. :data:`REFERENCE_FIGURES` records the
 figures measured in #114 so a later change to the reference set or the store is
 caught as drift (:func:`assert_matches_reference`), not silently absorbed.
 
+**Blind spot is measured in the replay window, not over all history.** The
+classification asks whether the ticker has bars *in the replay store*, which
+:mod:`replay.store` populates only for ``2019-04..2022-12``. That is the
+operationally true test — it is exactly the condition under which the funnel and
+the field can say anything about a trade — and it is stricter than asking whether
+the provider returns the symbol at all today. The two differ by 10 tickers / 29
+trades, every one of them a **symbol-reuse** case: the ticker resolves today, but
+its bar history begins years after the entry it is paired with, because the
+symbol was recycled onto an unrelated listing (APXT, BNKU, EYES, FNGU, LAC, LAZR,
+NRGU, SI, SPWR, USLV). Counting those replayable would not merely understate the
+hole; at any window overlap it would replay one company's trade against another
+company's bars. The #114 figures were first measured over all history
+(81 / 141 / 11.7%); the pins below are the window-measured figures the study
+actually runs on.
+
 **Schema note.** The reference tool emits one exit block per simulated exit,
 named in the row keys — ``gain10smaPct`` / ``mfe10smaPct`` / ``r10sma`` for the
 10-day-SMA trailing exit, and the parallel ``…20sma…`` keys for the 20-day one.
@@ -49,14 +64,16 @@ _GAIN_KEY = re.compile(r"^gain(?P<exit>.+)Pct$")
 
 # The figures measured over the committed reference set in #114. Recomputed by
 # the report every run; these exist only to detect drift and are never the source
-# of a reported number.
+# of a reported number. The blind-spot figures are measured in the replay window
+# (see the module docstring); the all-history figures they replace were
+# 81 / 141 / 11.7%.
 REFERENCE_FIGURES: dict[str, float] = {
     "total_rows": 828,
     "rows_with_outcomes": 827,
     "distinct_tickers": 312,
-    "blind_spot_tickers": 81,
-    "blind_spot_trades": 141,
-    "blind_spot_r_share": 0.117,
+    "blind_spot_tickers": 91,
+    "blind_spot_trades": 170,
+    "blind_spot_r_share": 0.181,
 }
 
 # The blind-spot R share is a float; a change below this tolerance is rounding,
@@ -119,6 +136,23 @@ def _as_float(value: object) -> float | None:
     return None if value is None else float(value)
 
 
+def _stop_pct_in_percent(record: Mapping[str, object]) -> float:
+    """The trade's stop width in **percent**, whatever the row calls it.
+
+    The unit matters more than the key: a fraction read as a percent understates
+    every stop width by 100x, which would silently gut the study's stop-width
+    finding rather than fail loudly.
+    """
+    fraction = record.get("stopPercentage")
+    if fraction is not None:
+        return float(fraction) * 100.0
+    for key in ("stopPct", "riskPct"):
+        value = record.get(key)
+        if value is not None:
+            return float(value)
+    raise KeyError("row carries no stop width (stopPercentage / stopPct / riskPct)")
+
+
 def _parse_outcomes(record: Mapping[str, object]) -> dict[str, Outcome]:
     outcomes: dict[str, Outcome] = {}
     for key in record:
@@ -126,10 +160,13 @@ def _parse_outcomes(record: Mapping[str, object]) -> dict[str, Outcome]:
         if match is None:
             continue
         exit_label = match.group("exit")
+        # The realised-R key is ``rr<exit>`` in the committed reference set; the
+        # singular ``r<exit>`` is accepted too so an older export still parses.
+        r = record.get(f"rr{exit_label}", record.get(f"r{exit_label}"))
         outcomes[exit_label] = Outcome(
             gain_pct=_as_float(record.get(f"gain{exit_label}Pct")),
             mfe_pct=_as_float(record.get(f"mfe{exit_label}Pct")),
-            r=_as_float(record.get(f"r{exit_label}")),
+            r=_as_float(r),
         )
     return outcomes
 
@@ -143,13 +180,24 @@ def parse_trades(records: list[Mapping[str, object]]) -> list[ExecutedTrade]:
     """
     trades: list[ExecutedTrade] = []
     for record in records:
+        # ``entryDate`` is a full ISO timestamp (``2021-02-24T00:00:00.000Z``);
+        # the study is end-of-day, so only the date part is meaningful.
+        #
+        # ``stop_pct`` is carried in **percent** (3.38 for a 3.38% stop) because
+        # that is what consumers divide by 100 — see
+        # :func:`replay.regression.build_feature_vector`. The reference file's
+        # ``stopPercentage`` is a *fraction* (0.0338), so it is scaled here; the
+        # file's own ``riskPct`` is the same number already in percent, but at
+        # two decimals, so the fraction is preferred for precision. A legacy
+        # ``stopPct`` is taken as percent as written.
+        stop_pct = _stop_pct_in_percent(record)
         trades.append(
             ExecutedTrade(
                 ticker=str(record["ticker"]),
-                entry_date=date.fromisoformat(str(record["entryDate"])),
+                entry_date=date.fromisoformat(str(record["entryDate"])[:10]),
                 entry_price=float(record["entryPrice"]),
                 stop_price=float(record["stopPrice"]),
-                stop_pct=float(record["stopPct"]),
+                stop_pct=stop_pct,
                 outcomes=_parse_outcomes(record),
             )
         )
@@ -157,8 +205,13 @@ def parse_trades(records: list[Mapping[str, object]]) -> list[ExecutedTrade]:
 
 
 def load_trades(json_path: str | Path) -> list[ExecutedTrade]:
-    """Read and parse the committed reference JSON at ``json_path``."""
-    records = json.loads(Path(json_path).read_text())
+    """Read and parse the committed reference JSON at ``json_path``.
+
+    The reference tool wraps the rows in a ``{"count": N, "trades": [...]}``
+    envelope; a bare list is accepted too so a hand-trimmed extract still parses.
+    """
+    payload = json.loads(Path(json_path).read_text())
+    records = payload["trades"] if isinstance(payload, Mapping) else payload
     return parse_trades(records)
 
 

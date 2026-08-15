@@ -347,7 +347,7 @@ def run_regression(
     fields = replay_field(
         store,
         market,
-        trades=trades,
+        trades=replayable,
         blind_spot_tickers=blind_spot_tickers,
         burn_in=burn_in,
         sessions=sessions,

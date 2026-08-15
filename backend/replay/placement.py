@@ -240,3 +240,43 @@ def format_report(report: PlacementReport) -> str:
             f"field {report.field.counts.get(star, 0):>5}"
         )
     return "\n".join(lines)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the A2 placement over the replay store and print the report.
+
+    Thin CLI over the pure functions above (one entry point per study, PRD user
+    story 30). The blind-spot tickers are recomputed from the reference set rather
+    than passed in, so the coverage figure on the report is always the store's own.
+    Run as ``python -m replay.placement --store data/replay.duckdb``.
+    """
+    import argparse
+
+    from .reference import DEFAULT_REFERENCE_JSON, build_report, load_trades
+
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--store", required=True, help="path to the replay store")
+    parser.add_argument("--reference", default=str(DEFAULT_REFERENCE_JSON),
+                        help="path to the executed-trade reference JSON")
+    parser.add_argument("--market", default=REPLAY_MARKET)
+    args = parser.parse_args(argv)
+
+    trades = load_trades(args.reference)
+    store = Store.open(args.store)
+    try:
+        coverage = build_report(trades, store, market=args.market)
+        report = run_placement(
+            trades,
+            store,
+            args.market,
+            blind_spot_tickers=coverage.blind_spot_ticker_list,
+        )
+    finally:
+        store.close()
+
+    print(format_report(report))
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())

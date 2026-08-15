@@ -19,6 +19,7 @@ import dataclasses
 import hashlib
 import json
 from datetime import date, timedelta
+from pathlib import Path
 
 import duckdb
 import pytest
@@ -35,6 +36,7 @@ from replay.funnel import (
     run_funnel,
 )
 from replay.reference import (
+    DEFAULT_REFERENCE_JSON,
     REFERENCE_FIGURES,
     DriftError,
     ExecutedTrade,
@@ -42,6 +44,7 @@ from replay.reference import (
     assert_matches_reference,
     build_report,
     classify,
+    load_trades,
     parse_trades,
     write_blind_spot_list,
 )
@@ -216,6 +219,62 @@ def test_parse_trades_reads_fields_and_both_exits():
     assert trade.outcomes["10sma"].r == 8.0
     assert trade.outcomes["20sma"].r == 10.0
     assert trade.has_outcomes
+
+
+def test_load_trades_reads_the_committed_reference_file():
+    """Parse the real committed reference set, not a synthetic row.
+
+    The synthetic ``_trade_record`` above is written in the schema the parser
+    reads; this test is the one that pins the schema the reference tool actually
+    *emits* — the ``{"count", "trades"}`` envelope, ISO-timestamp ``entryDate``,
+    ``stopPercentage`` and ``rr<exit>``. Without it the parser can drift away from
+    the committed file while every other test stays green.
+    """
+    trades = load_trades(DEFAULT_REFERENCE_JSON)
+
+    assert len(trades) == REFERENCE_FIGURES["total_rows"]
+    assert sum(1 for t in trades if t.has_outcomes) == REFERENCE_FIGURES[
+        "rows_with_outcomes"
+    ]
+    assert len({t.ticker for t in trades}) == REFERENCE_FIGURES["distinct_tickers"]
+    # Every row carries a usable entry, stop and primary-exit R.
+    assert all(t.entry_date.year in range(2019, 2023) for t in trades)
+    assert all(t.stop_pct is not None for t in trades)
+    assert sum(1 for t in trades if t.r is not None) == REFERENCE_FIGURES[
+        "rows_with_outcomes"
+    ]
+    # MFE is the A3 regression target; it must survive the parse.
+    assert all(t.primary.mfe_pct is not None for t in trades if t.has_outcomes)
+
+
+def test_load_trades_reads_stop_width_in_percent_not_fraction():
+    """The stop width is percent, matching what the feature vector divides by 100.
+
+    The reference file stores ``stopPercentage`` as a *fraction* of the entry
+    price. Reading it as a percent would understate every stop width by 100x and
+    quietly gut the study's stop-width finding, so the unit is pinned against the
+    stop distance recomputed from the row's own entry and stop prices.
+
+    (Not pinned against ``riskPct``: that is position risk, a different quantity,
+    and it is null on some rows.)
+    """
+    raw = json.loads(Path(DEFAULT_REFERENCE_JSON).read_text())["trades"]
+    trades = load_trades(DEFAULT_REFERENCE_JSON)
+
+    for record, trade in zip(raw, trades):
+        entry, stop = record["entryPrice"], record["stopPrice"]
+        expected = (entry - stop) / entry * 100.0
+        assert trade.stop_pct == pytest.approx(expected, rel=1e-9)
+        # A real stop is percent-scaled: single digits, not hundredths.
+        assert 0.0 <= trade.stop_pct < 100.0
+
+    # Exactly one row is degenerate — entry == stop, so a zero-width stop — and it
+    # is the same row that carries no outcomes. Pinned so it stays a known,
+    # single, inspectable exception rather than becoming a silent class of rows
+    # that drags the stop-width distribution toward zero.
+    degenerate = [t for t in trades if t.stop_pct == 0.0]
+    assert len(degenerate) == 1
+    assert not degenerate[0].has_outcomes
 
 
 def test_parse_trades_counts_a_row_without_outcomes():

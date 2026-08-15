@@ -15,7 +15,7 @@ dependencies = [
 dev = ["pytest", "httpx"]
 
 [tool.setuptools.packages.find]
-include = ["screener*"]
+include = ["screener*", "replay*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

@@ -1,0 +1,1380 @@
+"""The one replay test seam (PRD #114 "Testing Decisions").
+
+Modelled on ``test_store_seam.py``: seed a fixture store with *synthetic* bars,
+hand the replay a handful of executed trades, and assert on the rows it emits —
+never on how it got there. Later replay tickets (A1/A2/A3) extend this same
+file; #115 lands the substrate it stands on:
+
+- the replay store builder (US bars, the window, live store left read-only), and
+- the reference-set parser + classifier + count report, whose one behavioural
+  claim is that a trade whose ticker has no bars is a blind spot, not a failure.
+
+Synthetic bars are authored, not copied from the live store, so the geometry
+under test is chosen rather than discovered.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+import hashlib
+import json
+from datetime import date, timedelta
+from pathlib import Path
+
+import duckdb
+import pytest
+
+from replay.funnel import (
+    COND_BASE_LENGTH,
+    FUNNEL_STAGES,
+    STAGE_DECILE,
+    STAGE_DETECTION,
+    STAGE_LIQUIDITY,
+    FunnelReport,
+    diagnose_detection,
+    evaluation_session,
+    run_funnel,
+)
+from replay.reference import (
+    DEFAULT_REFERENCE_JSON,
+    REFERENCE_FIGURES,
+    DriftError,
+    ExecutedTrade,
+    ReferenceReport,
+    assert_matches_reference,
+    build_report,
+    classify,
+    load_trades,
+    parse_trades,
+    write_blind_spot_list,
+)
+from replay.chain import (
+    BURN_IN_SESSIONS,
+    GapError,
+    replay_chain,
+    synthesize_instruments,
+)
+from replay.field import (
+    SEVEN_DIM_LABEL,
+    SEVEN_DIM_MAX_POINTS,
+    FieldSession,
+    ScoredDetection,
+    SevenDimScore,
+    build_field,
+    replay_field,
+    seven_dimension_score,
+)
+from replay.placement import (
+    BOARD_SIZE,
+    SCOPE,
+    PlacementReport,
+    StarDistribution,
+    place_trade,
+    run_placement,
+)
+from replay.regression import (
+    DimensionStat,
+    OutcomeRegression,
+    build_feature_vector,
+    distribution,
+    regress_dimensions,
+    run_regression,
+)
+from replay.contrast import (
+    COMPARISON_GROUP_NOTE,
+    PRECISION_NOTE,
+    DimensionContrast,
+    SelectionContrast,
+    build_contrast,
+    contrast_dimensions,
+    format_report as format_contrast_report,
+    run_contrast,
+)
+from replay.store import WINDOW_END, WINDOW_START, build_replay_store
+from screener.bars import Bar
+from screener.detection import Detection, detect
+from screener.store import Store
+
+
+# -- helpers ---------------------------------------------------------------
+
+
+def _bar(session: date, close: float = 10.0) -> Bar:
+    return Bar(
+        session=session,
+        open=close,
+        high=close,
+        low=close,
+        close=close,
+        adj_close=close,
+        volume=1_000_000,
+    )
+
+
+def _trade_record(ticker: str, entry: str, *, with_outcomes: bool = True) -> dict:
+    """A synthetic reference-JSON row in the schema the parser reads."""
+    rec = {
+        "ticker": ticker,
+        "entryDate": entry,
+        "entryPrice": 100.0,
+        "stopPrice": 97.0,
+        "stopPct": 3.0,
+    }
+    if with_outcomes:
+        rec.update(
+            {
+                "gain10smaPct": 25.0,
+                "mfe10smaPct": 40.0,
+                "r10sma": 8.0,
+                "gain20smaPct": 30.0,
+                "mfe20smaPct": 45.0,
+                "r20sma": 10.0,
+            }
+        )
+    return rec
+
+
+# -- the replay store builder ---------------------------------------------
+
+
+def test_build_replay_store_copies_only_us_window_bars(tmp_path):
+    """The replay store holds only US bars inside the window — an out-of-window
+    US bar and an IDX bar are both left behind."""
+    live_path = tmp_path / "live.duckdb"
+    live = Store.open(live_path)
+    live.append_bars("US", "AAA", [_bar(date(2020, 6, 1)), _bar(date(2021, 6, 1))])
+    live.append_bars("US", "OLD", [_bar(date(2018, 1, 2))])  # before the window
+    live.append_bars("US", "NEW", [_bar(date(2023, 6, 1))])  # after the window
+    live.append_bars("IDX", "BBCA.JK", [_bar(date(2020, 6, 1))])  # wrong market
+    live.close()
+
+    replay_path = tmp_path / "replay.duckdb"
+    stats = build_replay_store(live_path, replay_path)
+
+    replay = Store.open(replay_path)
+    try:
+        assert replay.bars("US", "AAA") == [
+            _bar(date(2020, 6, 1)),
+            _bar(date(2021, 6, 1)),
+        ]
+        assert replay.bars("US", "OLD") == []
+        assert replay.bars("US", "NEW") == []
+        assert replay.bars("IDX", "BBCA.JK") == []
+        # Only bars are populated — no run, no universe leaked across.
+        assert replay.runs("US") == []
+    finally:
+        replay.close()
+
+    assert stats.rows == 2
+    assert stats.tickers == 1
+    assert (WINDOW_START, WINDOW_END) == (date(2019, 4, 1), date(2022, 12, 31))
+
+
+def test_build_replay_store_leaves_live_store_byte_identical(tmp_path):
+    live_path = tmp_path / "live.duckdb"
+    live = Store.open(live_path)
+    live.append_bars("US", "AAA", [_bar(date(2020, 6, 1))])
+    live.close()
+
+    before = hashlib.sha256(live_path.read_bytes()).hexdigest()
+    build_replay_store(live_path, tmp_path / "replay.duckdb")
+    after = hashlib.sha256(live_path.read_bytes()).hexdigest()
+
+    assert before == after
+
+
+def test_build_replay_store_opens_live_read_only(tmp_path):
+    """The live store is opened read-only: a build never even holds a writable
+    handle to it, so it is structurally incapable of corrupting live history."""
+    live_path = tmp_path / "live.duckdb"
+    live = Store.open(live_path)
+    live.append_bars("US", "AAA", [_bar(date(2020, 6, 1))])
+    live.close()
+
+    # Prove the file physically forbids the write build_replay_store must not do.
+    ro = duckdb.connect(str(live_path), read_only=True)
+    try:
+        with pytest.raises(duckdb.Error):
+            ro.execute("INSERT INTO bars VALUES ('US','X',DATE '2020-06-01',1,1,1,1,1,1)")
+    finally:
+        ro.close()
+
+
+# -- the reference-set parser ---------------------------------------------
+
+
+def test_parse_trades_reads_fields_and_both_exits():
+    (trade,) = parse_trades([_trade_record("AAA", "2020-05-01")])
+
+    assert isinstance(trade, ExecutedTrade)
+    assert trade.ticker == "AAA"
+    assert trade.entry_date == date(2020, 5, 1)
+    assert trade.entry_price == 100.0
+    assert trade.stop_price == 97.0
+    assert trade.stop_pct == 3.0
+    # Both simulated exits parsed, keyed by exit label.
+    assert set(trade.outcomes) == {"10sma", "20sma"}
+    assert trade.outcomes["10sma"].gain_pct == 25.0
+    assert trade.outcomes["10sma"].mfe_pct == 40.0
+    assert trade.outcomes["10sma"].r == 8.0
+    assert trade.outcomes["20sma"].r == 10.0
+    assert trade.has_outcomes
+
+
+def test_load_trades_reads_the_committed_reference_file():
+    """Parse the real committed reference set, not a synthetic row.
+
+    The synthetic ``_trade_record`` above is written in the schema the parser
+    reads; this test is the one that pins the schema the reference tool actually
+    *emits* — the ``{"count", "trades"}`` envelope, ISO-timestamp ``entryDate``,
+    ``stopPercentage`` and ``rr<exit>``. Without it the parser can drift away from
+    the committed file while every other test stays green.
+    """
+    trades = load_trades(DEFAULT_REFERENCE_JSON)
+
+    assert len(trades) == REFERENCE_FIGURES["total_rows"]
+    assert sum(1 for t in trades if t.has_outcomes) == REFERENCE_FIGURES[
+        "rows_with_outcomes"
+    ]
+    assert len({t.ticker for t in trades}) == REFERENCE_FIGURES["distinct_tickers"]
+    # Every row carries a usable entry, stop and primary-exit R.
+    assert all(t.entry_date.year in range(2019, 2023) for t in trades)
+    assert all(t.stop_pct is not None for t in trades)
+    assert sum(1 for t in trades if t.r is not None) == REFERENCE_FIGURES[
+        "rows_with_outcomes"
+    ]
+    # MFE is the A3 regression target; it must survive the parse.
+    assert all(t.primary.mfe_pct is not None for t in trades if t.has_outcomes)
+
+
+def test_load_trades_reads_stop_width_in_percent_not_fraction():
+    """The stop width is percent, matching what the feature vector divides by 100.
+
+    The reference file stores ``stopPercentage`` as a *fraction* of the entry
+    price. Reading it as a percent would understate every stop width by 100x and
+    quietly gut the study's stop-width finding, so the unit is pinned against the
+    stop distance recomputed from the row's own entry and stop prices.
+
+    (Not pinned against ``riskPct``: that is position risk, a different quantity,
+    and it is null on some rows.)
+    """
+    raw = json.loads(Path(DEFAULT_REFERENCE_JSON).read_text())["trades"]
+    trades = load_trades(DEFAULT_REFERENCE_JSON)
+
+    for record, trade in zip(raw, trades):
+        entry, stop = record["entryPrice"], record["stopPrice"]
+        expected = (entry - stop) / entry * 100.0
+        assert trade.stop_pct == pytest.approx(expected, rel=1e-9)
+        # A real stop is percent-scaled: single digits, not hundredths.
+        assert 0.0 <= trade.stop_pct < 100.0
+
+    # Exactly one row is degenerate — entry == stop, so a zero-width stop — and it
+    # is the same row that carries no outcomes. Pinned so it stays a known,
+    # single, inspectable exception rather than becoming a silent class of rows
+    # that drags the stop-width distribution toward zero.
+    degenerate = [t for t in trades if t.stop_pct == 0.0]
+    assert len(degenerate) == 1
+    assert not degenerate[0].has_outcomes
+
+
+def test_parse_trades_counts_a_row_without_outcomes():
+    trades = parse_trades(
+        [
+            _trade_record("AAA", "2020-05-01"),
+            _trade_record("BBB", "2020-05-04", with_outcomes=False),
+        ]
+    )
+    assert [t.has_outcomes for t in trades] == [True, False]
+    # The outcome-less row still parses as a trade — it is a row, just outcome-less.
+    assert trades[1].ticker == "BBB"
+    assert trades[1].outcomes == {}
+
+
+# -- classification: replayable vs blind spot -----------------------------
+
+
+def test_trade_with_bars_is_replayable_without_bars_is_blind_spot(store: Store):
+    store.append_bars("US", "AAA", [_bar(date(2020, 5, 1))])
+    trades = parse_trades(
+        [_trade_record("AAA", "2020-05-01"), _trade_record("ZZZ", "2020-05-01")]
+    )
+
+    classified = {c.trade.ticker: c.replayable for c in classify(trades, store)}
+
+    assert classified == {"AAA": True, "ZZZ": False}
+
+
+# -- the count report ------------------------------------------------------
+
+
+def test_report_counts_and_blind_spot_r_share(store: Store):
+    store.append_bars("US", "AAA", [_bar(date(2020, 5, 1))])
+    store.append_bars("US", "BBB", [_bar(date(2020, 5, 1))])
+    # AAA/BBB have bars (replayable); ZZZ does not (blind spot). One outcome-less row.
+    trades = parse_trades(
+        [
+            _trade_record("AAA", "2020-05-01"),  # r 8
+            _trade_record("BBB", "2020-05-04"),  # r 8
+            _trade_record("ZZZ", "2020-05-01"),  # r 8, blind spot
+            _trade_record("AAA", "2020-06-01", with_outcomes=False),
+        ]
+    )
+
+    report = build_report(trades, store)
+
+    assert isinstance(report, ReferenceReport)
+    assert report.total_rows == 4
+    assert report.rows_with_outcomes == 3
+    assert report.distinct_tickers == 3
+    assert report.blind_spot_tickers == 1
+    assert report.blind_spot_trades == 1
+    assert report.blind_spot_ticker_list == ["ZZZ"]
+    # total R = 8+8+8 = 24 (the outcome-less row carries no R); blind spot = 8.
+    assert report.blind_spot_r_share == pytest.approx(8.0 / 24.0)
+
+
+def test_write_blind_spot_list_is_sorted_and_committed(tmp_path, store: Store):
+    store.append_bars("US", "AAA", [_bar(date(2020, 5, 1))])
+    trades = parse_trades(
+        [
+            _trade_record("ZZZ", "2020-05-01"),
+            _trade_record("MMM", "2020-05-01"),
+            _trade_record("AAA", "2020-05-01"),
+        ]
+    )
+    report = build_report(trades, store)
+
+    out = tmp_path / "blind_spot_tickers.json"
+    write_blind_spot_list(report, out)
+
+    assert json.loads(out.read_text()) == ["MMM", "ZZZ"]
+
+
+# -- drift detection against the #114 figures ------------------------------
+
+
+def test_drift_detection_fails_loudly_on_mismatch(store: Store):
+    store.append_bars("US", "AAA", [_bar(date(2020, 5, 1))])
+    report = build_report(parse_trades([_trade_record("AAA", "2020-05-01")]), store)
+
+    # A three-row fixture cannot match the 828-row reference figures.
+    assert report.total_rows != REFERENCE_FIGURES["total_rows"]
+    with pytest.raises(DriftError):
+        assert_matches_reference(report)
+
+
+# -- A1 funnel: liquidity and detection (ticket #116) ----------------------
+#
+# Synthetic bars are authored so the geometry under test is chosen: a monotonic
+# ramp never forms a base (fails detection at ``base_length``), and the textbook
+# base is a run-up into a tight flat top (a clean detection). Liquidity rides on
+# ``close × volume``; the fixtures below carry a $-volume well over the US floor
+# so a detection failure is never masked by a liquidity failure.
+
+
+def _bars_from_hlc(dates, hlc, *, volume: int = 1_000_000):
+    """Bars over ``dates`` from ``(high, low, close)`` triples (adj = close)."""
+    return [
+        Bar(dates[i], close, high, low, close, close, volume)
+        for i, (high, low, close) in enumerate(hlc)
+    ]
+
+
+def _daily(start: date, n: int) -> list[date]:
+    return [start + timedelta(days=i) for i in range(n)]
+
+
+def _ramp_hlc(n: int):
+    """A monotonic rise: the highest high is always today, so the base is one bar
+    long and detection fails at ``base_length`` — never a base."""
+    out = []
+    for i in range(n):
+        c = 50.0 + 0.5 * i
+        out.append((c + 0.5, c - 0.5, c))
+    return out
+
+
+def _textbook_base_hlc():
+    """60 flat bars, a run-up 50->99, then a 30-bar tight top ending today — a
+    clean detection (mirrors ``test_detection._base_series``)."""
+    hlc = [(50.5, 49.5, 50.0)] * 60
+    for i in range(1, 16):
+        p = 50.0 + (99.0 - 50.0) * i / 15
+        hlc.append((p + 0.5, p - 0.5, p))
+    hlc += [(100.5, 99.5, 100.0)] * 30
+    return hlc
+
+
+def _funnel_record(ticker: str, entry: date) -> dict:
+    return _trade_record(ticker, entry.isoformat())
+
+
+# -- the evaluation session, across weekends and holidays ------------------
+
+
+def test_evaluation_session_is_last_session_strictly_before_entry():
+    cal = [date(2020, 5, 13), date(2020, 5, 14), date(2020, 5, 15)]
+    # An entry that itself falls on a session: the session *before* it, not it.
+    assert evaluation_session(cal, date(2020, 5, 15)) == date(2020, 5, 14)
+    # Nothing precedes the first session.
+    assert evaluation_session(cal, date(2020, 5, 13)) is None
+
+
+def test_funnel_evaluation_session_skips_a_market_holiday(store: Store):
+    # Fri 05-15 is a session; Mon 05-18 is a holiday (no bar); Tue 05-19 trades.
+    # An entry on Tue must evaluate at Fri, not at the non-existent Monday.
+    sessions = [date(2020, 5, 14), date(2020, 5, 15), date(2020, 5, 19)]
+    store.append_bars("US", "HOL", _bars_from_hlc(sessions, [(11, 9, 10)] * 3))
+
+    report = run_funnel(parse_trades([_funnel_record("HOL", date(2020, 5, 19))]), store)
+
+    (row,) = report.rows
+    assert row.eval_session == date(2020, 5, 15)
+
+
+# -- stage attribution: pass liquidity, fail detection, name the condition --
+
+
+def test_funnel_row_passes_liquidity_fails_detection_and_names_condition(store: Store):
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "RAMP", _bars_from_hlc(dates, _ramp_hlc(90)))
+    entry = dates[89] + timedelta(days=1)  # entry the day after the last bar
+
+    # burn_in=0 so the eval session is a measured field session: RAMP is the sole
+    # member, so it tops its own decile — the miss is at detection, not decile.
+    report = run_funnel(parse_trades([_funnel_record("RAMP", entry)]), store, burn_in=0)
+
+    (row,) = report.rows
+    assert row.eval_session == dates[89]
+    assert row.liquidity_pass is True          # $-volume well over the US floor
+    assert row.decile_pass is True             # sole member -> tops its own decile
+    assert row.detection_pass is False         # a ramp never forms a base
+    assert row.failed_condition == COND_BASE_LENGTH
+    assert row.first_failing_stage == STAGE_DETECTION
+    # The stage recall records the miss, and it is attributed to the condition.
+    assert report.detection.passed == 0
+    assert report.condition_counts == {COND_BASE_LENGTH: 1}
+
+
+def test_funnel_clean_base_passes_both_stages(store: Store):
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    entry = dates[104] + timedelta(days=1)
+
+    # burn_in=0: the eval session is measured, so BASE clears all three stages.
+    report = run_funnel(parse_trades([_funnel_record("BASE", entry)]), store, burn_in=0)
+
+    (row,) = report.rows
+    assert row.liquidity_pass is True
+    assert row.decile_pass is True
+    assert row.detection_pass is True
+    assert row.failed_condition is None
+    assert row.first_failing_stage is None
+    # The break check is a separate secondary field: the base is present on the
+    # entry session too, so it registers as a break there.
+    assert row.entry_session_break is True
+    assert report.liquidity.passed == report.detection.passed == 1
+
+
+def test_diagnose_detection_matches_the_detector_verdict(store: Store):
+    dates = _daily(date(2020, 1, 1), 105)
+    ramp = _bars_from_hlc(_daily(date(2020, 1, 1), 90), _ramp_hlc(90))
+    base = _bars_from_hlc(dates, _textbook_base_hlc())
+    # A clean base names no failing condition; a ramp names base_length.
+    assert diagnose_detection(base, dates[104]) is None
+    assert diagnose_detection(ramp, _daily(date(2020, 1, 1), 90)[89]) == COND_BASE_LENGTH
+
+
+# -- blind-spot trades get no funnel row -----------------------------------
+
+
+def test_blind_spot_trade_gets_no_funnel_row(store: Store):
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "RAMP", _bars_from_hlc(dates, _ramp_hlc(90)))
+    trades = parse_trades(
+        [
+            _funnel_record("RAMP", dates[89] + timedelta(days=1)),
+            _funnel_record("ZZZ", date(2020, 3, 1)),  # no bars -> blind spot
+        ]
+    )
+
+    report = run_funnel(trades, store)
+
+    assert [r.ticker for r in report.rows] == ["RAMP"]  # ZZZ is not a stage failure
+
+
+# -- continuation entries stay in every denominator ------------------------
+
+
+def test_continuation_entry_stays_in_all_denominators(store: Store):
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "CONT", _bars_from_hlc(dates, [(101, 99, 100)] * 90))
+    # Two entries three sessions apart in the same ticker -> the second is an add.
+    trades = parse_trades(
+        [
+            _funnel_record("CONT", dates[85]),
+            _funnel_record("CONT", dates[88]),
+        ]
+    )
+
+    report = run_funnel(trades, store)
+
+    by_entry = {r.entry_date: r for r in report.rows}
+    assert by_entry[dates[85]].continuation is False
+    assert by_entry[dates[88]].continuation is True
+    assert report.continuation_count == 1
+    # The continuation entry stays in every stage's headline denominator...
+    assert report.liquidity.total == 2
+    assert report.detection.total == 2
+    # ...and the ex-continuation figure — emitted alongside, never alone — drops it.
+    assert report.liquidity.total_ex_continuation == 1
+    assert report.detection.total_ex_continuation == 1
+
+
+# -- the report names three stages in funnel order -------------------------
+
+
+def test_funnel_report_names_three_stages_in_order(store: Store):
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "RAMP", _bars_from_hlc(dates, _ramp_hlc(90)))
+    report = run_funnel(
+        parse_trades([_funnel_record("RAMP", dates[89] + timedelta(days=1))]),
+        store,
+        burn_in=0,
+    )
+
+    assert isinstance(report, FunnelReport)
+    assert report.stages == FUNNEL_STAGES == ("liquidity", "decile", "detection")
+    # Per-stage recall is emitted separately for each of the three; no blended number.
+    assert report.liquidity.stage == STAGE_LIQUIDITY
+    assert report.decile.stage == STAGE_DECILE
+    assert report.detection.stage == STAGE_DETECTION
+
+
+# -- the decile stage, folded in off the forward chain's ranks (A1) --------
+
+
+def _flat_hlc(n: int, price: float = 100.0):
+    return [(price, price, price)] * n
+
+
+def _rising_hlc(n: int, start: float = 50.0):
+    """A monotonic climb: a strong prior move so the name tops its 1m decile."""
+    return [(start + i, start + i, start + i) for i in range(n)]
+
+
+def test_funnel_row_passes_liquidity_fails_decile(store: Store):
+    """A ticker that is a field member (passes liquidity) but ranks outside the
+    top decile of the detection lookbacks fails exactly the decile stage — the
+    stage between liquidity and detection (PRD user story 8)."""
+    dates = _daily(date(2020, 1, 1), 40)
+    # LAG is flat (a dead 1m return); HI climbs hard (tops the 1m decile). Both
+    # clear the $20M floor and 20-bar listing age, so both are field members.
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
+    store.append_bars("US", "HI", _bars_from_hlc(dates, _rising_hlc(40)))
+    entry = dates[39] + timedelta(days=1)
+
+    report = run_funnel(parse_trades([_funnel_record("LAG", entry)]), store, burn_in=0)
+
+    (row,) = report.rows
+    assert row.eval_session == dates[39]
+    assert row.liquidity_pass is True     # a member: it cleared the floor
+    assert row.decile_present is True      # present in the field
+    assert row.decile_pass is False        # but ranked outside the top decile
+    assert row.first_failing_stage == STAGE_DECILE
+    # Per-stage recall is separate: liquidity kept it, the decile dropped it.
+    assert report.liquidity.passed == 1
+    assert report.decile.passed == 0
+
+
+def test_funnel_distinguishes_absent_from_field_from_outside_decile(store: Store):
+    """A ticker absent from the field at the eval session (not a member) is kept
+    apart from one present but ranked outside the decile — a coverage gap versus a
+    ranking verdict (PRD "A1 funnel")."""
+    dates = _daily(date(2020, 1, 1), 40)
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
+    store.append_bars("US", "HI", _bars_from_hlc(dates, _rising_hlc(40)))
+    # GHOST trades liquidly but only for 15 sessions — short of the 20-bar listing
+    # age — so it is never a field member: absent, not ranked.
+    store.append_bars("US", "GHOST", _bars_from_hlc(dates[25:], _flat_hlc(15)))
+    entry = dates[39] + timedelta(days=1)
+
+    report = run_funnel(
+        parse_trades(
+            [_funnel_record("LAG", entry), _funnel_record("GHOST", entry)]
+        ),
+        store,
+        burn_in=0,
+    )
+
+    by_ticker = {r.ticker: r for r in report.rows}
+    # LAG is in the field but below the decile.
+    assert by_ticker["LAG"].decile_present is True
+    assert by_ticker["LAG"].decile_pass is False
+    # GHOST cleared the floor yet never entered the field: absent, distinguished.
+    assert by_ticker["GHOST"].liquidity_pass is True
+    assert by_ticker["GHOST"].decile_present is False
+    assert by_ticker["GHOST"].decile_pass is False
+
+
+def test_funnel_decile_output_carries_blind_spot_coverage(store: Store):
+    """The decile depends on the replayed field's population, so the report carries
+    a coverage number against the blind-spot tickers (PRD user story 22)."""
+    dates = _daily(date(2020, 1, 1), 40)
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
+    entry = dates[39] + timedelta(days=1)
+
+    report = run_funnel(
+        parse_trades([_funnel_record("LAG", entry)]),
+        store,
+        burn_in=0,
+        blind_spot_tickers=["ZZZ", "YYY", "XXX"],
+    )
+
+    assert report.blind_spot_count == 3
+
+
+# -- the forward replay chain (A2): universe membership + ranks ------------
+
+
+def _dv_bar(session: date, volume: int, close: float = 10.0) -> Bar:
+    """A synthetic bar with an authored dollar volume (``close × volume``)."""
+    return Bar(
+        session=session,
+        open=close,
+        high=close,
+        low=close,
+        close=close,
+        adj_close=close,
+        volume=volume,
+    )
+
+
+def _calendar(n: int, start: date = date(2020, 1, 1)) -> list[date]:
+    """``n`` consecutive calendar days — the observed replay calendar for a test.
+
+    The app reads the calendar off the union of bar dates, never a holiday table,
+    so consecutive days are a perfectly good synthetic exchange calendar."""
+    from datetime import timedelta
+
+    return [start + timedelta(days=k) for k in range(n)]
+
+
+def _seed_series(store: Store, symbol: str, sessions: list[date], volumes: list[int]):
+    store.append_bars(
+        "US",
+        symbol,
+        [_dv_bar(s, v) for s, v in zip(sessions, volumes)],
+    )
+
+
+def test_membership_reflects_prior_session_through_stickiness(store: Store):
+    """Path dependence made concrete: two names with identical *current* bars,
+    one a member and one not, purely because one crossed the floor earlier and is
+    held in the hysteresis band. Rebuilding a single session in isolation could
+    not tell them apart — only the forward chain can."""
+    sessions = _calendar(44)
+    # STICKY clears 1.0× the $20M floor for 24 sessions (dv $30M), then drops into
+    # the 0.8–1.0× hysteresis band (dv $18M) for the rest.
+    _seed_series(store, "STICKY", sessions, [3_000_000] * 24 + [1_800_000] * 20)
+    # FRESH sits in the band the whole time (dv $18M) — never crosses 1.0×.
+    _seed_series(store, "FRESH", sessions, [1_800_000] * 44)
+
+    # burn_in=0 so every session is a reported result; the chain still cold-starts
+    # with empty prior membership on the first session by construction.
+    fields = replay_chain(store, "US", burn_in=0)
+
+    assert [f.session for f in fields] == sessions
+    last = fields[-1]
+    # Same trailing-20 dollar volume on the last session, opposite membership.
+    assert "STICKY" in last.members
+    assert "FRESH" not in last.members
+    # Cold start: the first session has no member (no name has 20 bars yet).
+    assert fields[0].members == []
+
+
+def test_a_gapped_session_sequence_is_a_hard_error(store: Store):
+    """Replaying only some sessions would make membership depend on which dates
+    were picked, so a gap in the sequence is rejected rather than silently run."""
+    sessions = _calendar(5)
+    _seed_series(store, "AAA", sessions, [3_000_000] * 5)
+
+    calendar = store.sessions("US")
+    gapped = [calendar[0], calendar[1], calendar[3]]  # skips calendar[2]
+
+    with pytest.raises(GapError):
+        replay_chain(store, "US", sessions=gapped, burn_in=0)
+
+
+def test_burn_in_sessions_are_computed_but_excluded_from_results(store: Store):
+    """Burn-in sessions settle the hysteresis band before any measured session:
+    they are computed and persisted, but never appear in the reported field."""
+    sessions = _calendar(30)
+    _seed_series(store, "AAA", sessions, [3_000_000] * 30)
+
+    fields = replay_chain(store, "US", burn_in=25)
+
+    # Only the sessions past the burn-in are reported.
+    assert [f.session for f in fields] == sessions[25:]
+    # But the burn-in sessions were still computed and persisted: a member on a
+    # burn-in session is in the store even though it is absent from the results.
+    burned = sessions[24]
+    assert burned not in [f.session for f in fields]
+    assert "AAA" in store.universe("US", burned)
+
+
+def test_session_field_carries_coverage_against_blind_spots(store: Store):
+    """Every field row carries a coverage number against the blind-spot tickers,
+    so a ranking result is never read without knowing how much of the field was
+    missing (PRD user story 22)."""
+    sessions = _calendar(22)
+    _seed_series(store, "AAA", sessions, [3_000_000] * 22)
+
+    fields = replay_chain(
+        store, "US", burn_in=0, blind_spot_tickers=["ZZZ", "YYY", "XXX"]
+    )
+
+    last = fields[-1]
+    assert last.blind_spot_count == 3
+    assert last.field_size == len(last.members) == 1
+
+
+def test_synthesize_instruments_one_candidate_per_symbol_with_bars(store: Store):
+    """Instruments are synthesised from the bars present, since the app's
+    enumeration returns only today's listing snapshot (the survivorship hole)."""
+    sessions = _calendar(3)
+    _seed_series(store, "BBB", sessions, [1_000] * 3)
+    _seed_series(store, "AAA", sessions, [1_000] * 3)
+
+    instruments = synthesize_instruments(store, "US")
+
+    assert [i.symbol for i in instruments] == ["AAA", "BBB"]
+    assert all(i.role == "candidate" for i in instruments)
+    assert all(i.market == "US" for i in instruments)
+
+
+def test_burn_in_default_matches_the_prd_window():
+    assert BURN_IN_SESSIONS == 126
+
+
+# -- the replayed field (A2): detections + the seven-dimension score -------
+#
+# The field stands on the forward chain: universe -> ranks -> detections ->
+# candidates -> a seven-of-eight-dimension star score. The sector dimension is
+# dropped (its history is unrecoverable), so the score totals out of nine and is
+# always labelled a seven-dimension score. The synthetic textbook base is the
+# same authored geometry the funnel tests use, run here through the whole chain.
+
+
+def _det(symbol: str, cluster_k: int) -> Detection:
+    """A hand-authored detection whose signal vector fixes every score dimension
+    but Tightness, which ``cluster_k`` flips — so two of these differ by exactly
+    the ×2 tightness weight, a clear star-score gap to order on."""
+    return Detection(
+        symbol=symbol,
+        session=date(2020, 1, 2),
+        detector_version=1,
+        trigger=100.0,
+        stop=5.0,
+        stopw_adr=0.5,
+        base_len=10,          # <= 14 -> Base length hit
+        move_gain=30.0,
+        adr=0.06,             # >= 0.05 -> ADR hit
+        close=95.0,
+        cluster_k=cluster_k,  # >= 5 -> Tightness hit
+        cluster_high=100.0,
+        cluster_low=95.0,
+        cluster_range_adr=0.5,
+        line_ok=True,
+        touch_zones=2,
+        overshoot_adr=0.0,
+        slope=0.0,
+        line_end=99.0,
+        base_low=90.0,
+        churn_l=0.4,          # in [0.30, 0.60] -> Orderliness hit
+        sma20_rising=True,    # -> MA support hit
+        dryup=0.9,            # <= 0.95 -> Volume hit
+    )
+
+
+def test_seven_dimension_score_omits_sector_and_totals_out_of_nine(store: Store):
+    """The replayed score drops the sector dimension outright: seven rows, no
+    sector, a ceiling of nine weighted points, and always the seven-dimension
+    label so it can never be confused with the app's ten-point score."""
+    dates = _daily(date(2020, 1, 1), 105)
+    bars = _bars_from_hlc(dates, _textbook_base_hlc())
+    det = detect("BASE", bars, dates[104])
+    assert det is not None
+
+    score = seven_dimension_score(det, prior_move=True)
+
+    dims = [d.dimension for d in score.breakdown]
+    assert "Sector" not in dims
+    assert len(score.breakdown) == 7
+    # The app's published order, with the sector row struck out.
+    assert dims == [
+        "Tightness",
+        "Orderliness",
+        "Prior move",
+        "Base length",
+        "MA support",
+        "Volume",
+        "ADR",
+    ]
+    assert score.max_points == SEVEN_DIM_MAX_POINTS == 9
+    assert 0 <= score.points <= 9
+    assert score.stars == score.points / 2
+    assert score.label == SEVEN_DIM_LABEL
+    assert "seven-dimension" in score.label
+
+
+def test_field_lists_symbols_in_star_order(store: Store):
+    """A field row lists its symbols in star order — score descending. Two
+    detections differing only by the ×2 tightness dimension: the tighter one
+    outranks the looser one, and the order is the score's, not alphabetical."""
+    looser = _det("AAA", cluster_k=3)   # Tightness miss -> lower score
+    tighter = _det("BBB", cluster_k=6)  # Tightness hit  -> higher score
+
+    field = build_field([looser, tighter], ranks=[])
+
+    # BBB scores higher despite sorting after AAA alphabetically -> score-driven.
+    assert [d.symbol for d in field] == ["BBB", "AAA"]
+    assert [d.star_rank for d in field] == [1, 2]
+    assert field[0].score.stars > field[1].score.stars
+    # The tightness ×2 weight is exactly the gap.
+    assert field[0].score.points - field[1].score.points == 2
+
+
+def test_replay_field_detects_over_the_universe_with_a_seven_dim_score(store: Store):
+    """The whole chain end to end: a member ranks top decile, the app's detector
+    fires on its base, and the field carries it with a seven-dimension score."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+
+    # burn_in=104 measures only the last session, where the base ends.
+    (field,) = replay_field(store, "US", burn_in=104)
+
+    assert field.session == dates[104]
+    assert "BASE" in field.members
+    assert [d.symbol for d in field.detections] == ["BASE"]
+    scored = field.detections[0]
+    assert scored.star_rank == 1
+    assert scored.score.label == SEVEN_DIM_LABEL
+    assert scored.score.max_points == 9
+
+
+def test_not_taken_detection_marked_over_the_chain(store: Store):
+    """Over the whole chain: he entered a trade elsewhere on the field session,
+    so the field's member in another name is a not-taken detection (a
+    comparison-group member, never a rejection)."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+
+    elsewhere = parse_trades([_funnel_record("OTHER", dates[104])])
+    (field,) = replay_field(store, "US", trades=elsewhere, burn_in=104)
+
+    (scored,) = field.detections
+    assert scored.symbol == "BASE"
+    assert scored.not_taken is True
+    assert field.not_taken == [scored]
+
+
+def test_not_taken_flag_distinguishes_taken_from_untaken_and_quiet_sessions():
+    """The not-taken predicate: a member is not-taken only on a session an entry
+    was made and only in a name other than the one taken. On a session with no
+    entry at all, nothing is a not-taken detection."""
+    det = _det("BASE", cluster_k=6)
+
+    # Entered elsewhere -> not-taken.
+    (elsewhere,) = build_field([det], [], entered={"OTHER"}, any_entry=True)
+    assert elsewhere.not_taken is True
+    # The name he actually took -> taken, not not-taken.
+    (taken,) = build_field([det], [], entered={"BASE"}, any_entry=True)
+    assert taken.not_taken is False
+    # A session with no entry at all -> not a comparison group.
+    (quiet,) = build_field([det], [], any_entry=False)
+    assert quiet.not_taken is False
+
+
+def test_field_coverage_reflects_blind_spot_tickers_in_scope(store: Store):
+    """Every field output carries a coverage number against the blind-spot
+    tickers in its scope (PRD user story 22)."""
+    sessions = _calendar(22)
+    _seed_series(store, "AAA", sessions, [3_000_000] * 22)
+
+    fields = replay_field(
+        store, "US", burn_in=0, blind_spot_tickers=["ZZZ", "YYY"]
+    )
+
+    last = fields[-1]
+    assert isinstance(last, FieldSession)
+    assert last.blind_spot_count == 2
+    assert "AAA" in last.members
+
+
+# -- A2 reporting (issue #120): the top-thirty hit and the star distribution --
+#
+# Where the trade sat within that night's replayed field — deliberately only two
+# statements per trade: whether it appeared at all, and whether it landed inside
+# the top thirty by star score (the board size the trader reads). Per session:
+# the star distribution of his picks against the field. No percentile is emitted.
+
+
+def _scored(symbol: str, rank: int, stars: float) -> ScoredDetection:
+    """A field candidate at a fixed star rank and score — the assertion surface."""
+    score = SevenDimScore(
+        stars=stars,
+        points=int(stars * 2),
+        max_points=SEVEN_DIM_MAX_POINTS,
+        breakdown=[],
+        label=SEVEN_DIM_LABEL,
+    )
+    return ScoredDetection(
+        symbol=symbol,
+        detection=_det(symbol, cluster_k=6),
+        score=score,
+        star_rank=rank,
+        not_taken=False,
+    )
+
+
+def _field_of(session: date, symbols_in_star_order: list[str]) -> FieldSession:
+    """A field of the given symbols in star order (rank 1 first), scores descending."""
+    scored = [
+        _scored(sym, rank=i + 1, stars=(len(symbols_in_star_order) - i) / 2)
+        for i, sym in enumerate(symbols_in_star_order)
+    ]
+    return FieldSession(
+        session=session,
+        burn_in=False,
+        members=list(symbols_in_star_order),
+        detections=scored,
+        blind_spot_count=0,
+    )
+
+
+def test_top_thirty_flag_matches_position_in_a_field_of_known_star_order():
+    """A trade's top-thirty flag matches its position in a field of known star
+    order: rank 30 is inside the board, rank 31 is outside it. The cut is the
+    app's board size, not a separately chosen constant."""
+    session = date(2020, 6, 1)
+    field = _field_of(session, [f"S{i:02d}" for i in range(35)])  # 35 in star order
+
+    inside = parse_trades([_funnel_record("S29", date(2020, 6, 2))])[0]   # rank 30
+    outside = parse_trades([_funnel_record("S30", date(2020, 6, 2))])[0]  # rank 31
+
+    assert BOARD_SIZE == 30
+    inside_p = place_trade(inside, session, field)
+    outside_p = place_trade(outside, session, field)
+
+    assert inside_p.in_field is True and inside_p.top_thirty is True
+    assert outside_p.in_field is True and outside_p.top_thirty is False
+
+
+def test_absent_from_field_is_distinguished_from_present_but_outside_top_thirty():
+    """A trade absent from the field is distinguished from one present but outside
+    the top thirty: both fail the top-thirty flag, but only one appeared at all."""
+    session = date(2020, 6, 1)
+    field = _field_of(session, [f"S{i:02d}" for i in range(35)])
+
+    present_outside = parse_trades([_funnel_record("S34", date(2020, 6, 2))])[0]
+    absent = parse_trades([_funnel_record("GHOST", date(2020, 6, 2))])[0]
+
+    present_p = place_trade(present_outside, session, field)
+    absent_p = place_trade(absent, session, field)
+
+    assert present_p.in_field is True and present_p.top_thirty is False
+    assert absent_p.in_field is False and absent_p.top_thirty is False
+    # No eval-session field at all: still recorded, still absent.
+    none_p = place_trade(absent, session, None)
+    assert none_p.in_field is False and none_p.top_thirty is False
+
+
+def test_no_rank_position_or_percentile_is_emitted_on_a_placement():
+    """No percentile or rank-position figure is emitted anywhere: a placement
+    carries the two coarse statements and a star score, never a rank or percentile."""
+    session = date(2020, 6, 1)
+    field = _field_of(session, ["AAA", "BBB"])
+    p = place_trade(parse_trades([_funnel_record("AAA", date(2020, 6, 2))])[0], session, field)
+
+    names = {f.name for f in dataclasses.fields(p)}
+    assert "star_rank" not in names
+    assert not any("percentile" in n or "rank" in n for n in names)
+
+
+def test_star_distribution_from_stars_buckets_by_score():
+    """The star distribution buckets scores; the field's spread and his picks'
+    spread are the prize — the shape, not a percentile."""
+    dist = StarDistribution.from_stars([4.5, 4.5, 2.0, 0.0])
+    assert dist.total == 4
+    assert dist.counts[4.5] == 2
+    assert dist.counts[2.0] == 1
+    assert dist.counts[0.0] == 1
+
+
+def test_run_placement_reports_hits_distribution_coverage_and_scope(store: Store):
+    """End to end over the chain: his executed trade is placed in that night's
+    field with a top-thirty hit, the picks distribution is reported against the
+    field's on the same session, coverage rides the report, and the scope is US
+    2019–2022 — never presented as an IDX expectation."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    # An entry the day after the base ends -> eval session is dates[104], the one
+    # measured session (burn_in=104), where the app's detector fires on BASE.
+    trades = parse_trades([_funnel_record("BASE", dates[104] + timedelta(days=1))])
+
+    report = run_placement(
+        trades, store, burn_in=104, blind_spot_tickers=["ZZZ", "YYY"]
+    )
+
+    assert isinstance(report, PlacementReport)
+    (placement,) = report.placements
+    assert placement.ticker == "BASE"
+    assert placement.eval_session == dates[104]
+    assert placement.in_field is True
+    assert placement.top_thirty is True          # lone member -> rank 1
+    assert placement.stars is not None
+    # The board size is the app's, not a separate constant.
+    assert report.board_size == BOARD_SIZE == 30
+    # His picks distribution against the field's on the same session.
+    assert report.picks.total == 1
+    assert report.field.total >= 1
+    assert report.picks.counts[placement.stars] == 1
+    # Coverage rides every output; scope is US 2019–2022, not IDX.
+    assert report.blind_spot_count == 2
+    assert "US" in report.scope and "2019" in report.scope
+    assert "IDX" not in report.scope
+    assert report.scope == SCOPE
+
+
+def test_blind_spot_trade_gets_no_placement_row(store: Store):
+    """A blind-spot trade (ticker with no bars) is not placed — it is a blind
+    spot, counted in coverage, never an absent-from-field verdict."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    trades = parse_trades(
+        [
+            _funnel_record("BASE", dates[104] + timedelta(days=1)),
+            _funnel_record("ZZZ", date(2020, 3, 1)),  # no bars -> blind spot
+        ]
+    )
+
+    report = run_placement(trades, store, burn_in=104, blind_spot_tickers=["ZZZ"])
+
+    assert [p.ticker for p in report.placements] == ["BASE"]
+
+
+# -- A3 outcome regression: score dimensions against MFE (ticket #121) ------
+#
+# The feature vector is reconstructed at the evaluation session (the last session
+# strictly before entry): the seven surviving score dimensions read off the app's
+# detection, plus the trade's own stop width in ADR and the ADR at entry. Each
+# dimension is regressed against MFE across executed trades; a dimension with no
+# spread in the sample is untestable, not absent. The sector dimension is gone
+# throughout, and realised R rides alongside as a descriptive statistic only.
+
+
+def test_regression_feature_vector_matches_hand_computed_values(store: Store):
+    """A feature vector is emitted per executed trade at the evaluation session,
+    and its values match what the synthetic bars hand-compute: the seven detection
+    dimensions, the ADR at entry, and the trade's own stop as a multiple of it."""
+    dates = _daily(date(2020, 1, 1), 105)
+    bars = _bars_from_hlc(dates, _textbook_base_hlc())
+    store.append_bars("US", "BASE", bars)
+    entry = dates[104] + timedelta(days=1)  # eval session is the last bar
+
+    # burn_in=104 measures only the last session, where the base ends.
+    report = run_regression(
+        parse_trades([_funnel_record("BASE", entry)]), store, burn_in=104
+    )
+
+    (vec,) = report.feature_vectors
+    assert vec.ticker == "BASE"
+    assert vec.eval_session == dates[104]
+    assert vec.detected is True
+    # The seven dimensions match the app's own detection + seven-dim score, in
+    # published order with the sector row struck.
+    det = detect("BASE", bars, dates[104])
+    assert vec.dimensions == seven_dimension_score(det, prior_move=True).breakdown
+    assert [d.dimension for d in vec.dimensions] == [
+        "Tightness", "Orderliness", "Prior move",
+        "Base length", "MA support", "Volume", "ADR",
+    ]
+    # ADR at entry: the flat top's 100.5/99.5 bars give ADR = 100.5/99.5 - 1.
+    expected_adr = 100.5 / 99.5 - 1.0
+    assert vec.adr_at_entry == pytest.approx(expected_adr)
+    # Stop width in ADR: his 3% stop as a multiple of that ADR.
+    assert vec.stop_width_adr == pytest.approx((3.0 / 100.0) / expected_adr)
+    # MFE (10sma) is the regression target; realised R rides alongside.
+    assert vec.mfe == 40.0
+    assert vec.r == 8.0
+
+
+def test_regression_dimension_without_spread_is_untestable():
+    """A dimension every trade shares — no spread — is labelled untestable, its
+    correlation absent; a dimension that varies is testable and reports one. The
+    sector dimension is absent throughout."""
+    # Two detections identical but for tightness (cluster_k): Base length is hit
+    # by both (no spread), Tightness by only one (spread).
+    hi = build_feature_vector(
+        ticker="AAA", entry_date=date(2020, 1, 3), eval_session=date(2020, 1, 2),
+        det=_det("AAA", cluster_k=6), prior_move=True,
+        adr_at_entry=0.06, stop_pct=3.0, mfe=40.0, r=8.0,
+    )
+    lo = build_feature_vector(
+        ticker="BBB", entry_date=date(2020, 1, 3), eval_session=date(2020, 1, 2),
+        det=_det("BBB", cluster_k=3), prior_move=True,
+        adr_at_entry=0.06, stop_pct=3.0, mfe=10.0, r=2.0,
+    )
+
+    stats = {s.dimension: s for s in regress_dimensions([hi, lo])}
+
+    assert "Sector" not in stats
+    assert set(stats) == {
+        "Tightness", "Orderliness", "Prior move",
+        "Base length", "MA support", "Volume", "ADR",
+    }
+    # Base length: both hit, no variance -> untestable, no correlation.
+    assert stats["Base length"].untestable is True
+    assert stats["Base length"].correlation is None
+    assert stats["Base length"].spread == 0.0
+    # Tightness: one hit, one miss -> real spread, a correlation is reported.
+    assert stats["Tightness"].untestable is False
+    assert stats["Tightness"].spread > 0.0
+    assert stats["Tightness"].correlation is not None
+    # Prior move is untestable by construction (every detection cleared the gate).
+    assert stats["Prior move"].untestable is True
+
+
+def test_regression_reports_distributions_and_drops_sector(store: Store):
+    """Realised R is reported as a descriptive statistic, and stop width in ADR
+    and ADR at entry as distributions (the two #114 findings). The sector
+    dimension is absent from the per-dimension stats, and coverage is carried."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    entry = dates[104] + timedelta(days=1)
+
+    report = run_regression(
+        parse_trades([_funnel_record("BASE", entry)]),
+        store,
+        burn_in=104,
+        blind_spot_tickers=["ZZZ", "YYY"],
+    )
+
+    assert isinstance(report, OutcomeRegression)
+    assert "Sector" not in {s.dimension for s in report.dimension_stats}
+    assert isinstance(report.dimension_stats[0], DimensionStat)
+    # Realised R alongside, never the regression target.
+    assert report.r_distribution is not None
+    assert report.r_distribution.median == 8.0
+    # The two preliminary #114 findings, reconstructed as distributions.
+    expected_adr = 100.5 / 99.5 - 1.0
+    assert report.adr_distribution.median == pytest.approx(expected_adr)
+    assert report.stop_width_adr_distribution.median == pytest.approx(
+        (3.0 / 100.0) / expected_adr
+    )
+    # Coverage rides on the field-derived output (PRD user story 22).
+    assert report.blind_spot_count == 2
+
+
+def test_distribution_percentiles_are_linear_interpolated():
+    """The distribution helper's quartiles interpolate linearly (numpy default),
+    so a hand-worked fixture value lands exactly."""
+    dist = distribution([1.0, 2.0, 3.0, 4.0, 5.0])
+    assert dist.minimum == 1.0
+    assert dist.p25 == 2.0
+    assert dist.median == 3.0
+    assert dist.p75 == 4.0
+    assert dist.maximum == 5.0
+    assert dist.mean == 3.0
+    assert dist.share_le(3.0) == pytest.approx(0.6)
+    assert distribution([]) is None
+
+
+# -- A3 selection contrast: executed trades vs not-taken detections (#122) ---
+#
+# The rubric's other question — which dimensions he *selects* on, as distinct from
+# which *predict* a run. Dimension hit distributions are compared between his
+# executed-trade detections (the taken members) and the not-taken detections (the
+# field he passed over the same night). There is no outcome variable at all, and
+# the not-taken detections are a comparison group, never a rejection. This partly
+# repairs the outcome regression's range restriction: a dimension flat across his
+# trades may vary once the not-taken detections restore the spread.
+
+
+def _scored_det(symbol: str, cluster_k: int, *, taken=False, not_taken=False):
+    """A field candidate carrying a real seven-dimension breakdown: ``cluster_k``
+    flips the Tightness dimension, every other dimension is hit by construction."""
+    det = _det(symbol, cluster_k)
+    return ScoredDetection(
+        symbol=symbol,
+        detection=det,
+        score=seven_dimension_score(det, prior_move=True),
+        star_rank=1,
+        not_taken=not_taken,
+        taken=taken,
+    )
+
+
+def _contrast_field(session: date, taken, not_taken, *, blind_spot_count=0):
+    """A field session carrying the given taken and not-taken detections."""
+    return FieldSession(
+        session=session,
+        burn_in=False,
+        members=[d.symbol for d in taken + not_taken],
+        detections=taken + not_taken,
+        blind_spot_count=blind_spot_count,
+    )
+
+
+def test_selection_contrast_over_a_fixture_field_with_known_members():
+    """The contrast compares dimension hit rates between his picks (taken) and the
+    not-taken detections over a fixture field of known members. Tightness, which he
+    selects on here, is hit by every pick and by only half the field he passed
+    over; the sector dimension is absent, and coverage is carried."""
+    taken = [_scored_det("P1", 6, taken=True), _scored_det("P2", 6, taken=True)]
+    not_taken = [
+        _scored_det("N1", 3, not_taken=True),  # Tightness miss
+        _scored_det("N2", 6, not_taken=True),  # Tightness hit
+    ]
+    field = _contrast_field(date(2020, 6, 1), taken, not_taken, blind_spot_count=4)
+
+    report = build_contrast([field], blind_spot_count=4)
+
+    assert isinstance(report, SelectionContrast)
+    by_dim = {c.dimension: c for c in report.dimension_contrasts}
+    assert "Sector" not in by_dim
+    assert set(by_dim) == {
+        "Tightness", "Orderliness", "Prior move",
+        "Base length", "MA support", "Volume", "ADR",
+    }
+    # He selects on Tightness: every pick hits it, half the passed-over field does.
+    assert by_dim["Tightness"].taken_hit_rate == 1.0
+    assert by_dim["Tightness"].not_taken_hit_rate == 0.5
+    # Base length is hit by everyone (the detector requires it) -> no selection.
+    assert by_dim["Base length"].taken_hit_rate == 1.0
+    assert by_dim["Base length"].not_taken_hit_rate == 1.0
+    assert report.n_executed == 2
+    assert report.n_not_taken == 2
+    assert report.blind_spot_count == 4
+
+
+def test_selection_contrast_restores_testability_from_not_taken_detections():
+    """A dimension flat across his trades alone (untestable in the outcome
+    regression) but varying once the not-taken detections are added is flagged as
+    testability-restored — the range-restriction repair. A dimension flat across
+    both groups stays untestable and is not restored."""
+    taken = [_scored_det("P1", 6, taken=True), _scored_det("P2", 6, taken=True)]
+    not_taken = [
+        _scored_det("N1", 3, not_taken=True),
+        _scored_det("N2", 3, not_taken=True),
+    ]
+
+    by_dim = {c.dimension: c for c in contrast_dimensions(taken, not_taken)}
+
+    # Tightness: all picks hit (no spread within his trades -> untestable there),
+    # the not-taken detections miss it -> the pooled sample has spread -> restored.
+    tight = by_dim["Tightness"]
+    assert tight.untestable_within_executed is True
+    assert tight.testable_in_contrast is True
+    assert tight.testability_restored is True
+    # Base length: hit by everyone in both groups -> no spread anywhere -> the
+    # comparison group restores nothing.
+    base = by_dim["Base length"]
+    assert base.untestable_within_executed is True
+    assert base.testable_in_contrast is False
+    assert base.testability_restored is False
+
+
+def test_selection_contrast_testable_within_executed_is_not_flagged_untestable():
+    """A dimension that already varies within his trades alone is not labelled
+    untestable within the executed set."""
+    taken = [_scored_det("P1", 6, taken=True), _scored_det("P2", 3, taken=True)]
+    by_dim = {c.dimension: c for c in contrast_dimensions(taken, [])}
+
+    assert by_dim["Tightness"].untestable_within_executed is False
+    assert by_dim["Tightness"].taken_spread > 0.0
+
+
+def test_selection_contrast_carries_no_outcome_variable():
+    """No outcome variable appears anywhere in the selection contrast — not on the
+    report, not on a per-dimension row. This measures selection, not prediction."""
+    contrast_names = {f.name for f in dataclasses.fields(SelectionContrast)}
+    dim_names = {f.name for f in dataclasses.fields(DimensionContrast)}
+    forbidden = ("mfe", "gain", "outcome", "correlation", "realis", "return", "_r_")
+    for name in contrast_names | dim_names:
+        assert not any(bad in name.lower() for bad in forbidden), name
+
+
+def test_selection_contrast_describes_a_comparison_group_and_no_precision():
+    """The output describes the not-taken detections as a comparison group, states
+    precision is not measurable, claims no false-positive rate, and never labels
+    the group rejected, declined or negative."""
+    report = build_contrast(
+        [_contrast_field(date(2020, 6, 1),
+                         [_scored_det("P1", 6, taken=True)],
+                         [_scored_det("N1", 3, not_taken=True)])],
+        blind_spot_count=0,
+    )
+    assert report.comparison_group_note == COMPARISON_GROUP_NOTE
+    assert report.precision_note == PRECISION_NOTE
+    assert "comparison group" in report.comparison_group_note.lower()
+    assert "precision is not measurable" in report.precision_note.lower()
+    assert "false-positive" in report.precision_note.lower()
+
+    text = format_contrast_report(report).lower()
+    assert "comparison group" in text
+    assert "precision is not measurable" in text
+    for label in ("reject", "declined", "decline", "negative"):
+        assert label not in text
+
+
+def test_selection_contrast_and_outcome_regression_remain_separate():
+    """The two A3 analyses stay apart: each runs over its own store through its own
+    code path, returns a distinct result type, and neither report carries the
+    other's table — no code path merges them into one figure. (Each runs the
+    forward chain, which persists to its store write-once, so the two cannot share
+    one store — a structural guarantee they are separate runs.)"""
+    dates = _daily(date(2020, 1, 1), 105)
+    trades = parse_trades([_funnel_record("BASE", dates[104] + timedelta(days=1))])
+
+    reg_store = Store.memory()
+    con_store = Store.memory()
+    try:
+        reg_store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+        con_store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+        regression = run_regression(trades, reg_store, burn_in=104)
+        contrast = run_contrast(trades, con_store, burn_in=104)
+    finally:
+        reg_store.close()
+        con_store.close()
+
+    assert isinstance(regression, OutcomeRegression)
+    assert isinstance(contrast, SelectionContrast)
+    reg_fields = {f.name for f in dataclasses.fields(OutcomeRegression)}
+    con_fields = {f.name for f in dataclasses.fields(SelectionContrast)}
+    # The contrast's table is not on the regression, and vice versa.
+    assert "dimension_contrasts" not in reg_fields
+    assert "dimension_stats" not in con_fields
+    assert "feature_vectors" not in con_fields
+    assert "mfe_distribution" not in con_fields
+
+
+def test_run_contrast_splits_his_pick_from_the_not_taken_field(store: Store):
+    """End to end over the chain: on a night he entered one detected name, that
+    name is his taken pick and the other detected member is a not-taken detection;
+    coverage rides the report."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASEA", _bars_from_hlc(dates, _textbook_base_hlc()))
+    store.append_bars("US", "BASEB", _bars_from_hlc(dates, _textbook_base_hlc()))
+    # Entry on the one measured session (burn_in=104): BASEA taken, BASEB not-taken.
+    trades = parse_trades([_funnel_record("BASEA", dates[104])])
+
+    report = run_contrast(
+        trades, store, burn_in=104, blind_spot_tickers=["ZZZ", "YYY"]
+    )
+
+    assert isinstance(report, SelectionContrast)
+    assert report.n_executed == 1     # BASEA, the name he entered
+    assert report.n_not_taken == 1    # BASEB, present but not entered
+    assert report.blind_spot_count == 2

@@ -160,13 +160,29 @@ counterfactual. Never blur it with the executed trade's entry.
 _Avoid_: exit, result.
 
 **Replayable trade**:
-An executed trade whose ticker still has bars in the store. 686 of 827.
+An executed trade whose ticker has bars in the replay store. 658 of 828. Its complement is
+the blind spot, never a funnel-stage failure — a trade the store cannot see was never
+offered to a gate.
 
 **Blind-spot ticker**:
-A ticker in the reference set with no bars in the store, because the provider returns
-nothing for delisted, acquired or renamed names. 81 of 312 tickers, 141 trades, 11.7% of
-total R. The measured size of the store's survivorship hole.
-_Avoid_: missing ticker, delisted.
+A ticker in the reference set the replay store holds no usable bars for, so no trade of its
+can be evaluated at all. 91 of 312 tickers, 170 trades, 18.1% of total R — the measured size
+of the store's survivorship hole. Measured **in the replay window**, not over all history:
+the operative question is whether the trade can be replayed, which is stricter than whether
+the provider still answers to the symbol.
+_Avoid_: missing ticker, delisted (delisting is one cause of a blind spot, not the term for
+it — see **Recycled symbol** for the other).
+
+**Recycled symbol**:
+A ticker whose bars belong to a *different* listing than the trade paired with it, because
+the symbol was reassigned after the original company left the market. The other half of
+survivorship, and the dangerous half: a delisted name is **absent** and fails loudly, while
+a recycled one is **silent** — it resolves, it has bars, and replaying against them would
+score one company's trade on another company's price history. Ten are known in the reference
+set (APXT, BNKU, EYES, FNGU, LAC, LAZR, NRGU, SI, SPWR, USLV). Caught by a window check —
+does the ticker have bars covering this trade's entry? — never by a fetch.
+_Avoid_: renamed, reused ticker. A rename carries one company's history forward under a new
+symbol; recycling puts a different company under an old one.
 
 **Funnel stage**:
 One gate an executed trade must pass for the app to have surfaced it, evaluated at the

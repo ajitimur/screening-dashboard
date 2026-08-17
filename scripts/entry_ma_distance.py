@@ -177,12 +177,19 @@ def measure(trades: list[dict], frames: dict[str, pd.DataFrame],
         close = prior["Close"].astype(float)
         sma10 = close.iloc[-10:].mean()
         sma20 = close.iloc[-20:].mean()
+        # §5 names the 10/20/50-day together, so the 50 is measured too — but a
+        # 50-bar mean needs 50 bars, and the minimum to qualify at all is 25.
+        # Rather than drop the young names (they are a real part of his book and
+        # dropping them would bias the 10/20 results), d50 is left NaN for them
+        # and every SMA50 statistic is reported over its own smaller n.
+        sma50 = close.iloc[-50:].mean() if len(close) >= 50 else np.nan
         adr = float((prior["High"].astype(float) / prior["Low"].astype(float) - 1)
                     .iloc[-20:].mean()) * 100
 
         rows.append(dict(
             ticker=ticker, date=entry_date.date(), entry=entry,
             d10=(entry / sma10 - 1) * 100, d20=(entry / sma20 - 1) * 100,
+            d50=(entry / sma50 - 1) * 100, bars_prior=len(close),
             adr=adr, stop_pct=t["stopPercentage"] * 100,
             rr10sma=t.get("rr10sma"), gain10sma_pct=t.get("gain10smaPct"),
             mae10sma_pct=t.get("mae10smaPct"),
@@ -192,6 +199,7 @@ def measure(trades: list[dict], frames: dict[str, pd.DataFrame],
     df = pd.DataFrame(rows)
     df["d10_adr"] = df.d10 / df.adr
     df["d20_adr"] = df.d20 / df.adr
+    df["d50_adr"] = df.d50 / df.adr
     faults = df[df.d10.abs() > MAX_PLAUSIBLE_PCT]
     for _, r in faults.iterrows():
         skipped.append((r.ticker, "implausible distance"))
@@ -211,23 +219,38 @@ def report(df: pd.DataFrame, n_trades: int, skipped: list[tuple[str, str]]) -> N
           f"({len(df) / n_trades * 100:.0f}%); skipped {len(skipped)}")
     print("skip reasons:", dict(Counter(r for _, r in skipped)))
 
+    d50 = df.dropna(subset=["d50"])
+    print(f"({len(d50)} of {len(df)} have the 50 bars an SMA50 needs)")
+
     print("\n-- entry distance above the MA, % of the MA (prior-close SMA) --")
     describe("above SMA10", df.d10)
     describe("above SMA20", df.d20)
+    describe("above SMA50", d50.d50)
 
     print("\n-- the same distance in ADR units --")
     describe("SMA10 (xADR)", df.d10_adr)
     describe("SMA20 (xADR)", df.d20_adr)
+    describe("SMA50 (xADR)", d50.d50_adr)
 
     print("\n-- ADR at entry, and the stop he actually set --")
     describe("ADR %", df.adr)
     describe("stop %", df.stop_pct)
 
     print(f"\nentered below SMA10: {(df.d10 < 0).mean() * 100:.1f}%   "
-          f"below SMA20: {(df.d20 < 0).mean() * 100:.1f}%")
+          f"below SMA20: {(df.d20 < 0).mean() * 100:.1f}%   "
+          f"below SMA50: {(d50.d50 < 0).mean() * 100:.1f}%")
     for k in (1, 2):
         print(f"within {k}x ADR of SMA10: {(df.d10_adr.abs() <= k).mean() * 100:.1f}%   "
-              f"of SMA20: {(df.d20_adr.abs() <= k).mean() * 100:.1f}%")
+              f"of SMA20: {(df.d20_adr.abs() <= k).mean() * 100:.1f}%   "
+              f"of SMA50: {(d50.d50_adr.abs() <= k).mean() * 100:.1f}%")
+
+    # Is the 50 telling us anything the 10 does not? If the three MAs are
+    # stacked and close in a healthy setup, d50 is largely d10 plus the MA
+    # spread, and a rule on the 50 would be the 10's rule in disguise.
+    print("\ncorrelation of the distances (Pearson):",
+          f"d10~d20 {d50.d10.corr(d50.d20):.3f}",
+          f"d10~d50 {d50.d10.corr(d50.d50):.3f}",
+          f"d20~d50 {d50.d20.corr(d50.d50):.3f}")
 
     graded = df.dropna(subset=["rr10sma"])
     if graded.empty:
@@ -242,10 +265,11 @@ def report(df: pd.DataFrame, n_trades: int, skipped: list[tuple[str, str]]) -> N
                win_pct=("rr10sma", lambda s: (s > 0).mean() * 100),
                big_pct=("rr10sma", lambda s: (s >= 3).mean() * 100),
                med_mae=("mae10sma_pct", "median"))
-    for col in ("d10_adr", "d20_adr"):
-        label = "SMA10" if col == "d10_adr" else "SMA20"
-        grouped = graded.groupby(pd.cut(graded[col], bins), observed=True).agg(**agg)
-        print(f"\n[{label}]")
+    for col in ("d10_adr", "d20_adr", "d50_adr"):
+        label = f"SMA{col[1:3]}"
+        sub = graded.dropna(subset=[col])
+        grouped = sub.groupby(pd.cut(sub[col], bins), observed=True).agg(**agg)
+        print(f"\n[{label}]  n={len(sub)}")
         print(grouped.round(2).to_string())
 
     print("\n-- where the edge dies: split the book at each SMA10 cutoff --")

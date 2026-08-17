@@ -57,8 +57,15 @@ A name's percentile within its market and lookback on a session. The shared subs
 there is exactly one definition of "strong".
 
 **Decile**:
-Top 10% of a lookback's own population. The gate is the union of the five deciles
-(~29% of the universe, not 10%).
+Top 10% of a lookback's own population. The union of all five lookbacks' deciles is the
+breadth substrate — 27.2% of the universe, not 10%. It is not the gate the detector runs;
+see **Detection gate**.
+
+**Detection gate**:
+The union of the top deciles of the *three* detection lookbacks (`1m`, `3m`, `6m`) — 19.4%
+of the universe. The cut a name must clear before the detector is consulted. Distinct from
+the five-lookback union, and materially tighter; conflating the two misattributes the
+gate's cost.
 
 **Board / leaderboard**:
 Top 30 names by raw return for one market and lookback. Five boards per market.
@@ -113,7 +120,7 @@ silent tiebreak.
 never exceed it.
 
 **Detection**:
-A name with a valid base, cluster and MA catch-up, inside the decile gate, on a session.
+A name with a valid base, cluster and MA catch-up, inside the detection gate, on a session.
 A dated row.
 
 **Break**:
@@ -129,6 +136,12 @@ zero. Derived on read everywhere except a digest, which freezes the value it was
 What the rubric is fitted to encode — the method's revealed selection, evidenced by the
 executed trades. Neither our own grading (a superseded proxy) nor outcome (measured, null).
 _Avoid_: ground truth, benchmark.
+
+**Calibration rule**:
+What evidence licenses loosening a gate. Two limbs — one for score dimensions, one for
+cross-sectional cuts — because precision is not measurable and recall alone would widen
+every gate. Stated in `docs/adr/0002-what-evidence-licenses-loosening-a-gate.md`; not
+restated anywhere else.
 
 **Constant dimension**:
 A score dimension true for every detection by construction, so it shifts every score equally
@@ -167,6 +180,14 @@ A ticker in the reference set with no bars in the store, because the provider re
 nothing for delisted, acquired or renamed names. 81 of 312 tickers, 141 trades, 11.7% of
 total R. The measured size of the store's survivorship hole.
 _Avoid_: missing ticker, delisted.
+
+**Coverage gap**:
+A ticker that has bars in the store but was not a universe member at the evaluation
+session, so the replayed field could not rank it. A defect in the replay, not a verdict
+about the name — kept apart from a ticker present but ranked outside the gate, which is a
+real ranking verdict. Distinct from a **blind-spot ticker**, which has no bars at all: two
+different holes, and conflating them corrupts the decile stage's accounting.
+_Avoid_: missing from field, not in universe.
 
 **Funnel stage**:
 One gate an executed trade must pass for the app to have surfaced it, evaluated at the

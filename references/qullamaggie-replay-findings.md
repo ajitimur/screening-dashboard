@@ -137,12 +137,17 @@ tagged `continuation`.
 | Stage | Recall (headline) | Recall (ex-continuation) | Notes |
 | --- | --- | --- | --- |
 | Liquidity | **598/658 (90.9%)** | **523/578 (90.5%)** | The one stage where a rejected name never reaches any tab — a miss here is otherwise invisible (user story 7). Cheapest of the three. |
-| Decile | **395/658 (60.0%)** | **340/578 (58.8%)** | The most aggressive filter — cuts to ~29% of the universe before the detector looks (user story 8). Depends on the replayed field → coverage attached. |
+| Decile | **395/658 (60.0%)** | **340/578 (58.8%)** | The most aggressive filter — cuts to **19.4%** of the universe before the detector looks. Depends on the replayed field → coverage attached. |
 | Detection | **380/658 (57.8%)** | **341/578 (59.0%)** | Failures broken down by geometric condition below (user stories 9, 10). |
 
 > **The decile gate is the expensive one.** It discards **40% of his real entries on its
 > own**, before the detector is ever consulted — the largest single loss in the funnel, and
-> nearly five times the liquidity stage's. Each stage is evaluated *unconditionally* on
+> nearly five times the liquidity stage's. **Correction (#133):** this table originally
+> quoted the gate as cutting to "~29% of the universe", following PRD #114 user story 8.
+> That figure is the *five*-lookback union (`ranks.py`, 27.2% measured); the gate this row
+> measures is `detection_gate`, which unions only `1m`/`3m`/`6m` and admits **19.4%**. The
+> gate is a third tighter than the parent spec describes. See
+> `docs/adr/0003-the-decile-gate.md`. Each stage is evaluated *unconditionally* on
 > every row, so these are not sequential survivors: decile (60.0%) and detection (57.8%)
 > are close because they are two independent measurements, not a funnel product.
 >
@@ -455,23 +460,28 @@ detection.
 
 ### The calibration rule
 
-A gate may be loosened on the strength of an A1 recall miss **only when A3 shows that
-dimension has no signal _and_ that dimension shows real spread.** This is the guard against
-the one-sided recall metric: because precision is not measurable, recall is never optimised
-on its own, and a dimension is never widened away on a null that is really range restriction.
+The rule is stated in `docs/adr/0002-what-evidence-licenses-loosening-a-gate.md` and is not
+restated here. It has two limbs — one for score dimensions, one for cross-sectional cuts —
+and both exist to guard the same thing: precision is not measurable, so recall is never
+optimised on its own.
 
 **How the measured results sit against the rule.** Every testable dimension shows a null in
-§5a *and* spread ≈0.4–0.5, so all six clear both conditions. `Prior move` clears neither and
-never can: it is 100% in the executed trades, 100% in the not-taken detections, and its
-spread is 0.000 in both. It must not be touched on the strength of this study.
+§5a *and* spread ≈0.4–0.5, so all six clear the score-dimension limb. `Prior move` clears
+neither condition and never can: it is 100% in the executed trades, 100% in the not-taken
+detections, and its spread is 0.000 in both. It must not be touched on the strength of this
+study.
 
-The rule governs the *score dimensions*. It does not license the two changes the study most
-directly supports, which are not dimension-loosenings at all:
+Two of the changes this study most directly supports are not dimension-loosenings and are
+governed differently:
 
 - the **stop convention** (§6, finding 1) is a detector output and a card claim, measured
-  against his own risk rather than inferred from a null; and
-- the **decile gate** (§3), which costs 40% of his entries, is a cross-sectional cut whose
-  loss is measured directly by A1 rather than argued from an A3 null.
+  against his own risk rather than inferred from a null — outside the rule entirely; and
+- the **decile gate** (§3), which costs 40% of his entries, is a **cross-sectional cut** and
+  falls under the rule's second limb: the loss must be measured directly by A1, shown not to
+  be a coverage artefact, addressed structurally rather than by a threshold move, and quoted
+  with its population cost. This document originally exempted the gate from the rule
+  altogether; that carve-out was wrong, and #133 replaced it — see ADR 0002. The gate's own
+  option space is in `docs/adr/0003-the-decile-gate.md`.
 
 ---
 

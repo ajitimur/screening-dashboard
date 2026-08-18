@@ -1113,7 +1113,7 @@ def test_replay_chain_reads_each_symbols_bars_once_per_run(store: Store, monkeyp
 #
 # The field stands on the forward chain: universe -> ranks -> detections ->
 # candidates -> a seven-of-eight-dimension star score. The sector dimension is
-# dropped (its history is unrecoverable), so the score totals out of nine and is
+# dropped (its history is unrecoverable), so the score totals out of eight and is
 # always labelled a seven-dimension score. The synthetic textbook base is the
 # same authored geometry the funnel tests use, run here through the whole chain.
 
@@ -1149,10 +1149,10 @@ def _det(symbol: str, cluster_k: int) -> Detection:
     )
 
 
-def test_seven_dimension_score_omits_sector_and_totals_out_of_nine(store: Store):
+def test_seven_dimension_score_omits_sector_and_totals_out_of_eight(store: Store):
     """The replayed score drops the sector dimension outright: seven rows, no
-    sector, a ceiling of nine weighted points, and always the seven-dimension
-    label so it can never be confused with the app's ten-point score."""
+    sector, a ceiling of eight weighted points (PRD #138), and always the
+    seven-dimension label so it can never be confused with the app's full score."""
     dates = _daily(date(2020, 1, 1), 105)
     bars = _bars_from_hlc(dates, _textbook_base_hlc())
     det = detect("BASE", bars, dates[104])
@@ -1173,8 +1173,8 @@ def test_seven_dimension_score_omits_sector_and_totals_out_of_nine(store: Store)
         "Volume",
         "ADR",
     ]
-    assert score.max_points == SEVEN_DIM_MAX_POINTS == 9
-    assert 0 <= score.points <= 9
+    assert score.max_points == SEVEN_DIM_MAX_POINTS == 8
+    assert 0 <= score.points <= 8
     assert score.stars == score.points / 2
     assert score.label == SEVEN_DIM_LABEL
     assert "seven-dimension" in score.label
@@ -1212,7 +1212,7 @@ def test_replay_field_detects_over_the_universe_with_a_seven_dim_score(store: St
     scored = field.detections[0]
     assert scored.star_rank == 1
     assert scored.score.label == SEVEN_DIM_LABEL
-    assert scored.score.max_points == 9
+    assert scored.score.max_points == 8
 
 
 def test_not_taken_detection_marked_over_the_chain(store: Store):

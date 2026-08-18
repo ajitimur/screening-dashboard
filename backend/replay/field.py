@@ -12,10 +12,11 @@ score** for each — all with the app's own functions, unmodified (user story 31
 the labels table is the store's one in-place write and carries no history, so a
 symbol's sector in 2020 is unrecoverable (PRD "Star score in replay"). No work is
 done to date the labels table — the dimension is dropped, not repaired. The
-replayed score therefore totals **nine** weighted points, not ten, and is always
-labelled a :data:`SEVEN_DIM_LABEL` so it can never be confused with the app's own
-ten-point score. The labels table is never read: a dummy sector share is handed
-to :func:`screener.score.star_score`, and the one row it decides is discarded.
+replayed score therefore totals **eight** weighted points, not the app's own nine
+(PRD #138), and is always labelled a :data:`SEVEN_DIM_LABEL` so it can never be
+confused with the app's full score. The labels table is never read: a dummy
+sector share is handed to :func:`screener.score.star_score`, and the one row it
+decides is discarded.
 
 **Not-taken detections.** Every member of the field on a session where a trade
 was entered elsewhere is a *not-taken detection* (PRD user story 25). These are a
@@ -41,7 +42,7 @@ from typing import Callable, Iterable, Sequence
 from screener.detection import Detection, detection_gate
 from screener.pipeline import rebuild_detections
 from screener.ranks import Rank
-from screener.score import Dimension, star_score
+from screener.score import DIMENSIONS, Dimension, star_score
 from screener.store import Store
 
 from .caching_store import CachingStore
@@ -53,10 +54,15 @@ from .reference import ExecutedTrade
 # sector row and nothing else.
 SECTOR_DIMENSION = "Sector"
 
-# Ten weighted points minus the dropped sector dimension's one. The replayed
-# score always totals out of nine, and is always labelled a seven-dimension score
-# so it is never confused with the app's ten-point score.
-SEVEN_DIM_MAX_POINTS = 9
+# The app's full weighted total minus the dropped sector dimension's weight,
+# derived from the rubric itself so a reweight carries here instead of leaving a
+# hard-coded ceiling stale (PRD #138 cut the app's total from ten points to nine,
+# and this from nine to eight). The replayed score always totals out of this
+# ceiling, and is always labelled a seven-dimension score so it is never confused
+# with the app's own full score.
+SEVEN_DIM_MAX_POINTS = sum(
+    weight for name, weight in DIMENSIONS if name != SECTOR_DIMENSION
+)
 SEVEN_DIM_LABEL = "seven-dimension score"
 
 
@@ -65,10 +71,10 @@ class SevenDimScore:
     """The replayed star score for one detection — seven of eight dimensions.
 
     ``points`` is the weighted points hit, out of :data:`SEVEN_DIM_MAX_POINTS`
-    (nine); ``stars`` is ``points / 2``. ``breakdown`` is the seven surviving
-    :class:`screener.score.Dimension` rows in the app's published order, the
-    sector row absent. ``label`` is :data:`SEVEN_DIM_LABEL` on every emitted
-    score, so the replayed figure is never mistaken for the app's ten-point one.
+    (eight, PRD #138); ``stars`` is ``points / 2``. ``breakdown`` is the seven
+    surviving :class:`screener.score.Dimension` rows in the app's published order,
+    the sector row absent. ``label`` is :data:`SEVEN_DIM_LABEL` on every emitted
+    score, so the replayed figure is never mistaken for the app's full one.
     """
 
     stars: float
@@ -85,7 +91,7 @@ def seven_dimension_score(det: Detection, *, prior_move: bool) -> SevenDimScore:
     31) and strikes the sector row from its breakdown. The labels table is never
     read: a dummy ``sector_share`` is passed and the sector row it decides is
     discarded, so the score cannot depend on a sector it could not recover. The
-    surviving seven dimensions are re-totalled out of nine.
+    surviving seven dimensions are re-totalled out of :data:`SEVEN_DIM_MAX_POINTS`.
     """
     _stars, breakdown = star_score(det, prior_move=prior_move, sector_share=0.0)
     kept = [d for d in breakdown if d.dimension != SECTOR_DIMENSION]

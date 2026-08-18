@@ -52,7 +52,6 @@ class CachingStore(Store):
         # and both must read and write the same rows for a cached write to show up
         # on the next read.
         self._con: duckdb.DuckDBPyConnection = inner._con
-        self._inner = inner
         self._bars_cache: dict[tuple[str, str], list[Bar]] = {}
 
     @classmethod

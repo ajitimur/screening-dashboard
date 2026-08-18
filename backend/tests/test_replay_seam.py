@@ -90,6 +90,7 @@ from replay.contrast import (
     format_report as format_contrast_report,
     run_contrast,
 )
+from replay.caching_store import CachingStore
 from replay.store import WINDOW_END, WINDOW_START, build_replay_store
 from screener.bars import Bar
 from screener.detection import Detection, detect
@@ -834,6 +835,88 @@ def test_synthesize_instruments_one_candidate_per_symbol_with_bars(store: Store)
 
 def test_burn_in_default_matches_the_prd_window():
     assert BURN_IN_SESSIONS == 126
+
+
+# -- the run-scoped bar-read cache (issue #125) ----------------------------
+#
+# Bars are immutable for the life of a replay; only the derived streams are
+# written. Caching the reads at the store boundary is what turns a two-hour run
+# into a half-hour one, and it must be semantics-preserving: a cached read is
+# byte-identical to a fresh one, and no screening function changes.
+
+
+def test_caching_store_serves_repeat_bar_reads_without_requerying(store: Store):
+    """A second read of the same symbol comes from memory, not the store: proven
+    by deleting the underlying rows between the two reads — a fresh query would
+    now return nothing, but the cache still hands back the original bars."""
+    seeded = [_bar(date(2020, 1, 1)), _bar(date(2020, 1, 2))]
+    store.append_bars("US", "AAA", seeded)
+    cache = CachingStore(store)
+
+    first = cache.bars("US", "AAA")
+    assert first == store.bars("US", "AAA")  # byte-identical to a fresh read
+
+    # Delete the rows out from under the cache: a re-query would see nothing.
+    store._con.execute("DELETE FROM bars")
+    second = cache.bars("US", "AAA")
+
+    assert second == first          # still the stored bars, not the empty table
+    assert second is first          # the very same object — never re-queried
+
+
+def test_caching_store_delegates_writes_and_reflects_them(store: Store):
+    """Only ``bars`` is intercepted; a universe written through the cache lands in
+    the shared store and is read straight back, so a cached store is a drop-in for
+    the stages that both read bars and write derived rows."""
+    cache = CachingStore(store)
+    cache.append_universe("US", date(2020, 1, 2), ["AAA", "BBB"])
+
+    assert cache.universe("US", date(2020, 1, 2)) == ["AAA", "BBB"]
+    assert store.universe("US", date(2020, 1, 2)) == ["AAA", "BBB"]
+
+
+def test_caching_store_evicts_a_symbol_on_a_bar_write(store: Store):
+    """A bar write must not leave a stale cache: after appending to a cached
+    symbol, the next read reflects the new bar."""
+    store.append_bars("US", "AAA", [_bar(date(2020, 1, 1))])
+    cache = CachingStore(store)
+    assert len(cache.bars("US", "AAA")) == 1  # warms the cache
+
+    cache.append_bars("US", "AAA", [_bar(date(2020, 1, 2))])
+
+    assert len(cache.bars("US", "AAA")) == 2
+
+
+def test_caching_store_wrap_does_not_nest_a_second_cache(store: Store):
+    """``wrap`` keeps one run on a single shared cache: wrapping a cache returns
+    it unchanged rather than building a cold one on top."""
+    cache = CachingStore(store)
+    assert CachingStore.wrap(cache) is cache
+    assert isinstance(CachingStore.wrap(store), CachingStore)
+
+
+def test_replay_chain_reads_each_symbols_bars_once_per_run(store: Store, monkeypatch):
+    """The acceptance criterion made concrete: across a multi-session chain, each
+    symbol's bars are fetched from the store exactly once, not once per session per
+    stage. rebuild_universe and rebuild_ranks both read every member's history
+    every session; without the run-scoped cache this symbol would be queried dozens
+    of times."""
+    sessions = _calendar(30)
+    _seed_series(store, "AAA", sessions, [3_000_000] * 30)
+
+    calls: dict[str, int] = {}
+    real_bars = Store.bars
+
+    def counting_bars(self, market, symbol):
+        calls[symbol] = calls.get(symbol, 0) + 1
+        return real_bars(self, market, symbol)
+
+    monkeypatch.setattr(Store, "bars", counting_bars)
+    fields = replay_chain(store, "US", burn_in=0)
+
+    assert [f.session for f in fields] == sessions
+    assert "AAA" in fields[-1].members  # the chain still produced the right field
+    assert calls["AAA"] == 1            # ...reading its bars exactly once
 
 
 # -- the replayed field (A2): detections + the seven-dimension score -------

@@ -47,6 +47,8 @@ from screener.source import Instrument
 from screener.store import Store
 from screener.universe import rebuild_universe
 
+from .caching_store import CachingStore
+
 # The reference set is entirely US breakout trades (PRD "Out of Scope: IDX").
 REPLAY_MARKET = "US"
 
@@ -162,6 +164,15 @@ def replay_chain(
     against. Returns one :class:`SessionField` per measured (non-burn-in) session,
     in order.
     """
+    # Cache bar reads for the life of the run (issue #125). Every session's
+    # rebuild_universe and rebuild_ranks re-reads each symbol's whole history —
+    # ~7.1M identical round-trips over a full replay. Bars are immutable here (only
+    # the derived streams are written), so a run-scoped cache at the store boundary
+    # is semantics-preserving and leaves the app's screening functions unmodified.
+    # ``wrap`` shares one cache when a caller (e.g. replay_field) already passed a
+    # cached store in.
+    store = CachingStore.wrap(store)
+
     calendar = store.sessions(market)
     if sessions is None:
         sessions = calendar

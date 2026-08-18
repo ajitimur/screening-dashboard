@@ -325,14 +325,18 @@ def test_synthetic_fixture_matches_committed_reference_schema():
     # {"count", "trades"} shape, not a bare list.
     payload = _reference_payload([fixture])
     assert set(payload) == set(real_top)
-    assert payload["count"] == 1 and payload["trades"] == [fixture]
+    assert payload["count"] == 1
+    assert payload["trades"] == [fixture]
 
     # Every fixture key is a real committed key — no invented schema, and in
     # particular the legacy names the parser only keeps for back-compat are gone.
     assert set(fixture) <= set(real_row)
-    assert "stopPercentage" in fixture and "stopPct" not in fixture
-    assert "rr10sma" in fixture and "r10sma" not in fixture
-    assert "rr20sma" in fixture and "r20sma" not in fixture
+    assert "stopPercentage" in fixture
+    assert "stopPct" not in fixture
+    assert "rr10sma" in fixture
+    assert "r10sma" not in fixture
+    assert "rr20sma" in fixture
+    assert "r20sma" not in fixture
 
     # entryDate is a full ISO timestamp, matching the file, not a plain date.
     assert "T" in fixture["entryDate"]

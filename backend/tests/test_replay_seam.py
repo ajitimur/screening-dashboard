@@ -112,26 +112,43 @@ def _bar(session: date, close: float = 10.0) -> Bar:
 
 
 def _trade_record(ticker: str, entry: str, *, with_outcomes: bool = True) -> dict:
-    """A synthetic reference-JSON row in the schema the parser reads."""
+    """A synthetic reference-JSON row in the exact schema the reference tool emits.
+
+    This mirrors ``references/trades_bo_gain10smaPct_desc.json`` field-for-field so
+    every test built on it exercises the real parse path, not an invented one
+    (#124): ``entryDate`` is a full ISO timestamp, the stop is ``stopPercentage``
+    as a *fraction* of entry price (0.03, scaled to 3.0 percent on parse), and the
+    realised-R keys are ``rr<exit>``. Entry 100 / stop 97 makes the fraction
+    (100 - 97) / 100 = 0.03, so ``stop_pct`` parses to 3.0 percent.
+    """
     rec = {
         "ticker": ticker,
-        "entryDate": entry,
+        "entryDate": f"{entry}T00:00:00.000Z",
         "entryPrice": 100.0,
         "stopPrice": 97.0,
-        "stopPct": 3.0,
+        "stopPercentage": 0.03,
     }
     if with_outcomes:
         rec.update(
             {
                 "gain10smaPct": 25.0,
                 "mfe10smaPct": 40.0,
-                "r10sma": 8.0,
+                "rr10sma": 8.0,
                 "gain20smaPct": 30.0,
                 "mfe20smaPct": 45.0,
-                "r20sma": 10.0,
+                "rr20sma": 10.0,
             }
         )
     return rec
+
+
+def _reference_payload(rows: list[dict]) -> dict:
+    """Wrap fixture rows in the committed ``{"count", "trades"}`` envelope (#124).
+
+    ``load_trades`` unwraps this envelope; a synthetic payload built through it
+    exercises the same file shape as the committed reference set.
+    """
+    return {"count": len(rows), "trades": rows}
 
 
 # -- the replay store builder ---------------------------------------------
@@ -288,6 +305,64 @@ def test_parse_trades_counts_a_row_without_outcomes():
     # The outcome-less row still parses as a trade — it is a row, just outcome-less.
     assert trades[1].ticker == "BBB"
     assert trades[1].outcomes == {}
+
+
+def test_synthetic_fixture_matches_committed_reference_schema():
+    """The synthetic fixture must speak the committed file's schema (#124).
+
+    Four schema mismatches (``stopPct`` for ``stopPercentage``, ``r<exit>`` for
+    ``rr<exit>``, a plain-date ``entryDate`` for the ISO timestamp, and a bare
+    list for the ``{"count", "trades"}`` envelope) once survived a fully green
+    suite because the fixture invented its own schema and nothing exercised the
+    real shape. This test pins the fixture to the committed shape so reintroducing
+    any of the four fails here.
+    """
+    real_top = json.loads(Path(DEFAULT_REFERENCE_JSON).read_text())
+    real_row = real_top["trades"][0]
+    fixture = _trade_record("AAA", "2020-05-01")
+
+    # The synthetic payload wraps rows in the same envelope the file uses — the
+    # {"count", "trades"} shape, not a bare list.
+    payload = _reference_payload([fixture])
+    assert set(payload) == set(real_top)
+    assert payload["count"] == 1 and payload["trades"] == [fixture]
+
+    # Every fixture key is a real committed key — no invented schema, and in
+    # particular the legacy names the parser only keeps for back-compat are gone.
+    assert set(fixture) <= set(real_row)
+    assert "stopPercentage" in fixture and "stopPct" not in fixture
+    assert "rr10sma" in fixture and "r10sma" not in fixture
+    assert "rr20sma" in fixture and "r20sma" not in fixture
+
+    # entryDate is a full ISO timestamp, matching the file, not a plain date.
+    assert "T" in fixture["entryDate"]
+    assert date.fromisoformat(fixture["entryDate"][:10]) == date(2020, 5, 1)
+
+    # stopPercentage is a fraction of entry price, exactly as the file stores it —
+    # single-digit percent read as a fraction, converted to percent on parse.
+    assert fixture["stopPercentage"] < 1.0
+    assert fixture["stopPercentage"] == pytest.approx(
+        (fixture["entryPrice"] - fixture["stopPrice"]) / fixture["entryPrice"]
+    )
+
+
+def test_load_trades_unwraps_the_envelope_on_synthetic_rows(tmp_path):
+    """A synthetic payload wrapped in the committed envelope parses through
+    ``load_trades``, exercising the ``{"count", "trades"}`` shape and the
+    fraction-to-percent stop scaling on the synthetic path too (#124)."""
+    payload = _reference_payload(
+        [_trade_record("AAA", "2020-05-01"), _trade_record("BBB", "2020-05-04")]
+    )
+    path = tmp_path / "synthetic_reference.json"
+    path.write_text(json.dumps(payload))
+
+    trades = load_trades(path)
+
+    assert [t.ticker for t in trades] == ["AAA", "BBB"]
+    assert [t.entry_date for t in trades] == [date(2020, 5, 1), date(2020, 5, 4)]
+    # 0.03 fraction scaled to 3.0 percent, and rr<exit> read as realised R.
+    assert all(t.stop_pct == 3.0 for t in trades)
+    assert all(t.r == 8.0 for t in trades)
 
 
 # -- classification: replayable vs blind spot -----------------------------

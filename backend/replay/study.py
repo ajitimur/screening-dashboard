@@ -57,7 +57,7 @@ from .contrast import format_report as format_contrast
 from .field import build_field_sessions
 from .funnel import FunnelReport, build_funnel_report
 from .funnel import format_report as format_funnel
-from .placement import PlacementReport, build_placement_report
+from .placement import PlacementReport, StarDistribution, build_placement_report
 from .placement import format_report as format_placement
 from .reference import (
     DEFAULT_REFERENCE_JSON,
@@ -68,7 +68,7 @@ from .reference import (
     classify,
     load_trades,
 )
-from .regression import OutcomeRegression, build_regression
+from .regression import Distribution, OutcomeRegression, build_regression
 from .regression import format_report as format_regression
 
 # ``progress(phase, i, total, session)`` — ``phase`` is "chain" or "field", ``i``
@@ -122,16 +122,10 @@ def run_study(
     coverage = build_report(trades, store, market=market)
     blind_spots = list(blind_spot_tickers) or coverage.blind_spot_ticker_list
 
-    chain_progress = (
-        (lambda i, total, session: progress("chain", i, total, session))
-        if progress is not None
-        else None
-    )
-    field_progress = (
-        (lambda i, total, session: progress("field", i, total, session))
-        if progress is not None
-        else None
-    )
+    def phase_progress(phase: str) -> Callable[[int, int, date], None] | None:
+        if progress is None:
+            return None
+        return lambda i, total, session: progress(phase, i, total, session)
 
     # One forward pass: universe + ranks per session, computed once…
     chain = replay_chain(
@@ -140,12 +134,12 @@ def run_study(
         blind_spot_tickers=blind_spots,
         burn_in=burn_in,
         sessions=sessions,
-        progress=chain_progress,
+        progress=phase_progress("chain"),
     )
     # …and one detection pass over it, building the field the three field-analyses
     # share. The funnel reads the chain's ranks directly and needs no field.
     fields = build_field_sessions(
-        store, market, chain, trades=replayable, progress=field_progress
+        store, market, chain, trades=replayable, progress=phase_progress("field")
     )
     blind_spot_count = chain[0].blind_spot_count if chain else len(set(blind_spots))
 
@@ -226,12 +220,12 @@ def _iso(d: date | None) -> str | None:
     return d.isoformat() if d is not None else None
 
 
-def _star_dist(dist) -> dict:
+def _star_dist(dist: StarDistribution) -> dict:
     # Star values are multiples of 0.5; JSON object keys must be strings.
     return {"total": dist.total, "counts": {str(k): v for k, v in dist.counts.items()}}
 
 
-def _distribution(dist) -> dict | None:
+def _distribution(dist: Distribution | None) -> dict | None:
     if dist is None:
         return None
     return {

@@ -723,6 +723,47 @@ def test_burn_in_sessions_are_computed_but_excluded_from_results(store: Store):
     assert "AAA" in store.universe("US", burned)
 
 
+def test_replay_chain_is_rerunnable_and_deterministic(store: Store):
+    """A built store is not single-use: replaying the same chain a second time
+    reuses the persisted sessions instead of re-appending them, so it neither
+    raises the write-once :class:`SessionExistsError` nor changes the result
+    (issue #126). The second run must return the same members and ranks as the
+    first, session for session."""
+    sessions = _calendar(30)
+    _seed_series(store, "AAA", sessions, [3_000_000] * 30)
+    _seed_series(store, "BBB", sessions, [1_800_000] * 30)
+
+    first = replay_chain(store, "US", burn_in=5)
+    # A second forward chain over the same store — the run that used to die on the
+    # first already-persisted session — must run clean and reproduce the first.
+    second = replay_chain(store, "US", burn_in=5)
+
+    assert [f.session for f in second] == [f.session for f in first]
+    assert [f.members for f in second] == [f.members for f in first]
+    assert [f.ranks for f in second] == [f.ranks for f in first]
+
+
+def test_replay_field_and_funnel_run_in_sequence_over_one_store(store: Store):
+    """The two per-analysis entry points can be run in sequence against a single
+    built store, in any order, without error — the acceptance criterion of #126.
+    The chain the second analysis rides on is reused from what the first left
+    behind, and the detections the field appends do not poison a later run."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    trades = parse_trades([_funnel_record("BASE", dates[104])])
+
+    # Field first (which appends detections), then the funnel over the same store,
+    # then the field again — every run clean, and the field's result stable.
+    (field_first,) = replay_field(store, "US", burn_in=104)
+    funnel = run_funnel(trades, store, burn_in=104)
+    (field_again,) = replay_field(store, "US", burn_in=104)
+
+    assert [d.symbol for d in field_again.detections] == [
+        d.symbol for d in field_first.detections
+    ]
+    assert funnel.detection.total == 1
+
+
 def test_session_field_carries_coverage_against_blind_spots(store: Store):
     """Every field row carries a coverage number against the blind-spot tickers,
     so a ranking result is never read without knowing how much of the field was

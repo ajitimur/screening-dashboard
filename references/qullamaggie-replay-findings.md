@@ -21,9 +21,9 @@ results, because the results are not usable without them.
 > extrapolated; where a number is absent it is because the measurement is *impossible*
 > (§9), not pending.
 >
-> **How to reproduce it.** See [§10](#10-reproducing-the-study). The four analyses cannot
-> be run as four separate commands against one store — the store is single-use — so the
-> run is one process.
+> **How to reproduce it.** See [§10](#10-reproducing-the-study). Build the store once, then
+> run the four analyses as four separate commands in any order against that one store: the
+> chain reuses the sessions the first run persisted, so no run poisons the next (#126).
 
 ---
 
@@ -502,16 +502,26 @@ expectation; the reference set contains no IDX trade.
 
 ## 10. Reproducing the study
 
-**The replay store is single-use.** `rebuild_universe`, `rebuild_ranks` and
+**The replay store is re-runnable.** `rebuild_universe`, `rebuild_ranks` and
 `rebuild_detections` all append through `Store`'s write-once guard
-(`Store._guard_absent`), which exists so a derived row is never rewritten. A second
-`replay_chain()` over the same store therefore dies with `SessionExistsError` on its first
-session that carries rows. The four analyses cannot be run as four commands against one
-store: **build the store, then run every analysis in one process against one chain.**
+(`Store._guard_absent`), which exists so a derived row is never rewritten. That guard used
+to make the store *single-use*: a second `replay_chain()` over the same store died with
+`SessionExistsError` on its first session that already carried rows, so only whichever
+analysis ran first could succeed (#126).
 
-Each module does carry its own `python -m` entry point (user story 30), and each is correct
-in isolation against a *freshly built* store — but only the first one run against a given
-store will succeed.
+The chain now **reuses** a session it has already computed instead of recomputing it
+(`replay.chain._replay_session`, `replay.field._session_detections`). Each session the chain
+builds is stamped with a run record; a later chain sees that marker and reads the persisted
+universe back rather than rebuilding it, and reads the persisted detections back rather than
+re-detecting. Ranks are recomputed in memory on reuse — never read from the store, whose
+two-year retention prunes an early session's rank rows before the pass ends — from the same
+`rank_table` over the same bars, so the reused session is identical to the original. The
+write-once guarantee is untouched: nothing is ever rewritten, only skipped. A second run
+produces the same results as the first, and reusing the persisted chain avoids re-reading
+every candidate's full history for each analysis.
+
+Each module carries its own `python -m` entry point (user story 30), and the four can now be
+run as four separate commands against one built store, **in any order**:
 
 ```
 # 1. build the store from the live one (read-only on the live side) — ~2 min
@@ -521,7 +531,8 @@ python -c "from replay.store import build_replay_store; \
 # 2. coverage + drift check; writes references/blind_spot_tickers.json
 python -m replay.reference --store data/replay.duckdb
 
-# 3. one analysis only, against this store (each needs its own fresh build):
+# 3. every analysis against the same store, in any order — the first builds the chain,
+#    each later one reuses it:
 python -m replay.funnel     --store data/replay.duckdb
 python -m replay.placement  --store data/replay.duckdb
 python -m replay.regression --store data/replay.duckdb

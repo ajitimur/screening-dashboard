@@ -366,6 +366,21 @@ detections buy back: variance the executed trades lack (user story 19).
 > every executed detection clears the same decile gate. It is untestable in the regression
 > and stays untestable here.
 
+> **Coverage caveat — the 87.0% ADR hit rate is over a preferentially-kept subset (attach
+> here, not only to A2).** The taken group is **69 detections** — the executed trades that
+> survived into the reconstructed field — not his full entry record. §6 measures ADR at entry
+> over **649 entries** (his own entry-session bars, independent of the A2 chain) and finds
+> **30.7% at or under the 5% floor**, p25 4.7%. These two figures describe *different
+> populations and pull opposite ways*: if nearly a third of his real entries are sub-5% ADR yet
+> **87.0% of the ones that reached the field clear it**, the field reconstruction is
+> **preferentially keeping his high-ADR trades**. That is a coverage bias in **§5b itself**,
+> not only in A2 (§4) — and §5b is the evidence the ADR ×2 reweight (#135/#138) rests on, so
+> the bias bounds the selection contrast the whole recalibration is built on. The **sign** of
+> the ADR gap (he selects hard for ADR) is robust to it; the **magnitude** (+29.4pp) is
+> inflated by exactly the trades the field dropped. Read +29.4pp as a ceiling, not a point
+> estimate. The same discrepancy is recorded against §6's floor finding, because it is a
+> statement about both populations at once.
+
 ---
 
 ## 6. The two preliminary findings from #114
@@ -419,12 +434,59 @@ Median ADR at entry is 6.1%, mean 8.2%, max 65.2%. So the floor is not mis-set f
 bulk of his entries — it is mis-set for the bottom third, and it withholds the point from
 them silently.
 
-This lands next to §5b, and the two should be read together: **ADR is the dimension he
-selects on most sharply** (87.0% of his picks hit it, against 57.6% of the field). The
-floor that withholds its point on 30.7% of his entries is therefore blunting the single
-dimension the trade record says matters most to him. Note also (§3) that the ADR *hard
-gate* rejected none of his entries — the cost here is entirely in the score point, not in
-detection.
+ADR is the dimension he selects on most sharply (§5b), so a floor that withholds its point
+on the bottom third of his entries is blunting the dimension the trade record says matters
+most to him. Note also (§3) that the ADR *hard gate* rejected none of his entries — the cost
+here is entirely in the score point, not in detection.
+
+**Where the floor bites, across the whole distribution — not one number.** The 30.7% headline
+is one point on a distribution whose shape matters more than the count. ADR at entry runs min
+1.4%, p25 4.7%, median 6.1%, p75 8.9%, mean 8.2%, max 65.2% (§5a). So:
+
+- the floor **does not bind for the median entry** (6.1% > 5%), nor for anything above p25 —
+  roughly the top two-thirds of his entries score the point untouched;
+- the withheld tail is **not marginal-and-clustered**. p25 sits at 4.7%, only just under the
+  floor, but the tail runs all the way down to 1.4% — barely a quarter of the floor. The
+  withheld point is denied to entries scattered from just-below-5% to far-below, not bunched
+  against the threshold, so no single small nudge recovers most of them;
+- every sub-floor entry was still **detected** and then **silently docked its ADR point** (the
+  hard gate never bound, §3). The cost is entirely in the score, never in recall.
+
+Moving the floor to his p25 (~4.7%) would recover the point for the entries sitting just under
+it — and would also admit the **entire sub-5% ADR tail of the live universe** to the same
+reward, a constant fitted to one trader's entry distribution, in one market, in one regime.
+
+**Decision (#128): the floor holds at `ADR_MIN = 0.05`. The remedy is the weight, not the
+threshold.** #128's evidence rule licenses the *direction* of a change from a measured gap,
+never its *magnitude* — and a threshold value is magnitude. A graded ADR point was the other
+candidate remedy and is *not available*: `score.py` records booleans-not-continuous as a
+founding decision with its own measured basis (+0.255 vs +0.191) and an auditability rationale
+("a sort key you cannot audit is one you will not trust"). That left *move* or *leave*, and the
+floor is left — see §5b's coverage caveat for why the evidence for moving it is itself biased.
+
+**The withheld point now costs double.** Under #135/#138 ADR moves from ×1 to ×2 — it is the
+sharpest selector in the rubric (+29.4pp, §5b). The floor now withholds a point on a dimension
+worth twice as much, so the 30.7% of entries docked lose *two* points, not one. This does not
+argue for moving the floor; it makes the question **more consequential and better posed** — a
+reason to re-ask it with better evidence, not to answer it now with this.
+
+**What would reopen it.** The floor is left open, not closed. It should be revisited given
+evidence that survives the objections above — specifically: (1) an ADR-at-entry distribution
+measured on a field **without** the §2 coverage hole and the §5b high-ADR keeping bias, so the
+sub-5% share is not an artefact of which trades the reconstruction dropped; (2) a live-universe
+sub-5% ADR base rate, so the cost of admitting that tail can be weighed against the point
+recovered; and (3) ideally an out-of-regime or IDX reference set, so the threshold is not fit to
+a once-in-a-decade US momentum window (§8). Absent those, the question is reopenable rather than
+settled by omission.
+
+**A population caveat this finding must carry — 30.7% and §5b's 87.0% are not one argument.**
+Earlier framing read them as mutually reinforcing. They are not: **30.7% is over 649 entries**
+(his own entry-session bars, independent of the A2 chain), while **§5b's 87.0% is over 69 taken
+detections** (the executed trades that survived into the reconstructed field). They describe
+different populations and pull *opposite* ways — if nearly a third of his real entries are sub-5%
+ADR yet 87.0% of the ones that reached the field clear it, the field is **preferentially keeping
+his high-ADR trades**. This is the same coverage bias recorded as a caveat on §5b above; it is
+kept in both places because it bounds §5b — the evidence the ADR reweight rests on — not only A2.
 
 ---
 

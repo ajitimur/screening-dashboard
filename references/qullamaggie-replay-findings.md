@@ -403,6 +403,17 @@ row and is pinned as such in the seam.)
 > all**. It changes what the detector proposes and what a card claims about risk, and nothing
 > else.
 
+**Adopted by issue #127.** The detector's proposed stop is now placed at the trader's own
+convention — `STOP_CONVENTION_ADR = 0.345` in `screener/detection.py`, the measured median of
+this distribution — a fixed 0.345 ADR below the trigger, replacing the ~1.28 ADR cluster-low
+default. The Board and Setups cards' `stopw_adr` (risk), `affordable` flag and `stop_price`
+(the drawn stop line) all follow from it; the cluster geometry (`cluster_low`) is unchanged and
+still carried on the row, it is simply no longer what the detector proposes. As this finding
+predicts, **ranking is untouched** — the star score never reads the stop — and the acceptance
+metric that tracked the old cluster-low width (B6, "share of list whose proposed stop > 1×ADR")
+now expects ≈0.0, since every proposed stop sits under the 1×ADR affordability cap. The
+constant cites this table as its provenance.
+
 ### Finding 2 — the ADR floor withholds its score point on 31% of his real entries. **Confirmed (preliminary).**
 
 `ADR_MIN = 0.05` withholds its score point on **31%** of his real entries; his ADR at entry

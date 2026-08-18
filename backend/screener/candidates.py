@@ -18,11 +18,12 @@ Two properties are load-bearing and easy to get wrong:
   eye's own noise floor, so it is a tiebreak and not a dimension. Sorting by
   distance to trigger was explicitly rejected — it puts a 2★ barcode above a 5★
   base (spec §5.1).
-- **The stop column never filters.** ~92% of the nightly list carries a
-  cluster-low stop wider than §7's 1×ADR cap (median row 1.28×), so a flag on the
-  failures would fire on nearly every row and carry no information. The useful
-  form is the inverse: the affordable sub-1×ADR **minority** is highlighted
-  (``affordable``), and nothing is dropped (spec §4.6).
+- **The stop column never filters.** The proposed stop is now the trader's own
+  convention — a fixed 0.345 ADR below the trigger (issue #127), calibrated to his
+  measured 649-entry distribution rather than the old ~1.28× cluster-low default —
+  so every row sits at or under §7's 1×ADR cap and is ``affordable``. The flag
+  stays the inverse form (highlight the sub-1×ADR minority), still never a filter;
+  nothing is dropped (spec §4.6).
 
 Composed from three streams, mirroring how the sector board composes ranks and
 labels: the detection rows (the base + trigger + stop + the score's signal
@@ -112,10 +113,12 @@ def build_candidates(
                     industry=industry_of.get(det.symbol),
                     breadth=breadth.get(det.symbol, 0),
                     # -- the chart-facts fold (spec §4.3), from the same detection.
-                    # trigger_price/stop_price are the overlay's borrowed names for
-                    # the cluster high and cluster low (never risk_adr; §2.3).
+                    # trigger_price is the overlay's borrowed name for the cluster
+                    # high; stop_price is the proposed convention stop line
+                    # (trigger − budget, issue #127), no longer the cluster low
+                    # (never risk_adr; §2.3).
                     trigger_price=det.trigger,
-                    stop_price=det.cluster_low,
+                    stop_price=det.stop_price,
                     close=det.close,
                     sector=sector_of.get(det.symbol),
                     adr=det.adr,

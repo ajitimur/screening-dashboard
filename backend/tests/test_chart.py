@@ -129,9 +129,11 @@ def test_setup_overlay_shades_base_and_cluster_and_draws_the_envelope():
     assert s.base_start == CAL[70]
     # cluster_k=5 trailing bars: starts at CAL[95].
     assert s.cluster_start == CAL[95]
-    # The two horizontal rules: trigger is the cluster high, stop is the cluster low.
+    # The two horizontal rules: trigger is the cluster high, stop is the proposed
+    # convention stop line (trigger − budget, issue #127). This fixture's budget is
+    # trigger − cluster_low, so the line coincides with the cluster low (97.0) here.
     assert s.trigger == 100.0
-    assert s.stop == 97.0
+    assert s.stop == det.stop_price == 97.0
     # The envelope is a line series over the base span, one point per base bar.
     assert len(s.envelope) == det.base_len
     assert s.envelope[0].session == CAL[70]

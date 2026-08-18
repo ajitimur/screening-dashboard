@@ -19,6 +19,7 @@ from datetime import date, timedelta
 from screener.bars import Bar
 from screener.detection import (
     DETECTOR_VERSION,
+    STOP_CONVENTION_ADR,
     TOP_DECILE,
     Rank,
     _churn_l,
@@ -76,10 +77,20 @@ def test_the_fitted_line_never_sets_the_trigger():
     assert d.line_end <= d.trigger        # the line never reaches the trigger
 
 
-def test_stop_is_the_cluster_range():
+def test_proposed_stop_is_the_traders_convention_not_the_cluster_low():
+    # The detector proposes the trader's own stop convention (issue #127): a fixed
+    # STOP_CONVENTION_ADR multiple of the night's ADR below the trigger, NOT the
+    # cluster-low distance that used to run ~4× too wide.
     d = detect("AAA", _bars(_base_series()), CAL[104])
-    assert abs(d.stop - (d.trigger - d.cluster_low)) < 1e-12
-    assert abs(d.stop - 1.0) < 1e-9       # 100.5 - 99.5
+    # stopw_adr equals the convention exactly — the a·trigger in the budget cancels.
+    assert abs(d.stopw_adr - STOP_CONVENTION_ADR) < 1e-12
+    assert abs(d.stop - STOP_CONVENTION_ADR * d.adr * d.trigger) < 1e-12
+    # The proposed stop is *tighter* than the raw cluster low it replaced here.
+    cluster_low_stopw = (d.trigger - d.cluster_low) / d.trigger / d.adr
+    assert d.stopw_adr < cluster_low_stopw
+    # The stop line the cards draw is the trigger less the convention budget.
+    assert abs(d.stop_price - (d.trigger - d.stop)) < 1e-12
+    assert d.stop_price < d.trigger
 
 
 # -- line_ok is a verdict, not a gate; piercing bars do not invalidate --------

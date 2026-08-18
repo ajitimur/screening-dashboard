@@ -336,8 +336,8 @@ class Candidate(BaseModel):
     ``stop_price`` are the **borrowed** names for the overlay's trigger (cluster
     high) and stop (the proposed convention stop line, issue #127) — v1 had no
     word for them; ``risk_adr`` is **refused** (that quantity is ``stopw_adr`` and
-    keeps its name). ``sector`` is
-    new on this row, which carried ``industry`` only; both are wanted.
+    keeps its name). ``sector`` is new on this row, which carried ``industry``
+    only; both are wanted.
     ``dollar_volume`` and ``sector`` are ``None`` when the bars/label could not
     supply them, and ``decile_ranks`` omits a lookback the name is not ranked in —
     mirroring the chart facts block exactly.

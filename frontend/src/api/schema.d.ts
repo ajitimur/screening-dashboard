@@ -138,10 +138,11 @@ export interface components {
          *     ``score`` is the star score (0–5) and the sort key of the list; ``breakdown``
          *     carries its eight-row rubric so the row (or the chart panel) can reconstruct
          *     the arithmetic (spec §4.7). ``dist_adr`` is the distance to the trigger in ADR
-         *     (``(trigger − close) / adr_abs``); ``stopw_adr`` is the stop width in ADR
-         *     (``(trigger − cluster_low) / adr_abs``, the watchlist stop of §4.6). The stop
-         *     column **never filters** — instead the affordable sub-1×ADR minority is flagged
-         *     (``affordable``), the inverse of marking the ~92% unaffordable majority.
+         *     (``(trigger − close) / adr_abs``); ``stopw_adr`` is the stop width in ADR —
+         *     now the trader's calibrated convention (0.345 ADR, issue #127), not the old
+         *     cluster-low distance. The stop column **never filters** — instead the
+         *     affordable sub-1×ADR minority is flagged (``affordable``); with the calibrated
+         *     stop that minority is now the whole list.
          *     ``industry`` is the theme layer (``None`` if the label was never fetched);
          *     ``breadth`` is the ``k/5`` badge, a persistence count and **not** a quality
          *     score.
@@ -151,9 +152,10 @@ export interface components {
          *     the chart bundle now ride the row too — projected from the *same* detection,
          *     which is the single source both endpoints render from. ``trigger_price`` /
          *     ``stop_price`` are the **borrowed** names for the overlay's trigger (cluster
-         *     high) and stop (cluster low) — v1 had no word for them; ``risk_adr`` is
-         *     **refused** (that quantity is ``stopw_adr`` and keeps its name). ``sector`` is
-         *     new on this row, which carried ``industry`` only; both are wanted.
+         *     high) and stop (the proposed convention stop line, issue #127) — v1 had no
+         *     word for them; ``risk_adr`` is **refused** (that quantity is ``stopw_adr`` and
+         *     keeps its name). ``sector`` is new on this row, which carried ``industry``
+         *     only; both are wanted.
          *     ``dollar_volume`` and ``sector`` are ``None`` when the bars/label could not
          *     supply them, and ``decile_ranks`` omits a lookback the name is not ranked in —
          *     mirroring the chart facts block exactly.
@@ -688,8 +690,9 @@ export interface components {
          *     - ``base_start`` / ``cluster_start`` are the first sessions of the base and of
          *       the tight trailing cluster inside it; the frontend shades each region from
          *       its start to the last candle (the base always ends today, §4.5).
-         *     - ``trigger`` (cluster high) and ``stop`` (cluster low) are the two horizontal
-         *       rules §7's affordability test is read off geometrically.
+         *     - ``trigger`` (cluster high) and ``stop`` (the proposed convention stop line,
+         *       issue #127) are the two horizontal rules §7's affordability test is read off
+         *       geometrically.
          *     - ``envelope`` is the fitted upper line drawn **as a line series** so candles
          *       pierce it in both directions — per §3.2 that is the correct picture and must
          *       not be "fixed" in rendering. Anchored at the cluster's max-high bar with the

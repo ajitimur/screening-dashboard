@@ -206,6 +206,28 @@ def _entries_by_session(trades: Iterable[ExecutedTrade]) -> dict[date, set[str]]
     return out
 
 
+def _session_detections(store: Store, market: str, session: date) -> list[Detection]:
+    """A session's detections, reused from the store if already persisted (#126).
+
+    :func:`screener.pipeline.rebuild_detections` appends through the write-once
+    guard, so a second field replay over the same store used to die on the first
+    session already carrying detection rows. Here a session whose detections are
+    already persisted is read back rather than recomputed, which both keeps the
+    store re-runnable and reproduces the first run exactly.
+
+    A session that produced *no* detections leaves no rows, so it is recomputed —
+    ``rebuild_detections`` re-runs the detector over that night's gated members
+    and appends nothing (an empty append is a write-once no-op). It reproduces the
+    empty result deterministically: the two-year rank retention that may have
+    emptied that session's decile gate is the same on every pass, so a night that
+    detected nothing the first time detects nothing again.
+    """
+    persisted = store.detections(market, session)
+    if persisted:
+        return persisted
+    return rebuild_detections(store, market, session)
+
+
 def replay_field(
     store: Store,
     market: str = REPLAY_MARKET,
@@ -247,7 +269,7 @@ def replay_field(
 
     fields: list[FieldSession] = []
     for sf in chain:
-        detections = rebuild_detections(store, market, sf.session)
+        detections = _session_detections(store, market, sf.session)
         entered = entries.get(sf.session, set())
         candidates = build_field(
             detections, sf.ranks, entered=entered, any_entry=bool(entered)

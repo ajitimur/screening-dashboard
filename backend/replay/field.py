@@ -44,6 +44,7 @@ from screener.ranks import Rank
 from screener.score import Dimension, star_score
 from screener.store import Store
 
+from .caching_store import CachingStore
 from .chain import BURN_IN_SESSIONS, REPLAY_MARKET, replay_chain
 from .reference import ExecutedTrade
 
@@ -229,6 +230,12 @@ def replay_field(
     as the coverage figure onto every returned field (user story 22). Returns one
     :class:`FieldSession` per measured session, in order.
     """
+    # Cache bar reads for the whole run (issue #125): the detection stage below
+    # re-reads each member's history every session just as the chain does, so wrap
+    # once here and hand the same cache to both. replay_chain's own ``wrap`` sees
+    # it is already a cache and reuses it rather than nesting a cold one.
+    store = CachingStore.wrap(store)
+
     chain = replay_chain(
         store,
         market,

@@ -127,7 +127,8 @@ is weighted zero (`Base length`). Derived on read everywhere except a digest, wh
 value it was written with. Recalibrated to the method's revealed selection by PRD #138:
 `Tightness` and `ADR` weigh ×2 (the two sharpest §5b selectors), `Base length` ×0 (its largest
 wrong-way gap), everything else ×1. Weights come from the *ordering* of the measured selection
-gaps, never their magnitude.
+gaps, never their magnitude. The three-weight ordinal swap inside that recalibration — `ADR`
+×1→×2, `Orderliness` ×2→×1, `Base length` ×1→×0 — is ticketed as #135.
 
 **Calibration target**:
 What the rubric is fitted to encode — the method's revealed selection, evidenced by the

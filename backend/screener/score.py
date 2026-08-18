@@ -15,11 +15,13 @@ evidenced by Kullamägi's executed trades — the §5b selection contrast of 69 
 against 14,354 not-taken detections. The replay licenses the **direction** of a
 weight, from the *ordering* of the measured selection gaps; nothing here reads a
 gap's value, because the signs survive the field's 29% coverage hole and the
-magnitudes do not (#128 Q2). PRD #138 moved four weights off that ordering:
+magnitudes do not (#128 Q2). PRD #138 moved four weights off that ordering; the
+three-weight ordinal swap below (ADR up, Orderliness and Base length down) is the
+one ticketed as #135:
 
-- **ADR ×1 → ×2** — the sharpest selector in the rubric (+29.4pp).
-- **Orderliness ×2 → ×1** — he hits it *less* than the field he passed over (−9.1pp).
-- **Base length ×1 → ×0** — the largest wrong-way gap of any dimension (−13.4pp).
+- **ADR ×1 → ×2** — the sharpest selector in the rubric (+29.4pp). [#135]
+- **Orderliness ×2 → ×1** — he hits it *less* than the field he passed over (−9.1pp). [#135]
+- **Base length ×1 → ×0** — the largest wrong-way gap of any dimension (−13.4pp). [#135]
   ``BASE_LEN_MAX = 14`` is the named suspect and is left open: the ×0 says the
   dimension *as specified* earns nothing, not that base length is irrelevant.
 - Tightness stays ×2 (+20.8pp, second-strongest); Prior move / MA support /

@@ -86,6 +86,17 @@ MAX_OVERSHOOT_ADR = 1.0
 # Detection requires ≥ 80 bars of history and a positive ADR (spec §4.5).
 MIN_HISTORY = 80
 
+# The proposed stop is placed at the trader's own convention, not at the cluster
+# low. The replay (findings §6 finding 1; PRD #114, issue #127) measured his 649
+# executed stops at a **median of 0.345 ADR** (p25 0.238, p75 0.490, 98.15% at or
+# under 1.0 ADR); the cluster-low stop the detector used to propose ran a median
+# of 1.28 ADR — roughly four times wider than the stop he actually places. The
+# card's risk and affordability read this proposed stop, so the number a user
+# reads is now derived from a stop the trader would plausibly place. The cluster
+# geometry (``cluster_low``) is unchanged and still carried on the row; it is just
+# no longer what the detector proposes as the stop.
+STOP_CONVENTION_ADR = 0.345
+
 # The star score's derived signals (spec §4.7). Dry-up compares the base's median
 # volume to the 50 bars before it; "SMA20 rising" is §4.2's sign-only rising test
 # (X[t] > X[t−5]) on the 20-bar MA. Read here, scored in :mod:`.score`.
@@ -115,8 +126,8 @@ class Detection:
     session: date
     detector_version: int
     trigger: float          # cluster high, by identity — never the fitted line
-    stop: float             # trigger − cluster_low, the stop budget (spec §4.6)
-    stopw_adr: float        # stop width normalised: (trigger − cluster_low)/trigger/adr
+    stop: float             # the convention stop budget: STOP_CONVENTION_ADR·adr·trigger (issue #127)
+    stopw_adr: float        # stop width normalised — equals STOP_CONVENTION_ADR by construction
     base_len: int
     move_gain: float        # the winning prior-move run-up, percent
     adr: float
@@ -136,6 +147,15 @@ class Detection:
     churn_l: float          # (Σ base daily ranges ÷ base range) ÷ base_len; orderliness
     sma20_rising: bool      # SMA20 rising, sign-only (X[t] > X[t−5]); MA support
     dryup: float            # median base volume ÷ median volume of the 50 bars before it
+
+    @property
+    def stop_price(self) -> float:
+        """The proposed stop line in price terms: the trigger less the convention
+        stop budget (``trigger − stop``). This is the stop the Board and Setups
+        cards draw and derive risk from (issue #127) — no longer the cluster low.
+        On a fixture whose ``stop`` was built as ``trigger − cluster_low`` this
+        still evaluates to the cluster low, so the identity degrades gracefully."""
+        return self.trigger - self.stop
 
     @property
     def dist_adr(self) -> float:
@@ -357,7 +377,12 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
     )
 
     trigger = cluster_high  # by identity — never max(line, high); the clamp is dead
-    stop = trigger - cluster_low
+    # The proposed stop is the trader's convention (issue #127): a fixed
+    # STOP_CONVENTION_ADR multiple of the night's ADR below the trigger, in price
+    # units. By construction ``stopw_adr`` equals the convention — the a·trigger
+    # in ``stop`` cancels — so every proposed stop sits at 0.345 ADR, not the
+    # ~1.28 ADR the cluster-low distance used to yield.
+    stop = STOP_CONVENTION_ADR * a * trigger if trigger > 0 else float("nan")
     stopw_adr = stop / trigger / a if trigger > 0 else float("nan")
 
     # The star score's three derived signals (spec §4.7), persisted on the row so

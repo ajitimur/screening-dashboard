@@ -56,11 +56,11 @@ ADR_SPOT_CHECK: tuple[str, ...] = (
 _EXPECTED: dict[str, dict[str, float | None]] = {
     "US": {
         "B1": 1966, "B2": 0.285, "B3": 112, "B4": 30, "B5": 9.6,
-        "B6": 0.92, "B7": 0.0, "B8": 0.37, "B9": 0.18, "B10": 0.99,
+        "B6": 0.0, "B7": 0.0, "B8": 0.37, "B9": 0.18, "B10": 0.99,
     },
     "IDX": {
         "B1": 288, "B2": 0.285, "B3": 88, "B4": None, "B5": 1.2,
-        "B6": 0.92, "B7": 0.0, "B8": 0.37, "B9": 0.18, "B10": 0.99,
+        "B6": 0.0, "B7": 0.0, "B8": 0.37, "B9": 0.18, "B10": 0.99,
     },
 }
 
@@ -70,7 +70,7 @@ _LABELS: dict[str, tuple[str, str]] = {
     "B3": ("Distinct names across the five boards", "count"),
     "B4": ("Detections per night", "count"),
     "B5": ("Digest rows per night", "count"),
-    "B6": ("Share of list whose cluster-low stop > 1×ADR", "share"),
+    "B6": ("Share of list whose proposed stop > 1×ADR", "share"),
     "B7": ("Share where the fitted line sets the trigger", "share"),
     "B8": ("Share of clusters at k=3", "share"),
     "B9": ("≥4★ share of the nightly list", "share"),

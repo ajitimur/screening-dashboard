@@ -34,15 +34,17 @@ afterEach(() => {
   addedSeries.length = 0;
 });
 
+// The recalibrated rubric (PRD #138): ADR ×2, Orderliness ×1, Base length ×0,
+// nine-point ceiling. Hits here sum to 2(T)+1(O)+1(P)+1(MA) = 5 → 2.5★.
 const BREAKDOWN = [
   scoreRow({ dimension: "Tightness", weight: 2, hit: true }),
-  scoreRow({ dimension: "Orderliness", weight: 2, hit: true }),
+  scoreRow({ dimension: "Orderliness", weight: 1, hit: true }),
   scoreRow({ dimension: "Prior move", weight: 1, hit: true }),
-  scoreRow({ dimension: "Base length", weight: 1, hit: false }),
+  scoreRow({ dimension: "Base length", weight: 0, hit: false }),
   scoreRow({ dimension: "MA support", weight: 1, hit: true }),
   scoreRow({ dimension: "Volume", weight: 1, hit: false }),
   scoreRow({ dimension: "Sector", weight: 1, hit: false }),
-  scoreRow({ dimension: "ADR", weight: 1, hit: false }),
+  scoreRow({ dimension: "ADR", weight: 2, hit: false }),
 ];
 
 function target(over: Partial<SheetTarget> = {}): SheetTarget {
@@ -53,7 +55,7 @@ function target(over: Partial<SheetTarget> = {}): SheetTarget {
     sector: "Technology",
     facts: chartFacts(),
     breakdown: BREAKDOWN,
-    score: 3,
+    score: 2.5,
     ...over,
   };
 }
@@ -109,7 +111,7 @@ describe("the chart sheet", () => {
     for (const dim of ["Tightness", "Orderliness", "Base length", "ADR"]) {
       expect(within(breakdown).getByText(dim)).toBeInTheDocument();
     }
-    expect(breakdown.textContent).toMatch(/6\s*\/\s*10/); // 2+2+1+1 hits
+    expect(breakdown.textContent).toMatch(/5\s*\/\s*9/); // 2+1+1+1 hits, nine-point ceiling
     expect(screen.queryByTestId("chart-canvas")).not.toBeInTheDocument();
 
     release();

@@ -1,15 +1,24 @@
-"""The star score: eight boolean dimensions, ten weighted points (spec §4.7).
+"""The star score: eight boolean dimensions, nine weighted points (spec §4.7,
+PRD #138).
 
-`points ÷ 2` = 0–5 stars. Booleans, not continuous, because the score is the
-default sort of the only list in the app and a sort key you cannot audit is one
-you will not trust. The score knows nothing about the stop and nothing about the
-regime — every input below is a base signal, a rank percentile or a sector share.
+`points ÷ 2` = stars, real range **0.5–4.5** (not 0–5): `Prior move` fires for
+every detection by construction so half a star is a permanent floor, and
+`Base length` is weighted zero so the ninth point can never be earned. Booleans,
+not continuous, because the score is the default sort of the only list in the app
+and a sort key you cannot audit is one you will not trust. The score knows nothing
+about the stop and nothing about the regime — every input below is a base signal,
+a rank percentile or a sector share.
+
+The weights encode the method's *revealed selection* (ADR 0001): the ×2 goes to
+the two sharpest selectors in §5b's contrast (Tightness +20.8pp, ADR +29.4pp),
+the ×0 to Base length's −13.4pp wrong-way gap, and Orderliness drops to ×1 on its
+−9.1pp. Signs of the gaps license the *direction*; nothing here reads a value.
 """
 
 from datetime import date
 
 from screener.detection import DETECTOR_VERSION, Detection
-from screener.score import DIMENSIONS, star_score
+from screener.score import DIMENSIONS, RUBRIC_VERSION, star_score
 
 
 def _det(
@@ -33,46 +42,70 @@ def _det(
     )
 
 
-def test_all_eight_dimensions_hit_is_a_perfect_five_stars():
+def test_every_dimension_hitting_is_the_four_and_a_half_star_ceiling():
+    # The ceiling is 9 points, not 10: Base length is worth zero, so hitting it
+    # buys nothing and the top of the scale is 4.5 stars.
     stars, breakdown = star_score(_det(), prior_move=True, sector_share=0.20)
-    assert stars == 5.0
+    assert stars == 4.5
     assert len(breakdown) == len(DIMENSIONS) == 8
     assert all(d.hit for d in breakdown)
-    # Ten weighted points: tightness and orderliness weigh 2, the other six weigh 1.
-    assert sum(d.weight for d in breakdown) == 10
+    assert sum(d.weight for d in breakdown) == 9
 
 
-def test_no_dimension_hits_is_zero_stars():
-    stars, breakdown = star_score(
+def test_the_permanent_half_star_floor():
+    # Prior move fires for every detection by construction, so its one point is a
+    # floor: a detection missing every other dimension still scores 0.5, never 0.
+    stars, _ = star_score(
         _det(cluster_k=4, churn_l=0.10, base_len=20, sma20_rising=False,
              dryup=0.99, adr=0.04),
-        prior_move=False, sector_share=0.05,
+        prior_move=True, sector_share=0.05,
     )
-    assert stars == 0.0
-    assert not any(d.hit for d in breakdown)
+    assert stars == 0.5
 
 
-def test_the_two_double_weighted_dimensions_each_move_the_score_a_full_star():
-    # Tightness and orderliness are ×2: flipping one alone is a full star (2 ÷ 2).
+def test_adr_is_now_double_weighted_and_moves_a_full_star():
+    # ADR was ×1, now ×2 — the sharpest selector in §5b (+29.4pp).
+    base = dict(prior_move=True, sector_share=0.20)
+    hit = star_score(_det(adr=0.06), **base)[0]
+    miss = star_score(_det(adr=0.04), **base)[0]
+    assert hit - miss == 1.0
+
+
+def test_orderliness_is_now_single_weighted_and_moves_half_a_star():
+    # Orderliness was ×2, now ×1 — he hits it less than the field (−9.1pp).
+    base = dict(prior_move=True, sector_share=0.20)
+    hit = star_score(_det(churn_l=0.45), **base)[0]
+    miss = star_score(_det(churn_l=0.10), **base)[0]
+    assert hit - miss == 0.5
+
+
+def test_tightness_stays_double_weighted_and_moves_a_full_star():
     base = dict(prior_move=True, sector_share=0.20)
     with_tight = star_score(_det(cluster_k=5), **base)[0]
     without_tight = star_score(_det(cluster_k=4), **base)[0]
     assert with_tight - without_tight == 1.0
 
-    with_order = star_score(_det(churn_l=0.45), **base)[0]
-    without_order = star_score(_det(churn_l=0.10), **base)[0]
-    assert with_order - without_order == 1.0
 
-
-def test_a_single_weighted_dimension_moves_the_score_half_a_star():
+def test_base_length_is_weighted_zero_and_never_moves_the_score():
+    # Zeroed on its −13.4pp wrong-way gap: it is measured, worth nothing, and
+    # cannot change a star whether it hits or misses.
     base = dict(prior_move=True, sector_share=0.20)
-    hit = star_score(_det(adr=0.06), **base)[0]
-    miss = star_score(_det(adr=0.04), **base)[0]
-    assert hit - miss == 0.5
+    hit = star_score(_det(base_len=10), **base)[0]
+    miss = star_score(_det(base_len=20), **base)[0]
+    assert hit == miss
+
+
+def test_base_length_keeps_a_visible_zero_weight_row():
+    # The dimension stays in the breakdown at weight 0 — deleting it would make the
+    # rubric look as though it never considered base length at all (PRD #138).
+    _, breakdown = star_score(_det(), prior_move=True, sector_share=0.20)
+    base_len_row = next(d for d in breakdown if d.dimension == "Base length")
+    assert base_len_row.weight == 0
 
 
 def test_the_thresholds_are_the_published_set():
-    # Each dimension awards on its published boundary and denies just under it.
+    # Weights moved; the boolean thresholds did not. Each dimension awards on its
+    # published boundary and denies just under it.
     def stars_with(**kw):
         return star_score(_det(**{k: v for k, v in kw.items() if k in
                                   ("cluster_k", "churn_l", "base_len",
@@ -81,22 +114,24 @@ def test_the_thresholds_are_the_published_set():
                           sector_share=kw.get("sector_share", 0.20))[0]
 
     all_hit = stars_with()
-    assert all_hit == 5.0
-    # cluster_k >= 5 ; base_len <= 14 ; dryup <= 0.95 ; adr >= 0.05
-    assert stars_with(cluster_k=4) == 4.0
+    assert all_hit == 4.5
+    # cluster_k >= 5 (×2) ; dryup <= 0.95 (×1) ; adr >= 0.05 (×2)
+    assert stars_with(cluster_k=4) == 3.5
+    assert stars_with(dryup=0.96) == 4.0
+    assert stars_with(adr=0.05) == 4.5          # inclusive at the boundary
+    assert stars_with(adr=0.049) == 3.5         # ×2, so a full star
+    # base_len <= 14 threshold still evaluated, but ×0 so no star moves either side
+    assert stars_with(base_len=14) == 4.5
     assert stars_with(base_len=15) == 4.5
-    assert stars_with(dryup=0.96) == 4.5
-    assert stars_with(adr=0.05) == 5.0          # inclusive at the boundary
-    assert stars_with(adr=0.049) == 4.5
-    # orderliness band 0.30 .. 0.60 inclusive; sector share >= 0.10
-    assert stars_with(churn_l=0.30) == 5.0
-    assert stars_with(churn_l=0.60) == 5.0
+    # orderliness band 0.30 .. 0.60 inclusive (×1); sector share >= 0.10 (×1)
+    assert stars_with(churn_l=0.30) == 4.5
+    assert stars_with(churn_l=0.60) == 4.5
     assert stars_with(churn_l=0.61) == 4.0
-    assert stars_with(sector_share=0.10) == 5.0
-    assert stars_with(sector_share=0.09) == 4.5   # sector is ×1
+    assert stars_with(sector_share=0.10) == 4.5
+    assert stars_with(sector_share=0.09) == 4.0
 
 
-def test_the_breakdown_names_all_eight_dimensions_with_their_weights():
+def test_the_breakdown_names_all_eight_dimensions_with_their_recalibrated_weights():
     _, breakdown = star_score(_det(), prior_move=True, sector_share=0.2)
     names = [d.dimension for d in breakdown]
     assert names == [
@@ -104,5 +139,16 @@ def test_the_breakdown_names_all_eight_dimensions_with_their_weights():
         "MA support", "Volume", "Sector", "ADR",
     ]
     weights = {d.dimension: d.weight for d in breakdown}
-    assert weights["Tightness"] == weights["Orderliness"] == 2
-    assert all(weights[n] == 1 for n in names[2:])
+    assert weights["Tightness"] == 2
+    assert weights["ADR"] == 2
+    assert weights["Orderliness"] == 1
+    assert weights["Base length"] == 0
+    assert weights["Prior move"] == weights["MA support"] == 1
+    assert weights["Volume"] == weights["Sector"] == 1
+
+
+def test_a_rubric_version_stamp_exists():
+    # The stamp that lets a frozen digest star and a derived-on-read app star be
+    # compared like with like (PRD #138).
+    assert isinstance(RUBRIC_VERSION, int)
+    assert RUBRIC_VERSION >= 2

@@ -13,6 +13,7 @@ from datetime import date
 from screener.bars import Bar
 from screener.detection import DETECTOR_VERSION, Detection
 from screener.digest import DigestBreak, build_digest, render_digest
+from screener.score import RUBRIC_VERSION
 from screener.ranks import Rank
 
 YESTERDAY = date(2026, 8, 4)
@@ -89,7 +90,8 @@ def test_pct_through_measures_how_decisive_the_break_was():
 
 
 def test_the_star_score_and_industry_ride_the_row():
-    # Every dimension hits → 5★; industry comes from the label cache.
+    # Every dimension hits → 4.5★ (nine-point ceiling, PRD #138); industry comes
+    # from the label cache.
     ranks = _decile("AAA") + [Rank("PEER", "1m", 0.95, 1.0)]
     det = _det("AAA", trigger=100.0)
     today = {"AAA": _bar(TODAY, close=101.0, low=99.0)}
@@ -97,7 +99,7 @@ def test_the_star_score_and_industry_ride_the_row():
         [det], today, ranks,
         {"AAA": "Semiconductors"}, {"AAA": "Technology", "PEER": "Technology"}, {},
     )
-    assert b.score == 5.0
+    assert b.score == 4.5
     assert b.industry == "Semiconductors"
 
 
@@ -165,6 +167,19 @@ def test_render_marks_a_repeat_in_the_file():
     md = render_digest("US", TODAY, breaks)
     assert "2026-07-28" in md
     assert "↺" in md  # ↺
+
+
+def test_the_digest_header_stamps_the_rubric_version():
+    # A digest freezes its stars; the app derives them on read. The header records
+    # which rubric produced them, so a frozen star and a live one can be compared
+    # like with like after a rubric change (PRD #138).
+    det = _det("AAOI", trigger=17.88)
+    today = {"AAOI": _bar(TODAY, close=18.04, low=17.9)}
+    breaks = build_digest([det], today, [], {"AAOI": "Semiconductors"}, {}, {})
+    md = render_digest("US", TODAY, breaks)
+    assert f"rubric v{RUBRIC_VERSION}" in md
+    # Present on a quiet night too — the frozen scale is stated even with no rows.
+    assert f"rubric v{RUBRIC_VERSION}" in render_digest("IDX", TODAY, [])
 
 
 def test_an_empty_night_still_writes_a_file_with_an_explicit_no_breaks_line():

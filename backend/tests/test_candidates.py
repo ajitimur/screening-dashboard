@@ -67,17 +67,18 @@ def test_the_score_is_the_star_rubric_and_its_eight_row_breakdown():
     ranks = _decile("AAA") + [Rank("PEER", "1m", 0.95, 1.0)]
     sector_of = {"AAA": "Technology", "PEER": "Technology"}
     [c] = build_candidates([_det("AAA")], ranks, {}, sector_of)
-    assert c.score == 5.0
+    # Nine-point ceiling (PRD #138): every dimension hits, but Base length is ×0.
+    assert c.score == 4.5
     assert len(c.breakdown) == 8
     assert all(row.hit for row in c.breakdown)
-    assert sum(row.weight for row in c.breakdown if row.hit) == 10
+    assert sum(row.weight for row in c.breakdown if row.hit) == 9
 
 
 def test_the_list_sorts_by_star_score_descending():
-    strong = _det("LOW", adr=0.06)                       # 5★
-    weak = _det("HIGH", adr=0.04, cluster_k=4, base_len=40)  # loses tightness+len+adr
+    strong = _det("LOW", adr=0.06)                       # 4.5★ ceiling
+    weak = _det("HIGH", adr=0.04, cluster_k=4)  # loses tightness (×2) and ADR (×2)
     rows = build_candidates([weak, strong], _decile("LOW") + _decile("HIGH"), {}, {})
-    # Sorted by score, not by ticker — the strong 5★ leads the weaker name.
+    # Sorted by score, not by ticker — the strong name leads the weaker one.
     assert [c.symbol for c in rows] == ["LOW", "HIGH"]
     assert rows[0].score > rows[1].score
 

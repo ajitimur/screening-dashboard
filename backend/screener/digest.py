@@ -44,7 +44,7 @@ from datetime import date
 from .bars import Bar
 from .detection import Detection, detection_gate
 from .ranks import Rank
-from .score import star_score
+from .score import RUBRIC_VERSION, star_score
 from .sectors import leave_one_out_sector_shares
 
 
@@ -147,9 +147,15 @@ def render_digest(market: str, session: date, breaks: list[DigestBreak]) -> str:
     trader checks it by eye, and one row per break ordered by star score. An empty
     ``breaks`` still renders — with an explicit no-breaks line — so a *missing*
     file is the failed-run signal and an empty one is a quiet night.
+
+    The header carries the **rubric version** (PRD #138): a digest freezes its
+    stars, so this records which weights produced them and keeps last week's frozen
+    star comparable to today's derived-on-read one after a rubric change.
     """
     lines = [
         f"# {market} digest — {session.isoformat()}",
+        "",
+        f"Stars on the 0.5–4.5 scale, rubric v{RUBRIC_VERSION}.",
         "",
         "Report a name when today's close is above yesterday's trigger — "
         "i.e. today's close is above the last four sessions' high.",

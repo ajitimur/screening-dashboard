@@ -384,6 +384,58 @@ detections buy back: variance the executed trades lack (user story 19).
 > estimate. The same discrepancy is recorded against §6's floor finding, because it is a
 > statement about both populations at once.
 
+### 5c. The recalibration that shipped (PRD #138)
+
+The selection contrast above licensed a rubric change, landed by PRD #138 against the
+calibration target ADR 0001 settled (**the rubric encodes the method's revealed selection**).
+The rule that turns this evidence into an edit: **the replay licenses the *direction* of a
+weight, never its magnitude.** The *signs* of the §5b gaps survive the §2 coverage hole; the
+*values* do not. So each weight is assigned from the **ordering** of the measured Δ — nothing
+reads a gap's value.
+
+| Dimension | Was | Now | Ordinal basis (§5b) |
+| --- | --- | --- | --- |
+| Tightness | ×2 | ×2 | +20.8pp — second-strongest selector |
+| **ADR** | ×1 | **×2** | **+29.4pp — the sharpest selector** |
+| **Orderliness** | ×2 | **×1** | **−9.1pp — hit less than the field he passed over** |
+| **Base length** | ×1 | **×0** | **−13.4pp — the largest wrong-way gap** |
+| Prior move | ×1 | ×1 | constant (100% both groups) — kept as documentation |
+| MA support | ×1 | ×1 | +4.3pp — inside the noise of a 69-row group |
+| Volume | ×1 | ×1 | −3.9pp — same |
+| Sector | ×1 | ×1 | unmeasurable, dropped from the replay (§1, #130) |
+
+**Ceiling 9, not 10; star range 0.5–4.5.** `points ÷ 2` is preserved, so the floor is
+`Prior move`'s permanent point (0.5) and the ceiling is the zeroed `Base length` (4.5). The
+scale was never truly 0–5; the ×0 makes that visible. `Base length` keeps a visible ×0 row in
+the breakdown — a reader sees it measured, sees it worth nothing, and is routed here.
+`BASE_LEN_MAX = 14` is the named suspect behind its wrong-way sign and is left open: the ×0
+says the dimension *as specified* earns nothing, not that base length is irrelevant. `ADR_MIN`
+holds at 0.05 (§6). A **rubric version stamp** (`score.RUBRIC_VERSION`) now rides the API
+candidates payload and the digest header, so a frozen digest star and a derived-on-read app
+star stay comparable across the change.
+
+**No return claim.** §5a is null: nothing in the rubric predicts a run. This is an argument
+from **selection only** — the reweight makes the score track his revealed criteria, not his
+outcomes.
+
+**Paired before/after, computed from the reported marginals.** The mean is exact —
+`Δpoints = 1[ADR] − 1[Orderliness]` and expectation is linear, so no independence assumption
+is needed:
+
+| | ADR hit | Orderliness hit | Mean Δpoints | Mean Δstars |
+| --- | --- | --- | --- | --- |
+| His picks (taken, n=69) | 87.0% | 27.5% | +0.595 | **+0.298** |
+| The field (not-taken, n=14,354) | 57.6% | 36.6% | +0.210 | **+0.105** |
+
+The swap moves his picks **~0.19 stars more than the field** — the first quantified statement
+that a rubric change pushes in the direction A2 (§4) says the current rubric does not. It is
+real but modest against A2's 17.3% / 17.8% gap, and says nothing about whether the **3.5★
+share** moves, which depends on the joint distribution around the boundary. The **measured**
+paired A2 re-run — same field, both rubrics, one variable — is #136, and waits on the fuller
+field (#129); it cannot be run against the §2-holed field without the null having two
+candidate explanations (the rubric moved, or the field did). The numbers above are the
+computed expectation, not the measured result.
+
 ---
 
 ## 6. The two preliminary findings from #114

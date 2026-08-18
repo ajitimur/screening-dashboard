@@ -44,7 +44,7 @@ from screener.score import RUBRIC_VERSION, RUBRIC_WEIGHTS, Dimension, stars_unde
 from screener.store import Store
 
 from .chain import BURN_IN_SESSIONS, REPLAY_MARKET
-from .field import FieldSession, replay_field
+from .field import FieldSession, ScoredDetection, replay_field
 from .funnel import evaluation_session
 from .reference import ExecutedTrade, classify
 
@@ -149,6 +149,16 @@ class PlacementReport:
         return sum(1 for p in self.placements if p.top_thirty)
 
 
+def field_match(field: FieldSession, ticker: str) -> ScoredDetection | None:
+    """The field detection ``ticker`` scored to that session, or ``None`` if absent.
+
+    The single source of truth for "where did this trade sit in the field" — a trade
+    is placed against the detection here, and its breakdown is re-scored under every
+    rubric from the same detection (:func:`build_placement_report`).
+    """
+    return next((det for det in field.detections if det.symbol == ticker), None)
+
+
 def place_trade(
     trade: ExecutedTrade, eval_session: date | None, field: FieldSession | None
 ) -> TradePlacement:
@@ -161,11 +171,7 @@ def place_trade(
     field is distinguished from one present but outside the top thirty: only the
     present one is ``in_field``.
     """
-    match = None
-    if field is not None:
-        match = next(
-            (det for det in field.detections if det.symbol == trade.ticker), None
-        )
+    match = field_match(field, trade.ticker) if field is not None else None
     return TradePlacement(
         ticker=trade.ticker,
         entry_date=trade.entry_date,
@@ -204,11 +210,8 @@ def build_placement_report(
         placements.append(placement)
         if session_field is not None:
             pick_sessions.add(session_field.session)
-            if placement.in_field:
-                match = next(
-                    det for det in session_field.detections
-                    if det.symbol == trade.ticker
-                )
+            match = field_match(session_field, trade.ticker)
+            if match is not None:
                 pick_breakdowns.append(match.score.breakdown)
 
     field_breakdowns = [

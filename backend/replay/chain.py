@@ -39,7 +39,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
 from screener.pipeline import rebuild_ranks
 from screener.ranks import Rank, rank_table
@@ -199,6 +199,7 @@ def replay_chain(
     blind_spot_tickers: Iterable[str] = (),
     burn_in: int = BURN_IN_SESSIONS,
     sessions: Sequence[date] | None = None,
+    progress: Callable[[int, int, date], None] | None = None,
 ) -> list[SessionField]:
     """Replay the forward chain of universe membership and ranks over the window.
 
@@ -219,6 +220,11 @@ def replay_chain(
     is stamped onto every returned field as the coverage figure that scope is read
     against. Returns one :class:`SessionField` per measured (non-burn-in) session,
     in order.
+
+    ``progress`` is called as ``progress(i, total, session)`` after each session is
+    computed (1-based ``i`` over the whole session list, burn-in included), so a
+    long forward pass reports rather than hanging silently — the failure the first
+    attempt at this study hit, killed at 60 minutes for having printed nothing.
     """
     # Cache bar reads for the life of the run (issue #125). Every session's
     # rebuild_universe and rebuild_ranks re-reads each symbol's whole history —
@@ -237,9 +243,12 @@ def replay_chain(
     instruments = synthesize_instruments(store, market)
     blind_spot_count = len(set(blind_spot_tickers))
 
+    total = len(sessions)
     fields: list[SessionField] = []
     for i, session in enumerate(sessions):
         members, ranks = _replay_session(store, market, session, instruments)
+        if progress is not None:
+            progress(i + 1, total, session)
         if i < burn_in:
             continue  # computed and persisted, but not a reported result
         fields.append(

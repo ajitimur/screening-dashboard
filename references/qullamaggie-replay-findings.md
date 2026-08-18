@@ -22,8 +22,11 @@ results, because the results are not usable without them.
 > (§9), not pending.
 >
 > **How to reproduce it.** See [§10](#10-reproducing-the-study). Build the store once, then
-> run the four analyses as four separate commands in any order against that one store: the
-> chain reuses the sessions the first run persisted, so no run poisons the next (#126).
+> run `python -m replay.study` against it: one command builds the field once and computes
+> coverage plus all four analyses against it, writing both the reports and a machine-readable
+> results file and printing progress with an ETA (#131). The four analyses also keep their
+> own per-study commands, runnable in any order against the built store — the chain reuses
+> the sessions the first run persisted, so no run poisons the next (#126).
 
 ---
 
@@ -593,24 +596,41 @@ write-once guarantee is untouched: nothing is ever rewritten, only skipped. A se
 produces the same results as the first, and reusing the persisted chain avoids re-reading
 every candidate's full history for each analysis.
 
-Each module carries its own `python -m` entry point (user story 30), and the four can now be
-run as four separate commands against one built store, **in any order**:
+**One command reproduces the whole study.** `replay.study` builds the field **once** and
+computes coverage plus all four analyses against it — the A1 funnel, A2 placement, and both
+A3 analyses share a single forward chain and a single per-session detection pass, so four
+rebuilds of the 947-session chain collapse into one (issue #131). It writes both the
+human-readable reports and a machine-readable results file, and prints a running count and
+an ETA per session to stderr while the chain runs, so a silent hour is never mistaken for a
+hang — the failure that killed the first attempt at 60 minutes. The result rows survive in
+the JSON, so #133's decile decomposition can be recomputed without another rebuild.
 
 ```
 # 1. build the store from the live one (read-only on the live side) — ~2 min
 python -c "from replay.store import build_replay_store; \
            print(build_replay_store('data/screener.duckdb', 'data/replay.duckdb'))"
 
-# 2. coverage + drift check; writes references/blind_spot_tickers.json
-python -m replay.reference --store data/replay.duckdb
-
-# 3. every analysis against the same store, in any order — the first builds the chain,
-#    each later one reuses it:
-python -m replay.funnel     --store data/replay.duckdb
-python -m replay.placement  --store data/replay.duckdb
-python -m replay.regression --store data/replay.duckdb
-python -m replay.contrast   --store data/replay.duckdb
+# 2. reproduce the whole study — coverage + all four analyses against one built store.
+#    Coverage is asserted against the #114 figures; progress + ETA print to stderr.
+python -m replay.study --store data/replay.duckdb \
+    --out-report references/replay_study_report.txt \
+    --out-json    references/replay_study_results.json
 ```
+
+Each analysis also still carries its own `python -m` entry point (user story 30), and
+because the built store is re-runnable (#126) the four can be run as separate commands
+against it, **in any order**, when only one is wanted:
+
+```
+python -m replay.reference  --store data/replay.duckdb   # coverage + blind-spot list
+python -m replay.funnel      --store data/replay.duckdb
+python -m replay.placement   --store data/replay.duckdb
+python -m replay.regression  --store data/replay.duckdb
+python -m replay.contrast    --store data/replay.duckdb
+```
+
+Run separately, each rebuilds (or, on a built store, reuses) the whole chain; `replay.study`
+is the way to get all four for the price of one forward pass.
 
 **Runtime.** The chain is 947 sessions (126 burn-in + 821 measured) and dominates: the
 whole study ran in **29.8 minutes**, of which the chain was 29.1 and the per-session

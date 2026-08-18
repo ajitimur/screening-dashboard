@@ -143,6 +143,36 @@ def _trade_record(ticker: str, entry: str, *, with_outcomes: bool = True) -> dic
     return rec
 
 
+def _make_funnel_row(
+    *,
+    ticker: str = "AAA",
+    decile_present: bool = True,
+    decile_pass: bool = False,
+    decile_pass_five: bool = False,
+):
+    """A ``FunnelRow`` with just the decile fields set — the assertion surface for
+    the decile-miss decomposition, everything else inert."""
+    from replay.funnel import FunnelRow
+
+    return FunnelRow(
+        ticker=ticker,
+        entry_date=date(2020, 6, 2),
+        eval_session=date(2020, 6, 1),
+        liquidity_pass=True,
+        decile_present=decile_present,
+        decile_pass=decile_pass,
+        decile_pass_five=decile_pass_five,
+        eval_percentiles={},
+        decile_verdicts={},
+        detection_pass=False,
+        failed_condition=None,
+        first_failing_stage=None,
+        entry_session_break=False,
+        continuation=False,
+        median_dollar_volume=0.0,
+    )
+
+
 def _reference_payload(rows: list[dict]) -> dict:
     """Wrap fixture rows in the committed ``{"count", "trades"}`` envelope (#124).
 
@@ -712,6 +742,125 @@ def test_funnel_decile_output_carries_blind_spot_coverage(store: Store):
     )
 
     assert report.blind_spot_count == 3
+
+
+# -- #133: the funnel row carries the per-lookback decile detail ------------
+#
+# `FunnelRow` used to throw away the margin of a decile miss: the row knew only
+# the flattened three-union verdict, so whether he ranked 11th percentile or 40th,
+# and which lookback he was strong in, were both discarded at the gate. #133 needs
+# those, so the row now carries the per-lookback eval-session percentiles and the
+# per-lookback top-decile verdicts, plus the five-union verdict — the second gate
+# the three-union is compared against. The verdicts still go through the app's own
+# gate functions (`detection_gate`, `decile_gate`), never a second hand-rolled path.
+
+
+def test_funnel_row_carries_per_lookback_percentiles_and_verdicts(store: Store):
+    """A decile-present trade carries its eval-session percentile per lookback and a
+    per-lookback top-decile verdict, so the margin of a miss is recoverable (#133).
+    LAG is flat (dead in every lookback -> no verdict true); HI climbs hard (tops
+    its short lookbacks)."""
+    dates = _daily(date(2020, 1, 1), 40)
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
+    store.append_bars("US", "HI", _bars_from_hlc(dates, _rising_hlc(40)))
+    entry = dates[39] + timedelta(days=1)
+
+    report = run_funnel(
+        parse_trades([_funnel_record("LAG", entry), _funnel_record("HI", entry)]),
+        store,
+        burn_in=0,
+    )
+
+    by_ticker = {r.ticker: r for r in report.rows}
+    lag, hi = by_ticker["LAG"], by_ticker["HI"]
+
+    # Percentiles are carried per lookback, keyed by the lookback name, as floats in
+    # [0, 1]; a verdict is carried for exactly the lookbacks the name was ranked in.
+    assert lag.eval_percentiles  # non-empty: LAG is a field member
+    assert set(lag.decile_verdicts) == set(lag.eval_percentiles)
+    assert all(0.0 <= p <= 1.0 for p in lag.eval_percentiles.values())
+    # LAG is dead across every lookback -> no lookback is a top-decile verdict, and
+    # it fails both the three-union and the five-union gate.
+    assert not any(lag.decile_verdicts.values())
+    assert lag.decile_pass is False
+    assert lag.decile_pass_five is False
+    # A verdict is exactly the app's top-decile test on that lookback's percentile.
+    for lb, pct in lag.eval_percentiles.items():
+        assert lag.decile_verdicts[lb] == (pct >= 0.90)
+    # HI tops at least one lookback -> a true verdict, and it clears the gate.
+    assert any(hi.decile_verdicts.values())
+    assert hi.decile_pass is True
+
+
+def test_funnel_decile_verdicts_go_through_the_app_gate_functions(store: Store):
+    """The row's three-union verdict is the app's ``detection_gate`` and its
+    five-union verdict is the app's ``decile_gate`` — never a second hand-rolled
+    path (the trap #133 calls out). A five-union pass is a superset of the
+    three-union pass, so a three-union pass implies a five-union pass."""
+    dates = _daily(date(2020, 1, 1), 40)
+    store.append_bars("US", "HI", _bars_from_hlc(dates, _rising_hlc(40)))
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
+    entry = dates[39] + timedelta(days=1)
+
+    report = run_funnel(
+        parse_trades([_funnel_record("HI", entry)]), store, burn_in=0
+    )
+    (row,) = report.rows
+    # detection_gate ⊆ decile_gate: passing the narrower gate implies the wider one.
+    assert row.decile_pass is True
+    assert row.decile_pass_five is True
+
+
+def test_funnel_report_decomposes_the_decile_miss(store: Store):
+    """The report decomposes every replayable trade's decile miss into three
+    mutually exclusive, exhaustive buckets — coverage gap (absent from the field),
+    recovered-by-5 (fails the three-union gate but clears the five-union one), and
+    outside-any-union (fails even the five-union) — across all replayable trades
+    (#133)."""
+    from replay.funnel import DecileDecomposition, decompose_decile_misses
+
+    def _row(ticker, *, present, pass3, pass5):
+        return _make_funnel_row(
+            ticker=ticker, decile_present=present, decile_pass=pass3,
+            decile_pass_five=pass5,
+        )
+
+    rows = [
+        _row("PASS", present=True, pass3=True, pass5=True),      # not a miss
+        _row("GAP", present=False, pass3=False, pass5=False),    # coverage gap
+        _row("REC", present=True, pass3=False, pass5=True),      # recovered by 5
+        _row("OUT", present=True, pass3=False, pass5=False),     # outside any union
+        _row("OUT2", present=True, pass3=False, pass5=False),    # outside any union
+    ]
+
+    decomp = decompose_decile_misses(rows)
+
+    assert isinstance(decomp, DecileDecomposition)
+    assert decomp.total_misses == 4               # every row but PASS
+    assert decomp.coverage_gap == 1
+    assert decomp.recovered_by_five == 1
+    assert decomp.outside_any_union == 2
+    # The three buckets partition the misses exactly.
+    assert (
+        decomp.coverage_gap + decomp.recovered_by_five + decomp.outside_any_union
+        == decomp.total_misses
+    )
+    # It rides the report the runner emits, computed over the report's own rows.
+    assert report_decomposition_matches(store)
+
+
+def report_decomposition_matches(store: Store) -> bool:
+    """The funnel report carries the decomposition of its own rows."""
+    from replay.funnel import decompose_decile_misses
+
+    dates = _daily(date(2020, 1, 1), 40)
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
+    store.append_bars("US", "HI", _bars_from_hlc(dates, _rising_hlc(40)))
+    entry = dates[39] + timedelta(days=1)
+    report = run_funnel(
+        parse_trades([_funnel_record("LAG", entry)]), store, burn_in=0
+    )
+    return report.decile_decomposition == decompose_decile_misses(report.rows)
 
 
 # -- the forward replay chain (A2): universe membership + ranks ------------
@@ -1581,3 +1730,177 @@ def test_run_contrast_splits_his_pick_from_the_not_taken_field(store: Store):
     assert report.n_executed == 1     # BASEA, the name he entered
     assert report.n_not_taken == 1    # BASEB, present but not entered
     assert report.blind_spot_count == 2
+
+
+# -- the one-process study runner (#131) -----------------------------------
+#
+# One command that reproduces the whole study: it builds the field once and
+# computes the A1 funnel, A2 placement and both A3 analyses against it, so four
+# rebuilds of the 947-session chain become one. It emits both the human-readable
+# reports and a machine-readable results file, and reports progress with an ETA so
+# a silent hour-long run is distinguishable from a hung one.
+
+
+def _study_store(store: Store):
+    """A two-name synthetic store with one clean base and one lagging member."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(105)))
+    entry = dates[104] + timedelta(days=1)
+    trades = parse_trades([_funnel_record("BASE", entry)])
+    return trades, dates
+
+
+def test_run_study_runs_all_four_analyses_against_one_built_field(store: Store):
+    """The runner returns coverage plus all four analyses, and each matches the
+    standalone entry point run over the same store — one field, four analyses."""
+    from replay.study import StudyResult, run_study
+    from replay.funnel import FunnelReport
+    from replay.placement import PlacementReport
+    from replay.regression import OutcomeRegression
+    from replay.contrast import SelectionContrast
+
+    trades, _ = _study_store(store)
+
+    result = run_study(store, trades=trades, burn_in=104, blind_spot_tickers=["ZZZ"])
+
+    assert isinstance(result, StudyResult)
+    assert isinstance(result.funnel, FunnelReport)
+    assert isinstance(result.placement, PlacementReport)
+    assert isinstance(result.regression, OutcomeRegression)
+    assert isinstance(result.contrast, SelectionContrast)
+    # The shared field is correct for every analysis: the standalone runs (which
+    # reuse the persisted chain) agree with the shared-field ones.
+    funnel = run_funnel(trades, store, burn_in=104, blind_spot_tickers=["ZZZ"])
+    placement = run_placement(trades, store, burn_in=104, blind_spot_tickers=["ZZZ"])
+    regression = run_regression(trades, store, burn_in=104, blind_spot_tickers=["ZZZ"])
+    contrast = run_contrast(trades, store, burn_in=104, blind_spot_tickers=["ZZZ"])
+    assert result.funnel.detection.passed == funnel.detection.passed
+    assert result.funnel.decile_decomposition == funnel.decile_decomposition
+    assert result.placement.top_thirty_count == placement.top_thirty_count
+    assert result.regression.n_detected == regression.n_detected
+    assert result.contrast.n_executed == contrast.n_executed
+    # Coverage is recomputed from the reference set (BASE is replayable -> no blind
+    # spot there); the explicit blind-spot list rides onto the field coverage count.
+    assert result.coverage.total_rows == 1
+    assert result.funnel.blind_spot_count == 1
+    assert result.placement.blind_spot_count == 1
+
+
+def test_run_study_computes_the_chain_and_detection_pass_once(store: Store, monkeypatch):
+    """The chain and the per-session detection pass are each computed once, not once
+    per analysis: the forward chain is replayed a single time across all four."""
+    import replay.study as study_mod
+
+    trades, _ = _study_store(store)
+
+    chain_calls = {"n": 0}
+    real_chain = study_mod.replay_chain
+
+    def counting_chain(*args, **kwargs):
+        chain_calls["n"] += 1
+        return real_chain(*args, **kwargs)
+
+    monkeypatch.setattr(study_mod, "replay_chain", counting_chain)
+    study_mod.run_study(store, trades=trades, burn_in=104)
+
+    assert chain_calls["n"] == 1  # one forward pass, shared by all four analyses
+
+
+def test_run_study_writes_human_and_machine_readable_outputs(tmp_path, store: Store):
+    """The runner writes both a human-readable report and a machine-readable results
+    file; the results file round-trips as JSON and carries the funnel rows with
+    their per-lookback decile detail, so #133's decomposition survives the run and
+    can be recomputed without another rebuild."""
+    from replay.study import run_study, write_reports, write_results, load_results
+
+    trades, _ = _study_store(store)
+    result = run_study(store, trades=trades, burn_in=104, blind_spot_tickers=["ZZZ"])
+
+    report_path = tmp_path / "study.txt"
+    json_path = tmp_path / "study.json"
+    write_reports(result, report_path)
+    write_results(result, json_path)
+
+    # Human-readable: names all four analyses.
+    text = report_path.read_text()
+    for token in ("funnel", "placement", "regression", "contrast"):
+        assert token in text.lower()
+
+    # Machine-readable: valid JSON, and the funnel rows survive with the #133 detail.
+    raw = json.loads(json_path.read_text())
+    funnel_rows = raw["funnel"]["rows"]
+    assert funnel_rows
+    row = funnel_rows[0]
+    assert "eval_percentiles" in row
+    assert "decile_verdicts" in row
+    assert "decile_pass_five" in row
+    assert raw["funnel"]["decile_decomposition"]["total_misses"] >= 0
+
+    # And it reloads into a decomposition recomputable without a rebuild.
+    reloaded = load_results(json_path)
+    assert reloaded["funnel"]["decile_decomposition"] == raw["funnel"]["decile_decomposition"]
+
+
+def test_run_study_reports_progress_with_a_running_count(store: Store):
+    """Progress is reported while running: the runner calls back per session for the
+    chain and the detection pass, with a monotonically rising count against a fixed
+    total, so a long run never goes silent."""
+    from replay.study import run_study
+
+    trades, _ = _study_store(store)
+    events: list[tuple[str, int, int]] = []
+
+    run_study(
+        store,
+        trades=trades,
+        burn_in=100,
+        progress=lambda phase, i, total, session: events.append((phase, i, total)),
+    )
+
+    phases = {e[0] for e in events}
+    assert "chain" in phases and "field" in phases
+    # Counts rise from 1 and never exceed the total, per phase.
+    for phase in phases:
+        counts = [i for p, i, _ in events if p == phase]
+        totals = {t for p, _, t in events if p == phase}
+        assert counts == sorted(counts)
+        assert counts[0] >= 1
+        assert len(totals) == 1
+        assert max(counts) <= next(iter(totals))
+
+
+def test_study_cli_writes_outputs_and_prints_summary(tmp_path, store: Store, capsys):
+    """The documented single command runs coverage plus all four analyses against
+    one built store and writes both outputs."""
+    from replay import study as study_mod
+
+    trades, _ = _study_store(store)
+    store_path = tmp_path / "replay.duckdb"
+    disk = Store.open(store_path)
+    try:
+        dates = _daily(date(2020, 1, 1), 105)
+        disk.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+        disk.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(105)))
+    finally:
+        disk.close()
+
+    ref_path = tmp_path / "ref.json"
+    ref_path.write_text(json.dumps(_reference_payload(
+        [_funnel_record("BASE", dates[104] + timedelta(days=1))]
+    )))
+    report_path = tmp_path / "out.txt"
+    json_path = tmp_path / "out.json"
+
+    rc = study_mod.main([
+        "--store", str(store_path),
+        "--reference", str(ref_path),
+        "--burn-in", "104",
+        "--no-drift-check",
+        "--out-report", str(report_path),
+        "--out-json", str(json_path),
+    ])
+
+    assert rc == 0
+    assert report_path.exists()
+    assert json.loads(json_path.read_text())["funnel"]["rows"]

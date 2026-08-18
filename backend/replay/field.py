@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
 from screener.detection import Detection, detection_gate
 from screener.pipeline import rebuild_detections
@@ -45,7 +45,7 @@ from screener.score import Dimension, star_score
 from screener.store import Store
 
 from .caching_store import CachingStore
-from .chain import BURN_IN_SESSIONS, REPLAY_MARKET, replay_chain
+from .chain import BURN_IN_SESSIONS, REPLAY_MARKET, SessionField, replay_chain
 from .reference import ExecutedTrade
 
 # The sector dimension, dropped from the replayed score (PRD "Star score in
@@ -228,6 +228,51 @@ def _session_detections(store: Store, market: str, session: date) -> list[Detect
     return rebuild_detections(store, market, session)
 
 
+def build_field_sessions(
+    store: Store,
+    market: str,
+    chain: Sequence[SessionField],
+    *,
+    trades: Iterable[ExecutedTrade] = (),
+    progress: Callable[[int, int, date], None] | None = None,
+) -> list[FieldSession]:
+    """Run the per-session detection pass over an already-built forward ``chain``.
+
+    The chain-free core of :func:`replay_field`: given the chain the caller already
+    computed (universe + ranks per session), it runs the app's detector once per
+    measured session and derives the seven-dimension star score, so the one-process
+    runner (:mod:`replay.study`) can compute the chain and the detection pass each
+    exactly once and share the field across all four analyses.
+
+    ``progress`` is called as ``progress(i, total, session)`` after each session's
+    detections are built (1-based ``i``), so a long run reports rather than hanging
+    silently. The store is wrapped in the run-scoped bar cache if it is not already.
+    """
+    store = CachingStore.wrap(store)
+    entries = _entries_by_session(trades)
+
+    total = len(chain)
+    fields: list[FieldSession] = []
+    for i, sf in enumerate(chain, start=1):
+        detections = _session_detections(store, market, sf.session)
+        entered = entries.get(sf.session, set())
+        candidates = build_field(
+            detections, sf.ranks, entered=entered, any_entry=bool(entered)
+        )
+        fields.append(
+            FieldSession(
+                session=sf.session,
+                burn_in=False,
+                members=sf.members,
+                detections=candidates,
+                blind_spot_count=sf.blind_spot_count,
+            )
+        )
+        if progress is not None:
+            progress(i, total, sf.session)
+    return fields
+
+
 def replay_field(
     store: Store,
     market: str = REPLAY_MARKET,
@@ -265,22 +310,4 @@ def replay_field(
         burn_in=burn_in,
         sessions=sessions,
     )
-    entries = _entries_by_session(trades)
-
-    fields: list[FieldSession] = []
-    for sf in chain:
-        detections = _session_detections(store, market, sf.session)
-        entered = entries.get(sf.session, set())
-        candidates = build_field(
-            detections, sf.ranks, entered=entered, any_entry=bool(entered)
-        )
-        fields.append(
-            FieldSession(
-                session=sf.session,
-                burn_in=False,
-                members=sf.members,
-                detections=candidates,
-                blind_spot_count=sf.blind_spot_count,
-            )
-        )
-    return fields
+    return build_field_sessions(store, market, chain, trades=trades)

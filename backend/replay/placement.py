@@ -152,6 +152,50 @@ def place_trade(
     )
 
 
+def build_placement_report(
+    replayable: list[ExecutedTrade],
+    calendar: list[date],
+    fields: Iterable[FieldSession],
+    blind_spot_count: int,
+) -> PlacementReport:
+    """Place every replayable trade over an already-built replayed field.
+
+    The field-free core of :func:`run_placement`: given the fields the caller
+    already computed, it places each trade at its evaluation session and reports the
+    two star distributions, so the one-process runner (:mod:`replay.study`) can
+    share one field across all four analyses instead of replaying it per analysis.
+    """
+    by_session: dict[date, FieldSession] = {f.session: f for f in fields}
+
+    placements: list[TradePlacement] = []
+    pick_sessions: set[date] = set()
+    for trade in replayable:
+        eval_session = evaluation_session(calendar, trade.entry_date)
+        session_field = by_session.get(eval_session) if eval_session else None
+        placement = place_trade(trade, eval_session, session_field)
+        placements.append(placement)
+        if session_field is not None:
+            pick_sessions.add(session_field.session)
+
+    picks = StarDistribution.from_stars(
+        p.stars for p in placements if p.in_field and p.stars is not None
+    )
+    field_dist = StarDistribution.from_stars(
+        det.score.stars
+        for session in pick_sessions
+        for det in by_session[session].detections
+    )
+
+    return PlacementReport(
+        placements=placements,
+        picks=picks,
+        field=field_dist,
+        board_size=BOARD_SIZE,
+        blind_spot_count=blind_spot_count,
+        scope=SCOPE,
+    )
+
+
 def run_placement(
     trades: list[ExecutedTrade],
     store: Store,
@@ -181,37 +225,9 @@ def run_placement(
         blind_spot_tickers=blind_spot_tickers,
         burn_in=burn_in,
     )
-    by_session: dict[date, FieldSession] = {f.session: f for f in fields}
     calendar = store.sessions(market)
-
-    placements: list[TradePlacement] = []
-    pick_sessions: set[date] = set()
-    for trade in replayable:
-        eval_session = evaluation_session(calendar, trade.entry_date)
-        session_field = by_session.get(eval_session) if eval_session else None
-        placement = place_trade(trade, eval_session, session_field)
-        placements.append(placement)
-        if session_field is not None:
-            pick_sessions.add(session_field.session)
-
-    picks = StarDistribution.from_stars(
-        p.stars for p in placements if p.in_field and p.stars is not None
-    )
-    field_dist = StarDistribution.from_stars(
-        det.score.stars
-        for session in pick_sessions
-        for det in by_session[session].detections
-    )
-
-    blind_spot_count = len(set(blind_spot_tickers))
-    return PlacementReport(
-        placements=placements,
-        picks=picks,
-        field=field_dist,
-        board_size=BOARD_SIZE,
-        blind_spot_count=blind_spot_count,
-        scope=SCOPE,
-    )
+    blind_spot_count = fields[0].blind_spot_count if fields else len(set(blind_spot_tickers))
+    return build_placement_report(replayable, calendar, fields, blind_spot_count)
 
 
 def format_report(report: PlacementReport) -> str:

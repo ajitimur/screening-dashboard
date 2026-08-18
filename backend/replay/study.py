@@ -285,6 +285,19 @@ def study_to_dict(result: StudyResult) -> dict:
                 "recovered_by_five": f.decile_decomposition.recovered_by_five,
                 "outside_any_union": f.decile_decomposition.outside_any_union,
             },
+            "cluster_characterisation": {
+                "total_misses": f.cluster_characterisation.total_misses,
+                "continuation": f.cluster_characterisation.continuation,
+                "fresh": f.cluster_characterisation.fresh,
+                "marginal": f.cluster_characterisation.marginal,
+                "far": f.cluster_characterisation.far,
+                "range_distribution": _distribution(
+                    f.cluster_characterisation.range_distribution
+                ),
+                "prior_distance_distribution": _distribution(
+                    f.cluster_characterisation.prior_distance_distribution
+                ),
+            },
             "rows": [
                 {
                     "ticker": r.ticker,
@@ -302,6 +315,8 @@ def study_to_dict(result: StudyResult) -> dict:
                     "entry_session_break": r.entry_session_break,
                     "continuation": r.continuation,
                     "median_dollar_volume": r.median_dollar_volume,
+                    "cluster_min_range_adr": r.cluster_min_range_adr,
+                    "sessions_since_prior_entry": r.sessions_since_prior_entry,
                 }
                 for r in f.rows
             ],

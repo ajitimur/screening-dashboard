@@ -26,11 +26,15 @@ import pytest
 
 from replay.funnel import (
     COND_BASE_LENGTH,
+    COND_CLUSTER,
     FUNNEL_STAGES,
+    MARGINAL_TIGHT_MULT,
     STAGE_DECILE,
     STAGE_DETECTION,
     STAGE_LIQUIDITY,
+    ClusterDecomposition,
     FunnelReport,
+    characterise_cluster_misses,
     diagnose_detection,
     evaluation_session,
     run_funnel,
@@ -149,9 +153,14 @@ def _make_funnel_row(
     decile_present: bool = True,
     decile_pass: bool = False,
     decile_pass_five: bool = False,
+    failed_condition=None,
+    continuation: bool = False,
+    cluster_min_range_adr=None,
+    sessions_since_prior_entry=None,
 ):
-    """A ``FunnelRow`` with just the decile fields set — the assertion surface for
-    the decile-miss decomposition, everything else inert."""
+    """A ``FunnelRow`` with just the decile / cluster fields set — the assertion
+    surface for the decile-miss decomposition and the #132 cluster
+    characterisation, everything else inert."""
     from replay.funnel import FunnelRow
 
     return FunnelRow(
@@ -165,11 +174,13 @@ def _make_funnel_row(
         eval_percentiles={},
         decile_verdicts={},
         detection_pass=False,
-        failed_condition=None,
+        failed_condition=failed_condition,
         first_failing_stage=None,
         entry_session_break=False,
-        continuation=False,
+        continuation=continuation,
         median_dollar_volume=0.0,
+        cluster_min_range_adr=cluster_min_range_adr,
+        sessions_since_prior_entry=sessions_since_prior_entry,
     )
 
 
@@ -515,6 +526,22 @@ def _textbook_base_hlc():
     return hlc
 
 
+def _wide_tail_hlc():
+    """A run-up into a name still in motion: 60 flat bars, a tight run-up 100->110,
+    12 tight bars at 110, then 3 *wide* bars (118/102) ending today. ADR is set by
+    the tight 20-bar history, so the last-3-bar range reads far over the cluster's
+    1.5x window — the geometry of a re-entry into a running name, which fails
+    detection at ``cluster`` while clearing every earlier gate (history, adr,
+    prior_move, base_length, catch_up)."""
+    hlc = [(100.5, 99.5, 100.0)] * 60
+    for i in range(1, 16):  # tight run-up 100 -> 110
+        p = 100.0 + (110.0 - 100.0) * i / 15
+        hlc.append((p + 0.5, p - 0.5, p))
+    hlc += [(110.5, 109.5, 110.0)] * 12   # a tight shelf at 110 (sets a small ADR)
+    hlc += [(118.0, 102.0, 110.0)] * 3    # wide bars: close pinned, range blown out
+    return hlc
+
+
 def _funnel_record(ticker: str, entry: date) -> dict:
     return _trade_record(ticker, entry.isoformat())
 
@@ -564,6 +591,104 @@ def test_funnel_row_passes_liquidity_fails_detection_and_names_condition(store: 
     # The stage recall records the miss, and it is attributed to the condition.
     assert report.detection.passed == 0
     assert report.condition_counts == {COND_BASE_LENGTH: 1}
+    # A non-cluster miss carries no cluster-window margin (#132).
+    assert row.cluster_min_range_adr is None
+
+
+def test_funnel_cluster_miss_carries_its_window_margin(store: Store):
+    """A re-entry into a running name fails detection at ``cluster`` and the row
+    carries how far the tightest trailing window sat over the condition's 1.5x
+    window — the margin the #132 characterisation reads (acceptance criterion 1)."""
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "RUN", _bars_from_hlc(dates, _wide_tail_hlc()))
+    entry = dates[89] + timedelta(days=1)
+
+    report = run_funnel(parse_trades([_funnel_record("RUN", entry)]), store, burn_in=0)
+
+    (row,) = report.rows
+    assert row.detection_pass is False
+    assert row.failed_condition == COND_CLUSTER
+    assert report.condition_counts == {COND_CLUSTER: 1}
+    # The wide tail sits far over the cluster's 1.5x window — a name in motion, not
+    # a base a modest widening reaches.
+    assert row.cluster_min_range_adr is not None
+    assert row.cluster_min_range_adr > MARGINAL_TIGHT_MULT
+
+
+def test_funnel_row_carries_distance_to_the_prior_entry(store: Store):
+    """Every replayable trade carries the market-session distance to its nearest
+    prior entry (None on the first), the "how far from the prior entry" axis of the
+    #132 characterisation and the basis of the continuation tag (PRD user story 5)."""
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "CONT", _bars_from_hlc(dates, [(101, 99, 100)] * 90))
+    # First entry, then a re-entry three sessions later, then a fresh one 20 later.
+    trades = parse_trades(
+        [
+            _funnel_record("CONT", dates[60]),
+            _funnel_record("CONT", dates[63]),
+            _funnel_record("CONT", dates[83]),
+        ]
+    )
+
+    report = run_funnel(trades, store)
+
+    by_entry = {r.entry_date: r for r in report.rows}
+    assert by_entry[dates[60]].sessions_since_prior_entry is None   # first entry
+    assert by_entry[dates[60]].continuation is False
+    assert by_entry[dates[63]].sessions_since_prior_entry == 3      # within 5 -> add
+    assert by_entry[dates[63]].continuation is True
+    # 20 sessions from the nearest prior (dates[63]) -> a fresh entry, not a cont.
+    assert by_entry[dates[83]].sessions_since_prior_entry == 20
+    assert by_entry[dates[83]].continuation is False
+
+
+def test_funnel_report_characterises_the_cluster_misses(store: Store):
+    """The report characterises every ``cluster`` detection miss two ways (#132):
+    continuation-vs-fresh (how far from a prior entry) and marginal-vs-far (how far
+    over the condition's window), each bucket-pair partitioning the misses, with the
+    tightest-range and prior-distance distributions carried alongside."""
+
+    def _miss(*, cont, rng, dist):
+        return _make_funnel_row(
+            failed_condition=COND_CLUSTER, continuation=cont,
+            cluster_min_range_adr=rng, sessions_since_prior_entry=dist,
+        )
+
+    rows = [
+        _make_funnel_row(failed_condition=COND_BASE_LENGTH),        # not a cluster miss
+        _miss(cont=True, rng=1.7, dist=2),                          # continuation, marginal
+        _miss(cont=True, rng=3.5, dist=4),                          # continuation, far
+        _miss(cont=False, rng=1.8, dist=None),                      # fresh, marginal
+        _miss(cont=False, rng=4.0, dist=None),                      # fresh, far
+    ]
+
+    c = characterise_cluster_misses(rows)
+
+    assert isinstance(c, ClusterDecomposition)
+    assert c.total_misses == 4                       # the base_length row is excluded
+    assert c.continuation == 2 and c.fresh == 2
+    assert c.marginal == 2 and c.far == 2            # <= 2.0x ADR vs beyond
+    # Both bucket-pairs partition the misses exactly.
+    assert c.continuation + c.fresh == c.total_misses
+    assert c.marginal + c.far == c.total_misses
+    # The range distribution spans every miss; the prior-distance distribution only
+    # the continuation misses (2 and 4 sessions).
+    assert c.range_distribution.n == 4
+    assert c.prior_distance_distribution.n == 2
+    assert c.prior_distance_distribution.median == 3.0
+    # It rides the report the runner emits, computed over the report's own rows.
+    assert cluster_characterisation_matches(store)
+
+
+def cluster_characterisation_matches(store: Store) -> bool:
+    """The funnel report carries the cluster characterisation of its own rows."""
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "RUN", _bars_from_hlc(dates, _wide_tail_hlc()))
+    entry = dates[89] + timedelta(days=1)
+    report = run_funnel(
+        parse_trades([_funnel_record("RUN", entry)]), store, burn_in=0
+    )
+    return report.cluster_characterisation == characterise_cluster_misses(report.rows)
 
 
 def test_funnel_clean_base_passes_both_stages(store: Store):

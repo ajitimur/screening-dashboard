@@ -52,7 +52,7 @@ from __future__ import annotations
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 from datetime import date
-from typing import Callable, Iterable, Sequence
+from typing import TYPE_CHECKING, Callable, Iterable, Sequence
 
 from screener.bars import Bar
 from screener.detection import (
@@ -66,6 +66,7 @@ from screener.detection import (
     _find_cluster,
     _prior_move,
     _sma_close,
+    cluster_min_range_adr,
     detect,
     detection_gate,
 )
@@ -76,6 +77,9 @@ from screener.universe import LIQUIDITY_FLOOR, median_dollar_volume
 
 from .chain import BURN_IN_SESSIONS, REPLAY_MARKET, SessionField, replay_chain
 from .reference import ClassifiedTrade, ExecutedTrade, classify
+
+if TYPE_CHECKING:
+    from .regression import Distribution
 
 # The three stages this study evaluates, in the app's funnel order: liquidity,
 # then the cross-sectional decile gate, then detection (ticket #119 folded the
@@ -99,6 +103,13 @@ COND_PRIOR_MOVE = "prior_move"    # no qualifying low->high prior move
 COND_BASE_LENGTH = "base_length"  # base shorter than MIN_BASE_LEN
 COND_CATCH_UP = "catch_up"        # price not back at the 10/20 MA
 COND_CLUSTER = "cluster"          # no tight 3-7 bar cluster (size or tightness)
+
+# A `cluster` miss whose tightest trailing window sits within this multiple of ADR
+# is *marginal* — a modest widening of the detector's TIGHT_MULT (1.5) would recover
+# it; beyond it the name is genuinely in motion and no plausible widening reaches a
+# base. This is the boundary the #132 characterisation reads the misses against; it
+# is *reported*, never applied, and no detection constant is changed by it.
+MARGINAL_TIGHT_MULT = 2.0
 
 
 @dataclass(frozen=True)
@@ -145,6 +156,11 @@ class FunnelRow:
     entry_session_break: bool         # secondary: detector fires on the entry session itself
     continuation: bool
     median_dollar_volume: float       # the liquidity measure at the eval session
+    # -- `cluster`-miss characterisation (#132): both carry the *margin* of a
+    # cluster miss so the 171-miss population can be read against the way he
+    # re-enters names and against the condition's current window.
+    cluster_min_range_adr: float | None   # tightest trailing 3-7 bar range in ADR; set only on a cluster miss
+    sessions_since_prior_entry: int | None  # market-session distance to the nearest prior entry (None = first)
 
 
 @dataclass(frozen=True)
@@ -224,6 +240,90 @@ def decompose_decile_misses(rows: Iterable[FunnelRow]) -> DecileDecomposition:
 
 
 @dataclass(frozen=True)
+class ClusterDecomposition:
+    """The `cluster` detection miss, characterised two ways (#132).
+
+    `cluster` accounts for the largest share of the detection misses — more than
+    the other firing conditions combined — and A1 shows detection is the *only*
+    stage whose ex-continuation recall exceeds its headline, the signature of a
+    rule that penalises his repeat entries. This decomposition reads every
+    replayable trade whose detection failed on the `cluster` condition
+    (``failed_condition == COND_CLUSTER``) against the two questions #132 asks:
+
+    - **how far from the prior entry** — ``continuation`` counts the misses that
+      are continuation entries (within :data:`CONTINUATION_SESSIONS` of a prior
+      entry in the same ticker), ``fresh`` the rest. A cluster miss on a
+      continuation entry is the base detector correctly declining a name that is
+      mid-move rather than in a base; recall on it is not a legitimate target,
+      because the reference set records no setup he declined and precision is not
+      measurable. ``prior_distance_distribution`` summarises the market-session
+      distance to the nearest prior entry across the continuation misses.
+    - **how they distribute against the condition's window** — ``marginal`` counts
+      the misses whose tightest trailing window sits within
+      :data:`MARGINAL_TIGHT_MULT` × ADR (a modest widening of the detector's
+      ``TIGHT_MULT`` would recover them), ``far`` the ones beyond it (a name
+      genuinely in motion no plausible widening reaches).
+      ``range_distribution`` summarises the tightest-window range in ADR across
+      all the misses.
+
+    ``continuation + fresh == total_misses`` and ``marginal + far ==
+    total_misses`` (every real cluster miss cleared the ADR gate, so it always
+    carries a tightest-window range). The distributions are ``None`` when their
+    subset is empty. Nothing here changes a detector constant (PRD #114 out of
+    scope); it is the evidence a change would have to rest on.
+    """
+
+    total_misses: int
+    continuation: int
+    fresh: int
+    marginal: int
+    far: int
+    range_distribution: "Distribution | None"
+    prior_distance_distribution: "Distribution | None"
+
+
+def characterise_cluster_misses(rows: Iterable[FunnelRow]) -> ClusterDecomposition:
+    """Characterise every `cluster` detection miss across ``rows`` (#132).
+
+    A miss is any row whose detection failed on the `cluster` condition. Each is
+    read off the margin the row already carries — ``cluster_min_range_adr`` (how
+    far over the condition's window) and ``continuation`` /
+    ``sessions_since_prior_entry`` (how far from a prior entry) — never re-running
+    the detector. ``distribution`` is imported locally to keep :mod:`replay.funnel`
+    free of a top-level dependency on :mod:`replay.regression`, which imports it.
+    """
+    from .regression import distribution
+
+    misses = [r for r in rows if r.failed_condition == COND_CLUSTER]
+    ranges = [
+        r.cluster_min_range_adr
+        for r in misses
+        if r.cluster_min_range_adr is not None
+    ]
+    continuation = sum(1 for r in misses if r.continuation)
+    marginal = sum(
+        1
+        for r in misses
+        if r.cluster_min_range_adr is not None
+        and r.cluster_min_range_adr <= MARGINAL_TIGHT_MULT
+    )
+    prior_distances = [
+        float(r.sessions_since_prior_entry)
+        for r in misses
+        if r.continuation and r.sessions_since_prior_entry is not None
+    ]
+    return ClusterDecomposition(
+        total_misses=len(misses),
+        continuation=continuation,
+        fresh=len(misses) - continuation,
+        marginal=marginal,
+        far=len(misses) - marginal,
+        range_distribution=distribution(ranges),
+        prior_distance_distribution=distribution(prior_distances),
+    )
+
+
+@dataclass(frozen=True)
 class FunnelReport:
     """The A1 result: per-row funnel walks plus per-stage recall.
 
@@ -236,6 +336,9 @@ class FunnelReport:
     depends on the replayed field's population (PRD user story 22).
     ``decile_decomposition`` breaks the decile miss into coverage gap /
     recovered-by-5 / outside-any-union across all replayable trades (#133).
+    ``cluster_characterisation`` breaks the largest detection miss — `cluster` —
+    down by continuation-vs-fresh and by how far each miss sits over the
+    condition's tightness window (#132).
     """
 
     rows: list[FunnelRow]
@@ -247,6 +350,7 @@ class FunnelReport:
     continuation_count: int
     blind_spot_count: int
     decile_decomposition: DecileDecomposition
+    cluster_characterisation: ClusterDecomposition
 
 
 # -- evaluation session -------------------------------------------------------
@@ -335,32 +439,61 @@ def passes_liquidity(bars: list[Bar], market: str) -> bool:
     return median_dollar_volume(bars) >= LIQUIDITY_FLOOR[market]
 
 
-def _continuation_flags(
+def _prior_entry_distances(
     classified: list[ClassifiedTrade], calendar: list[date]
-) -> dict[int, bool]:
-    """Tag each replayable trade (by identity) a continuation entry or not.
+) -> dict[int, int | None]:
+    """Market-session distance from each replayable trade (by identity) to the
+    *nearest prior* entry in the same ticker, or ``None`` when it is the first
+    entry in that ticker.
 
-    A trade is a continuation when a prior entry in the *same ticker* sits within
-    :data:`CONTINUATION_SESSIONS` market sessions of it. Distance is counted on the
-    market calendar so weekends and holidays do not inflate the gap.
+    Distance is counted on the market calendar so weekends and holidays do not
+    inflate the gap. A trade is a continuation entry when this distance is not
+    ``None`` and ``<= CONTINUATION_SESSIONS`` (:func:`_is_continuation`) — so the
+    single distance both drives the continuation tag (PRD user story 5) and carries
+    the "how far from the prior entry" margin the #132 cluster characterisation
+    reads.
     """
     by_ticker: dict[str, list[ExecutedTrade]] = {}
     for c in classified:
         if c.replayable:
             by_ticker.setdefault(c.trade.ticker, []).append(c.trade)
 
-    flags: dict[int, bool] = {}
+    distances: dict[int, int | None] = {}
     for trades in by_ticker.values():
         ordered = sorted(trades, key=lambda t: t.entry_date)
         for i, trade in enumerate(ordered):
             here = _session_index(calendar, trade.entry_date)
-            is_cont = any(
+            priors = [
                 here - _session_index(calendar, prior.entry_date)
-                <= CONTINUATION_SESSIONS
                 for prior in ordered[:i]
-            )
-            flags[id(trade)] = is_cont
-    return flags
+            ]
+            distances[id(trade)] = min(priors) if priors else None
+    return distances
+
+
+def _is_continuation(distance: int | None) -> bool:
+    """Whether a nearest-prior-entry ``distance`` marks a continuation entry."""
+    return distance is not None and distance <= CONTINUATION_SESSIONS
+
+
+def _eval_cluster_min_range(bars: list[Bar], as_of: date) -> float | None:
+    """The tightest trailing 3–7 bar cluster range at ``as_of``, in ADR units.
+
+    Reuses the detector's own :func:`screener.detection.cluster_min_range_adr` over
+    the same ADR the detector would compute, so a `cluster` miss carries how far
+    over the condition's window it sat. ``None`` when there is no session on or
+    before ``as_of`` or ADR is non-positive.
+    """
+    idx = _as_of_index(bars, as_of)
+    if idx is None:
+        return None
+    a = _adr(bars[: idx + 1])
+    if a is None or a <= 0:
+        return None
+    high = [b.high for b in bars]
+    low = [b.low for b in bars]
+    adr_abs = a * bars[idx].close
+    return cluster_min_range_adr(high, low, idx, adr_abs)
 
 
 def _funnel_row(
@@ -369,6 +502,7 @@ def _funnel_row(
     calendar: list[date],
     market: str,
     continuation: bool,
+    sessions_since_prior_entry: int | None,
     members_by_session: dict[date, set[str]],
     gate3_by_session: dict[date, set[str]],
     gate5_by_session: dict[date, set[str]],
@@ -397,6 +531,8 @@ def _funnel_row(
             entry_session_break=entry_session_break,
             continuation=continuation,
             median_dollar_volume=0.0,
+            cluster_min_range_adr=None,
+            sessions_since_prior_entry=sessions_since_prior_entry,
         )
 
     up_to_eval = [b for b in bars if b.session <= eval_session]
@@ -421,6 +557,14 @@ def _funnel_row(
     detection = detect(trade.ticker, bars, eval_session)
     detection_pass = detection is not None
     failed_condition = None if detection_pass else diagnose_detection(bars, eval_session)
+    # The margin of a `cluster` miss (#132): how far the tightest trailing window
+    # sat over the condition's TIGHT_MULT window. Set only on a cluster miss — the
+    # other conditions have their own margins and a pass has no miss to characterise.
+    cluster_min_range = (
+        _eval_cluster_min_range(bars, eval_session)
+        if failed_condition == COND_CLUSTER
+        else None
+    )
 
     if not liquidity_pass:
         first_failing = STAGE_LIQUIDITY
@@ -447,6 +591,8 @@ def _funnel_row(
         entry_session_break=entry_session_break,
         continuation=continuation,
         median_dollar_volume=mdv,
+        cluster_min_range_adr=cluster_min_range,
+        sessions_since_prior_entry=sessions_since_prior_entry,
     )
 
 
@@ -485,7 +631,7 @@ def build_funnel_report(
     computed, so the one-process runner (:mod:`replay.study`) can share a single
     chain across all four analyses instead of rebuilding it per analysis.
     """
-    continuation = _continuation_flags(classified, calendar)
+    distances = _prior_entry_distances(classified, calendar)
     members_by_session = {sf.session: set(sf.members) for sf in chain}
     gate3_by_session = {sf.session: detection_gate(sf.ranks) for sf in chain}
     gate5_by_session = {sf.session: decile_gate(sf.ranks) for sf in chain}
@@ -503,13 +649,15 @@ def build_funnel_report(
         ticker = c.trade.ticker
         if ticker not in bars_cache:
             bars_cache[ticker] = store.bars(market, ticker)
+        distance = distances[id(c.trade)]
         rows.append(
             _funnel_row(
                 c.trade,
                 bars_cache[ticker],
                 calendar,
                 market,
-                continuation[id(c.trade)],
+                _is_continuation(distance),
+                distance,
                 members_by_session,
                 gate3_by_session,
                 gate5_by_session,
@@ -587,6 +735,7 @@ def _build_report(rows: list[FunnelRow], blind_spot_count: int) -> FunnelReport:
         continuation_count=sum(1 for r in rows if r.continuation),
         blind_spot_count=blind_spot_count,
         decile_decomposition=decompose_decile_misses(rows),
+        cluster_characterisation=characterise_cluster_misses(rows),
     )
 
 
@@ -621,6 +770,27 @@ def format_report(report: FunnelReport) -> str:
         f"  recovered by widening the gate 3->5: {d.recovered_by_five}",
         f"  outside any union (genuine miss):   {d.outside_any_union}",
     ]
+    c = report.cluster_characterisation
+    lines += [
+        "",
+        f"cluster miss characterised ({c.total_misses} misses):",
+        f"  continuation entries (re-entries): {c.continuation}",
+        f"  fresh entries:                     {c.fresh}",
+        f"  marginal (<= {MARGINAL_TIGHT_MULT:.1f}x ADR, a modest widen recovers): {c.marginal}",
+        f"  far (name in motion, no base):     {c.far}",
+    ]
+    if c.range_distribution is not None:
+        r = c.range_distribution
+        lines.append(
+            f"  tightest-window range in ADR: median {r.median:.2f} "
+            f"(p25 {r.p25:.2f}, p75 {r.p75:.2f}, max {r.maximum:.2f})"
+        )
+    if c.prior_distance_distribution is not None:
+        p = c.prior_distance_distribution
+        lines.append(
+            f"  sessions since prior entry (continuation misses): median "
+            f"{p.median:.1f} (min {p.minimum:.0f}, max {p.maximum:.0f})"
+        )
     return "\n".join(lines)
 
 

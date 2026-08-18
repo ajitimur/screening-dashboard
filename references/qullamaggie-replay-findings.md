@@ -174,6 +174,79 @@ Blind-spot trades (ticker with no bars) get **no** funnel row — they are recor
 spot by `replay.reference`, never as a stage failure, so the replayable set and the blind
 spot are each quantified rather than one silently absorbing the other (user story 34).
 
+### 3a. Is the `cluster` condition's window mis-set for the way he re-enters names? (#132)
+
+**Question.** `cluster` is the largest single detection miss — **171 of 278** (61.5%), more than
+`catch_up`, `base_length` and `history` combined. Is its window too aggressive, or is it
+declining trades it should decline?
+
+**What the condition is.** A `cluster` miss means `_find_cluster` found *no* trailing window in
+`K_MIN..K_MAX = 3..7` bars whose range sits under `TIGHT_MULT = 1.5 × ADR` — i.e. even the
+**tightest 3-bar** trailing window spans more than 1.5 ADR. That is the geometry of a name **in
+motion**, not one consolidating in a base: the recent bars are wide relative to the name's own
+20-bar ADR. The detector emits *a base, not a state*, so by construction it declines a name that
+is still running.
+
+**Two independent signals say the misses are his re-entries, not the rule mis-firing on bases.**
+
+1. **A1's ex-continuation inversion (§3).** Detection is the *only* funnel stage whose
+   ex-continuation recall (**59.0%**) is *higher* than its headline (**57.8%**). Stripping his
+   repeat entries makes the detector look better — the signature of a rule that penalises exactly
+   the repeat-entry pattern. A continuation entry is an *add to a running position*, tagged not
+   dropped (§1); it is not a fresh base, and the base detector was never going to fire on it. So
+   the recall the `cluster` rule "costs" on those rows is recall on a pattern the app does not
+   claim to detect.
+2. **A3b's selection contrast (§5b).** **Tightness** — `cluster_k ≥ 5`, the cluster's own
+   narrowness — is the **second-strongest selector in the whole rubric** (taken 59.4% vs
+   not-taken 38.6%, **+20.8pp**), behind only ADR. His eye actively selects *for* tight clusters.
+   A gate built on cluster tightness is therefore filtering on the very geometry his selection
+   most depends on.
+
+**Recommendation: leave the window unchanged. Do not loosen `TIGHT_MULT`, `K_MIN` or `K_MAX`.**
+Provenance for the decision — all three legs measured, none newly asserted:
+
+- **The calibration rule (§7) forbids it.** A gate may be loosened on an A1 recall miss *only when
+  A3 shows the dimension has no signal **and** real spread*. Tightness has clear signal — it is
+  §5b's +20.8pp selector — so the rule's precondition fails outright. Loosening the cluster window
+  is precisely the "widen every gate to chase a recall number" trap the missing precision leaves
+  open (§7): with no false-positive rate measurable, a recall gain from admitting wider, in-motion
+  names cannot be weighed against the noise it lets in.
+- **The misses are not the detector failing on bases.** They are the detector correctly declining
+  names that are mid-move — disproportionately his continuation entries (signal 1). Recall on
+  continuation entries is not a legitimate optimisation target; the study keeps them in every
+  denominator (§1) but never as a target to be recovered.
+- **No app change is made, so no A1 recall re-measurement is triggered** (acceptance criterion 3
+  is conditional on a change). The `detection.py` cluster constants stand: `K_MIN, K_MAX = 3, 7`,
+  `TIGHT_MULT = 1.5`.
+
+**The characterisation machinery, so the verdict is checkable and re-openable.** The A1 funnel now
+records, on every replayable trade, the *margin* of a cluster miss: `cluster_min_range_adr` — the
+tightest trailing 3–7 bar range in ADR the detector could find, taken regardless of the 1.5×
+threshold (`screener.detection.cluster_min_range_adr`, a read-only diagnostic that changes no
+detection verdict) — and `sessions_since_prior_entry`, the market-session distance to the nearest
+prior entry in the same ticker. `funnel.characterise_cluster_misses` (`ClusterDecomposition`)
+partitions the 171 misses two ways: **continuation vs fresh** (how far from a prior entry) and
+**marginal vs far** against a reported `MARGINAL_TIGHT_MULT = 2.0` boundary (how far over the 1.5×
+window — a marginal miss is one a modest widening would recover, a far miss a name genuinely in
+motion). Both counts, plus the tightest-range and prior-distance distributions, ride the report
+and the machine-readable `replay_study_results.json`, so the per-miss shape is recomputable
+without another rebuild.
+
+> **Note for the next run (this write-up's one un-refreshed figure).** The 171 count is from the
+> 2026-08-15 study run recorded in the header; the per-miss `continuation`/`marginal` split and the
+> two distributions were added by #132 and want a fresh `python -m replay.study` against the built
+> store to populate. The **decision does not depend on them**: it rests on the calibration rule
+> and the two already-measured signals above, both of which point the same way regardless of the
+> exact split. What the split *would* do is quantify how much of the 171 is continuation-driven —
+> the expected confirmation — and it cannot license a loosening even if it came back
+> continuation-light, because Tightness's §5b signal (not the split) is what the rule turns on.
+
+**What would re-open it (gather more evidence, not act now).** A dataset that makes precision
+measurable — a control group of setups he *passed over* — so a recall gain could be weighed against
+its false-positive cost; and an out-of-regime or IDX reference set, so the window is not tuned to a
+once-in-a-decade US momentum regime (§8). Absent those, the question is re-openable rather than
+settled by omission, and the machinery above is what a re-opening would read.
+
 ---
 
 ## 4. A2 — the full replay: field placement

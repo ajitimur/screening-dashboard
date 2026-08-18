@@ -222,6 +222,35 @@ def _find_cluster(high: list[float], low: list[float], as_of: int, adr_abs: floa
     return None
 
 
+def cluster_min_range_adr(
+    high: list[float], low: list[float], as_of: int, adr_abs: float
+) -> float | None:
+    """The tightest trailing 3–7 bar window range at ``as_of``, in ADR units.
+
+    A read-only diagnostic: the minimum over ``k`` in ``[K_MIN, K_MAX]`` of the
+    ``k``-bar trailing range ``(max high − min low) / adr_abs``, taken regardless
+    of whether any window clears ``TIGHT_MULT``. It reuses the same trailing-window
+    scan as :func:`_find_cluster` but never gates, so a ``no_cluster`` rejection
+    (``_find_cluster`` returned ``None``) can still be quantified *against* the
+    condition's window — a value just over ``TIGHT_MULT`` is a marginal miss, a
+    large one a name genuinely in motion. Returns ``None`` only when ``adr_abs`` is
+    non-positive or no ``k``-bar window fits before ``as_of``; it changes no
+    detection verdict. Used by the A1 study to characterise the ``cluster`` misses
+    (issue #132), not by the detector itself.
+    """
+    if adr_abs <= 0:
+        return None
+    best: float | None = None
+    for k in range(K_MIN, K_MAX + 1):
+        lo = as_of - k + 1
+        if lo < 0:
+            continue
+        rng = (max(high[lo:as_of + 1]) - min(low[lo:as_of + 1])) / adr_abs
+        if best is None or rng < best:
+            best = rng
+    return best
+
+
 def _fit_envelope(
     high: list[float], adr_abs: float, anchor: int, base_start: int,
     as_of: int, cluster_k: int,

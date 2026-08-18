@@ -24,6 +24,7 @@ from screener.detection import (
     Rank,
     _churn_l,
     _dryup,
+    cluster_min_range_adr,
     detect,
     detection_gate,
 )
@@ -135,6 +136,23 @@ def test_a_name_with_no_tight_cluster_is_not_a_detection():
     for h in (60, 55, 62, 54, 63, 56, 61):  # last bars swing ~15% of price
         hlc.append((h + 0.5, h - 0.5, h))
     assert detect("AAA", _bars(hlc), CAL[96]) is None
+
+
+def test_cluster_min_range_adr_reports_the_tightest_trailing_window():
+    # The read-only diagnostic behind the #132 study: the tightest trailing 3-7
+    # bar range in ADR, taken *regardless* of whether it clears TIGHT_MULT, so a
+    # ``no_cluster`` rejection can still be quantified against the condition's
+    # window. Range is monotonic in k, so the minimum is the smallest (3-bar)
+    # window that fits — here the last three bars span 110 − 104 = 6, which at
+    # adr_abs = 4.0 is 1.5 ADR; every wider window drags in the low-90 bars.
+    high = [100.0, 100.0, 110.0, 110.0, 110.0]
+    low = [90.0, 90.0, 104.0, 104.0, 104.0]
+    assert cluster_min_range_adr(high, low, 4, 4.0) == 1.5
+    # A window genuinely in motion reads far over the 1.5 window.
+    wide_low = [90.0, 90.0, 100.0, 98.0, 102.0]
+    assert cluster_min_range_adr(high, wide_low, 4, 4.0) == (110.0 - 98.0) / 4.0
+    # Non-positive ADR is undefined, not a range.
+    assert cluster_min_range_adr(high, low, 4, 0.0) is None
 
 
 # -- the star score's derived signals (spec §4.7) -----------------------------

@@ -35,11 +35,12 @@ blind spot counted in coverage, never an absent-from-field verdict.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Iterable, Mapping
 
 from screener.boards import BOARD_SIZE
+from screener.score import RUBRIC_VERSION, RUBRIC_WEIGHTS, Dimension, stars_under
 from screener.store import Store
 
 from .chain import BURN_IN_SESSIONS, REPLAY_MARKET
@@ -97,14 +98,36 @@ class StarDistribution:
 
 
 @dataclass(frozen=True)
+class RubricStarDistributions:
+    """His picks against the field under **one** rubric version, on the same field.
+
+    The paired A2 re-run (#136) scores a single replayed field under both the live
+    rubric and the superseded one so a *rubric* change is held apart from a *field*
+    change — the two variables that would otherwise move at once. ``rubric_version``
+    is the stamp (:data:`screener.score.RUBRIC_VERSION`) every star figure must
+    carry (#138): a distribution quoted without it cannot be compared against the
+    committed 17.3% / 17.8%. ``picks`` and ``field`` are the two distributions under
+    that version, scored from the *same* detections' hit booleans.
+    """
+
+    rubric_version: int
+    picks: StarDistribution
+    field: StarDistribution
+
+
+@dataclass(frozen=True)
 class PlacementReport:
     """The A2 result: per-trade placements plus the two star distributions.
 
     ``picks`` is the star distribution of his executed trades that appeared in the
     field; ``field`` is the star distribution of the whole field on the same
-    sessions his trades were evaluated against. ``board_size`` is the app's own
-    board size (the top-N cut). ``blind_spot_count`` is the coverage figure every
-    field-derived output must carry (user story 22); ``scope`` is :data:`SCOPE`.
+    sessions his trades were evaluated against — both under the **live** rubric.
+    ``by_rubric`` re-scores the *same* field under every rubric version (live first,
+    then the superseded ones), each stamped, so the paired re-run (#136) separates a
+    rubric change from a field change; the live entry's pair equals ``picks`` /
+    ``field``. ``board_size`` is the app's own board size (the top-N cut).
+    ``blind_spot_count`` is the coverage figure every field-derived output must carry
+    (user story 22); ``scope`` is :data:`SCOPE`.
     """
 
     placements: list[TradePlacement]
@@ -112,6 +135,7 @@ class PlacementReport:
     field: StarDistribution
     board_size: int
     blind_spot_count: int
+    by_rubric: list[RubricStarDistributions] = field(default_factory=list)
     scope: str = SCOPE
 
     @property
@@ -169,6 +193,10 @@ def build_placement_report(
 
     placements: list[TradePlacement] = []
     pick_sessions: set[date] = set()
+    # The seven-dimension breakdowns of his in-field picks, kept so the same hit
+    # booleans can be re-scored under every rubric version (#136) — the field is
+    # held fixed, only the weights move.
+    pick_breakdowns: list[list[Dimension]] = []
     for trade in replayable:
         eval_session = evaluation_session(calendar, trade.entry_date)
         session_field = by_session.get(eval_session) if eval_session else None
@@ -176,22 +204,46 @@ def build_placement_report(
         placements.append(placement)
         if session_field is not None:
             pick_sessions.add(session_field.session)
+            if placement.in_field:
+                match = next(
+                    det for det in session_field.detections
+                    if det.symbol == trade.ticker
+                )
+                pick_breakdowns.append(match.score.breakdown)
 
-    picks = StarDistribution.from_stars(
-        p.stars for p in placements if p.in_field and p.stars is not None
-    )
-    field_dist = StarDistribution.from_stars(
-        det.score.stars
+    field_breakdowns = [
+        det.score.breakdown
         for session in pick_sessions
         for det in by_session[session].detections
+    ]
+
+    # Score both his picks and the field under every rubric version, live first.
+    # The live version reproduces the detections' own stars exactly (they were
+    # scored under it), so the live pair *is* the headline picks/field below.
+    versions = [RUBRIC_VERSION] + sorted(
+        (v for v in RUBRIC_WEIGHTS if v != RUBRIC_VERSION), reverse=True
     )
+    by_rubric = [
+        RubricStarDistributions(
+            rubric_version=version,
+            picks=StarDistribution.from_stars(
+                stars_under(b, RUBRIC_WEIGHTS[version]) for b in pick_breakdowns
+            ),
+            field=StarDistribution.from_stars(
+                stars_under(b, RUBRIC_WEIGHTS[version]) for b in field_breakdowns
+            ),
+        )
+        for version in versions
+    ]
+    live = next(r for r in by_rubric if r.rubric_version == RUBRIC_VERSION)
 
     return PlacementReport(
         placements=placements,
-        picks=picks,
-        field=field_dist,
+        picks=live.picks,
+        field=live.field,
         board_size=BOARD_SIZE,
         blind_spot_count=blind_spot_count,
+        by_rubric=by_rubric,
         scope=SCOPE,
     )
 
@@ -244,17 +296,27 @@ def format_report(report: PlacementReport) -> str:
         f"placed trades:       {placed}",
         f"appeared in field:   {report.in_field_count}/{placed}",
         f"inside top {report.board_size}:      {report.top_thirty_count}/{placed}",
-        "",
-        "star distribution (his picks vs the field, same sessions):",
     ]
-    all_stars = sorted(
-        set(report.picks.counts) | set(report.field.counts), reverse=True
-    )
-    for star in all_stars:
+    # The star distributions, one block per rubric version (live first), each
+    # stamped — the same field re-scored under each rubric so a rubric change is
+    # held apart from a field change (#136). A distribution without its stamp
+    # cannot be compared against the committed 17.3% / 17.8% (#138).
+    for rubric in report.by_rubric:
+        stamp = f"rubric v{rubric.rubric_version}"
+        if rubric.rubric_version == RUBRIC_VERSION:
+            stamp += " (live)"
+        lines.append("")
         lines.append(
-            f"  {star:>4} stars:  picks {report.picks.counts.get(star, 0):>4}  "
-            f"field {report.field.counts.get(star, 0):>5}"
+            f"star distribution [{stamp}] (his picks vs the field, same sessions):"
         )
+        all_stars = sorted(
+            set(rubric.picks.counts) | set(rubric.field.counts), reverse=True
+        )
+        for star in all_stars:
+            lines.append(
+                f"  {star:>4} stars:  picks {rubric.picks.counts.get(star, 0):>4}  "
+                f"field {rubric.field.counts.get(star, 0):>5}"
+            )
     return "\n".join(lines)
 
 

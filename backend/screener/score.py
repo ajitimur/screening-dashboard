@@ -61,6 +61,7 @@ Pure and numpy-free, so it is unit-tested without the network.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
 from .detection import Detection
@@ -112,6 +113,44 @@ DIMENSIONS: tuple[tuple[str, int], ...] = (
     ("Sector", 1),
     ("ADR", 2),
 )
+
+
+# The weight of every rubric version, keyed by its :data:`RUBRIC_VERSION` stamp,
+# so a set of *hit booleans* can be re-scored under any version without
+# re-detecting. Version 1 is the superseded ten-point rubric (Tightness and
+# Orderliness ×2, everything else ×1); version 2 is the live nine-point table
+# above. Kept beside the live one specifically for the paired A2 re-run (#136),
+# which scores one field under both rubrics so a *rubric* change is separated from
+# a *field* change instead of the two moving at once.
+RUBRIC_WEIGHTS: Mapping[int, Mapping[str, int]] = {
+    1: {
+        "Tightness": 2,
+        "Orderliness": 2,
+        "Prior move": 1,
+        "Base length": 1,
+        "MA support": 1,
+        "Volume": 1,
+        "Sector": 1,
+        "ADR": 1,
+    },
+    RUBRIC_VERSION: {name: weight for name, weight in DIMENSIONS},
+}
+
+
+def stars_under(breakdown: Iterable[Dimension], weights: Mapping[str, int]) -> float:
+    """Re-total a breakdown's hit booleans under an arbitrary weight map → stars.
+
+    The hits are a property of the *setup*, not the rubric — only the weights move
+    between versions. So one field's detections can be scored under either rubric
+    (:data:`RUBRIC_WEIGHTS`) from the same breakdown, which is what lets the paired
+    A2 re-run (#136) hold the field fixed while swapping only the weights. Under the
+    live weights it reproduces :func:`star_score` exactly (``points ÷ 2``); a
+    dimension absent from ``weights`` scores nothing. Sector-struck breakdowns from
+    the replay (:mod:`replay.field`) re-total correctly because the sum ranges over
+    the rows that are present.
+    """
+    points = sum(weights.get(d.dimension, 0) for d in breakdown if d.hit)
+    return points / 2
 
 
 def star_score(

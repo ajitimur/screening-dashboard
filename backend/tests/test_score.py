@@ -152,3 +152,36 @@ def test_a_rubric_version_stamp_exists():
     # compared like with like (PRD #138).
     assert isinstance(RUBRIC_VERSION, int)
     assert RUBRIC_VERSION >= 2
+
+
+def test_rubric_weights_carry_the_superseded_v1_alongside_the_live_v2():
+    # The paired A2 re-run (#136) re-scores the *same* field under both rubrics so
+    # a rubric change is separated from a field change. That needs the old (v1)
+    # weights kept beside the live ones, keyed by version stamp.
+    from screener.score import RUBRIC_WEIGHTS
+
+    assert set(RUBRIC_WEIGHTS) >= {1, RUBRIC_VERSION}
+    v1, v2 = RUBRIC_WEIGHTS[1], RUBRIC_WEIGHTS[RUBRIC_VERSION]
+    # v1 is the ten-point rubric: Tightness/Orderliness ×2, everything else ×1.
+    assert v1 == {
+        "Tightness": 2, "Orderliness": 2, "Prior move": 1, "Base length": 1,
+        "MA support": 1, "Volume": 1, "Sector": 1, "ADR": 1,
+    }
+    assert sum(v1.values()) == 10
+    # v2 mirrors the live DIMENSIONS table, and totals nine.
+    assert v2 == {name: weight for name, weight in DIMENSIONS}
+    assert sum(v2.values()) == 9
+
+
+def test_stars_under_rescore_a_breakdown_by_an_arbitrary_weight_map():
+    # stars_under re-totals a breakdown's *hit booleans* under a supplied weight
+    # map, so one field's detections can be scored under either rubric without
+    # re-detecting. Under the live weights it reproduces star_score exactly.
+    from screener.score import RUBRIC_WEIGHTS, stars_under
+
+    det = _det(adr=0.06, churn_l=0.45, base_len=10)  # ADR + Orderliness + Base all hit
+    stars, breakdown = star_score(det, prior_move=True, sector_share=0.20)
+    assert stars_under(breakdown, RUBRIC_WEIGHTS[RUBRIC_VERSION]) == stars
+    # Under v1 the same booleans score differently: ADR was ×1 not ×2, Orderliness
+    # ×2 not ×1 (net 0), and Base length ×1 not ×0 (+1 point → +0.5 star).
+    assert stars_under(breakdown, RUBRIC_WEIGHTS[1]) == stars + 0.5

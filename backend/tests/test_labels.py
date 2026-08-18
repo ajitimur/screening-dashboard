@@ -20,10 +20,12 @@ network.
 
 from datetime import date, timedelta
 
+import duckdb
+
 from screener.labels import SLICE, Label, select_fetches
 from screener.pipeline import refresh_labels
 from screener.source import RateLimitedError, Source
-from screener.store import Store
+from screener.store import SCHEMA_VERSION, Store
 
 
 # -- an injected clock: sleeps advance virtual time (as in Seam 3) ------------
@@ -212,6 +214,88 @@ def test_store_labels_are_per_market(store: Store):
     store.upsert_label("IDX", "BBB.JK", "Energy", "Coal", date(2026, 8, 5))
     assert set(store.labels("US")) == {"AAA"}
     assert set(store.labels("IDX")) == {"BBB.JK"}
+
+
+# == the forward history: label_at reads back what was known (issue #130) ======
+
+
+def test_upsert_records_history_so_a_past_sector_is_recoverable(store: Store):
+    # The in-place cache overwrites, but every resolved fetch also lands in the
+    # append-only history — so the sector a name carried as of an earlier session
+    # is not lost when a later session overwrites the cache (the eighth-dimension
+    # replay depends on this).
+    store.upsert_label("US", "AAA", "Technology", "Software", date(2026, 3, 1))
+    store.upsert_label("US", "AAA", "Healthcare", "Biotech", date(2026, 8, 1))
+
+    # The live cache is the latest value...
+    assert store.label("US", "AAA").sector == "Healthcare"
+    # ...but the sector known as of the earlier session is still readable.
+    assert store.label_at("US", "AAA", date(2026, 3, 1)).sector == "Technology"
+    assert store.label_at("US", "AAA", date(2026, 8, 1)).sector == "Healthcare"
+
+
+def test_label_at_returns_the_most_recent_record_on_or_before_the_session(store: Store):
+    # A session between two recorded fetches reads back the earlier one — the
+    # label that was actually known that night, not the one fetched later.
+    store.upsert_label("US", "AAA", "Technology", "Software", date(2026, 3, 1))
+    store.upsert_label("US", "AAA", "Healthcare", "Biotech", date(2026, 8, 1))
+
+    mid = store.label_at("US", "AAA", date(2026, 5, 15))
+    assert mid == Label("AAA", "Technology", "Software", date(2026, 3, 1))
+
+
+def test_label_at_is_none_before_the_first_record(store: Store):
+    store.upsert_label("US", "AAA", "Technology", "Software", date(2026, 3, 1))
+    assert store.label_at("US", "AAA", date(2026, 2, 1)) is None
+    assert store.label_at("US", "MISSING", date(2026, 8, 1)) is None
+
+
+def test_history_is_per_market(store: Store):
+    store.upsert_label("US", "AAA", "Technology", "Software", date(2026, 3, 1))
+    store.upsert_label("IDX", "AAA", "Energy", "Coal", date(2026, 3, 1))
+    assert store.label_at("US", "AAA", date(2026, 3, 1)).sector == "Technology"
+    assert store.label_at("IDX", "AAA", date(2026, 3, 1)).sector == "Energy"
+
+
+def test_re_resolving_the_same_session_updates_history_not_duplicates(store: Store):
+    # A session recompute re-fetches the label; the history keeps one row per
+    # (market, symbol, as_of), so the second write corrects rather than doubles.
+    store.upsert_label("US", "AAA", "Technology", "Software", date(2026, 3, 1))
+    store.upsert_label("US", "AAA", "Materials", "Mining", date(2026, 3, 1))
+    got = store.label_at("US", "AAA", date(2026, 3, 1))
+    assert got == Label("AAA", "Materials", "Mining", date(2026, 3, 1))
+
+
+def test_refresh_labels_records_history_forward(store: Store):
+    # The pipeline stage, unchanged, now leaves a forward trail: after a resolve
+    # the value is readable both live and as-of that session.
+    client = FakeInfoClient(
+        responses={"NEW": [{"sector": "Technology", "industry": "Software"}]}
+    )
+    src, _ = make_source(client)
+
+    refresh_labels(store, src, "US", ["NEW"], date(2026, 8, 5))
+
+    assert store.label_at("US", "NEW", date(2026, 8, 5)).sector == "Technology"
+
+
+def test_history_table_is_added_to_an_older_store(tmp_path):
+    # A database from before the history existed gains the table on open, like
+    # every other additive schema change (issue #130 rides the v8->v9 bump).
+    path = tmp_path / "old.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("CREATE TABLE runs (market TEXT NOT NULL, session DATE NOT NULL)")
+    con.close()
+
+    store = Store.open(path)
+    try:
+        store.upsert_label("US", "AAA", "Technology", "Software", date(2026, 8, 5))
+        assert store.label_at("US", "AAA", date(2026, 8, 5)).sector == "Technology"
+        assert store._con.execute(
+            "SELECT version FROM schema_meta"
+        ).fetchone()[0] == SCHEMA_VERSION
+    finally:
+        store.close()
 
 
 # == the pipeline stage: refresh_labels =======================================

@@ -31,10 +31,12 @@ from .regime import FollowThrough
 # extends detections with the star score's three derived signals (spec §4.7); v6
 # the digest_breaks table — the reported-break record behind the repeat marker (§6);
 # v7 the run_failures table — the per-symbol record of why a pull fell short (#91);
-# v8 the refusals table — the persisted per-symbol refusal verdict (spec §3.6, #100).
+# v8 the refusals table — the persisted per-symbol refusal verdict (spec §3.6, #100);
+# v9 the label_history table — the forward sector/industry record so the rubric's
+# eighth dimension is replayable going forward (issue #130, PRD #114).
 # Recorded in the database on open (``schema_meta``) and reconciled against it by
 # :meth:`Store._migrate`, so an older file is upgraded rather than crashed into.
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 _SCHEMA = """
 -- The schema this database has been reconciled to. Written on every open, so
@@ -119,6 +121,28 @@ CREATE TABLE IF NOT EXISTS labels (
     industry  TEXT NOT NULL,
     as_of     DATE NOT NULL,
     PRIMARY KEY (market, symbol)
+);
+
+-- The forward sector/industry history (issue #130, PRD #114). The ``labels``
+-- cache above is the store's one *in-place* write, so a name's sector as of an
+-- earlier session is overwritten and lost — which is exactly why the replay
+-- study had to drop the rubric's eighth (Sector) dimension: 2019-2022 history is
+-- gone. This table keeps that from being true going forward. Every resolved
+-- fetch appends one row keyed (market, symbol, as_of), so the sector *known at*
+-- any past session is recoverable (the latest row with ``as_of <= session``) and
+-- a future replay can compute a full eight-dimension score for any period after
+-- this lands. Keyed by the fetch session rather than write-once-per-session like
+-- the derived streams: a session recompute re-resolves the same as_of and
+-- corrects its row in place (ON CONFLICT), it does not duplicate. Deliberately
+-- NOT in ``_DERIVED_TABLES`` — like ``refusals``, it is a forward fact about a
+-- name that must survive a session recompute, not an observation of one run.
+CREATE TABLE IF NOT EXISTS label_history (
+    market    TEXT NOT NULL,
+    symbol    TEXT NOT NULL,
+    sector    TEXT NOT NULL,
+    industry  TEXT NOT NULL,
+    as_of     DATE NOT NULL,
+    PRIMARY KEY (market, symbol, as_of)
 );
 
 -- Detections: one dated row per name currently sitting in a valid base (spec
@@ -621,12 +645,24 @@ class Store:
         called with a freshly *resolved* fetch: a failed fetch must never null a
         cached value, so the caller simply does not call this on silence (spec
         §3.3), and the ``as_of`` it stamps drives the rolling refresh.
+
+        The same resolved fetch is also recorded forward in ``label_history``
+        (issue #130), keyed by ``as_of``, so the sector known at this session
+        survives the next in-place overwrite and stays readable via
+        :meth:`label_at`. The cache read paths (:meth:`label`, :meth:`labels`)
+        are unchanged, so existing consumers are unaffected.
         """
         self._cursor().execute(
             "INSERT INTO labels VALUES (?, ?, ?, ?, ?) "
             "ON CONFLICT (market, symbol) DO UPDATE SET "
             "sector = excluded.sector, industry = excluded.industry, "
             "as_of = excluded.as_of",
+            [market, symbol, sector, industry, as_of],
+        )
+        self._cursor().execute(
+            "INSERT INTO label_history VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT (market, symbol, as_of) DO UPDATE SET "
+            "sector = excluded.sector, industry = excluded.industry",
             [market, symbol, sector, industry, as_of],
         )
 
@@ -973,6 +1009,23 @@ class Store:
             [market],
         ).fetchall()
         return {r[0]: Label(*r) for r in rows}
+
+    def label_at(self, market: str, symbol: str, session: date) -> Label | None:
+        """The label ``symbol`` carried as of ``session`` — the history read-back
+        (issue #130), or ``None`` if it had no recorded label by then.
+
+        Reads the forward ``label_history``: the most recent row with ``as_of <=
+        session``. That is the sector/industry actually known that night — the
+        eighth-dimension replay reads this, not the live cache, so a score
+        computed for a past session uses the past label rather than today's.
+        """
+        row = self._cursor().execute(
+            "SELECT symbol, sector, industry, as_of FROM label_history "
+            "WHERE market = ? AND symbol = ? AND as_of <= ? "
+            "ORDER BY as_of DESC LIMIT 1",
+            [market, symbol, session],
+        ).fetchone()
+        return Label(*row) if row is not None else None
 
     def universe_before(self, market: str, session: date) -> list[str]:
         """Yesterday's membership: the universe of the most recent session

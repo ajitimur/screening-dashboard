@@ -73,6 +73,7 @@ from replay.placement import (
     SCOPE,
     PlacementReport,
     StarDistribution,
+    build_placement_report,
     place_trade,
     run_placement,
 )
@@ -1524,6 +1525,49 @@ def test_run_placement_reports_hits_distribution_coverage_and_scope(store: Store
     assert report.scope == SCOPE
 
 
+def test_placement_scores_one_field_under_both_rubrics_stamped_by_version():
+    """The paired A2 re-run (#136): one field, both rubrics, so a rubric change is
+    held apart from a field change. Each star distribution carries its rubric
+    version stamp; the live pair equals the report's headline picks/field; and with
+    the field fixed, only the weights move — Base length ×0→×1 lifts his pick by
+    exactly half a star under the old rubric."""
+    from screener.score import RUBRIC_VERSION, RUBRIC_WEIGHTS, stars_under
+
+    session = date(2020, 6, 1)
+    det = _det("BASE", cluster_k=6)  # Base length, ADR, Orderliness all hit
+    scored = ScoredDetection(
+        symbol="BASE",
+        detection=det,
+        score=seven_dimension_score(det, prior_move=True),
+        star_rank=1,
+        not_taken=False,
+    )
+    field = FieldSession(
+        session=session, burn_in=False, members=["BASE"],
+        detections=[scored], blind_spot_count=0,
+    )
+    calendar = [session, date(2020, 6, 2)]
+    trade = parse_trades([_funnel_record("BASE", date(2020, 6, 2))])[0]
+
+    report = build_placement_report([trade], calendar, [field], blind_spot_count=0)
+
+    # Both rubric versions are reported over the SAME field, each stamped.
+    assert {r.rubric_version for r in report.by_rubric} == {1, RUBRIC_VERSION}
+    live = next(r for r in report.by_rubric if r.rubric_version == RUBRIC_VERSION)
+    old = next(r for r in report.by_rubric if r.rubric_version == 1)
+    # The live-rubric pair *is* the report's headline picks/field — one source.
+    assert live.picks.counts == report.picks.counts
+    assert live.field.counts == report.field.counts
+    # Field held fixed, only weights move: Base length ×0→×1 is +0.5 star under v1.
+    v2_star = stars_under(scored.score.breakdown, RUBRIC_WEIGHTS[RUBRIC_VERSION])
+    v1_star = stars_under(scored.score.breakdown, RUBRIC_WEIGHTS[1])
+    assert v1_star == v2_star + 0.5
+    assert live.picks.counts[v2_star] == 1
+    assert old.picks.counts[v1_star] == 1
+    assert live.field.counts[v2_star] == 1
+    assert old.field.counts[v1_star] == 1
+
+
 def test_blind_spot_trade_gets_no_placement_row(store: Store):
     """A blind-spot trade (ticker with no bars) is not placed — it is a blind
     spot, counted in coverage, never an absent-from-field verdict."""
@@ -1965,6 +2009,19 @@ def test_run_study_writes_human_and_machine_readable_outputs(tmp_path, store: St
     # And it reloads into a decomposition recomputable without a rebuild.
     reloaded = load_results(json_path)
     assert reloaded["funnel"]["decile_decomposition"] == raw["funnel"]["decile_decomposition"]
+
+    # The A2 placement carries the paired star distributions, each stamped with its
+    # rubric version (#136), so a re-run separates a rubric change from a field
+    # change and no star figure is quoted without its stamp (#138).
+    from screener.score import RUBRIC_VERSION
+
+    by_rubric = raw["placement"]["by_rubric"]
+    stamps = {r["rubric_version"] for r in by_rubric}
+    assert stamps == {1, RUBRIC_VERSION}
+    for r in by_rubric:
+        assert "picks" in r and "field" in r and "total" in r["picks"]
+    live = next(r for r in by_rubric if r["rubric_version"] == RUBRIC_VERSION)
+    assert live["picks"] == raw["placement"]["picks"]
 
 
 def test_run_study_reports_progress_with_a_running_count(store: Store):

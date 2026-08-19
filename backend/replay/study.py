@@ -329,6 +329,16 @@ def study_to_dict(result: StudyResult) -> dict:
             "top_thirty_count": p.top_thirty_count,
             "picks": _star_dist(p.picks),
             "field": _star_dist(p.field),
+            # The same field re-scored under every rubric version (#136), each
+            # stamped, so a rubric change is separable from a field change.
+            "by_rubric": [
+                {
+                    "rubric_version": r.rubric_version,
+                    "picks": _star_dist(r.picks),
+                    "field": _star_dist(r.field),
+                }
+                for r in p.by_rubric
+            ],
             "placements": [
                 {
                     "ticker": pl.ticker,

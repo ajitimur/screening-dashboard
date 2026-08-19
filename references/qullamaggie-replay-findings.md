@@ -509,6 +509,39 @@ field (#129); it cannot be run against the §2-holed field without the null havi
 candidate explanations (the rubric moved, or the field did). The numbers above are the
 computed expectation, not the measured result.
 
+**#136 — the paired re-run is now wired, and separates the two variables by construction.**
+The obstacle #136 was written against — "re-run A2 and risk moving the field *and* the rubric
+at once, then attribute the null to neither" — is now closed at the seam rather than left to a
+disciplined operator. `screener.score.RUBRIC_WEIGHTS` keeps the superseded **v1** ten-point
+table beside the live **v2** nine-point one, keyed by the same `RUBRIC_VERSION` stamp, and
+`stars_under(breakdown, weights)` re-totals a detection's *hit booleans* under either. The
+hits are a property of the setup, not the rubric — only the weights move — so
+`replay.placement.build_placement_report` now scores **one** replayed field under **both**
+rubrics in a single pass and returns `by_rubric`: `RubricStarDistributions` for v2 (live) and
+v1, each carrying its own version stamp and its own picks-vs-field histogram. The live pair is
+identical to the headline `picks`/`field` by identity (the detections were scored under v2), so
+nothing is scored twice. `format_report` prints the two stamped blocks and `study.py`
+serialises `by_rubric`, so the machine-readable results file is the paired result.
+
+What this buys #136 when the fuller field (#129) lands: `python -m replay.study` produces, in
+one run over one chain, **old rubric on the new field** and **new rubric on the new field** —
+the field held fixed while only the weights move — so a change in the ≥3.5★ share is
+attributable to the rubric, and any change against the current 17.3% / 17.8% that the *field*
+alone caused is read off the v1 block, which is the old rubric on the new field measured against
+the old rubric on the old (§2) field. Every star figure the run emits carries its rubric-version
+stamp, so a v2 histogram is never silently compared against the committed v1 17.3% / 17.8%.
+
+**The ranking conclusion is unchanged, and held — not strengthened, weakened or reversed —
+because the field has not moved here.** #129 sources delisted/renamed bars for a real
+`replay.duckdb`; that store is **absent in this environment**, so no fuller field exists to
+re-measure against and the paired re-run has been exercised only on the seam's synthetic
+fixtures, never on the 2019–2022 record. Reporting a re-run result now would mean quoting the
+§2-holed field a second time and calling it the fuller one. The §4 null therefore stands as
+written — *no evidence the ranking discriminates*, measured on a sixth of his record against a
+field missing 29% of its names — and the explicit strengthen/weaken/reverse verdict #136 asks
+for is deferred to the run against the built store, which the wiring above now makes a single
+command with the two variables already separated.
+
 ---
 
 ## 6. The two preliminary findings from #114

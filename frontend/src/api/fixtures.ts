@@ -185,6 +185,7 @@ export const candidatesResponse = builder<Schemas["CandidatesResponse"]>(() => (
   session: "2026-08-04",
   ordered_by: "score",
   candidates: [candidate()],
+  rubric_version: 2,
 }));
 
 // GET /api/chart/{market}/{symbol}

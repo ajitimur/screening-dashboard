@@ -8,6 +8,7 @@ so the payload is asserted without touching the on-disk file.
 from fastapi.testclient import TestClient
 
 from screener.app import create_app
+from screener.score import RUBRIC_VERSION
 from screener.store import Store
 
 
@@ -190,12 +191,16 @@ def test_candidates_endpoint_returns_score_ordered_five_column_rows():
         assert body["ordered_by"] == "score"
         assert [c["symbol"] for c in body["candidates"]] == ["AAA", "ZZZ"]
 
+        # Recalibrated rubric (PRD #138): tight ×2 + orderly ×1 + MA ×1 + volume ×1
+        # = 5 points, plus AAA's prior-move point = 6 → 3.0; ZZZ misses prior move.
         aaa = body["candidates"][0]
-        assert aaa["score"] == 3.5                   # prior move + tight + orderly + MA + volume
-        assert body["candidates"][1]["score"] == 3.0  # ZZZ misses the prior-move point
-        # The payload carries the eight-row breakdown that reconstructs the score.
+        assert aaa["score"] == 3.0
+        assert body["candidates"][1]["score"] == 2.5  # ZZZ misses the prior-move point
+        # The payload carries the eight-row breakdown that reconstructs the score,
+        # and the rubric version stamp that says which weights produced it.
+        assert body["rubric_version"] == RUBRIC_VERSION
         assert len(aaa["breakdown"]) == 8
-        assert sum(r["weight"] for r in aaa["breakdown"] if r["hit"]) == 7
+        assert sum(r["weight"] for r in aaa["breakdown"] if r["hit"]) == 6
         # Nothing marks the line_ok tiebreak — no such field on the row.
         assert "line_ok" not in aaa
         assert aaa["industry"] == "Semiconductors"  # the theme layer
@@ -290,6 +295,7 @@ def test_candidates_endpoint_is_empty_when_no_run_published(store: Store):
     body = client_for(store).get("/api/candidates/US").json()
     assert body == {
         "market": "US", "session": None, "ordered_by": "score", "candidates": [],
+        "rubric_version": RUBRIC_VERSION,
     }
 
 

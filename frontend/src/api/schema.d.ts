@@ -135,13 +135,14 @@ export interface components {
          * Candidate
          * @description One row of the candidate list — a detection made readable (spec §5.1 / §4.3).
          *
-         *     ``score`` is the star score (0–5) and the sort key of the list; ``breakdown``
+         *     ``score`` is the star score (0.5–4.5, PRD #138) and the sort key of the list; ``breakdown``
          *     carries its eight-row rubric so the row (or the chart panel) can reconstruct
          *     the arithmetic (spec §4.7). ``dist_adr`` is the distance to the trigger in ADR
-         *     (``(trigger − close) / adr_abs``); ``stopw_adr`` is the stop width in ADR
-         *     (``(trigger − cluster_low) / adr_abs``, the watchlist stop of §4.6). The stop
-         *     column **never filters** — instead the affordable sub-1×ADR minority is flagged
-         *     (``affordable``), the inverse of marking the ~92% unaffordable majority.
+         *     (``(trigger − close) / adr_abs``); ``stopw_adr`` is the stop width in ADR —
+         *     now the trader's calibrated convention (0.345 ADR, issue #127), not the old
+         *     cluster-low distance. The stop column **never filters** — instead the
+         *     affordable sub-1×ADR minority is flagged (``affordable``); with the calibrated
+         *     stop that minority is now the whole list.
          *     ``industry`` is the theme layer (``None`` if the label was never fetched);
          *     ``breadth`` is the ``k/5`` badge, a persistence count and **not** a quality
          *     score.
@@ -151,9 +152,10 @@ export interface components {
          *     the chart bundle now ride the row too — projected from the *same* detection,
          *     which is the single source both endpoints render from. ``trigger_price`` /
          *     ``stop_price`` are the **borrowed** names for the overlay's trigger (cluster
-         *     high) and stop (cluster low) — v1 had no word for them; ``risk_adr`` is
-         *     **refused** (that quantity is ``stopw_adr`` and keeps its name). ``sector`` is
-         *     new on this row, which carried ``industry`` only; both are wanted.
+         *     high) and stop (the proposed convention stop line, issue #127) — v1 had no
+         *     word for them; ``risk_adr`` is **refused** (that quantity is ``stopw_adr`` and
+         *     keeps its name). ``sector`` is new on this row, which carried ``industry``
+         *     only; both are wanted.
          *     ``dollar_volume`` and ``sector`` are ``None`` when the bars/label could not
          *     supply them, and ``decile_ranks`` omits a lookback the name is not ranked in —
          *     mirroring the chart facts block exactly.
@@ -215,6 +217,12 @@ export interface components {
          *     the star-score rubric lands (ticket 39): the list sorts by star score
          *     descending, with ``line_ok`` failures silently below equal-scored accepted
          *     names. The field remains for the UI to read the order honestly.
+         *
+         *     ``rubric_version`` stamps which set of weights and thresholds produced the
+         *     stars (``score.RUBRIC_VERSION``, PRD #138). Stars are derived on read here but
+         *     frozen in a digest, so the stamp is what lets a digest star and an app star for
+         *     the same session be compared like with like rather than silently disagreeing
+         *     after a rubric change.
          */
         CandidatesResponse: {
             /** Candidates */
@@ -226,6 +234,8 @@ export interface components {
              * @enum {string}
              */
             ordered_by: "ticker" | "score";
+            /** Rubric Version */
+            rubric_version: number;
             /** Session */
             session: string | null;
         };
@@ -543,8 +553,9 @@ export interface components {
          * @description One row of a candidate's star-score breakdown (spec §4.7).
          *
          *     Eight of these reconstruct the score arithmetically next to the chart — the
-         *     dimension's name, its weight (2 for tightness and orderliness, 1 for the rest)
-         *     and whether it hit. ``n/10 → stars`` is ``sum(weight where hit) ÷ 2``.
+         *     dimension's name, its weight (2 for Tightness and ADR, 0 for Base length, 1 for
+         *     the rest — recalibrated by PRD #138) and whether it hit. ``n/9 → stars`` is
+         *     ``sum(weight where hit) ÷ 2``; the ceiling is nine points, not ten.
          */
         ScoreRow: {
             /** Dimension */
@@ -688,13 +699,14 @@ export interface components {
          *     - ``base_start`` / ``cluster_start`` are the first sessions of the base and of
          *       the tight trailing cluster inside it; the frontend shades each region from
          *       its start to the last candle (the base always ends today, §4.5).
-         *     - ``trigger`` (cluster high) and ``stop`` (cluster low) are the two horizontal
-         *       rules §7's affordability test is read off geometrically.
+         *     - ``trigger`` (cluster high) and ``stop`` (the proposed convention stop line,
+         *       issue #127) are the two horizontal rules §7's affordability test is read off
+         *       geometrically.
          *     - ``envelope`` is the fitted upper line drawn **as a line series** so candles
          *       pierce it in both directions — per §3.2 that is the correct picture and must
          *       not be "fixed" in rendering. Anchored at the cluster's max-high bar with the
          *       detection's non-positive slope, so it can never exceed the trigger.
-         *     - ``score`` (0–5 stars) and ``breakdown`` (the eight §4.7 dimensions, each with
+         *     - ``score`` (0.5–4.5 stars) and ``breakdown`` (the eight §4.7 dimensions, each with
          *       its weight and hit) reconstruct the sort key arithmetically beside the chart.
          *
          *     ``None`` for the whole overlay when the name has no detection tonight — there

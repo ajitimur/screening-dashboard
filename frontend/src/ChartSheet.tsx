@@ -240,6 +240,10 @@ function FactsBlock({ facts }: { facts: ChartFacts }) {
  */
 function Breakdown({ breakdown, score }: { breakdown: ScoreRow[]; score: number | null }) {
   const points = breakdown.reduce((sum, d) => sum + (d.hit ? d.weight : 0), 0);
+  // The ceiling is the sum of the weights, read off the breakdown itself rather
+  // than hard-coded — so the ×0 Base length row (PRD #138) drops it to 9 without
+  // a second place to keep in sync.
+  const ceiling = breakdown.reduce((sum, d) => sum + d.weight, 0);
   return (
     <table aria-label="score breakdown" className="breakdown">
       <thead>
@@ -260,7 +264,7 @@ function Breakdown({ breakdown, score }: { breakdown: ScoreRow[]; score: number 
       </tbody>
       <tfoot>
         <tr>
-          <td colSpan={2}>{points} / 10 points</td>
+          <td colSpan={2}>{points} / {ceiling} points</td>
           <td>{score === null ? "—" : `→ ${score}★`}</td>
         </tr>
       </tfoot>

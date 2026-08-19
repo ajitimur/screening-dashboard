@@ -67,17 +67,18 @@ def test_the_score_is_the_star_rubric_and_its_eight_row_breakdown():
     ranks = _decile("AAA") + [Rank("PEER", "1m", 0.95, 1.0)]
     sector_of = {"AAA": "Technology", "PEER": "Technology"}
     [c] = build_candidates([_det("AAA")], ranks, {}, sector_of)
-    assert c.score == 5.0
+    # Nine-point ceiling (PRD #138): every dimension hits, but Base length is ×0.
+    assert c.score == 4.5
     assert len(c.breakdown) == 8
     assert all(row.hit for row in c.breakdown)
-    assert sum(row.weight for row in c.breakdown if row.hit) == 10
+    assert sum(row.weight for row in c.breakdown if row.hit) == 9
 
 
 def test_the_list_sorts_by_star_score_descending():
-    strong = _det("LOW", adr=0.06)                       # 5★
-    weak = _det("HIGH", adr=0.04, cluster_k=4, base_len=40)  # loses tightness+len+adr
+    strong = _det("LOW", adr=0.06)                       # 4.5★ ceiling
+    weak = _det("HIGH", adr=0.04, cluster_k=4)  # loses tightness (×2) and ADR (×2)
     rows = build_candidates([weak, strong], _decile("LOW") + _decile("HIGH"), {}, {})
-    # Sorted by score, not by ticker — the strong 5★ leads the weaker name.
+    # Sorted by score, not by ticker — the strong name leads the weaker one.
     assert [c.symbol for c in rows] == ["LOW", "HIGH"]
     assert rows[0].score > rows[1].score
 
@@ -125,6 +126,23 @@ def test_the_score_is_blind_to_the_stop_width():
     assert rows[0].score == rows[1].score
 
 
+def test_recalibrating_the_proposed_stop_does_not_move_the_score():
+    # Ranking is unchanged by the convention recalibration (issue #127 acceptance):
+    # the same detection scored with the old cluster-low stop and with the new
+    # convention stop must score identically, because the star score never reads
+    # the stop. Same signal vector, different stop/stopw_adr — same score.
+    base = _det("AAA")
+    old_stop = Detection(**{**vars(base), "stop": base.trigger - base.cluster_low,
+                            "stopw_adr": (base.trigger - base.cluster_low) / base.trigger / base.adr})
+    new_stop = Detection(**{**vars(base), "stop": 0.345 * base.adr * base.trigger,
+                            "stopw_adr": 0.345})
+    [c_old] = build_candidates([old_stop], _decile("AAA"), {}, {})
+    [c_new] = build_candidates([new_stop], _decile("AAA"), {}, {})
+    assert c_old.score == c_new.score
+    assert c_old.breakdown == c_new.breakdown       # identical rubric, dimension by dimension
+    assert c_new.stopw_adr != c_old.stopw_adr        # but the proposed stop did change
+
+
 def test_affordable_minority_is_flagged_and_nothing_is_filtered():
     tight = _det("TIGHT", trigger=100.0, cluster_low=99.0, adr=0.02)   # 1/1.96 ≈ 0.51
     wide = _det("WIDE", trigger=100.0, cluster_low=95.0, adr=0.02)     # 5/1.96 ≈ 2.55
@@ -147,8 +165,10 @@ def test_chart_facts_are_folded_onto_the_row():
     # A Setups card renders trigger/stop/distance without a per-symbol chart fetch:
     # the fields that lived only in the chart bundle now ride the candidate row,
     # projected from the same detection (spec §4.3). trigger_price/stop_price are
-    # the borrowed names for the overlay's trigger (cluster high) and stop
-    # (cluster low); risk_adr is NOT adopted — stopw_adr keeps its name.
+    # the borrowed names for the overlay's trigger (cluster high) and stop (the
+    # proposed convention stop line, trigger − budget); risk_adr is NOT adopted —
+    # stopw_adr keeps its name. This fixture's budget is trigger − cluster_low, so
+    # the proposed line coincides with the cluster low here.
     det = _det("AAA", trigger=100.0, close=98.0, cluster_low=97.0, adr=0.06)
     ranks = [Rank("AAA", "1m", 0.95, 1.2), Rank("AAA", "3m", 0.90, 1.1)]
     [c] = build_candidates(
@@ -164,6 +184,22 @@ def test_chart_facts_are_folded_onto_the_row():
     assert c.decile_ranks == {"1m": 0.95, "3m": 0.90}
     assert not hasattr(c, "risk_adr")          # refused vocabulary — stopw_adr stays
     assert c.stopw_adr > 0
+
+
+def test_stop_price_follows_the_proposed_stop_not_the_cluster_low():
+    # The card's stop line is the proposed convention stop (trigger − budget,
+    # issue #127), read from the detection's own ``stop`` — NOT the cluster low.
+    # Build a detection whose proposed stop is decoupled from the cluster low, the
+    # way the real detector now emits it (a 0.345 ADR budget), and prove the card
+    # follows the proposal.
+    det = _det("AAA", trigger=100.0, close=98.0, cluster_low=90.0, adr=0.06)
+    budget = 0.345 * det.adr * det.trigger          # 100 × 0.06 × 0.345 = 2.07
+    tight = Detection(**{**vars(det), "stop": budget, "stopw_adr": 0.345})
+    [c] = build_candidates([tight], _decile("AAA"), {}, {})
+    assert abs(c.stop_price - (100.0 - budget)) < 1e-9   # trigger − budget
+    assert c.stop_price != tight.cluster_low             # NOT the cluster low (90.0)
+    assert abs(c.stopw_adr - 0.345) < 1e-12              # the calibrated convention
+    assert c.affordable is True                          # 0.345 ≤ 1×ADR
 
 
 def test_verdict_and_breakdown_are_typed_nullable():

@@ -12,18 +12,27 @@ This document exists so that any constant later changed has a **citable provenan
 each carries the caveat that bounds it. The caveats are given the same weight as the
 results, because the results are not usable without them.
 
-> **Every magnitude below is measured.** The study was run end to end on 2026-08-15
+> **Every magnitude below is measured.** The study was last run end to end on **2026-08-19**
 > against a `replay.duckdb` built from the live store (5,892,590 US bars, 7,529 tickers,
 > 2019-04-01..2022-12-31) and the committed reference set
 > (`references/trades_bo_gain10smaPct_desc.json`). The chain replayed all 947 sessions —
 > 126 burn-in, 821 measured — in one forward pass, and all four analyses were computed
-> against that single chain. Run time 29.8 minutes. Nothing here is projected or
-> extrapolated; where a number is absent it is because the measurement is *impossible*
-> (§9), not pending.
+> against that single chain. Nothing here is projected or extrapolated; where a number is
+> absent it is because the measurement is *impossible* (§9), not pending.
 >
-> **How to reproduce it.** See [§10](#10-reproducing-the-study). The four analyses cannot
-> be run as four separate commands against one store — the store is single-use — so the
-> run is one process.
+> That run's own outputs are committed beside this file — `replay_study_report.txt` and
+> `replay_study_results.json` — so every figure below is checkable against the run that
+> produced it rather than quoted from one. It closed the three figures the previous write-up
+> still carried as pending: the paired A2 re-run (§4a, #136), the decile decomposition (§3,
+> #133) and the cluster miss split (§3a, #132) — the last of which **contradicted** what §3a
+> expected, and is recorded as such.
+>
+> **How to reproduce it.** See [§10](#10-reproducing-the-study). Build the store once, then
+> run `python -m replay.study` against it: one command builds the field once and computes
+> coverage plus all four analyses against it, writing both the reports and a machine-readable
+> results file and printing progress with an ETA (#131). The four analyses also keep their
+> own per-study commands, runnable in any order against the built store — the chain reuses
+> the sessions the first run persisted, so no run poisons the next (#126).
 
 ---
 
@@ -151,6 +160,29 @@ tagged `continuation`.
 > see than his first ones — consistent with the `cluster` condition below, which fires on
 > exactly that pattern.
 
+### The decile miss decomposed (#133) — a third of it is the gate's width, not his names
+
+The 40% is a headline, and on its own it invites the wrong fix. `decompose_decile_misses`
+splits all **263** decile misses into three exclusive buckets, so the loss is attributed
+before anything is widened on the strength of it:
+
+| Bucket | Count | Share | What it is |
+| --- | --- | --- | --- |
+| Coverage gap (absent from the field) | **64** | 24.3% | Not a ranking verdict at all — the ticker was not a universe member that session. §2's hole, showing up inside the funnel. |
+| Recovered by widening the gate 3→5 | **75** | 28.5% | Present, outside the **three**-union gate, but inside the **five**-union one. |
+| Outside even the five-union gate | **124** | 47.1% | A genuine cross-sectional miss: the name was not top-decile on any lookback. |
+
+**The middle bucket is the study's most concrete lead.** 75 of his real entries — 11.4% of all
+658 replayable trades — sat inside the five-lookback union and outside the three. That is a
+*width* decision, not a judgement about his names, and it is the one decile change A1 measures
+directly rather than inferring from an A3 null (§7).
+
+Read it against the other two buckets before acting: a quarter of the "miss" is §2's coverage
+hole wearing the decile gate's clothes and would not be recovered by any widening, and nearly
+half are outside every union the app could plausibly offer. So the honest size of the gate's own
+width problem is **75, not 263** — and the precision cost of admitting the wider union is still
+unmeasurable (§7), so this is a lead to size, not a change licensed here.
+
 Detection-failure breakdown (`condition_counts`) — which geometric condition to change:
 
 | Failed condition | Count | Share of the 278 detection misses |
@@ -171,6 +203,107 @@ Blind-spot trades (ticker with no bars) get **no** funnel row — they are recor
 spot by `replay.reference`, never as a stage failure, so the replayable set and the blind
 spot are each quantified rather than one silently absorbing the other (user story 34).
 
+### 3a. Is the `cluster` condition's window mis-set for the way he re-enters names? (#132)
+
+**Question.** `cluster` is the largest single detection miss — **171 of 278** (61.5%), more than
+`catch_up`, `base_length` and `history` combined. Is its window too aggressive, or is it
+declining trades it should decline?
+
+**What the condition is.** A `cluster` miss means `_find_cluster` found *no* trailing window in
+`K_MIN..K_MAX = 3..7` bars whose range sits under `TIGHT_MULT = 1.5 × ADR` — i.e. even the
+**tightest 3-bar** trailing window spans more than 1.5 ADR. That is the geometry of a name **in
+motion**, not one consolidating in a base: the recent bars are wide relative to the name's own
+20-bar ADR. The detector emits *a base, not a state*, so by construction it declines a name that
+is still running.
+
+**Two independent signals say the misses are his re-entries, not the rule mis-firing on bases.**
+
+1. **A1's ex-continuation inversion (§3).** Detection is the *only* funnel stage whose
+   ex-continuation recall (**59.0%**) is *higher* than its headline (**57.8%**). Stripping his
+   repeat entries makes the detector look better — the signature of a rule that penalises exactly
+   the repeat-entry pattern. A continuation entry is an *add to a running position*, tagged not
+   dropped (§1); it is not a fresh base, and the base detector was never going to fire on it. So
+   the recall the `cluster` rule "costs" on those rows is recall on a pattern the app does not
+   claim to detect.
+2. **A3b's selection contrast (§5b).** **Tightness** — `cluster_k ≥ 5`, the cluster's own
+   narrowness — is the **second-strongest selector in the whole rubric** (taken 59.4% vs
+   not-taken 38.6%, **+20.8pp**), behind only ADR. His eye actively selects *for* tight clusters.
+   A gate built on cluster tightness is therefore filtering on the very geometry his selection
+   most depends on.
+
+**Recommendation: leave the window unchanged. Do not loosen `TIGHT_MULT`, `K_MIN` or `K_MAX`.**
+Provenance for the decision — all three legs measured, none newly asserted:
+
+- **The calibration rule (§7) forbids it.** A gate may be loosened on an A1 recall miss *only when
+  A3 shows the dimension has no signal **and** real spread*. Tightness has clear signal — it is
+  §5b's +20.8pp selector — so the rule's precondition fails outright. Loosening the cluster window
+  is precisely the "widen every gate to chase a recall number" trap the missing precision leaves
+  open (§7): with no false-positive rate measurable, a recall gain from admitting wider, in-motion
+  names cannot be weighed against the noise it lets in.
+- **The misses are not the detector failing on bases.** They are the detector correctly declining
+  names that are mid-move — disproportionately his continuation entries (signal 1). Recall on
+  continuation entries is not a legitimate optimisation target; the study keeps them in every
+  denominator (§1) but never as a target to be recovered.
+- **No app change is made, so no A1 recall re-measurement is triggered** (acceptance criterion 3
+  is conditional on a change). The `detection.py` cluster constants stand: `K_MIN, K_MAX = 3, 7`,
+  `TIGHT_MULT = 1.5`.
+
+**The characterisation machinery, so the verdict is checkable and re-openable.** The A1 funnel now
+records, on every replayable trade, the *margin* of a cluster miss: `cluster_min_range_adr` — the
+tightest trailing 3–7 bar range in ADR the detector could find, taken regardless of the 1.5×
+threshold (`screener.detection.cluster_min_range_adr`, a read-only diagnostic that changes no
+detection verdict) — and `sessions_since_prior_entry`, the market-session distance to the nearest
+prior entry in the same ticker. `funnel.characterise_cluster_misses` (`ClusterDecomposition`)
+partitions the 171 misses two ways: **continuation vs fresh** (how far from a prior entry) and
+**marginal vs far** against a reported `MARGINAL_TIGHT_MULT = 2.0` boundary (how far over the 1.5×
+window — a marginal miss is one a modest widening would recover, a far miss a name genuinely in
+motion). Both counts, plus the tightest-range and prior-distance distributions, ride the report
+and the machine-readable `replay_study_results.json`, so the per-miss shape is recomputable
+without another rebuild.
+
+#### The split is now measured, and it did **not** confirm what this section expected
+
+An earlier draft of this note predicted the split would come back continuation-heavy — "the
+expected confirmation". It did not. Measured over the same 171 misses (`ClusterDecomposition`,
+committed in `replay_study_report.txt`):
+
+| Partition | Count | Share |
+| --- | --- | --- |
+| **Fresh entries** | **148** | **86.5%** |
+| Continuation entries (re-entries) | **23** | 13.5% |
+| **Marginal** (≤ 2.0× ADR — a modest widen recovers) | **113** | 66.1% |
+| Far (name genuinely in motion, no base) | 58 | 33.9% |
+
+Tightest-window range in ADR: median **1.85** (p25 1.68, p75 2.13, max 3.42) against the 1.5×
+threshold. Continuation misses sit a median of 4.0 sessions from the prior entry.
+
+**This is a real weakening of signal 1, and it is recorded rather than absorbed.** The
+re-entry story explains **23 of 171**, not the bulk. The remaining 148 are fresh entries the
+detector declined, and two thirds of the whole set are *marginal* — clustered just past the
+threshold at a median 1.85× against a 1.5× gate, which is the shape of a boundary set slightly
+tight, not of names wildly in motion.
+
+**The verdict still stands, but now on one leg rather than three.** Leave `TIGHT_MULT`, `K_MIN`
+and `K_MAX` unchanged — because the **calibration rule** (§7) forbids the loosening outright:
+Tightness has clear signal (§5b's +20.8pp, the second-strongest selector in the rubric), so the
+rule's precondition fails no matter how the misses are distributed. That was always the load-
+bearing argument, and this section said so in advance: the split "cannot license a loosening
+even if it came back continuation-light". It came back continuation-light. The rule holds.
+
+What has changed is the **strength of the case, not its direction**. Signal 1 (the
+ex-continuation inversion, §3) is still a true measurement — stripping re-entries does make the
+detector look better — but it can no longer be read as explaining most of the `cluster` loss.
+Anyone re-opening this should treat the 113 marginal misses as the open question, and note that
+answering it properly needs the thing the study does not have: a measurable false-positive rate
+(§7, §9). A widen that recovers 113 of his entries at an unmeasured cost in noise is exactly the
+trade this study cannot price.
+
+**What would re-open it (gather more evidence, not act now).** A dataset that makes precision
+measurable — a control group of setups he *passed over* — so a recall gain could be weighed against
+its false-positive cost; and an out-of-regime or IDX reference set, so the window is not tuned to a
+once-in-a-decade US momentum regime (§8). Absent those, the question is re-openable rather than
+settled by omission, and the machinery above is what a re-opening would read.
+
 ---
 
 ## 4. A2 — the full replay: field placement
@@ -186,12 +319,20 @@ the hysteretic liquidity floor, so a gapped session sequence is rejected by cons
 (`GapError`); burn-in sessions are computed and persisted but excluded from the reported
 results. Each trade is then placed within its night's field.
 
-### Reported
+### Reported — **rubric v1** (the rubric live when A2 was first measured)
+
+Every star figure in this section is **rubric v1**, the ten-point table superseded by #138.
+Nothing here may be compared against a v2 figure without the stamp; §4a is the paired
+measurement that makes the comparison legitimately.
 
 | Result | Value |
 | --- | --- |
 | Appeared in the field at all (`in_field`) | **104/658 (15.8%)** |
 | Landed inside the top 30 by star score (`top_thirty`, board size from `screener.boards.BOARD_SIZE`) | **41/658 (6.2%)** |
+
+`in_field` is a property of the *field*, not the rubric — a name is present or it is not,
+whatever the weights say — so it is the one figure here that survives a rubric change
+unchanged. `top_thirty` does not: the board is a re-ranking (§4a).
 
 Star distribution of his picks against the replayed field, on the same sessions:
 
@@ -210,7 +351,9 @@ Star distribution of his picks against the replayed field, on the same sessions:
 
 ### The rubric does not discriminate his picks from the field
 
-**Picks at ≥3.5 stars: 17.3%. Field at ≥3.5 stars: 17.8%.**
+**Picks at ≥3.5 stars: 17.3%. Field at ≥3.5 stars: 17.8%.** (Rubric v1. Under the live v2
+rubric, on this same field, the gap opens to +5.6pp — §4a, which is where this conclusion is
+revised.)
 
 His real, high-conviction, hand-picked entries land in the top of the star scale at
 essentially **the same rate as the general population of detections they were drawn
@@ -250,6 +393,123 @@ the missing field; a percentile would look precise while quietly flattering the 
 
 ---
 
+## 4a. A2 re-run — the paired measurement (#136)
+
+**Question.** #136 asked to re-run A2 once the field was no longer missing a quarter of its
+names, and warned that #138's reweight would move the rubric underneath it — so a naive re-run
+would change two variables and attribute the result to neither.
+
+**One of those two variables is now permanently frozen.** #129, which was to source
+delisted/renamed bar history, is **closed won't-do**: every provider carrying that history is
+paid, retail tiers start near $100/month, and there is no budget. The free tiers give listing
+*identity*, never prices. So the fuller field is not late — it does not exist, and the §2 hole
+is a permanent property of the study rather than a gap awaiting a ticket. The half of #136 that
+depended on it cannot be delivered and is not deferred; it is closed.
+
+What that leaves is the other half, and it is now clean rather than confounded: with the field
+frozen, the rubric is the **only** variable, so the pairing measures it alone. The run is
+`python -m replay.study` over the built `replay.duckdb` — one chain, one detection pass, the
+same field scored and re-ranked under both rubrics (`PlacementReport.by_rubric`).
+
+### The v1 block reproduces the committed result exactly
+
+Before reading the v2 column, note that the v1 column is a **cell-for-cell reproduction** of
+§4 above — 17.31% / 17.82%, 41/658 inside the board, and every one of the nine histogram rows.
+That is the control: the field is demonstrably the same field §4 measured, so any v2 difference
+is the rubric and nothing else.
+
+### Reported — same field, both rubrics
+
+| Result | **v1** (superseded) | **v2** (live, #138) |
+| --- | --- | --- |
+| Appeared in the field (`in_field`) | 104/658 (15.8%) | 104/658 (15.8%) — rubric-invariant |
+| Inside the top 30 (`top_thirty`) | **41/658 (6.2%)** | **45/658 (6.8%)** |
+| His picks at ≥3.5★ | **17.31%** (18/104) | **14.42%** (15/104) |
+| The field at ≥3.5★ | **17.82%** (2,538/14,239) | **8.83%** (1,258/14,239) |
+| Gap (picks − field) | **−0.52pp** | **+5.59pp** |
+| Exact binomial p (picks ≥3.5★ vs the field rate) | 1.000 | **0.055** |
+| Mean stars, his picks | 2.486 | 2.495 |
+| Mean stars, the field | 2.400 | 2.214 |
+
+Full histograms, both stamped (picks n=104, field n=14,239 under either rubric — the same
+detections, only the weights move). These are seven-dimension scores, so the ceiling is **4.5★
+under v1 and 4.0★ under v2**, not the app's 5.0/4.5 — see the note below the table:
+
+| Stars | v1 picks | v1 field | | v2 picks | v2 field |
+| --- | --- | --- | --- | --- | --- |
+| 4.5 | 4 (3.8%) | 324 (2.3%) | | — | — |
+| 4.0 | 5 (4.8%) | 1,049 (7.4%) | | 4 (3.8%) | 342 (2.4%) |
+| 3.5 | 9 (8.7%) | 1,165 (8.2%) | | 11 (10.6%) | 916 (6.4%) |
+| 3.0 | 20 (19.2%) | 2,822 (19.8%) | | 22 (21.2%) | 2,531 (17.8%) |
+| 2.5 | 25 (24.0%) | 2,533 (17.8%) | | 36 (34.6%) | 3,014 (21.2%) |
+| 2.0 | 22 (21.2%) | 2,394 (16.8%) | | 15 (14.4%) | 3,259 (22.9%) |
+| 1.5 | 10 (9.6%) | 2,129 (15.0%) | | 9 (8.7%) | 2,649 (18.6%) |
+| 1.0 | 6 (5.8%) | 1,511 (10.6%) | | 4 (3.8%) | 1,132 (7.9%) |
+| 0.5 | 3 (2.9%) | 312 (2.2%) | | 3 (2.9%) | 396 (2.8%) |
+
+**`>3.5★` does not mean what it meant.** These are *seven-dimension* scores: the replay strikes
+`Sector` (§1, #130), so the ceilings behind both columns are the app's minus that row — **9
+points under v1 and 8 under v2**, not 10 and 9. So ≥3.5★ is 7 of 9 in the v1 column and 7 of 8
+in the v2 one, and the top bucket falls from 4.5★ to 4.0★ between them. That drop is the net of
+three weight moves, not the zeroed `Base length` alone: Orderliness −1, Base length −1, ADR +1.
+This is why the full histogram is reported and not only the top share — the v1→v2 move in the
+≥3.5 share is partly a move in what the threshold *is*. The gap between his picks and the field
+**on one scale** is the comparison that survives this; the level does not.
+
+### Verdict: the ranking conclusion is **weakened, not reversed**
+
+§4's null — *no evidence the star score ranks his picks above the field* — was measured under
+v1 and remains exactly true under v1. Under v2 it no longer holds in the same form: his picks
+sit at ≥3.5★ at **1.63× the field's rate** (14.4% vs 8.8%), the board hit rises 41→45, and the
+direction is the one a discriminating rubric would produce. **The §4 statement may no longer be
+quoted without its v1 stamp**, and this is a revision of that conclusion, not a restatement of
+it.
+
+It is **not** reversed into "the ranking is validated", for three reasons that are each
+sufficient on their own:
+
+1. **It is in-sample, and close to circular.** v2's weights were derived from §5b's selection
+   contrast — taken vs not-taken detections — measured over *these* 69 taken detections on
+   *this* field. A2 then asks whether those weights separate taken from not-taken on the same
+   field. A rubric fitted to a separation will reproduce that separation; this is a fit
+   statistic dressed as a test, and the only honest reading is "the reweight did what it was
+   built to do", not "the rubric ranks".
+2. **It is marginal even so.** Exact binomial p = 0.055 on n=104 — a positive result that,
+   fitted in-sample, still fails to clear the conventional threshold.
+3. **The field is still missing 29% of its names.** The coverage bound below did not improve
+   and never will.
+
+**The mechanism: the field fell, his picks did not rise.** Mean stars moved **+0.010** for his
+picks and **−0.187** for the field — the reweight did not recognise his entries, it demoted the
+population around them. That is exactly the shape §5b predicts (he hits `Base length` and
+`Orderliness` *less* than the field he passed over, so zeroing one and halving the other costs
+the field more than it costs him), and it is a weaker claim than "the rubric found his picks".
+The measured picks-minus-field shift is **+0.196 stars** against §5c's computed expectation of
+**+0.19** — agreement to about a hundredth of a star, so the arithmetic prediction was right,
+and the ≥3.5★ share it declined to predict has now been measured.
+
+### Coverage, restated so this result carries its own bound
+
+Unchanged and now permanent: **91 blind-spot tickers / 170 trades / 18.1% of total realised R**
+(§2), and only **104 of 658** replayable trades appeared in the field at all — **41** inside the
+board under v1, **45** under v2. So this is a rubric comparison measured on a **sixth of his
+record** against a field missing a quarter of its names, and the population missing is the one a
+momentum screener surfaces. #139 is **open** and proposes correcting these figures to
+92 / 172 / 18.02% once the recycled-symbol check lands; that correction is small and would move
+nothing here, but it has not landed and the figures above are the ones this run measured.
+
+**The no-percentile constraint stands, permanently.** #136 said to keep it "unless the coverage
+hole is fully closed". With #129 closed won't-do the hole cannot be closed, so the constraint is
+no longer conditional: no percentile and no rank position is emitted, only the top-thirty hit
+and the star histogram.
+
+_Reproduce: `python -m replay.study --store data/replay.duckdb`, which writes
+`references/replay_study_report.txt` and `references/replay_study_results.json` — both committed
+beside this document. The store's derived tables must be empty; bars are the only input a chain
+reads (write-once rows from an earlier pass are read back, not recomputed)._
+
+---
+
 ## 5. A3 — the feature study (two analyses, kept apart)
 
 The two A3 analyses are separate in code and separate here, because they answer different
@@ -274,15 +534,19 @@ construction**: every detection cleared the decile gate, so it never varies with
 
 Across the **104 detected** trades (of 658 replayable), n=103 carry an MFE:
 
-| Dimension | Weight | Hit rate | Spread | Correlation vs MFE | Untestable |
+Weights are the **live v2** rubric (#138). They are shown for orientation only — a hit rate,
+a spread and a point-biserial correlation are properties of the dimension, not of what the
+rubric pays for it, so nothing in the three right-hand columns moves when the weights do.
+
+| Dimension | Weight (v2) | Hit rate | Spread | Correlation vs MFE | Untestable |
 | --- | --- | --- | --- | --- | --- |
 | Tightness | ×2 | 44.7% | 0.497 | +0.076 | |
-| Orderliness | ×2 | 30.1% | 0.459 | −0.060 | |
+| Orderliness | ×1 | 30.1% | 0.459 | −0.060 | |
 | Prior move | ×1 | 100.0% | 0.000 | — | **yes** (no spread) |
-| Base length | ×1 | 48.5% | 0.500 | −0.083 | |
+| Base length | ×0 | 48.5% | 0.500 | −0.083 | |
 | MA support | ×1 | 76.7% | 0.423 | −0.158 | |
 | Volume | ×1 | 36.9% | 0.483 | −0.125 | |
-| ADR | ×1 | 81.6% | 0.388 | +0.092 | |
+| ADR | ×2 | 81.6% | 0.388 | +0.092 | |
 
 > **Nothing in the rubric predicts a run.** Every testable correlation is negligible —
 > the largest is MA support at **−0.158**, and even that points the *wrong* way. Four of
@@ -366,6 +630,102 @@ detections buy back: variance the executed trades lack (user story 19).
 > every executed detection clears the same decile gate. It is untestable in the regression
 > and stays untestable here.
 
+> **Coverage caveat — the 87.0% ADR hit rate is over a preferentially-kept subset (attach
+> here, not only to A2).** The taken group is **69 detections** — the executed trades that
+> survived into the reconstructed field — not his full entry record. §6 measures ADR at entry
+> over **649 entries** (his own entry-session bars, independent of the A2 chain) and finds
+> **30.7% at or under the 5% floor**, p25 4.7%. These two figures describe *different
+> populations and pull opposite ways*: if nearly a third of his real entries are sub-5% ADR yet
+> **87.0% of the ones that reached the field clear it**, the field reconstruction is
+> **preferentially keeping his high-ADR trades**. That is a coverage bias in **§5b itself**,
+> not only in A2 (§4) — and §5b is the evidence the ADR ×2 reweight (#135/#138) rests on, so
+> the bias bounds the selection contrast the whole recalibration is built on. The **sign** of
+> the ADR gap (he selects hard for ADR) is robust to it; the **magnitude** (+29.4pp) is
+> inflated by exactly the trades the field dropped. Read +29.4pp as a ceiling, not a point
+> estimate. The same discrepancy is recorded against §6's floor finding, because it is a
+> statement about both populations at once.
+
+### 5c. The recalibration that shipped (PRD #138)
+
+The selection contrast above licensed a rubric change, landed by PRD #138 against the
+calibration target ADR 0001 settled (**the rubric encodes the method's revealed selection**).
+The rule that turns this evidence into an edit: **the replay licenses the *direction* of a
+weight, never its magnitude.** The *signs* of the §5b gaps survive the §2 coverage hole; the
+*values* do not. So each weight is assigned from the **ordering** of the measured Δ — nothing
+reads a gap's value.
+
+| Dimension | Was | Now | Ordinal basis (§5b) |
+| --- | --- | --- | --- |
+| Tightness | ×2 | ×2 | +20.8pp — second-strongest selector |
+| **ADR** | ×1 | **×2** | **+29.4pp — the sharpest selector** |
+| **Orderliness** | ×2 | **×1** | **−9.1pp — hit less than the field he passed over** |
+| **Base length** | ×1 | **×0** | **−13.4pp — the largest wrong-way gap** |
+| Prior move | ×1 | ×1 | constant (100% both groups) — kept as documentation |
+| MA support | ×1 | ×1 | +4.3pp — inside the noise of a 69-row group |
+| Volume | ×1 | ×1 | −3.9pp — same |
+| Sector | ×1 | ×1 | unmeasurable, dropped from the replay (§1, #130) |
+
+**Ceiling 9, not 10; star range 0.5–4.5.** `points ÷ 2` is preserved, so the floor is
+`Prior move`'s permanent point (0.5) and the ceiling is the zeroed `Base length` (4.5). The
+scale was never truly 0–5; the ×0 makes that visible. `Base length` keeps a visible ×0 row in
+the breakdown — a reader sees it measured, sees it worth nothing, and is routed here.
+`BASE_LEN_MAX = 14` is the named suspect behind its wrong-way sign and is left open: the ×0
+says the dimension *as specified* earns nothing, not that base length is irrelevant. `ADR_MIN`
+holds at 0.05 (§6). A **rubric version stamp** (`score.RUBRIC_VERSION`) now rides the API
+candidates payload and the digest header, so a frozen digest star and a derived-on-read app
+star stay comparable across the change.
+
+**No return claim.** §5a is null: nothing in the rubric predicts a run. This is an argument
+from **selection only** — the reweight makes the score track his revealed criteria, not his
+outcomes.
+
+**Paired before/after, computed from the reported marginals.** The mean is exact —
+`Δpoints = 1[ADR] − 1[Orderliness]` and expectation is linear, so no independence assumption
+is needed:
+
+| | ADR hit | Orderliness hit | Mean Δpoints | Mean Δstars |
+| --- | --- | --- | --- | --- |
+| His picks (taken, n=69) | 87.0% | 27.5% | +0.595 | **+0.298** |
+| The field (not-taken, n=14,354) | 57.6% | 36.6% | +0.210 | **+0.105** |
+
+The swap moves his picks **~0.19 stars more than the field** — the first quantified statement
+that a rubric change pushes in the direction A2 (§4) says the current rubric does not. It is
+real but modest against A2's 17.3% / 17.8% gap, and says nothing about whether the **3.5★
+share** moves, which depends on the joint distribution around the boundary. The numbers above
+are the computed expectation; the **measured** paired A2 re-run is **§4a**, and it confirms them
+— measured picks-minus-field shift **+0.196 stars** against the +0.19 predicted here, agreeing
+to about a hundredth of a star. The 3.5★
+share this paragraph declined to predict was also measured there, and it moves: **17.3% / 17.8%
+under v1 → 14.4% / 8.8% under v2 on the same field**.
+
+**#136 — the paired re-run is now wired, and separates the two variables by construction.**
+The obstacle #136 was written against — "re-run A2 and risk moving the field *and* the rubric
+at once, then attribute the null to neither" — is now closed at the seam rather than left to a
+disciplined operator. `screener.score.RUBRIC_WEIGHTS` keeps the superseded **v1** ten-point
+table beside the live **v2** nine-point one, keyed by the same `RUBRIC_VERSION` stamp, and
+`stars_under(breakdown, weights)` re-totals a detection's *hit booleans* under either. The
+hits are a property of the setup, not the rubric — only the weights move — so
+`replay.placement.build_placement_report` now scores **one** replayed field under **both**
+rubrics in a single pass and returns `by_rubric`: `RubricStarDistributions` for v2 (live) and
+v1, each carrying its own version stamp and its own picks-vs-field histogram. The live pair is
+identical to the headline `picks`/`field` by identity (the detections were scored under v2), so
+nothing is scored twice. `format_report` prints the two stamped blocks and `study.py`
+serialises `by_rubric`, so the machine-readable results file is the paired result.
+
+`by_rubric` also carries the **top-thirty figure** per version, not only the histogram: a board
+place is a re-ranking rather than a re-scoring, so the weights reorder the whole field around a
+pick and can move it on or off the board even where its own hits never changed (41→45, §4a).
+Reading the board under one rubric and the histogram under another would have reintroduced
+exactly the cross-run comparison this pairing exists to prevent.
+
+**What the pairing was for, and what it delivered.** It was built to separate a rubric change
+from a field change when the fuller field (#129) landed. #129 is now **closed won't-do** — the
+delisted-bar history is paid-only and there is no budget — so the field variable is frozen
+permanently, which makes the pairing measure the rubric *alone* rather than disentangle two
+movers. The measured result and the explicit verdict — the ranking conclusion is **weakened,
+not reversed**, and the §4 null holds only under its v1 stamp — are in **§4a**, together with
+why an in-sample gap at p = 0.055 is not a validation.
+
 ---
 
 ## 6. The two preliminary findings from #114
@@ -403,6 +763,17 @@ row and is pinned as such in the seam.)
 > all**. It changes what the detector proposes and what a card claims about risk, and nothing
 > else.
 
+**Adopted by issue #127.** The detector's proposed stop is now placed at the trader's own
+convention — `STOP_CONVENTION_ADR = 0.345` in `screener/detection.py`, the measured median of
+this distribution — a fixed 0.345 ADR below the trigger, replacing the ~1.28 ADR cluster-low
+default. The Board and Setups cards' `stopw_adr` (risk), `affordable` flag and `stop_price`
+(the drawn stop line) all follow from it; the cluster geometry (`cluster_low`) is unchanged and
+still carried on the row, it is simply no longer what the detector proposes. As this finding
+predicts, **ranking is untouched** — the star score never reads the stop — and the acceptance
+metric that tracked the old cluster-low width (B6, "share of list whose proposed stop > 1×ADR")
+now expects ≈0.0, since every proposed stop sits under the 1×ADR affordability cap. The
+constant cites this table as its provenance.
+
 ### Finding 2 — the ADR floor withholds its score point on 31% of his real entries. **Confirmed (preliminary).**
 
 `ADR_MIN = 0.05` withholds its score point on **31%** of his real entries; his ADR at entry
@@ -419,12 +790,59 @@ Median ADR at entry is 6.1%, mean 8.2%, max 65.2%. So the floor is not mis-set f
 bulk of his entries — it is mis-set for the bottom third, and it withholds the point from
 them silently.
 
-This lands next to §5b, and the two should be read together: **ADR is the dimension he
-selects on most sharply** (87.0% of his picks hit it, against 57.6% of the field). The
-floor that withholds its point on 30.7% of his entries is therefore blunting the single
-dimension the trade record says matters most to him. Note also (§3) that the ADR *hard
-gate* rejected none of his entries — the cost here is entirely in the score point, not in
-detection.
+ADR is the dimension he selects on most sharply (§5b), so a floor that withholds its point
+on the bottom third of his entries is blunting the dimension the trade record says matters
+most to him. Note also (§3) that the ADR *hard gate* rejected none of his entries — the cost
+here is entirely in the score point, not in detection.
+
+**Where the floor bites, across the whole distribution — not one number.** The 30.7% headline
+is one point on a distribution whose shape matters more than the count. ADR at entry runs min
+1.4%, p25 4.7%, median 6.1%, p75 8.9%, mean 8.2%, max 65.2% (§5a). So:
+
+- the floor **does not bind for the median entry** (6.1% > 5%), nor for anything above p25 —
+  roughly the top two-thirds of his entries score the point untouched;
+- the withheld tail is **not marginal-and-clustered**. p25 sits at 4.7%, only just under the
+  floor, but the tail runs all the way down to 1.4% — barely a quarter of the floor. The
+  withheld point is denied to entries scattered from just-below-5% to far-below, not bunched
+  against the threshold, so no single small nudge recovers most of them;
+- every sub-floor entry was still **detected** and then **silently docked its ADR point** (the
+  hard gate never bound, §3). The cost is entirely in the score, never in recall.
+
+Moving the floor to his p25 (~4.7%) would recover the point for the entries sitting just under
+it — and would also admit the **entire sub-5% ADR tail of the live universe** to the same
+reward, a constant fitted to one trader's entry distribution, in one market, in one regime.
+
+**Decision (#128): the floor holds at `ADR_MIN = 0.05`. The remedy is the weight, not the
+threshold.** #128's evidence rule licenses the *direction* of a change from a measured gap,
+never its *magnitude* — and a threshold value is magnitude. A graded ADR point was the other
+candidate remedy and is *not available*: `score.py` records booleans-not-continuous as a
+founding decision with its own measured basis (+0.255 vs +0.191) and an auditability rationale
+("a sort key you cannot audit is one you will not trust"). That left *move* or *leave*, and the
+floor is left — see §5b's coverage caveat for why the evidence for moving it is itself biased.
+
+**The withheld point now costs double.** Under #135/#138 ADR moves from ×1 to ×2 — it is the
+sharpest selector in the rubric (+29.4pp, §5b). The floor now withholds a point on a dimension
+worth twice as much, so the 30.7% of entries docked lose *two* points, not one. This does not
+argue for moving the floor; it makes the question **more consequential and better posed** — a
+reason to re-ask it with better evidence, not to answer it now with this.
+
+**What would reopen it.** The floor is left open, not closed. It should be revisited given
+evidence that survives the objections above — specifically: (1) an ADR-at-entry distribution
+measured on a field **without** the §2 coverage hole and the §5b high-ADR keeping bias, so the
+sub-5% share is not an artefact of which trades the reconstruction dropped; (2) a live-universe
+sub-5% ADR base rate, so the cost of admitting that tail can be weighed against the point
+recovered; and (3) ideally an out-of-regime or IDX reference set, so the threshold is not fit to
+a once-in-a-decade US momentum window (§8). Absent those, the question is reopenable rather than
+settled by omission.
+
+**A population caveat this finding must carry — 30.7% and §5b's 87.0% are not one argument.**
+Earlier framing read them as mutually reinforcing. They are not: **30.7% is over 649 entries**
+(his own entry-session bars, independent of the A2 chain), while **§5b's 87.0% is over 69 taken
+detections** (the executed trades that survived into the reconstructed field). They describe
+different populations and pull *opposite* ways — if nearly a third of his real entries are sub-5%
+ADR yet 87.0% of the ones that reached the field clear it, the field is **preferentially keeping
+his high-ADR trades**. This is the same coverage bias recorded as a caveat on §5b above; it is
+kept in both places because it bounds §5b — the evidence the ADR reweight rests on — not only A2.
 
 ---
 
@@ -486,10 +904,14 @@ expectation; the reference set contains no IDX trade.
 
 ## 9. What the study cannot say
 
-- It cannot claim the **ranking** is validated. A2 measured a flat null (§4) on 104 of his
-  658 replayable trades against a field missing 29% of its tickers. That is evidence
-  *against* discrimination, not proof of its absence — and in neither direction may it be
-  read as ranking validation.
+- It cannot claim the **ranking** is validated. A2 measured a flat null under the **v1**
+  rubric (§4) on 104 of his 658 replayable trades against a field missing 29% of its
+  tickers. The paired re-run under the live **v2** rubric on that same field (§4a) opens a
+  gap in the discriminating direction — 14.4% of his picks at ≥3.5★ against the field's
+  8.8% — which **weakens** that null without validating the ranking: the v2 weights were
+  fitted to this very taken-vs-not-taken separation (§5b), so the gap is in-sample, and it
+  is marginal (p = 0.055) even so. Neither the v1 null nor the v2 gap may be read as
+  ranking validation.
 - It cannot report a **precision** or **false-positive** rate. There is no control group.
 - It cannot say anything about **`Prior move`**. The dimension is 100% in every group the
   study can construct, so its spread is zero everywhere and no correlation exists to
@@ -502,35 +924,66 @@ expectation; the reference set contains no IDX trade.
 
 ## 10. Reproducing the study
 
-**The replay store is single-use.** `rebuild_universe`, `rebuild_ranks` and
+**The replay store is re-runnable.** `rebuild_universe`, `rebuild_ranks` and
 `rebuild_detections` all append through `Store`'s write-once guard
-(`Store._guard_absent`), which exists so a derived row is never rewritten. A second
-`replay_chain()` over the same store therefore dies with `SessionExistsError` on its first
-session that carries rows. The four analyses cannot be run as four commands against one
-store: **build the store, then run every analysis in one process against one chain.**
+(`Store._guard_absent`), which exists so a derived row is never rewritten. That guard used
+to make the store *single-use*: a second `replay_chain()` over the same store died with
+`SessionExistsError` on its first session that already carried rows, so only whichever
+analysis ran first could succeed (#126).
 
-Each module does carry its own `python -m` entry point (user story 30), and each is correct
-in isolation against a *freshly built* store — but only the first one run against a given
-store will succeed.
+The chain now **reuses** a session it has already computed instead of recomputing it
+(`replay.chain._replay_session`, `replay.field._session_detections`). Each session the chain
+builds is stamped with a run record; a later chain sees that marker and reads the persisted
+universe back rather than rebuilding it, and reads the persisted detections back rather than
+re-detecting. Ranks are recomputed in memory on reuse — never read from the store, whose
+two-year retention prunes an early session's rank rows before the pass ends — from the same
+`rank_table` over the same bars, so the reused session is identical to the original. The
+write-once guarantee is untouched: nothing is ever rewritten, only skipped. A second run
+produces the same results as the first, and reusing the persisted chain avoids re-reading
+every candidate's full history for each analysis.
+
+**One command reproduces the whole study.** `replay.study` builds the field **once** and
+computes coverage plus all four analyses against it — the A1 funnel, A2 placement, and both
+A3 analyses share a single forward chain and a single per-session detection pass, so four
+rebuilds of the 947-session chain collapse into one (issue #131). It writes both the
+human-readable reports and a machine-readable results file, and prints a running count and
+an ETA per session to stderr while the chain runs, so a silent hour is never mistaken for a
+hang — the failure that killed the first attempt at 60 minutes. The result rows survive in
+the JSON, so #133's decile decomposition can be recomputed without another rebuild.
 
 ```
 # 1. build the store from the live one (read-only on the live side) — ~2 min
 python -c "from replay.store import build_replay_store; \
            print(build_replay_store('data/screener.duckdb', 'data/replay.duckdb'))"
 
-# 2. coverage + drift check; writes references/blind_spot_tickers.json
-python -m replay.reference --store data/replay.duckdb
-
-# 3. one analysis only, against this store (each needs its own fresh build):
-python -m replay.funnel     --store data/replay.duckdb
-python -m replay.placement  --store data/replay.duckdb
-python -m replay.regression --store data/replay.duckdb
-python -m replay.contrast   --store data/replay.duckdb
+# 2. reproduce the whole study — coverage + all four analyses against one built store.
+#    Coverage is asserted against the #114 figures; progress + ETA print to stderr.
+python -m replay.study --store data/replay.duckdb \
+    --out-report references/replay_study_report.txt \
+    --out-json    references/replay_study_results.json
 ```
 
-**Runtime.** The chain is 947 sessions (126 burn-in + 821 measured) and dominates: the
-whole study ran in **29.8 minutes**, of which the chain was 29.1 and the per-session
-detection pass that builds the field added 0.6.
+Each analysis also still carries its own `python -m` entry point (user story 30), and
+because the built store is re-runnable (#126) the four can be run as separate commands
+against it, **in any order**, when only one is wanted:
+
+```
+python -m replay.reference  --store data/replay.duckdb   # coverage + blind-spot list
+python -m replay.funnel      --store data/replay.duckdb
+python -m replay.placement   --store data/replay.duckdb
+python -m replay.regression  --store data/replay.duckdb
+python -m replay.contrast    --store data/replay.duckdb
+```
+
+Run separately, each rebuilds (or, on a built store, reuses) the whole chain; `replay.study`
+is the way to get all four for the price of one forward pass.
+
+**Runtime.** The chain is 947 sessions (126 burn-in + 821 measured) and dominates: on the
+2026-08-15 run the whole study took **29.8 minutes**, of which the chain was 29.1 and the
+per-session detection pass that builds the field added 0.6. Treat it as an order of
+magnitude, not a benchmark — it is one machine's cold run. A **second** run against a store
+whose sessions are already persisted is far cheaper: the chain reuses them rather than
+rebuilding (#126), which is what makes an added-column re-run affordable.
 
 That figure depends on caching bar reads. `rebuild_universe` reads every candidate's full
 bar history on every session — 7,529 symbols × 947 sessions ≈ **7.1M identical DuckDB
@@ -544,5 +997,6 @@ or more.
 
 _Provenance: PRD #114; A1 funnel #116/#119; A2 chain/field/placement #117/#118/#120; A3
 outcome regression #121; A3 selection contrast #122; this write-up #123. Analysis code:
-`backend/replay/`. Row-level seam: `backend/tests/test_replay_seam.py`. Study run
-2026-08-15._
+`backend/replay/`. Row-level seam: `backend/tests/test_replay_seam.py`. Decile decomposition
+#133; cluster characterisation #132; recalibration #138; paired A2 re-run #136. Study last run
+2026-08-19; the survivorship hole closed won't-do as #129._

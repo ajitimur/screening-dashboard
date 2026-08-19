@@ -19,10 +19,12 @@ from datetime import date, timedelta
 from screener.bars import Bar
 from screener.detection import (
     DETECTOR_VERSION,
+    STOP_CONVENTION_ADR,
     TOP_DECILE,
     Rank,
     _churn_l,
     _dryup,
+    cluster_min_range_adr,
     detect,
     detection_gate,
 )
@@ -76,10 +78,20 @@ def test_the_fitted_line_never_sets_the_trigger():
     assert d.line_end <= d.trigger        # the line never reaches the trigger
 
 
-def test_stop_is_the_cluster_range():
+def test_proposed_stop_is_the_traders_convention_not_the_cluster_low():
+    # The detector proposes the trader's own stop convention (issue #127): a fixed
+    # STOP_CONVENTION_ADR multiple of the night's ADR below the trigger, NOT the
+    # cluster-low distance that used to run ~4× too wide.
     d = detect("AAA", _bars(_base_series()), CAL[104])
-    assert abs(d.stop - (d.trigger - d.cluster_low)) < 1e-12
-    assert abs(d.stop - 1.0) < 1e-9       # 100.5 - 99.5
+    # stopw_adr equals the convention exactly — the a·trigger in the budget cancels.
+    assert abs(d.stopw_adr - STOP_CONVENTION_ADR) < 1e-12
+    assert abs(d.stop - STOP_CONVENTION_ADR * d.adr * d.trigger) < 1e-12
+    # The proposed stop is *tighter* than the raw cluster low it replaced here.
+    cluster_low_stopw = (d.trigger - d.cluster_low) / d.trigger / d.adr
+    assert d.stopw_adr < cluster_low_stopw
+    # The stop line the cards draw is the trigger less the convention budget.
+    assert abs(d.stop_price - (d.trigger - d.stop)) < 1e-12
+    assert d.stop_price < d.trigger
 
 
 # -- line_ok is a verdict, not a gate; piercing bars do not invalidate --------
@@ -124,6 +136,23 @@ def test_a_name_with_no_tight_cluster_is_not_a_detection():
     for h in (60, 55, 62, 54, 63, 56, 61):  # last bars swing ~15% of price
         hlc.append((h + 0.5, h - 0.5, h))
     assert detect("AAA", _bars(hlc), CAL[96]) is None
+
+
+def test_cluster_min_range_adr_reports_the_tightest_trailing_window():
+    # The read-only diagnostic behind the #132 study: the tightest trailing 3-7
+    # bar range in ADR, taken *regardless* of whether it clears TIGHT_MULT, so a
+    # ``no_cluster`` rejection can still be quantified against the condition's
+    # window. Range is monotonic in k, so the minimum is the smallest (3-bar)
+    # window that fits — here the last three bars span 110 − 104 = 6, which at
+    # adr_abs = 4.0 is 1.5 ADR; every wider window drags in the low-90 bars.
+    high = [100.0, 100.0, 110.0, 110.0, 110.0]
+    low = [90.0, 90.0, 104.0, 104.0, 104.0]
+    assert cluster_min_range_adr(high, low, 4, 4.0) == 1.5
+    # A window genuinely in motion reads far over the 1.5 window.
+    wide_low = [90.0, 90.0, 100.0, 98.0, 102.0]
+    assert cluster_min_range_adr(high, wide_low, 4, 4.0) == (110.0 - 98.0) / 4.0
+    # Non-positive ADR is undefined, not a range.
+    assert cluster_min_range_adr(high, low, 4, 0.0) is None
 
 
 # -- the star score's derived signals (spec §4.7) -----------------------------

@@ -57,7 +57,12 @@ from screener.score import DIMENSIONS as _SCORE_DIMENSIONS, Dimension
 from screener.store import Store
 
 from .chain import BURN_IN_SESSIONS, REPLAY_MARKET
-from .field import SECTOR_DIMENSION, replay_field, seven_dimension_score
+from .field import (
+    FieldSession,
+    SECTOR_DIMENSION,
+    replay_field,
+    seven_dimension_score,
+)
 from .funnel import evaluation_session
 from .reference import PRIMARY_EXIT, ExecutedTrade, classify, load_trades
 
@@ -320,42 +325,25 @@ def _dim_hit(breakdown: list[Dimension], name: str) -> bool:
     return False
 
 
-def run_regression(
-    trades: list[ExecutedTrade],
+def build_regression(
+    replayable: list[ExecutedTrade],
+    calendar: list[date],
+    fields: Iterable[FieldSession],
     store: Store,
-    market: str = REPLAY_MARKET,
+    market: str,
+    blind_spot_count: int,
     *,
-    blind_spot_tickers: Iterable[str] = (),
-    burn_in: int = BURN_IN_SESSIONS,
-    sessions: Sequence[date] | None = None,
     exit_label: str = PRIMARY_EXIT,
 ) -> OutcomeRegression:
-    """Reconstruct a feature vector per replayable trade and run the regression.
+    """Reconstruct a feature vector per trade over an already-built replayed field.
 
-    Runs the forward chain and replayed field (:func:`replay.field.replay_field`)
-    once, then for each replayable trade looks up its detection in the field at its
-    evaluation session — the last session strictly before entry — and reads the
-    seven score dimensions off it. The ADR at entry and the trade's own stop width
-    in ADR are computed for *every* replayable trade, detected or not, so the two
-    #114 distributions cover his whole entry set. Blind-spot trades get no vector
-    (they are a blind spot, not a stage failure).
+    The field-free core of :func:`run_regression`: given the fields the caller
+    already computed, it reads each trade's detection off the field at its
+    evaluation session and regresses the dimensions against MFE, so the one-process
+    runner (:mod:`replay.study`) can share one field across all four analyses
+    instead of replaying it per analysis.
     """
-    classified = classify(trades, store, market=market)
-    replayable = [c.trade for c in classified if c.replayable]
-    calendar = store.sessions(market)
-
-    fields = replay_field(
-        store,
-        market,
-        trades=replayable,
-        blind_spot_tickers=blind_spot_tickers,
-        burn_in=burn_in,
-        sessions=sessions,
-    )
     by_session = {f.session: f for f in fields}
-    blind_spot_count = (
-        fields[0].blind_spot_count if fields else len(set(blind_spot_tickers))
-    )
 
     bars_cache: dict[str, list[Bar]] = {}
     vectors: list[FeatureVector] = []
@@ -407,6 +395,47 @@ def run_regression(
         n_replayable=len(replayable),
         n_detected=sum(1 for v in vectors if v.detected),
         blind_spot_count=blind_spot_count,
+    )
+
+
+def run_regression(
+    trades: list[ExecutedTrade],
+    store: Store,
+    market: str = REPLAY_MARKET,
+    *,
+    blind_spot_tickers: Iterable[str] = (),
+    burn_in: int = BURN_IN_SESSIONS,
+    sessions: Sequence[date] | None = None,
+    exit_label: str = PRIMARY_EXIT,
+) -> OutcomeRegression:
+    """Reconstruct a feature vector per replayable trade and run the regression.
+
+    Runs the forward chain and replayed field (:func:`replay.field.replay_field`)
+    once, then for each replayable trade looks up its detection in the field at its
+    evaluation session — the last session strictly before entry — and reads the
+    seven score dimensions off it. The ADR at entry and the trade's own stop width
+    in ADR are computed for *every* replayable trade, detected or not, so the two
+    #114 distributions cover his whole entry set. Blind-spot trades get no vector
+    (they are a blind spot, not a stage failure).
+    """
+    classified = classify(trades, store, market=market)
+    replayable = [c.trade for c in classified if c.replayable]
+    calendar = store.sessions(market)
+
+    fields = replay_field(
+        store,
+        market,
+        trades=replayable,
+        blind_spot_tickers=blind_spot_tickers,
+        burn_in=burn_in,
+        sessions=sessions,
+    )
+    blind_spot_count = (
+        fields[0].blind_spot_count if fields else len(set(blind_spot_tickers))
+    )
+    return build_regression(
+        replayable, calendar, fields, store, market, blind_spot_count,
+        exit_label=exit_label,
     )
 
 

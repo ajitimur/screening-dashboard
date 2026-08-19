@@ -37,6 +37,7 @@ from .models import (
 from .regime import breadth, posture, regime_state
 from .runner import RunManager
 from .schedule import run_is_due
+from .score import RUBRIC_VERSION
 from .sectors import (
     SECTORS,
     TEMPORAL_SESSIONS,
@@ -261,7 +262,8 @@ def create_app(
             # No published run yet — an explicit empty state, not a fabricated
             # date. The order is by score, there is simply nothing to order.
             return CandidatesResponse(
-                market=market, session=None, ordered_by="score", candidates=[]
+                market=market, session=None, ordered_by="score", candidates=[],
+                rubric_version=RUBRIC_VERSION,
             )
         session = latest.session
         # Compose the list from what the pipeline published for this session: the
@@ -299,7 +301,8 @@ def create_app(
         # Sorted by star score descending, line_ok failures a silent tiebreak
         # below equal-scored accepted names (spec §4.7); the UI reads ordered_by.
         return CandidatesResponse(
-            market=market, session=session, ordered_by="score", candidates=candidates
+            market=market, session=session, ordered_by="score", candidates=candidates,
+            rubric_version=RUBRIC_VERSION,
         )
 
     @app.get("/api/chart/{market}/{symbol}", response_model=ChartResponse)

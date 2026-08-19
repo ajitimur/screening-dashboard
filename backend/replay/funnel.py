@@ -52,7 +52,7 @@ from __future__ import annotations
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 from datetime import date
-from typing import Callable, Iterable, Sequence
+from typing import TYPE_CHECKING, Callable, Iterable, Sequence
 
 from screener.bars import Bar
 from screener.detection import (
@@ -66,15 +66,20 @@ from screener.detection import (
     _find_cluster,
     _prior_move,
     _sma_close,
+    cluster_min_range_adr,
     detect,
     detection_gate,
 )
 from screener.indicators import adr as _adr
+from screener.ranks import TOP_DECILE, decile_gate
 from screener.store import Store
 from screener.universe import LIQUIDITY_FLOOR, median_dollar_volume
 
-from .chain import BURN_IN_SESSIONS, REPLAY_MARKET, replay_chain
+from .chain import BURN_IN_SESSIONS, REPLAY_MARKET, SessionField, replay_chain
 from .reference import ClassifiedTrade, ExecutedTrade, classify
+
+if TYPE_CHECKING:
+    from .regression import Distribution
 
 # The three stages this study evaluates, in the app's funnel order: liquidity,
 # then the cross-sectional decile gate, then detection (ticket #119 folded the
@@ -99,6 +104,13 @@ COND_BASE_LENGTH = "base_length"  # base shorter than MIN_BASE_LEN
 COND_CATCH_UP = "catch_up"        # price not back at the 10/20 MA
 COND_CLUSTER = "cluster"          # no tight 3-7 bar cluster (size or tightness)
 
+# A `cluster` miss whose tightest trailing window sits within this multiple of ADR
+# is *marginal* — a modest widening of the detector's TIGHT_MULT (1.5) would recover
+# it; beyond it the name is genuinely in motion and no plausible widening reaches a
+# base. This is the boundary the #132 characterisation reads the misses against; it
+# is *reported*, never applied, and no detection constant is changed by it.
+MARGINAL_TIGHT_MULT = 2.0
+
 
 @dataclass(frozen=True)
 class FunnelRow:
@@ -115,6 +127,18 @@ class FunnelRow:
     (``decile_present`` ``False``) is a coverage gap distinguished from one present
     but ranked outside the decile — both fail the decile stage, but only the
     second is a ranking verdict (PRD "A1 funnel").
+
+    ``decile_pass`` is the app's *three-union* gate (:func:`detection_gate`, over
+    1m/3m/6m); ``decile_pass_five`` is the app's *five-union* gate
+    (:func:`screener.ranks.decile_gate`, adding 1w and 12m), so a miss recovered by
+    widening the gate 3→5 is recoverable without a second rebuild (#133). Both come
+    straight from the app's own gate functions — never a hand-rolled percentile
+    test, the trap #133 calls out. ``eval_percentiles`` and ``decile_verdicts``
+    carry the *margin* of a decile miss: the ticker's percentile per detection
+    lookback at the eval session, and the per-lookback top-decile verdict, so a miss
+    clustered at the 11th percentile is distinguishable from one scattered across
+    the distribution, and the lookback he was strong in is recoverable. Both are
+    empty when the ticker was absent from the field (no ranks to read).
     """
 
     ticker: str
@@ -122,13 +146,21 @@ class FunnelRow:
     eval_session: date | None
     liquidity_pass: bool
     decile_present: bool              # the ticker was a member of the field at all
-    decile_pass: bool                 # top decile on the detection lookbacks there
+    decile_pass: bool                 # top decile on the *three-union* detection gate
+    decile_pass_five: bool            # top decile on the *five-union* gate (1w..12m)
+    eval_percentiles: dict[str, float]  # per-lookback percentile at the eval session
+    decile_verdicts: dict[str, bool]    # per-lookback top-decile verdict (#133)
     detection_pass: bool
     failed_condition: str | None      # the geometric gate the detector failed on
     first_failing_stage: str | None   # first stage in funnel order that failed
     entry_session_break: bool         # secondary: detector fires on the entry session itself
     continuation: bool
     median_dollar_volume: float       # the liquidity measure at the eval session
+    # -- `cluster`-miss characterisation (#132): both carry the *margin* of a
+    # cluster miss so the 171-miss population can be read against the way he
+    # re-enters names and against the condition's current window.
+    cluster_min_range_adr: float | None   # tightest trailing 3-7 bar range in ADR; set only on a cluster miss
+    sessions_since_prior_entry: int | None  # market-session distance to the nearest prior entry (None = first)
 
 
 @dataclass(frozen=True)
@@ -157,6 +189,141 @@ class StageRecall:
 
 
 @dataclass(frozen=True)
+class DecileDecomposition:
+    """The decile miss, decomposed into three exclusive, exhaustive buckets (#133).
+
+    Every replayable trade that fails the three-union decile gate lands in exactly
+    one bucket, so the buckets sum to :attr:`total_misses`:
+
+    - ``coverage_gap`` — the ticker was absent from the replayed field entirely
+      (``decile_present`` ``False``): a survivorship hole, not a ranking verdict.
+    - ``recovered_by_five`` — present and outside the three-union gate, but inside
+      the *five-union* gate (top decile in 1w or 12m): the loss widening 3→5 would
+      recover. A preliminary #114 read put this near a third of the decile loss;
+      the full run confirms or kills it.
+    - ``outside_any_union`` — present and outside even the five-union gate: a
+      genuine ranking miss no gate widening reaches.
+    """
+
+    total_misses: int
+    coverage_gap: int
+    recovered_by_five: int
+    outside_any_union: int
+
+
+def decompose_decile_misses(rows: Iterable[FunnelRow]) -> DecileDecomposition:
+    """Decompose every three-union decile miss across ``rows`` (#133).
+
+    A miss is any row that fails the three-union gate (``decile_pass`` ``False``);
+    each is attributed to exactly one bucket, so the three counts partition the
+    misses. The verdicts read here (``decile_present``, ``decile_pass``,
+    ``decile_pass_five``) are the ones the row carried straight off the app's gate
+    functions — this never re-derives a decile verdict from the percentiles (the
+    trap #133 calls out).
+    """
+    coverage_gap = recovered_by_five = outside_any_union = 0
+    for r in rows:
+        if r.decile_pass:
+            continue  # not a miss
+        if not r.decile_present:
+            coverage_gap += 1
+        elif r.decile_pass_five:
+            recovered_by_five += 1
+        else:
+            outside_any_union += 1
+    return DecileDecomposition(
+        total_misses=coverage_gap + recovered_by_five + outside_any_union,
+        coverage_gap=coverage_gap,
+        recovered_by_five=recovered_by_five,
+        outside_any_union=outside_any_union,
+    )
+
+
+@dataclass(frozen=True)
+class ClusterDecomposition:
+    """The `cluster` detection miss, characterised two ways (#132).
+
+    `cluster` accounts for the largest share of the detection misses — more than
+    the other firing conditions combined — and A1 shows detection is the *only*
+    stage whose ex-continuation recall exceeds its headline, the signature of a
+    rule that penalises his repeat entries. This decomposition reads every
+    replayable trade whose detection failed on the `cluster` condition
+    (``failed_condition == COND_CLUSTER``) against the two questions #132 asks:
+
+    - **how far from the prior entry** — ``continuation`` counts the misses that
+      are continuation entries (within :data:`CONTINUATION_SESSIONS` of a prior
+      entry in the same ticker), ``fresh`` the rest. A cluster miss on a
+      continuation entry is the base detector correctly declining a name that is
+      mid-move rather than in a base; recall on it is not a legitimate target,
+      because the reference set records no setup he declined and precision is not
+      measurable. ``prior_distance_distribution`` summarises the market-session
+      distance to the nearest prior entry across the continuation misses.
+    - **how they distribute against the condition's window** — ``marginal`` counts
+      the misses whose tightest trailing window sits within
+      :data:`MARGINAL_TIGHT_MULT` × ADR (a modest widening of the detector's
+      ``TIGHT_MULT`` would recover them), ``far`` the ones beyond it (a name
+      genuinely in motion no plausible widening reaches).
+      ``range_distribution`` summarises the tightest-window range in ADR across
+      all the misses.
+
+    ``continuation + fresh == total_misses`` and ``marginal + far ==
+    total_misses`` (every real cluster miss cleared the ADR gate, so it always
+    carries a tightest-window range). The distributions are ``None`` when their
+    subset is empty. Nothing here changes a detector constant (PRD #114 out of
+    scope); it is the evidence a change would have to rest on.
+    """
+
+    total_misses: int
+    continuation: int
+    fresh: int
+    marginal: int
+    far: int
+    range_distribution: "Distribution | None"
+    prior_distance_distribution: "Distribution | None"
+
+
+def characterise_cluster_misses(rows: Iterable[FunnelRow]) -> ClusterDecomposition:
+    """Characterise every `cluster` detection miss across ``rows`` (#132).
+
+    A miss is any row whose detection failed on the `cluster` condition. Each is
+    read off the margin the row already carries — ``cluster_min_range_adr`` (how
+    far over the condition's window) and ``continuation`` /
+    ``sessions_since_prior_entry`` (how far from a prior entry) — never re-running
+    the detector. ``distribution`` is imported locally to keep :mod:`replay.funnel`
+    free of a top-level dependency on :mod:`replay.regression`, which imports it.
+    """
+    from .regression import distribution
+
+    misses = [r for r in rows if r.failed_condition == COND_CLUSTER]
+    ranges = [
+        r.cluster_min_range_adr
+        for r in misses
+        if r.cluster_min_range_adr is not None
+    ]
+    continuation = sum(1 for r in misses if r.continuation)
+    marginal = sum(
+        1
+        for r in misses
+        if r.cluster_min_range_adr is not None
+        and r.cluster_min_range_adr <= MARGINAL_TIGHT_MULT
+    )
+    prior_distances = [
+        float(r.sessions_since_prior_entry)
+        for r in misses
+        if r.continuation and r.sessions_since_prior_entry is not None
+    ]
+    return ClusterDecomposition(
+        total_misses=len(misses),
+        continuation=continuation,
+        fresh=len(misses) - continuation,
+        marginal=marginal,
+        far=len(misses) - marginal,
+        range_distribution=distribution(ranges),
+        prior_distance_distribution=distribution(prior_distances),
+    )
+
+
+@dataclass(frozen=True)
 class FunnelReport:
     """The A1 result: per-row funnel walks plus per-stage recall.
 
@@ -167,6 +334,11 @@ class FunnelReport:
     condition costs the most (PRD user story 10). ``blind_spot_count`` is the
     coverage figure every decile-dependent output carries, since the decile stage
     depends on the replayed field's population (PRD user story 22).
+    ``decile_decomposition`` breaks the decile miss into coverage gap /
+    recovered-by-5 / outside-any-union across all replayable trades (#133).
+    ``cluster_characterisation`` breaks the largest detection miss — `cluster` —
+    down by continuation-vs-fresh and by how far each miss sits over the
+    condition's tightness window (#132).
     """
 
     rows: list[FunnelRow]
@@ -177,6 +349,8 @@ class FunnelReport:
     condition_counts: dict[str, int]
     continuation_count: int
     blind_spot_count: int
+    decile_decomposition: DecileDecomposition
+    cluster_characterisation: ClusterDecomposition
 
 
 # -- evaluation session -------------------------------------------------------
@@ -265,32 +439,61 @@ def passes_liquidity(bars: list[Bar], market: str) -> bool:
     return median_dollar_volume(bars) >= LIQUIDITY_FLOOR[market]
 
 
-def _continuation_flags(
+def _prior_entry_distances(
     classified: list[ClassifiedTrade], calendar: list[date]
-) -> dict[int, bool]:
-    """Tag each replayable trade (by identity) a continuation entry or not.
+) -> dict[int, int | None]:
+    """Market-session distance from each replayable trade (by identity) to the
+    *nearest prior* entry in the same ticker, or ``None`` when it is the first
+    entry in that ticker.
 
-    A trade is a continuation when a prior entry in the *same ticker* sits within
-    :data:`CONTINUATION_SESSIONS` market sessions of it. Distance is counted on the
-    market calendar so weekends and holidays do not inflate the gap.
+    Distance is counted on the market calendar so weekends and holidays do not
+    inflate the gap. A trade is a continuation entry when this distance is not
+    ``None`` and ``<= CONTINUATION_SESSIONS`` (:func:`_is_continuation`) — so the
+    single distance both drives the continuation tag (PRD user story 5) and carries
+    the "how far from the prior entry" margin the #132 cluster characterisation
+    reads.
     """
     by_ticker: dict[str, list[ExecutedTrade]] = {}
     for c in classified:
         if c.replayable:
             by_ticker.setdefault(c.trade.ticker, []).append(c.trade)
 
-    flags: dict[int, bool] = {}
+    distances: dict[int, int | None] = {}
     for trades in by_ticker.values():
         ordered = sorted(trades, key=lambda t: t.entry_date)
         for i, trade in enumerate(ordered):
             here = _session_index(calendar, trade.entry_date)
-            is_cont = any(
+            priors = [
                 here - _session_index(calendar, prior.entry_date)
-                <= CONTINUATION_SESSIONS
                 for prior in ordered[:i]
-            )
-            flags[id(trade)] = is_cont
-    return flags
+            ]
+            distances[id(trade)] = min(priors) if priors else None
+    return distances
+
+
+def _is_continuation(distance: int | None) -> bool:
+    """Whether a nearest-prior-entry ``distance`` marks a continuation entry."""
+    return distance is not None and distance <= CONTINUATION_SESSIONS
+
+
+def _eval_cluster_min_range(bars: list[Bar], as_of: date) -> float | None:
+    """The tightest trailing 3–7 bar cluster range at ``as_of``, in ADR units.
+
+    Reuses the detector's own :func:`screener.detection.cluster_min_range_adr` over
+    the same ADR the detector would compute, so a `cluster` miss carries how far
+    over the condition's window it sat. ``None`` when there is no session on or
+    before ``as_of`` or ADR is non-positive.
+    """
+    idx = _as_of_index(bars, as_of)
+    if idx is None:
+        return None
+    a = _adr(bars[: idx + 1])
+    if a is None or a <= 0:
+        return None
+    high = [b.high for b in bars]
+    low = [b.low for b in bars]
+    adr_abs = a * bars[idx].close
+    return cluster_min_range_adr(high, low, idx, adr_abs)
 
 
 def _funnel_row(
@@ -299,8 +502,11 @@ def _funnel_row(
     calendar: list[date],
     market: str,
     continuation: bool,
+    sessions_since_prior_entry: int | None,
     members_by_session: dict[date, set[str]],
-    gate_by_session: dict[date, set[str]],
+    gate3_by_session: dict[date, set[str]],
+    gate5_by_session: dict[date, set[str]],
+    percentiles_by_session: dict[date, dict[str, dict[str, float]]],
 ) -> FunnelRow:
     # Secondary signal, independent of the eval session: does the base the app
     # would look for stand on the entry session itself?
@@ -316,12 +522,17 @@ def _funnel_row(
             liquidity_pass=False,
             decile_present=False,
             decile_pass=False,
+            decile_pass_five=False,
+            eval_percentiles={},
+            decile_verdicts={},
             detection_pass=False,
             failed_condition=None,
             first_failing_stage=STAGE_LIQUIDITY,
             entry_session_break=entry_session_break,
             continuation=continuation,
             median_dollar_volume=0.0,
+            cluster_min_range_adr=None,
+            sessions_since_prior_entry=sessions_since_prior_entry,
         )
 
     up_to_eval = [b for b in bars if b.session <= eval_session]
@@ -330,15 +541,30 @@ def _funnel_row(
 
     # The decile is cross-sectional: read it off the forward chain's field at the
     # eval session. Absent from the field (not a member) is a coverage gap kept
-    # apart from present-but-outside-the-decile; both fail the decile stage.
+    # apart from present-but-outside-the-decile; both fail the decile stage. The
+    # pass/fail verdicts come straight from the app's gate functions
+    # (detection_gate -> three-union, decile_gate -> five-union); the per-lookback
+    # percentiles carry the *margin* of a miss but never re-decide the verdict.
     members = members_by_session.get(eval_session, set())
-    gated = gate_by_session.get(eval_session, set())
     decile_present = trade.ticker in members
-    decile_pass = trade.ticker in gated
+    decile_pass = trade.ticker in gate3_by_session.get(eval_session, set())
+    decile_pass_five = trade.ticker in gate5_by_session.get(eval_session, set())
+    eval_percentiles = dict(
+        percentiles_by_session.get(eval_session, {}).get(trade.ticker, {})
+    )
+    decile_verdicts = {lb: pct >= TOP_DECILE for lb, pct in eval_percentiles.items()}
 
     detection = detect(trade.ticker, bars, eval_session)
     detection_pass = detection is not None
     failed_condition = None if detection_pass else diagnose_detection(bars, eval_session)
+    # The margin of a `cluster` miss (#132): how far the tightest trailing window
+    # sat over the condition's TIGHT_MULT window. Set only on a cluster miss — the
+    # other conditions have their own margins and a pass has no miss to characterise.
+    cluster_min_range = (
+        _eval_cluster_min_range(bars, eval_session)
+        if failed_condition == COND_CLUSTER
+        else None
+    )
 
     if not liquidity_pass:
         first_failing = STAGE_LIQUIDITY
@@ -356,13 +582,90 @@ def _funnel_row(
         liquidity_pass=liquidity_pass,
         decile_present=decile_present,
         decile_pass=decile_pass,
+        decile_pass_five=decile_pass_five,
+        eval_percentiles=eval_percentiles,
+        decile_verdicts=decile_verdicts,
         detection_pass=detection_pass,
         failed_condition=failed_condition,
         first_failing_stage=first_failing,
         entry_session_break=entry_session_break,
         continuation=continuation,
         median_dollar_volume=mdv,
+        cluster_min_range_adr=cluster_min_range,
+        sessions_since_prior_entry=sessions_since_prior_entry,
     )
+
+
+def _percentiles_by_session(
+    chain: Sequence[SessionField], tickers: set[str]
+) -> dict[date, dict[str, dict[str, float]]]:
+    """Per-session, per-lookback percentiles for just the trade ``tickers`` (#133).
+
+    Restricted to the trade tickers so the map stays a handful of rows per session
+    rather than a copy of the whole rank table; a trade's own margin is all the
+    decomposition ever needs.
+    """
+    out: dict[date, dict[str, dict[str, float]]] = {}
+    for sf in chain:
+        per_symbol: dict[str, dict[str, float]] = {}
+        for r in sf.ranks:
+            if r.symbol in tickers:
+                per_symbol.setdefault(r.symbol, {})[r.lookback] = r.percentile
+        out[sf.session] = per_symbol
+    return out
+
+
+def build_funnel_report(
+    classified: list[ClassifiedTrade],
+    calendar: list[date],
+    chain: Sequence[SessionField],
+    store: Store,
+    market: str,
+    *,
+    blind_spot_tickers: Iterable[str] = (),
+) -> FunnelReport:
+    """Walk every replayable trade over an already-built forward ``chain``.
+
+    The chain-free core of :func:`run_funnel`: it reads universe membership, both
+    decile gates, and the per-lookback margins off the chain the caller already
+    computed, so the one-process runner (:mod:`replay.study`) can share a single
+    chain across all four analyses instead of rebuilding it per analysis.
+    """
+    distances = _prior_entry_distances(classified, calendar)
+    members_by_session = {sf.session: set(sf.members) for sf in chain}
+    gate3_by_session = {sf.session: detection_gate(sf.ranks) for sf in chain}
+    gate5_by_session = {sf.session: decile_gate(sf.ranks) for sf in chain}
+    trade_tickers = {c.trade.ticker for c in classified if c.replayable}
+    percentiles_by_session = _percentiles_by_session(chain, trade_tickers)
+    blind_spot_count = (
+        chain[0].blind_spot_count if chain else len(set(blind_spot_tickers))
+    )
+
+    rows: list[FunnelRow] = []
+    bars_cache: dict[str, list[Bar]] = {}
+    for c in classified:
+        if not c.replayable:
+            continue
+        ticker = c.trade.ticker
+        if ticker not in bars_cache:
+            bars_cache[ticker] = store.bars(market, ticker)
+        distance = distances[id(c.trade)]
+        rows.append(
+            _funnel_row(
+                c.trade,
+                bars_cache[ticker],
+                calendar,
+                market,
+                _is_continuation(distance),
+                distance,
+                members_by_session,
+                gate3_by_session,
+                gate5_by_session,
+                percentiles_by_session,
+            )
+        )
+
+    return _build_report(rows, blind_spot_count)
 
 
 def run_funnel(
@@ -389,8 +692,6 @@ def run_funnel(
     """
     classified = classify(trades, store, market=market)
     calendar = store.sessions(market)
-    continuation = _continuation_flags(classified, calendar)
-
     chain = replay_chain(
         store,
         market,
@@ -398,33 +699,10 @@ def run_funnel(
         burn_in=burn_in,
         sessions=sessions,
     )
-    members_by_session = {sf.session: set(sf.members) for sf in chain}
-    gate_by_session = {sf.session: detection_gate(sf.ranks) for sf in chain}
-    blind_spot_count = (
-        chain[0].blind_spot_count if chain else len(set(blind_spot_tickers))
+    return build_funnel_report(
+        classified, calendar, chain, store, market,
+        blind_spot_tickers=blind_spot_tickers,
     )
-
-    rows: list[FunnelRow] = []
-    bars_cache: dict[str, list[Bar]] = {}
-    for c in classified:
-        if not c.replayable:
-            continue
-        ticker = c.trade.ticker
-        if ticker not in bars_cache:
-            bars_cache[ticker] = store.bars(market, ticker)
-        rows.append(
-            _funnel_row(
-                c.trade,
-                bars_cache[ticker],
-                calendar,
-                market,
-                continuation[id(c.trade)],
-                members_by_session,
-                gate_by_session,
-            )
-        )
-
-    return _build_report(rows, blind_spot_count)
 
 
 def _stage_recall(
@@ -456,6 +734,8 @@ def _build_report(rows: list[FunnelRow], blind_spot_count: int) -> FunnelReport:
         condition_counts=condition_counts,
         continuation_count=sum(1 for r in rows if r.continuation),
         blind_spot_count=blind_spot_count,
+        decile_decomposition=decompose_decile_misses(rows),
+        cluster_characterisation=characterise_cluster_misses(rows),
     )
 
 
@@ -482,6 +762,35 @@ def format_report(report: FunnelReport) -> str:
             report.condition_counts.items(), key=lambda kv: kv[1], reverse=True
         ):
             lines.append(f"  {cond:<12} {n}")
+    d = report.decile_decomposition
+    lines += [
+        "",
+        f"decile miss decomposed ({d.total_misses} misses over all replayable trades):",
+        f"  coverage gap (absent from field):   {d.coverage_gap}",
+        f"  recovered by widening the gate 3->5: {d.recovered_by_five}",
+        f"  outside any union (genuine miss):   {d.outside_any_union}",
+    ]
+    c = report.cluster_characterisation
+    lines += [
+        "",
+        f"cluster miss characterised ({c.total_misses} misses):",
+        f"  continuation entries (re-entries): {c.continuation}",
+        f"  fresh entries:                     {c.fresh}",
+        f"  marginal (<= {MARGINAL_TIGHT_MULT:.1f}x ADR, a modest widen recovers): {c.marginal}",
+        f"  far (name in motion, no base):     {c.far}",
+    ]
+    if c.range_distribution is not None:
+        r = c.range_distribution
+        lines.append(
+            f"  tightest-window range in ADR: median {r.median:.2f} "
+            f"(p25 {r.p25:.2f}, p75 {r.p75:.2f}, max {r.maximum:.2f})"
+        )
+    if c.prior_distance_distribution is not None:
+        p = c.prior_distance_distribution
+        lines.append(
+            f"  sessions since prior entry (continuation misses): median "
+            f"{p.median:.1f} (min {p.minimum:.0f}, max {p.maximum:.0f})"
+        )
     return "\n".join(lines)
 
 

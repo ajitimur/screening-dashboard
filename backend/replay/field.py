@@ -12,10 +12,11 @@ score** for each — all with the app's own functions, unmodified (user story 31
 the labels table is the store's one in-place write and carries no history, so a
 symbol's sector in 2020 is unrecoverable (PRD "Star score in replay"). No work is
 done to date the labels table — the dimension is dropped, not repaired. The
-replayed score therefore totals **nine** weighted points, not ten, and is always
-labelled a :data:`SEVEN_DIM_LABEL` so it can never be confused with the app's own
-ten-point score. The labels table is never read: a dummy sector share is handed
-to :func:`screener.score.star_score`, and the one row it decides is discarded.
+replayed score therefore totals **eight** weighted points, not the app's own nine
+(PRD #138), and is always labelled a :data:`SEVEN_DIM_LABEL` so it can never be
+confused with the app's full score. The labels table is never read: a dummy
+sector share is handed to :func:`screener.score.star_score`, and the one row it
+decides is discarded.
 
 **Not-taken detections.** Every member of the field on a session where a trade
 was entered elsewhere is a *not-taken detection* (PRD user story 25). These are a
@@ -36,15 +37,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
 from screener.detection import Detection, detection_gate
 from screener.pipeline import rebuild_detections
 from screener.ranks import Rank
-from screener.score import Dimension, star_score
+from screener.score import DIMENSIONS, Dimension, star_score
 from screener.store import Store
 
-from .chain import BURN_IN_SESSIONS, REPLAY_MARKET, replay_chain
+from .caching_store import CachingStore
+from .chain import BURN_IN_SESSIONS, REPLAY_MARKET, SessionField, replay_chain
 from .reference import ExecutedTrade
 
 # The sector dimension, dropped from the replayed score (PRD "Star score in
@@ -52,10 +54,15 @@ from .reference import ExecutedTrade
 # sector row and nothing else.
 SECTOR_DIMENSION = "Sector"
 
-# Ten weighted points minus the dropped sector dimension's one. The replayed
-# score always totals out of nine, and is always labelled a seven-dimension score
-# so it is never confused with the app's ten-point score.
-SEVEN_DIM_MAX_POINTS = 9
+# The app's full weighted total minus the dropped sector dimension's weight,
+# derived from the rubric itself so a reweight carries here instead of leaving a
+# hard-coded ceiling stale (PRD #138 cut the app's total from ten points to nine,
+# and this from nine to eight). The replayed score always totals out of this
+# ceiling, and is always labelled a seven-dimension score so it is never confused
+# with the app's own full score.
+SEVEN_DIM_MAX_POINTS = sum(
+    weight for name, weight in DIMENSIONS if name != SECTOR_DIMENSION
+)
 SEVEN_DIM_LABEL = "seven-dimension score"
 
 
@@ -64,10 +71,10 @@ class SevenDimScore:
     """The replayed star score for one detection — seven of eight dimensions.
 
     ``points`` is the weighted points hit, out of :data:`SEVEN_DIM_MAX_POINTS`
-    (nine); ``stars`` is ``points / 2``. ``breakdown`` is the seven surviving
-    :class:`screener.score.Dimension` rows in the app's published order, the
-    sector row absent. ``label`` is :data:`SEVEN_DIM_LABEL` on every emitted
-    score, so the replayed figure is never mistaken for the app's ten-point one.
+    (eight, PRD #138); ``stars`` is ``points / 2``. ``breakdown`` is the seven
+    surviving :class:`screener.score.Dimension` rows in the app's published order,
+    the sector row absent. ``label`` is :data:`SEVEN_DIM_LABEL` on every emitted
+    score, so the replayed figure is never mistaken for the app's full one.
     """
 
     stars: float
@@ -84,7 +91,7 @@ def seven_dimension_score(det: Detection, *, prior_move: bool) -> SevenDimScore:
     31) and strikes the sector row from its breakdown. The labels table is never
     read: a dummy ``sector_share`` is passed and the sector row it decides is
     discarded, so the score cannot depend on a sector it could not recover. The
-    surviving seven dimensions are re-totalled out of nine.
+    surviving seven dimensions are re-totalled out of :data:`SEVEN_DIM_MAX_POINTS`.
     """
     _stars, breakdown = star_score(det, prior_move=prior_move, sector_share=0.0)
     kept = [d for d in breakdown if d.dimension != SECTOR_DIMENSION]
@@ -152,6 +159,20 @@ class FieldSession:
         return [d for d in self.detections if d.taken]
 
 
+def star_order_key(stars: float, det: Detection) -> tuple[float, bool, str]:
+    """The field's candidate order, as one rule: stars descending, then a drawable
+    line, then ticker.
+
+    Shared rather than repeated because the order is read in two places under two
+    different rubrics — :func:`build_field` ranks the live field, and the paired A2
+    re-run (:mod:`replay.placement`, #136) re-ranks that same field under a
+    superseded rubric to see whether a pick's board place moved. Two copies of this
+    key would let the re-ranked board drift out of agreement with the live one the
+    moment the live order changed, and the drift would be silent.
+    """
+    return (-stars, not det.line_ok, det.symbol)
+
+
 def build_field(
     detections: list[Detection],
     ranks: list[Rank],
@@ -179,7 +200,7 @@ def build_field(
         (det, seven_dimension_score(det, prior_move=det.symbol in gated))
         for det in detections
     ]
-    scored.sort(key=lambda ds: (-ds[1].stars, not ds[0].line_ok, ds[0].symbol))
+    scored.sort(key=lambda ds: star_order_key(ds[1].stars, ds[0]))
     return [
         ScoredDetection(
             symbol=det.symbol,
@@ -203,6 +224,73 @@ def _entries_by_session(trades: Iterable[ExecutedTrade]) -> dict[date, set[str]]
     for t in trades:
         out.setdefault(t.entry_date, set()).add(t.ticker)
     return out
+
+
+def _session_detections(store: Store, market: str, session: date) -> list[Detection]:
+    """A session's detections, reused from the store if already persisted (#126).
+
+    :func:`screener.pipeline.rebuild_detections` appends through the write-once
+    guard, so a second field replay over the same store used to die on the first
+    session already carrying detection rows. Here a session whose detections are
+    already persisted is read back rather than recomputed, which both keeps the
+    store re-runnable and reproduces the first run exactly.
+
+    A session that produced *no* detections leaves no rows, so it is recomputed —
+    ``rebuild_detections`` re-runs the detector over that night's gated members
+    and appends nothing (an empty append is a write-once no-op). It reproduces the
+    empty result deterministically: the two-year rank retention that may have
+    emptied that session's decile gate is the same on every pass, so a night that
+    detected nothing the first time detects nothing again.
+    """
+    persisted = store.detections(market, session)
+    if persisted:
+        return persisted
+    return rebuild_detections(store, market, session)
+
+
+def build_field_sessions(
+    store: Store,
+    market: str,
+    chain: Sequence[SessionField],
+    *,
+    trades: Iterable[ExecutedTrade] = (),
+    progress: Callable[[int, int, date], None] | None = None,
+) -> list[FieldSession]:
+    """Run the per-session detection pass over an already-built forward ``chain``.
+
+    The chain-free core of :func:`replay_field`: given the chain the caller already
+    computed (universe + ranks per session), it runs the app's detector once per
+    measured session and derives the seven-dimension star score, so the one-process
+    runner (:mod:`replay.study`) can compute the chain and the detection pass each
+    exactly once and share the field across all four analyses.
+
+    ``progress`` is called as ``progress(i, total, session)`` after each session's
+    detections are built (1-based ``i``), so a long run reports rather than hanging
+    silently. The store is wrapped in the run-scoped bar cache if it is not already.
+    """
+    store = CachingStore.wrap(store)
+    entries = _entries_by_session(trades)
+
+    total = len(chain)
+    fields: list[FieldSession] = []
+    for i, sf in enumerate(chain, start=1):
+        detections = _session_detections(store, market, sf.session)
+        entered = entries.get(sf.session, set())
+        candidates = build_field(
+            detections, sf.ranks, entered=entered, any_entry=bool(entered)
+        )
+        fields.append(
+            FieldSession(
+                session=sf.session,
+                burn_in=False,
+                members=sf.members,
+                detections=candidates,
+                blind_spot_count=sf.blind_spot_count,
+            )
+        )
+        if progress is not None:
+            progress(i, total, sf.session)
+    return fields
 
 
 def replay_field(
@@ -229,6 +317,12 @@ def replay_field(
     as the coverage figure onto every returned field (user story 22). Returns one
     :class:`FieldSession` per measured session, in order.
     """
+    # Cache bar reads for the whole run (issue #125): the detection stage below
+    # re-reads each member's history every session just as the chain does, so wrap
+    # once here and hand the same cache to both. replay_chain's own ``wrap`` sees
+    # it is already a cache and reuses it rather than nesting a cold one.
+    store = CachingStore.wrap(store)
+
     chain = replay_chain(
         store,
         market,
@@ -236,22 +330,4 @@ def replay_field(
         burn_in=burn_in,
         sessions=sessions,
     )
-    entries = _entries_by_session(trades)
-
-    fields: list[FieldSession] = []
-    for sf in chain:
-        detections = rebuild_detections(store, market, sf.session)
-        entered = entries.get(sf.session, set())
-        candidates = build_field(
-            detections, sf.ranks, entered=entered, any_entry=bool(entered)
-        )
-        fields.append(
-            FieldSession(
-                session=sf.session,
-                burn_in=False,
-                members=sf.members,
-                detections=candidates,
-                blind_spot_count=sf.blind_spot_count,
-            )
-        )
-    return fields
+    return build_field_sessions(store, market, chain, trades=trades)

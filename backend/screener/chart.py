@@ -97,7 +97,7 @@ def _setup(
         base_start=bars[base_i].session,
         cluster_start=bars[cluster_i].session,
         trigger=detection.trigger,     # cluster high, by identity
-        stop=detection.cluster_low,    # the cluster-low stop rule (§4.6)
+        stop=detection.stop_price,     # the proposed convention stop line (issue #127)
         envelope=envelope,
         score=stars,
         breakdown=[ScoreRow(**vars(d)) for d in breakdown],

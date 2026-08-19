@@ -38,17 +38,26 @@ purpose-built replay store handed to it (user story 28).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
-from typing import Iterable, Sequence
+from datetime import date, datetime
+from typing import Callable, Iterable, Sequence
 
 from screener.pipeline import rebuild_ranks
-from screener.ranks import Rank
+from screener.ranks import Rank, rank_table
 from screener.source import Instrument
 from screener.store import Store
 from screener.universe import rebuild_universe
 
+from .caching_store import CachingStore
+
 # The reference set is entirely US breakout trades (PRD "Out of Scope: IDX").
 REPLAY_MARKET = "US"
+
+# A fixed, deterministic stamp for the run record the chain writes as each
+# session's "already computed" marker (issue #126). The replay has no wall clock —
+# the same store rebuilt twice must produce byte-identical run records — so the
+# stamp is a constant, never ``datetime.now()``. Its value is inert: nothing in
+# the study reads a run's ``created_at``; only the row's *presence* is consulted.
+_REPLAY_RUN_STAMP = datetime(2019, 1, 1, 0, 0, 0)
 
 # Burn-in sessions before the first measured session (PRD "A2 replay chain" /
 # user story 14): the cold-started universe has empty prior membership, and the
@@ -134,6 +143,55 @@ def _check_no_gaps(sessions: Sequence[date], calendar: Sequence[date]) -> None:
             )
 
 
+def _replay_session(
+    store: Store, market: str, session: date, instruments: list[Instrument]
+) -> tuple[list[str], list[Rank]]:
+    """Compute a session's universe and ranks, or reuse them if already persisted.
+
+    The reuse that makes a replay store re-runnable instead of single-use (issue
+    #126). ``rebuild_universe`` and ``rebuild_ranks`` append through the store's
+    write-once guard, so a second forward chain over the same store used to die
+    with :class:`~screener.store.SessionExistsError` on the first session already
+    carrying rows. Here a session already computed on an earlier chain is *read
+    back* rather than recomputed:
+
+    - The **run record** is the session's "already computed" marker. The chain
+      stamps one (write-once itself) after building a fresh session; on a later
+      chain its presence means the universe was persisted, so membership is read
+      from the store rather than rebuilt — and the expensive
+      :func:`rebuild_universe`, which re-reads every candidate's full history, is
+      skipped entirely. The write-once guarantee is untouched: nothing is ever
+      rewritten, only skipped.
+    - The **ranks are recomputed in memory** on reuse, never read from the store.
+      :meth:`~screener.store.Store.append_ranks` prunes rows outside the two-year
+      retention window as the chain advances, so an early session's persisted
+      ranks are gone by the time the pass ends — but :func:`rank_table` over the
+      members' bars is deterministic and reproduces exactly what the first chain
+      returned, so the reused session is identical to the original.
+
+    Returns ``(members, ranks)`` — the same pair :func:`rebuild_universe` /
+    :func:`rebuild_ranks` return, whether freshly computed or reused.
+    """
+    if store.run(market, session) is not None:
+        members = store.universe(market, session)
+        members_bars = {symbol: store.bars(market, symbol) for symbol in members}
+        return members, rank_table(members_bars, session)
+
+    members = rebuild_universe(
+        store, market, session, instruments=instruments, unresolved=set()
+    )
+    ranks = rebuild_ranks(store, market, session)
+    store.append_run(
+        market,
+        session,
+        status="published",
+        symbols_enumerated=len(instruments),
+        symbols_resolved=len(members),
+        created_at=_REPLAY_RUN_STAMP,
+    )
+    return members, ranks
+
+
 def replay_chain(
     store: Store,
     market: str = REPLAY_MARKET,
@@ -141,6 +199,7 @@ def replay_chain(
     blind_spot_tickers: Iterable[str] = (),
     burn_in: int = BURN_IN_SESSIONS,
     sessions: Sequence[date] | None = None,
+    progress: Callable[[int, int, date], None] | None = None,
 ) -> list[SessionField]:
     """Replay the forward chain of universe membership and ranks over the window.
 
@@ -161,7 +220,21 @@ def replay_chain(
     is stamped onto every returned field as the coverage figure that scope is read
     against. Returns one :class:`SessionField` per measured (non-burn-in) session,
     in order.
+
+    ``progress`` is called as ``progress(i, total, session)`` after each session is
+    computed (1-based ``i`` over the whole session list, burn-in included), so a
+    long forward pass reports rather than hanging silently — the failure the first
+    attempt at this study hit, killed at 60 minutes for having printed nothing.
     """
+    # Cache bar reads for the life of the run (issue #125). Every session's
+    # rebuild_universe and rebuild_ranks re-reads each symbol's whole history —
+    # ~7.1M identical round-trips over a full replay. Bars are immutable here (only
+    # the derived streams are written), so a run-scoped cache at the store boundary
+    # is semantics-preserving and leaves the app's screening functions unmodified.
+    # ``wrap`` shares one cache when a caller (e.g. replay_field) already passed a
+    # cached store in.
+    store = CachingStore.wrap(store)
+
     calendar = store.sessions(market)
     if sessions is None:
         sessions = calendar
@@ -170,12 +243,12 @@ def replay_chain(
     instruments = synthesize_instruments(store, market)
     blind_spot_count = len(set(blind_spot_tickers))
 
+    total = len(sessions)
     fields: list[SessionField] = []
     for i, session in enumerate(sessions):
-        members = rebuild_universe(
-            store, market, session, instruments=instruments, unresolved=set()
-        )
-        ranks = rebuild_ranks(store, market, session)
+        members, ranks = _replay_session(store, market, session, instruments)
+        if progress is not None:
+            progress(i + 1, total, session)
         if i < burn_in:
             continue  # computed and persisted, but not a reported result
         fields.append(

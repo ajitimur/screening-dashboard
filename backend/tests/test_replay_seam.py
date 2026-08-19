@@ -26,11 +26,15 @@ import pytest
 
 from replay.funnel import (
     COND_BASE_LENGTH,
+    COND_CLUSTER,
     FUNNEL_STAGES,
+    MARGINAL_TIGHT_MULT,
     STAGE_DECILE,
     STAGE_DETECTION,
     STAGE_LIQUIDITY,
+    ClusterDecomposition,
     FunnelReport,
+    characterise_cluster_misses,
     diagnose_detection,
     evaluation_session,
     run_funnel,
@@ -69,6 +73,7 @@ from replay.placement import (
     SCOPE,
     PlacementReport,
     StarDistribution,
+    build_placement_report,
     place_trade,
     run_placement,
 )
@@ -90,6 +95,7 @@ from replay.contrast import (
     format_report as format_contrast_report,
     run_contrast,
 )
+from replay.caching_store import CachingStore
 from replay.store import WINDOW_END, WINDOW_START, build_replay_store
 from screener.bars import Bar
 from screener.detection import Detection, detect
@@ -112,26 +118,80 @@ def _bar(session: date, close: float = 10.0) -> Bar:
 
 
 def _trade_record(ticker: str, entry: str, *, with_outcomes: bool = True) -> dict:
-    """A synthetic reference-JSON row in the schema the parser reads."""
+    """A synthetic reference-JSON row in the exact schema the reference tool emits.
+
+    This mirrors ``references/trades_bo_gain10smaPct_desc.json`` field-for-field so
+    every test built on it exercises the real parse path, not an invented one
+    (#124): ``entryDate`` is a full ISO timestamp, the stop is ``stopPercentage``
+    as a *fraction* of entry price (0.03, scaled to 3.0 percent on parse), and the
+    realised-R keys are ``rr<exit>``. Entry 100 / stop 97 makes the fraction
+    (100 - 97) / 100 = 0.03, so ``stop_pct`` parses to 3.0 percent.
+    """
     rec = {
         "ticker": ticker,
-        "entryDate": entry,
+        "entryDate": f"{entry}T00:00:00.000Z",
         "entryPrice": 100.0,
         "stopPrice": 97.0,
-        "stopPct": 3.0,
+        "stopPercentage": 0.03,
     }
     if with_outcomes:
         rec.update(
             {
                 "gain10smaPct": 25.0,
                 "mfe10smaPct": 40.0,
-                "r10sma": 8.0,
+                "rr10sma": 8.0,
                 "gain20smaPct": 30.0,
                 "mfe20smaPct": 45.0,
-                "r20sma": 10.0,
+                "rr20sma": 10.0,
             }
         )
     return rec
+
+
+def _make_funnel_row(
+    *,
+    ticker: str = "AAA",
+    decile_present: bool = True,
+    decile_pass: bool = False,
+    decile_pass_five: bool = False,
+    failed_condition=None,
+    continuation: bool = False,
+    cluster_min_range_adr=None,
+    sessions_since_prior_entry=None,
+):
+    """A ``FunnelRow`` with just the decile / cluster fields set — the assertion
+    surface for the decile-miss decomposition and the #132 cluster
+    characterisation, everything else inert."""
+    from replay.funnel import FunnelRow
+
+    return FunnelRow(
+        ticker=ticker,
+        entry_date=date(2020, 6, 2),
+        eval_session=date(2020, 6, 1),
+        liquidity_pass=True,
+        decile_present=decile_present,
+        decile_pass=decile_pass,
+        decile_pass_five=decile_pass_five,
+        eval_percentiles={},
+        decile_verdicts={},
+        detection_pass=False,
+        failed_condition=failed_condition,
+        first_failing_stage=None,
+        entry_session_break=False,
+        continuation=continuation,
+        median_dollar_volume=0.0,
+        cluster_min_range_adr=cluster_min_range_adr,
+        sessions_since_prior_entry=sessions_since_prior_entry,
+    )
+
+
+def _reference_payload(rows: list[dict]) -> dict:
+    """Wrap fixture rows in the committed ``{"count", "trades"}`` envelope (#124).
+
+    ``load_trades`` unwraps this envelope; a synthetic payload built through it
+    exercises the same file shape as the committed reference set.
+    """
+    return {"count": len(rows), "trades": rows}
 
 
 # -- the replay store builder ---------------------------------------------
@@ -290,6 +350,68 @@ def test_parse_trades_counts_a_row_without_outcomes():
     assert trades[1].outcomes == {}
 
 
+def test_synthetic_fixture_matches_committed_reference_schema():
+    """The synthetic fixture must speak the committed file's schema (#124).
+
+    Four schema mismatches (``stopPct`` for ``stopPercentage``, ``r<exit>`` for
+    ``rr<exit>``, a plain-date ``entryDate`` for the ISO timestamp, and a bare
+    list for the ``{"count", "trades"}`` envelope) once survived a fully green
+    suite because the fixture invented its own schema and nothing exercised the
+    real shape. This test pins the fixture to the committed shape so reintroducing
+    any of the four fails here.
+    """
+    real_top = json.loads(Path(DEFAULT_REFERENCE_JSON).read_text())
+    real_row = real_top["trades"][0]
+    fixture = _trade_record("AAA", "2020-05-01")
+
+    # The synthetic payload wraps rows in the same envelope the file uses — the
+    # {"count", "trades"} shape, not a bare list.
+    payload = _reference_payload([fixture])
+    assert set(payload) == set(real_top)
+    assert payload["count"] == 1
+    assert payload["trades"] == [fixture]
+
+    # Every fixture key is a real committed key — no invented schema, and in
+    # particular the legacy names the parser only keeps for back-compat are gone.
+    assert set(fixture) <= set(real_row)
+    assert "stopPercentage" in fixture
+    assert "stopPct" not in fixture
+    assert "rr10sma" in fixture
+    assert "r10sma" not in fixture
+    assert "rr20sma" in fixture
+    assert "r20sma" not in fixture
+
+    # entryDate is a full ISO timestamp, matching the file, not a plain date.
+    assert "T" in fixture["entryDate"]
+    assert date.fromisoformat(fixture["entryDate"][:10]) == date(2020, 5, 1)
+
+    # stopPercentage is a fraction of entry price, exactly as the file stores it —
+    # single-digit percent read as a fraction, converted to percent on parse.
+    assert fixture["stopPercentage"] < 1.0
+    assert fixture["stopPercentage"] == pytest.approx(
+        (fixture["entryPrice"] - fixture["stopPrice"]) / fixture["entryPrice"]
+    )
+
+
+def test_load_trades_unwraps_the_envelope_on_synthetic_rows(tmp_path):
+    """A synthetic payload wrapped in the committed envelope parses through
+    ``load_trades``, exercising the ``{"count", "trades"}`` shape and the
+    fraction-to-percent stop scaling on the synthetic path too (#124)."""
+    payload = _reference_payload(
+        [_trade_record("AAA", "2020-05-01"), _trade_record("BBB", "2020-05-04")]
+    )
+    path = tmp_path / "synthetic_reference.json"
+    path.write_text(json.dumps(payload))
+
+    trades = load_trades(path)
+
+    assert [t.ticker for t in trades] == ["AAA", "BBB"]
+    assert [t.entry_date for t in trades] == [date(2020, 5, 1), date(2020, 5, 4)]
+    # 0.03 fraction scaled to 3.0 percent, and rr<exit> read as realised R.
+    assert all(t.stop_pct == 3.0 for t in trades)
+    assert all(t.r == 8.0 for t in trades)
+
+
 # -- classification: replayable vs blind spot -----------------------------
 
 
@@ -405,6 +527,22 @@ def _textbook_base_hlc():
     return hlc
 
 
+def _wide_tail_hlc():
+    """A run-up into a name still in motion: 60 flat bars, a tight run-up 100->110,
+    12 tight bars at 110, then 3 *wide* bars (118/102) ending today. ADR is set by
+    the tight 20-bar history, so the last-3-bar range reads far over the cluster's
+    1.5x window — the geometry of a re-entry into a running name, which fails
+    detection at ``cluster`` while clearing every earlier gate (history, adr,
+    prior_move, base_length, catch_up)."""
+    hlc = [(100.5, 99.5, 100.0)] * 60
+    for i in range(1, 16):  # tight run-up 100 -> 110
+        p = 100.0 + (110.0 - 100.0) * i / 15
+        hlc.append((p + 0.5, p - 0.5, p))
+    hlc += [(110.5, 109.5, 110.0)] * 12   # a tight shelf at 110 (sets a small ADR)
+    hlc += [(118.0, 102.0, 110.0)] * 3    # wide bars: close pinned, range blown out
+    return hlc
+
+
 def _funnel_record(ticker: str, entry: date) -> dict:
     return _trade_record(ticker, entry.isoformat())
 
@@ -454,6 +592,104 @@ def test_funnel_row_passes_liquidity_fails_detection_and_names_condition(store: 
     # The stage recall records the miss, and it is attributed to the condition.
     assert report.detection.passed == 0
     assert report.condition_counts == {COND_BASE_LENGTH: 1}
+    # A non-cluster miss carries no cluster-window margin (#132).
+    assert row.cluster_min_range_adr is None
+
+
+def test_funnel_cluster_miss_carries_its_window_margin(store: Store):
+    """A re-entry into a running name fails detection at ``cluster`` and the row
+    carries how far the tightest trailing window sat over the condition's 1.5x
+    window — the margin the #132 characterisation reads (acceptance criterion 1)."""
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "RUN", _bars_from_hlc(dates, _wide_tail_hlc()))
+    entry = dates[89] + timedelta(days=1)
+
+    report = run_funnel(parse_trades([_funnel_record("RUN", entry)]), store, burn_in=0)
+
+    (row,) = report.rows
+    assert row.detection_pass is False
+    assert row.failed_condition == COND_CLUSTER
+    assert report.condition_counts == {COND_CLUSTER: 1}
+    # The wide tail sits far over the cluster's 1.5x window — a name in motion, not
+    # a base a modest widening reaches.
+    assert row.cluster_min_range_adr is not None
+    assert row.cluster_min_range_adr > MARGINAL_TIGHT_MULT
+
+
+def test_funnel_row_carries_distance_to_the_prior_entry(store: Store):
+    """Every replayable trade carries the market-session distance to its nearest
+    prior entry (None on the first), the "how far from the prior entry" axis of the
+    #132 characterisation and the basis of the continuation tag (PRD user story 5)."""
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "CONT", _bars_from_hlc(dates, [(101, 99, 100)] * 90))
+    # First entry, then a re-entry three sessions later, then a fresh one 20 later.
+    trades = parse_trades(
+        [
+            _funnel_record("CONT", dates[60]),
+            _funnel_record("CONT", dates[63]),
+            _funnel_record("CONT", dates[83]),
+        ]
+    )
+
+    report = run_funnel(trades, store)
+
+    by_entry = {r.entry_date: r for r in report.rows}
+    assert by_entry[dates[60]].sessions_since_prior_entry is None   # first entry
+    assert by_entry[dates[60]].continuation is False
+    assert by_entry[dates[63]].sessions_since_prior_entry == 3      # within 5 -> add
+    assert by_entry[dates[63]].continuation is True
+    # 20 sessions from the nearest prior (dates[63]) -> a fresh entry, not a cont.
+    assert by_entry[dates[83]].sessions_since_prior_entry == 20
+    assert by_entry[dates[83]].continuation is False
+
+
+def test_funnel_report_characterises_the_cluster_misses(store: Store):
+    """The report characterises every ``cluster`` detection miss two ways (#132):
+    continuation-vs-fresh (how far from a prior entry) and marginal-vs-far (how far
+    over the condition's window), each bucket-pair partitioning the misses, with the
+    tightest-range and prior-distance distributions carried alongside."""
+
+    def _miss(*, cont, rng, dist):
+        return _make_funnel_row(
+            failed_condition=COND_CLUSTER, continuation=cont,
+            cluster_min_range_adr=rng, sessions_since_prior_entry=dist,
+        )
+
+    rows = [
+        _make_funnel_row(failed_condition=COND_BASE_LENGTH),        # not a cluster miss
+        _miss(cont=True, rng=1.7, dist=2),                          # continuation, marginal
+        _miss(cont=True, rng=3.5, dist=4),                          # continuation, far
+        _miss(cont=False, rng=1.8, dist=None),                      # fresh, marginal
+        _miss(cont=False, rng=4.0, dist=None),                      # fresh, far
+    ]
+
+    c = characterise_cluster_misses(rows)
+
+    assert isinstance(c, ClusterDecomposition)
+    assert c.total_misses == 4                       # the base_length row is excluded
+    assert c.continuation == 2 and c.fresh == 2
+    assert c.marginal == 2 and c.far == 2            # <= 2.0x ADR vs beyond
+    # Both bucket-pairs partition the misses exactly.
+    assert c.continuation + c.fresh == c.total_misses
+    assert c.marginal + c.far == c.total_misses
+    # The range distribution spans every miss; the prior-distance distribution only
+    # the continuation misses (2 and 4 sessions).
+    assert c.range_distribution.n == 4
+    assert c.prior_distance_distribution.n == 2
+    assert c.prior_distance_distribution.median == 3.0
+    # It rides the report the runner emits, computed over the report's own rows.
+    assert cluster_characterisation_matches(store)
+
+
+def cluster_characterisation_matches(store: Store) -> bool:
+    """The funnel report carries the cluster characterisation of its own rows."""
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "RUN", _bars_from_hlc(dates, _wide_tail_hlc()))
+    entry = dates[89] + timedelta(days=1)
+    report = run_funnel(
+        parse_trades([_funnel_record("RUN", entry)]), store, burn_in=0
+    )
+    return report.cluster_characterisation == characterise_cluster_misses(report.rows)
 
 
 def test_funnel_clean_base_passes_both_stages(store: Store):
@@ -634,6 +870,125 @@ def test_funnel_decile_output_carries_blind_spot_coverage(store: Store):
     assert report.blind_spot_count == 3
 
 
+# -- #133: the funnel row carries the per-lookback decile detail ------------
+#
+# `FunnelRow` used to throw away the margin of a decile miss: the row knew only
+# the flattened three-union verdict, so whether he ranked 11th percentile or 40th,
+# and which lookback he was strong in, were both discarded at the gate. #133 needs
+# those, so the row now carries the per-lookback eval-session percentiles and the
+# per-lookback top-decile verdicts, plus the five-union verdict — the second gate
+# the three-union is compared against. The verdicts still go through the app's own
+# gate functions (`detection_gate`, `decile_gate`), never a second hand-rolled path.
+
+
+def test_funnel_row_carries_per_lookback_percentiles_and_verdicts(store: Store):
+    """A decile-present trade carries its eval-session percentile per lookback and a
+    per-lookback top-decile verdict, so the margin of a miss is recoverable (#133).
+    LAG is flat (dead in every lookback -> no verdict true); HI climbs hard (tops
+    its short lookbacks)."""
+    dates = _daily(date(2020, 1, 1), 40)
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
+    store.append_bars("US", "HI", _bars_from_hlc(dates, _rising_hlc(40)))
+    entry = dates[39] + timedelta(days=1)
+
+    report = run_funnel(
+        parse_trades([_funnel_record("LAG", entry), _funnel_record("HI", entry)]),
+        store,
+        burn_in=0,
+    )
+
+    by_ticker = {r.ticker: r for r in report.rows}
+    lag, hi = by_ticker["LAG"], by_ticker["HI"]
+
+    # Percentiles are carried per lookback, keyed by the lookback name, as floats in
+    # [0, 1]; a verdict is carried for exactly the lookbacks the name was ranked in.
+    assert lag.eval_percentiles  # non-empty: LAG is a field member
+    assert set(lag.decile_verdicts) == set(lag.eval_percentiles)
+    assert all(0.0 <= p <= 1.0 for p in lag.eval_percentiles.values())
+    # LAG is dead across every lookback -> no lookback is a top-decile verdict, and
+    # it fails both the three-union and the five-union gate.
+    assert not any(lag.decile_verdicts.values())
+    assert lag.decile_pass is False
+    assert lag.decile_pass_five is False
+    # A verdict is exactly the app's top-decile test on that lookback's percentile.
+    for lb, pct in lag.eval_percentiles.items():
+        assert lag.decile_verdicts[lb] == (pct >= 0.90)
+    # HI tops at least one lookback -> a true verdict, and it clears the gate.
+    assert any(hi.decile_verdicts.values())
+    assert hi.decile_pass is True
+
+
+def test_funnel_decile_verdicts_go_through_the_app_gate_functions(store: Store):
+    """The row's three-union verdict is the app's ``detection_gate`` and its
+    five-union verdict is the app's ``decile_gate`` — never a second hand-rolled
+    path (the trap #133 calls out). A five-union pass is a superset of the
+    three-union pass, so a three-union pass implies a five-union pass."""
+    dates = _daily(date(2020, 1, 1), 40)
+    store.append_bars("US", "HI", _bars_from_hlc(dates, _rising_hlc(40)))
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
+    entry = dates[39] + timedelta(days=1)
+
+    report = run_funnel(
+        parse_trades([_funnel_record("HI", entry)]), store, burn_in=0
+    )
+    (row,) = report.rows
+    # detection_gate ⊆ decile_gate: passing the narrower gate implies the wider one.
+    assert row.decile_pass is True
+    assert row.decile_pass_five is True
+
+
+def test_funnel_report_decomposes_the_decile_miss(store: Store):
+    """The report decomposes every replayable trade's decile miss into three
+    mutually exclusive, exhaustive buckets — coverage gap (absent from the field),
+    recovered-by-5 (fails the three-union gate but clears the five-union one), and
+    outside-any-union (fails even the five-union) — across all replayable trades
+    (#133)."""
+    from replay.funnel import DecileDecomposition, decompose_decile_misses
+
+    def _row(ticker, *, present, pass3, pass5):
+        return _make_funnel_row(
+            ticker=ticker, decile_present=present, decile_pass=pass3,
+            decile_pass_five=pass5,
+        )
+
+    rows = [
+        _row("PASS", present=True, pass3=True, pass5=True),      # not a miss
+        _row("GAP", present=False, pass3=False, pass5=False),    # coverage gap
+        _row("REC", present=True, pass3=False, pass5=True),      # recovered by 5
+        _row("OUT", present=True, pass3=False, pass5=False),     # outside any union
+        _row("OUT2", present=True, pass3=False, pass5=False),    # outside any union
+    ]
+
+    decomp = decompose_decile_misses(rows)
+
+    assert isinstance(decomp, DecileDecomposition)
+    assert decomp.total_misses == 4               # every row but PASS
+    assert decomp.coverage_gap == 1
+    assert decomp.recovered_by_five == 1
+    assert decomp.outside_any_union == 2
+    # The three buckets partition the misses exactly.
+    assert (
+        decomp.coverage_gap + decomp.recovered_by_five + decomp.outside_any_union
+        == decomp.total_misses
+    )
+    # It rides the report the runner emits, computed over the report's own rows.
+    assert report_decomposition_matches(store)
+
+
+def report_decomposition_matches(store: Store) -> bool:
+    """The funnel report carries the decomposition of its own rows."""
+    from replay.funnel import decompose_decile_misses
+
+    dates = _daily(date(2020, 1, 1), 40)
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
+    store.append_bars("US", "HI", _bars_from_hlc(dates, _rising_hlc(40)))
+    entry = dates[39] + timedelta(days=1)
+    report = run_funnel(
+        parse_trades([_funnel_record("LAG", entry)]), store, burn_in=0
+    )
+    return report.decile_decomposition == decompose_decile_misses(report.rows)
+
+
 # -- the forward replay chain (A2): universe membership + ranks ------------
 
 
@@ -723,6 +1078,47 @@ def test_burn_in_sessions_are_computed_but_excluded_from_results(store: Store):
     assert "AAA" in store.universe("US", burned)
 
 
+def test_replay_chain_is_rerunnable_and_deterministic(store: Store):
+    """A built store is not single-use: replaying the same chain a second time
+    reuses the persisted sessions instead of re-appending them, so it neither
+    raises the write-once :class:`SessionExistsError` nor changes the result
+    (issue #126). The second run must return the same members and ranks as the
+    first, session for session."""
+    sessions = _calendar(30)
+    _seed_series(store, "AAA", sessions, [3_000_000] * 30)
+    _seed_series(store, "BBB", sessions, [1_800_000] * 30)
+
+    first = replay_chain(store, "US", burn_in=5)
+    # A second forward chain over the same store — the run that used to die on the
+    # first already-persisted session — must run clean and reproduce the first.
+    second = replay_chain(store, "US", burn_in=5)
+
+    assert [f.session for f in second] == [f.session for f in first]
+    assert [f.members for f in second] == [f.members for f in first]
+    assert [f.ranks for f in second] == [f.ranks for f in first]
+
+
+def test_replay_field_and_funnel_run_in_sequence_over_one_store(store: Store):
+    """The two per-analysis entry points can be run in sequence against a single
+    built store, in any order, without error — the acceptance criterion of #126.
+    The chain the second analysis rides on is reused from what the first left
+    behind, and the detections the field appends do not poison a later run."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    trades = parse_trades([_funnel_record("BASE", dates[104])])
+
+    # Field first (which appends detections), then the funnel over the same store,
+    # then the field again — every run clean, and the field's result stable.
+    (field_first,) = replay_field(store, "US", burn_in=104)
+    funnel = run_funnel(trades, store, burn_in=104)
+    (field_again,) = replay_field(store, "US", burn_in=104)
+
+    assert [d.symbol for d in field_again.detections] == [
+        d.symbol for d in field_first.detections
+    ]
+    assert funnel.detection.total == 1
+
+
 def test_session_field_carries_coverage_against_blind_spots(store: Store):
     """Every field row carries a coverage number against the blind-spot tickers,
     so a ranking result is never read without knowing how much of the field was
@@ -757,11 +1153,93 @@ def test_burn_in_default_matches_the_prd_window():
     assert BURN_IN_SESSIONS == 126
 
 
+# -- the run-scoped bar-read cache (issue #125) ----------------------------
+#
+# Bars are immutable for the life of a replay; only the derived streams are
+# written. Caching the reads at the store boundary is what turns a two-hour run
+# into a half-hour one, and it must be semantics-preserving: a cached read is
+# byte-identical to a fresh one, and no screening function changes.
+
+
+def test_caching_store_serves_repeat_bar_reads_without_requerying(store: Store):
+    """A second read of the same symbol comes from memory, not the store: proven
+    by deleting the underlying rows between the two reads — a fresh query would
+    now return nothing, but the cache still hands back the original bars."""
+    seeded = [_bar(date(2020, 1, 1)), _bar(date(2020, 1, 2))]
+    store.append_bars("US", "AAA", seeded)
+    cache = CachingStore(store)
+
+    first = cache.bars("US", "AAA")
+    assert first == store.bars("US", "AAA")  # byte-identical to a fresh read
+
+    # Delete the rows out from under the cache: a re-query would see nothing.
+    store._con.execute("DELETE FROM bars")
+    second = cache.bars("US", "AAA")
+
+    assert second == first          # still the stored bars, not the empty table
+    assert second is first          # the very same object — never re-queried
+
+
+def test_caching_store_delegates_writes_and_reflects_them(store: Store):
+    """Only ``bars`` is intercepted; a universe written through the cache lands in
+    the shared store and is read straight back, so a cached store is a drop-in for
+    the stages that both read bars and write derived rows."""
+    cache = CachingStore(store)
+    cache.append_universe("US", date(2020, 1, 2), ["AAA", "BBB"])
+
+    assert cache.universe("US", date(2020, 1, 2)) == ["AAA", "BBB"]
+    assert store.universe("US", date(2020, 1, 2)) == ["AAA", "BBB"]
+
+
+def test_caching_store_evicts_a_symbol_on_a_bar_write(store: Store):
+    """A bar write must not leave a stale cache: after appending to a cached
+    symbol, the next read reflects the new bar."""
+    store.append_bars("US", "AAA", [_bar(date(2020, 1, 1))])
+    cache = CachingStore(store)
+    assert len(cache.bars("US", "AAA")) == 1  # warms the cache
+
+    cache.append_bars("US", "AAA", [_bar(date(2020, 1, 2))])
+
+    assert len(cache.bars("US", "AAA")) == 2
+
+
+def test_caching_store_wrap_does_not_nest_a_second_cache(store: Store):
+    """``wrap`` keeps one run on a single shared cache: wrapping a cache returns
+    it unchanged rather than building a cold one on top."""
+    cache = CachingStore(store)
+    assert CachingStore.wrap(cache) is cache
+    assert isinstance(CachingStore.wrap(store), CachingStore)
+
+
+def test_replay_chain_reads_each_symbols_bars_once_per_run(store: Store, monkeypatch):
+    """The acceptance criterion made concrete: across a multi-session chain, each
+    symbol's bars are fetched from the store exactly once, not once per session per
+    stage. rebuild_universe and rebuild_ranks both read every member's history
+    every session; without the run-scoped cache this symbol would be queried dozens
+    of times."""
+    sessions = _calendar(30)
+    _seed_series(store, "AAA", sessions, [3_000_000] * 30)
+
+    calls: dict[str, int] = {}
+    real_bars = Store.bars
+
+    def counting_bars(self, market, symbol):
+        calls[symbol] = calls.get(symbol, 0) + 1
+        return real_bars(self, market, symbol)
+
+    monkeypatch.setattr(Store, "bars", counting_bars)
+    fields = replay_chain(store, "US", burn_in=0)
+
+    assert [f.session for f in fields] == sessions
+    assert "AAA" in fields[-1].members  # the chain still produced the right field
+    assert calls["AAA"] == 1            # ...reading its bars exactly once
+
+
 # -- the replayed field (A2): detections + the seven-dimension score -------
 #
 # The field stands on the forward chain: universe -> ranks -> detections ->
 # candidates -> a seven-of-eight-dimension star score. The sector dimension is
-# dropped (its history is unrecoverable), so the score totals out of nine and is
+# dropped (its history is unrecoverable), so the score totals out of eight and is
 # always labelled a seven-dimension score. The synthetic textbook base is the
 # same authored geometry the funnel tests use, run here through the whole chain.
 
@@ -797,10 +1275,10 @@ def _det(symbol: str, cluster_k: int) -> Detection:
     )
 
 
-def test_seven_dimension_score_omits_sector_and_totals_out_of_nine(store: Store):
+def test_seven_dimension_score_omits_sector_and_totals_out_of_eight(store: Store):
     """The replayed score drops the sector dimension outright: seven rows, no
-    sector, a ceiling of nine weighted points, and always the seven-dimension
-    label so it can never be confused with the app's ten-point score."""
+    sector, a ceiling of eight weighted points (PRD #138), and always the
+    seven-dimension label so it can never be confused with the app's full score."""
     dates = _daily(date(2020, 1, 1), 105)
     bars = _bars_from_hlc(dates, _textbook_base_hlc())
     det = detect("BASE", bars, dates[104])
@@ -821,8 +1299,8 @@ def test_seven_dimension_score_omits_sector_and_totals_out_of_nine(store: Store)
         "Volume",
         "ADR",
     ]
-    assert score.max_points == SEVEN_DIM_MAX_POINTS == 9
-    assert 0 <= score.points <= 9
+    assert score.max_points == SEVEN_DIM_MAX_POINTS == 8
+    assert 0 <= score.points <= 8
     assert score.stars == score.points / 2
     assert score.label == SEVEN_DIM_LABEL
     assert "seven-dimension" in score.label
@@ -860,7 +1338,7 @@ def test_replay_field_detects_over_the_universe_with_a_seven_dim_score(store: St
     scored = field.detections[0]
     assert scored.star_rank == 1
     assert scored.score.label == SEVEN_DIM_LABEL
-    assert scored.score.max_points == 9
+    assert scored.score.max_points == 8
 
 
 def test_not_taken_detection_marked_over_the_chain(store: Store):
@@ -1045,6 +1523,49 @@ def test_run_placement_reports_hits_distribution_coverage_and_scope(store: Store
     assert "US" in report.scope and "2019" in report.scope
     assert "IDX" not in report.scope
     assert report.scope == SCOPE
+
+
+def test_placement_scores_one_field_under_both_rubrics_stamped_by_version():
+    """The paired A2 re-run (#136): one field, both rubrics, so a rubric change is
+    held apart from a field change. Each star distribution carries its rubric
+    version stamp; the live pair equals the report's headline picks/field; and with
+    the field fixed, only the weights move — Base length ×0→×1 lifts his pick by
+    exactly half a star under the old rubric."""
+    from screener.score import RUBRIC_VERSION, RUBRIC_WEIGHTS, stars_under
+
+    session = date(2020, 6, 1)
+    det = _det("BASE", cluster_k=6)  # Base length, ADR, Orderliness all hit
+    scored = ScoredDetection(
+        symbol="BASE",
+        detection=det,
+        score=seven_dimension_score(det, prior_move=True),
+        star_rank=1,
+        not_taken=False,
+    )
+    field = FieldSession(
+        session=session, burn_in=False, members=["BASE"],
+        detections=[scored], blind_spot_count=0,
+    )
+    calendar = [session, date(2020, 6, 2)]
+    trade = parse_trades([_funnel_record("BASE", date(2020, 6, 2))])[0]
+
+    report = build_placement_report([trade], calendar, [field], blind_spot_count=0)
+
+    # Both rubric versions are reported over the SAME field, each stamped.
+    assert {r.rubric_version for r in report.by_rubric} == {1, RUBRIC_VERSION}
+    live = next(r for r in report.by_rubric if r.rubric_version == RUBRIC_VERSION)
+    old = next(r for r in report.by_rubric if r.rubric_version == 1)
+    # The live-rubric pair *is* the report's headline picks/field — one source.
+    assert live.picks.counts == report.picks.counts
+    assert live.field.counts == report.field.counts
+    # Field held fixed, only weights move: Base length ×0→×1 is +0.5 star under v1.
+    v2_star = stars_under(scored.score.breakdown, RUBRIC_WEIGHTS[RUBRIC_VERSION])
+    v1_star = stars_under(scored.score.breakdown, RUBRIC_WEIGHTS[1])
+    assert v1_star == v2_star + 0.5
+    assert live.picks.counts[v2_star] == 1
+    assert old.picks.counts[v1_star] == 1
+    assert live.field.counts[v2_star] == 1
+    assert old.field.counts[v1_star] == 1
 
 
 def test_blind_spot_trade_gets_no_placement_row(store: Store):
@@ -1378,3 +1899,248 @@ def test_run_contrast_splits_his_pick_from_the_not_taken_field(store: Store):
     assert report.n_executed == 1     # BASEA, the name he entered
     assert report.n_not_taken == 1    # BASEB, present but not entered
     assert report.blind_spot_count == 2
+
+
+# -- the one-process study runner (#131) -----------------------------------
+#
+# One command that reproduces the whole study: it builds the field once and
+# computes the A1 funnel, A2 placement and both A3 analyses against it, so four
+# rebuilds of the 947-session chain become one. It emits both the human-readable
+# reports and a machine-readable results file, and reports progress with an ETA so
+# a silent hour-long run is distinguishable from a hung one.
+
+
+def _study_store(store: Store):
+    """A two-name synthetic store with one clean base and one lagging member."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(105)))
+    entry = dates[104] + timedelta(days=1)
+    trades = parse_trades([_funnel_record("BASE", entry)])
+    return trades, dates
+
+
+def test_run_study_runs_all_four_analyses_against_one_built_field(store: Store):
+    """The runner returns coverage plus all four analyses, and each matches the
+    standalone entry point run over the same store — one field, four analyses."""
+    from replay.study import StudyResult, run_study
+    from replay.funnel import FunnelReport
+    from replay.placement import PlacementReport
+    from replay.regression import OutcomeRegression
+    from replay.contrast import SelectionContrast
+
+    trades, _ = _study_store(store)
+
+    result = run_study(store, trades=trades, burn_in=104, blind_spot_tickers=["ZZZ"])
+
+    assert isinstance(result, StudyResult)
+    assert isinstance(result.funnel, FunnelReport)
+    assert isinstance(result.placement, PlacementReport)
+    assert isinstance(result.regression, OutcomeRegression)
+    assert isinstance(result.contrast, SelectionContrast)
+    # The shared field is correct for every analysis: the standalone runs (which
+    # reuse the persisted chain) agree with the shared-field ones.
+    funnel = run_funnel(trades, store, burn_in=104, blind_spot_tickers=["ZZZ"])
+    placement = run_placement(trades, store, burn_in=104, blind_spot_tickers=["ZZZ"])
+    regression = run_regression(trades, store, burn_in=104, blind_spot_tickers=["ZZZ"])
+    contrast = run_contrast(trades, store, burn_in=104, blind_spot_tickers=["ZZZ"])
+    assert result.funnel.detection.passed == funnel.detection.passed
+    assert result.funnel.decile_decomposition == funnel.decile_decomposition
+    assert result.placement.top_thirty_count == placement.top_thirty_count
+    assert result.regression.n_detected == regression.n_detected
+    assert result.contrast.n_executed == contrast.n_executed
+    # Coverage is recomputed from the reference set (BASE is replayable -> no blind
+    # spot there); the explicit blind-spot list rides onto the field coverage count.
+    assert result.coverage.total_rows == 1
+    assert result.funnel.blind_spot_count == 1
+    assert result.placement.blind_spot_count == 1
+
+
+def test_run_study_computes_the_chain_and_detection_pass_once(store: Store, monkeypatch):
+    """The chain and the per-session detection pass are each computed once, not once
+    per analysis: the forward chain is replayed a single time across all four."""
+    import replay.study as study_mod
+
+    trades, _ = _study_store(store)
+
+    chain_calls = {"n": 0}
+    real_chain = study_mod.replay_chain
+
+    def counting_chain(*args, **kwargs):
+        chain_calls["n"] += 1
+        return real_chain(*args, **kwargs)
+
+    monkeypatch.setattr(study_mod, "replay_chain", counting_chain)
+    study_mod.run_study(store, trades=trades, burn_in=104)
+
+    assert chain_calls["n"] == 1  # one forward pass, shared by all four analyses
+
+
+def test_run_study_writes_human_and_machine_readable_outputs(tmp_path, store: Store):
+    """The runner writes both a human-readable report and a machine-readable results
+    file; the results file round-trips as JSON and carries the funnel rows with
+    their per-lookback decile detail, so #133's decomposition survives the run and
+    can be recomputed without another rebuild."""
+    from replay.study import run_study, write_reports, write_results, load_results
+
+    trades, _ = _study_store(store)
+    result = run_study(store, trades=trades, burn_in=104, blind_spot_tickers=["ZZZ"])
+
+    report_path = tmp_path / "study.txt"
+    json_path = tmp_path / "study.json"
+    write_reports(result, report_path)
+    write_results(result, json_path)
+
+    # Human-readable: names all four analyses.
+    text = report_path.read_text()
+    for token in ("funnel", "placement", "regression", "contrast"):
+        assert token in text.lower()
+
+    # Machine-readable: valid JSON, and the funnel rows survive with the #133 detail.
+    raw = json.loads(json_path.read_text())
+    funnel_rows = raw["funnel"]["rows"]
+    assert funnel_rows
+    row = funnel_rows[0]
+    assert "eval_percentiles" in row
+    assert "decile_verdicts" in row
+    assert "decile_pass_five" in row
+    assert raw["funnel"]["decile_decomposition"]["total_misses"] >= 0
+
+    # And it reloads into a decomposition recomputable without a rebuild.
+    reloaded = load_results(json_path)
+    assert reloaded["funnel"]["decile_decomposition"] == raw["funnel"]["decile_decomposition"]
+
+    # The A2 placement carries the paired star distributions, each stamped with its
+    # rubric version (#136), so a re-run separates a rubric change from a field
+    # change and no star figure is quoted without its stamp (#138).
+    from screener.score import RUBRIC_VERSION
+
+    by_rubric = raw["placement"]["by_rubric"]
+    stamps = {r["rubric_version"] for r in by_rubric}
+    assert stamps == {1, RUBRIC_VERSION}
+    for r in by_rubric:
+        assert "picks" in r and "field" in r and "total" in r["picks"]
+        # The board figure is paired too — a rubric reorders the field around a
+        # pick, so top-thirty moves independently of the histogram (#136).
+        assert "top_thirty" in r
+    live = next(r for r in by_rubric if r["rubric_version"] == RUBRIC_VERSION)
+    assert live["picks"] == raw["placement"]["picks"]
+    assert live["top_thirty"] == raw["placement"]["top_thirty_count"]
+
+
+def test_run_study_reports_progress_with_a_running_count(store: Store):
+    """Progress is reported while running: the runner calls back per session for the
+    chain and the detection pass, with a monotonically rising count against a fixed
+    total, so a long run never goes silent."""
+    from replay.study import run_study
+
+    trades, _ = _study_store(store)
+    events: list[tuple[str, int, int]] = []
+
+    run_study(
+        store,
+        trades=trades,
+        burn_in=100,
+        progress=lambda phase, i, total, session: events.append((phase, i, total)),
+    )
+
+    phases = {e[0] for e in events}
+    assert "chain" in phases and "field" in phases
+    # Counts rise from 1 and never exceed the total, per phase.
+    for phase in phases:
+        counts = [i for p, i, _ in events if p == phase]
+        totals = {t for p, _, t in events if p == phase}
+        assert counts == sorted(counts)
+        assert counts[0] >= 1
+        assert len(totals) == 1
+        assert max(counts) <= next(iter(totals))
+
+
+def test_study_cli_writes_outputs_and_prints_summary(tmp_path, store: Store, capsys):
+    """The documented single command runs coverage plus all four analyses against
+    one built store and writes both outputs."""
+    from replay import study as study_mod
+
+    trades, _ = _study_store(store)
+    store_path = tmp_path / "replay.duckdb"
+    disk = Store.open(store_path)
+    try:
+        dates = _daily(date(2020, 1, 1), 105)
+        disk.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+        disk.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(105)))
+    finally:
+        disk.close()
+
+    ref_path = tmp_path / "ref.json"
+    ref_path.write_text(json.dumps(_reference_payload(
+        [_funnel_record("BASE", dates[104] + timedelta(days=1))]
+    )))
+    report_path = tmp_path / "out.txt"
+    json_path = tmp_path / "out.json"
+
+    rc = study_mod.main([
+        "--store", str(store_path),
+        "--reference", str(ref_path),
+        "--burn-in", "104",
+        "--no-drift-check",
+        "--out-report", str(report_path),
+        "--out-json", str(json_path),
+    ])
+
+    assert rc == 0
+    assert report_path.exists()
+    assert json.loads(json_path.read_text())["funnel"]["rows"]
+
+
+def test_placement_pairs_the_top_thirty_hit_per_rubric_not_only_the_histogram():
+    """#136 asks for the top-thirty figure *and* the star distribution paired, and
+    a board place is a re-ranking, not a re-scoring: the same detection can sit
+    inside the board under one rubric and outside it under the other, because the
+    weights reorder the whole field around it.
+
+    So ``by_rubric`` carries ``top_thirty`` alongside the two histograms. Here the
+    field is thirty-one names on one session: thirty that hit Base length (×1 under
+    v1, ×0 under v2) and his pick, which does not. Under v1 the thirty outscore him
+    and he is pushed to rank 31 — off the board; under v2 the dimension is worth
+    nothing, the field collapses level with him, and the symbol-ordered tie-break
+    puts him first. One field, one set of hits, two board verdicts."""
+    from screener.score import RUBRIC_VERSION
+
+    session = date(2020, 6, 1)
+    # His pick misses Base length (base_len > 14); the thirty others hit it. Every
+    # other dimension is identical, so v1's ×1 on Base length is the only gap.
+    pick = _det("AAA", cluster_k=6)
+    pick = dataclasses.replace(pick, base_len=40)
+    others = [_det(f"Z{i:02d}", cluster_k=6) for i in range(BOARD_SIZE)]
+
+    def _scored(det: Detection, rank: int) -> ScoredDetection:
+        return ScoredDetection(
+            symbol=det.symbol,
+            detection=det,
+            score=seven_dimension_score(det, prior_move=True),
+            star_rank=rank,
+            not_taken=False,
+        )
+
+    # Star order under the live rubric (v2): Base length is worth nothing, so all
+    # thirty-one tie and the field falls back to the symbol tie-break — AAA first.
+    detections = [_scored(pick, 1)] + [
+        _scored(det, i) for i, det in enumerate(others, start=2)
+    ]
+    field = FieldSession(
+        session=session, burn_in=False,
+        members=[d.symbol for d in detections],
+        detections=detections, blind_spot_count=0,
+    )
+    calendar = [session, date(2020, 6, 2)]
+    trade = parse_trades([_funnel_record("AAA", date(2020, 6, 2))])[0]
+
+    report = build_placement_report([trade], calendar, [field], blind_spot_count=0)
+
+    live = next(r for r in report.by_rubric if r.rubric_version == RUBRIC_VERSION)
+    old = next(r for r in report.by_rubric if r.rubric_version == 1)
+    # The live entry is the report's headline top-thirty count by identity — the
+    # detections were ranked under the live rubric, so nothing is ranked twice.
+    assert live.top_thirty == report.top_thirty_count == 1
+    # Under the old rubric the same pick, in the same field, is off the board.
+    assert old.top_thirty == 0

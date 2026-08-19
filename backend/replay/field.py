@@ -159,6 +159,20 @@ class FieldSession:
         return [d for d in self.detections if d.taken]
 
 
+def star_order_key(stars: float, det: Detection) -> tuple[float, bool, str]:
+    """The field's candidate order, as one rule: stars descending, then a drawable
+    line, then ticker.
+
+    Shared rather than repeated because the order is read in two places under two
+    different rubrics — :func:`build_field` ranks the live field, and the paired A2
+    re-run (:mod:`replay.placement`, #136) re-ranks that same field under a
+    superseded rubric to see whether a pick's board place moved. Two copies of this
+    key would let the re-ranked board drift out of agreement with the live one the
+    moment the live order changed, and the drift would be silent.
+    """
+    return (-stars, not det.line_ok, det.symbol)
+
+
 def build_field(
     detections: list[Detection],
     ranks: list[Rank],
@@ -186,7 +200,7 @@ def build_field(
         (det, seven_dimension_score(det, prior_move=det.symbol in gated))
         for det in detections
     ]
-    scored.sort(key=lambda ds: (-ds[1].stars, not ds[0].line_ok, ds[0].symbol))
+    scored.sort(key=lambda ds: star_order_key(ds[1].stars, ds[0]))
     return [
         ScoredDetection(
             symbol=det.symbol,

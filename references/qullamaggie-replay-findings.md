@@ -363,7 +363,7 @@ is the rubric and nothing else.
 
 ### Reported — same field, both rubrics
 
-| Result | **v1** (superseded, ten-point) | **v2** (live, #138, nine-point) |
+| Result | **v1** (superseded) | **v2** (live, #138) |
 | --- | --- | --- |
 | Appeared in the field (`in_field`) | 104/658 (15.8%) | 104/658 (15.8%) — rubric-invariant |
 | Inside the top 30 (`top_thirty`) | **41/658 (6.2%)** | **45/658 (6.8%)** |
@@ -375,7 +375,8 @@ is the rubric and nothing else.
 | Mean stars, the field | 2.400 | 2.214 |
 
 Full histograms, both stamped (picks n=104, field n=14,239 under either rubric — the same
-detections, only the weights move):
+detections, only the weights move). These are seven-dimension scores, so the ceiling is **4.5★
+under v1 and 4.0★ under v2**, not the app's 5.0/4.5 — see the note below the table:
 
 | Stars | v1 picks | v1 field | | v2 picks | v2 field |
 | --- | --- | --- | --- | --- | --- |
@@ -389,11 +390,14 @@ detections, only the weights move):
 | 1.0 | 6 (5.8%) | 1,511 (10.6%) | | 4 (3.8%) | 1,132 (7.9%) |
 | 0.5 | 3 (2.9%) | 312 (2.2%) | | 3 (2.9%) | 396 (2.8%) |
 
-**`>3.5★` does not mean what it meant.** Under v2's nine-point ceiling 3.5 stars is 7 of 9, not
-7 of 10, and the 4.5 bucket is unreachable — the zeroed `Base length` removed it. That is why
-the full histogram is reported and not only the top share: the v1→v2 move in the ≥3.5 share is
-partly a move in what the threshold *is*. The gap between his picks and the field on the same
-scale is the comparison that survives this; the level does not.
+**`>3.5★` does not mean what it meant.** These are *seven-dimension* scores: the replay strikes
+`Sector` (§1, #130), so the ceilings behind both columns are the app's minus that row — **9
+points under v1 and 8 under v2**, not 10 and 9. So ≥3.5★ is 7 of 9 in the v1 column and 7 of 8
+in the v2 one, and the top bucket falls from 4.5★ to 4.0★ between them. That drop is the net of
+three weight moves, not the zeroed `Base length` alone: Orderliness −1, Base length −1, ADR +1.
+This is why the full histogram is reported and not only the top share — the v1→v2 move in the
+≥3.5 share is partly a move in what the threshold *is*. The gap between his picks and the field
+**on one scale** is the comparison that survives this; the level does not.
 
 ### Verdict: the ranking conclusion is **weakened, not reversed**
 
@@ -423,18 +427,19 @@ picks and **−0.187** for the field — the reweight did not recognise his entr
 population around them. That is exactly the shape §5b predicts (he hits `Base length` and
 `Orderliness` *less* than the field he passed over, so zeroing one and halving the other costs
 the field more than it costs him), and it is a weaker claim than "the rubric found his picks".
-The measured picks-minus-field shift is **+0.196 stars**, which confirms §5c's computed
-expectation of **+0.19** to three decimal places — the arithmetic prediction was right, and the
-≥3.5★ share it declined to predict has now been measured.
+The measured picks-minus-field shift is **+0.196 stars** against §5c's computed expectation of
+**+0.19** — agreement to about a hundredth of a star, so the arithmetic prediction was right,
+and the ≥3.5★ share it declined to predict has now been measured.
 
 ### Coverage, restated so this result carries its own bound
 
 Unchanged and now permanent: **91 blind-spot tickers / 170 trades / 18.1% of total realised R**
-(§2), and only **104 of 658** replayable trades appeared in the field at all, **45** inside the
-board. So this is a rubric comparison measured on a **sixth of his record** against a field
-missing a quarter of its names, and the population missing is the one a momentum screener
-surfaces. #139 corrects these figures to **92 / 172 / 18.02%** once the recycled-symbol check
-lands; the correction is small and moves nothing here.
+(§2), and only **104 of 658** replayable trades appeared in the field at all — **41** inside the
+board under v1, **45** under v2. So this is a rubric comparison measured on a **sixth of his
+record** against a field missing a quarter of its names, and the population missing is the one a
+momentum screener surfaces. #139 is **open** and proposes correcting these figures to
+92 / 172 / 18.02% once the recycled-symbol check lands; that correction is small and would move
+nothing here, but it has not landed and the figures above are the ones this run measured.
 
 **The no-percentile constraint stands, permanently.** #136 said to keep it "unless the coverage
 hole is fully closed". With #129 closed won't-do the hole cannot be closed, so the constraint is
@@ -627,7 +632,8 @@ that a rubric change pushes in the direction A2 (§4) says the current rubric do
 real but modest against A2's 17.3% / 17.8% gap, and says nothing about whether the **3.5★
 share** moves, which depends on the joint distribution around the boundary. The numbers above
 are the computed expectation; the **measured** paired A2 re-run is **§4a**, and it confirms them
-— measured picks-minus-field shift **+0.196 stars** against the +0.19 predicted here. The 3.5★
+— measured picks-minus-field shift **+0.196 stars** against the +0.19 predicted here, agreeing
+to about a hundredth of a star. The 3.5★
 share this paragraph declined to predict was also measured there, and it moves: **17.3% / 17.8%
 under v1 → 14.4% / 8.8% under v2 on the same field**.
 

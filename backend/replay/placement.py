@@ -44,7 +44,7 @@ from screener.score import RUBRIC_VERSION, RUBRIC_WEIGHTS, Dimension, stars_unde
 from screener.store import Store
 
 from .chain import BURN_IN_SESSIONS, REPLAY_MARKET
-from .field import FieldSession, ScoredDetection, replay_field
+from .field import FieldSession, ScoredDetection, replay_field, star_order_key
 from .funnel import evaluation_session
 from .reference import ExecutedTrade, classify
 
@@ -126,6 +126,21 @@ class RubricStarDistributions:
 
 
 @dataclass(frozen=True)
+class InFieldPick:
+    """One executed trade that appeared in its night's field, kept for re-scoring.
+
+    The three things a rubric swap needs and nothing else: which ``session``'s
+    field to re-rank, which ``symbol`` to look for on the re-ranked board, and the
+    ``breakdown`` whose hit booleans re-total under the new weights. The hits
+    belong to the setup and never move; only the weights do (#136).
+    """
+
+    session: date
+    symbol: str
+    breakdown: list[Dimension]
+
+
+@dataclass(frozen=True)
 class PlacementReport:
     """The A2 result: per-trade placements plus the two star distributions.
 
@@ -159,29 +174,31 @@ class PlacementReport:
         return sum(1 for p in self.placements if p.top_thirty)
 
 
-def field_match(field: FieldSession, ticker: str) -> ScoredDetection | None:
+def field_match(session_field: FieldSession, ticker: str) -> ScoredDetection | None:
     """The field detection ``ticker`` scored to that session, or ``None`` if absent.
 
     The single source of truth for "where did this trade sit in the field" — a trade
     is placed against the detection here, and its breakdown is re-scored under every
     rubric from the same detection (:func:`build_placement_report`).
     """
-    return next((det for det in field.detections if det.symbol == ticker), None)
+    return next(
+        (det for det in session_field.detections if det.symbol == ticker), None
+    )
 
 
 def place_trade(
-    trade: ExecutedTrade, eval_session: date | None, field: FieldSession | None
+    trade: ExecutedTrade, eval_session: date | None, session_field: FieldSession | None
 ) -> TradePlacement:
     """Place one executed trade within its evaluation session's field.
 
-    ``field`` is the replayed field for the last session strictly before entry, or
+    ``session_field`` is the replayed field for the last session strictly before entry, or
     ``None`` when no measured session precedes it (nothing to place against). The
     top-thirty flag is the candidate's star rank against :data:`BOARD_SIZE`, the
     app's board size — the list the trader actually reads. A trade absent from the
     field is distinguished from one present but outside the top thirty: only the
     present one is ``in_field``.
     """
-    match = field_match(field, trade.ticker) if field is not None else None
+    match = field_match(session_field, trade.ticker) if session_field is not None else None
     return TradePlacement(
         ticker=trade.ticker,
         entry_date=trade.entry_date,
@@ -193,7 +210,7 @@ def place_trade(
 
 
 def _top_thirty_under(
-    picks_in_field: list[tuple[date, str, list[Dimension]]],
+    picks_in_field: list[InFieldPick],
     by_session: Mapping[date, FieldSession],
     version: int,
 ) -> int:
@@ -202,25 +219,25 @@ def _top_thirty_under(
 
     Re-ranking, not re-scoring: a pick's own hits do not change between rubrics,
     but the weights reorder every *other* name around it, so its board place can
-    move even when its star total does not. Each session's detections are sorted
-    on :func:`replay.field.score_detections`' own key — stars descending, then a
-    drawable line, then symbol — so a re-ranked board is ordered exactly as the
-    live one is and the live version reproduces ``PlacementReport.top_thirty_count``
-    by construction.
+    move even when its star total does not. Each session's detections are sorted on
+    :func:`replay.field.star_order_key` — the live field's own ordering rule, shared
+    rather than copied — so a re-ranked board is ordered exactly as the live one is
+    and the live version reproduces ``PlacementReport.top_thirty_count`` by
+    construction.
     """
     weights = RUBRIC_WEIGHTS[version]
     boards: dict[date, set[str]] = {}
-    for session in {s for s, _, _ in picks_in_field}:
+    for session in {pick.session for pick in picks_in_field}:
         ranked = sorted(
             by_session[session].detections,
-            key=lambda d: (
-                -stars_under(d.score.breakdown, weights),
-                not d.detection.line_ok,
-                d.symbol,
+            key=lambda d: star_order_key(
+                stars_under(d.score.breakdown, weights), d.detection
             ),
         )
         boards[session] = {d.symbol for d in ranked[:BOARD_SIZE]}
-    return sum(1 for session, symbol, _ in picks_in_field if symbol in boards[session])
+    return sum(
+        1 for pick in picks_in_field if pick.symbol in boards[pick.session]
+    )
 
 
 def build_placement_report(
@@ -240,11 +257,10 @@ def build_placement_report(
 
     placements: list[TradePlacement] = []
     pick_sessions: set[date] = set()
-    # Each in-field pick as (its session, its symbol, its seven-dimension
-    # breakdown), kept so the same hit booleans can be re-scored *and* the same
-    # field re-ranked around them under every rubric version (#136) — the field is
-    # held fixed, only the weights move.
-    picks_in_field: list[tuple[date, str, list[Dimension]]] = []
+    # Each in-field pick (:class:`InFieldPick`), kept so the same hit booleans can
+    # be re-scored *and* the same field re-ranked around them under every rubric
+    # version (#136) — the field is held fixed, only the weights move.
+    picks_in_field: list[InFieldPick] = []
     for trade in replayable:
         eval_session = evaluation_session(calendar, trade.entry_date)
         session_field = by_session.get(eval_session) if eval_session else None
@@ -255,10 +271,14 @@ def build_placement_report(
             match = field_match(session_field, trade.ticker)
             if match is not None:
                 picks_in_field.append(
-                    (session_field.session, trade.ticker, match.score.breakdown)
+                    InFieldPick(
+                        session=session_field.session,
+                        symbol=trade.ticker,
+                        breakdown=match.score.breakdown,
+                    )
                 )
 
-    pick_breakdowns = [b for _, _, b in picks_in_field]
+    pick_breakdowns = [pick.breakdown for pick in picks_in_field]
     field_breakdowns = [
         det.score.breakdown
         for session in pick_sessions
@@ -343,8 +363,13 @@ def format_report(report: PlacementReport) -> str:
         f"blind-spot coverage: {report.blind_spot_count} tickers missing from the field",
         "",
         f"placed trades:       {placed}",
-        f"appeared in field:   {report.in_field_count}/{placed}",
-        f"inside top {report.board_size}:      {report.top_thirty_count}/{placed}",
+        # in_field is a property of the field, not the rubric — a name is present
+        # or it is not, whatever the weights say — so it needs no stamp. The board
+        # figure does: it is a re-ranking, and an unstamped one printed above the
+        # per-rubric blocks would read as contradicting them (#136/#138).
+        f"appeared in field:   {report.in_field_count}/{placed}  (rubric-invariant)",
+        f"inside top {report.board_size}:      {report.top_thirty_count}/{placed}"
+        f"  [rubric v{RUBRIC_VERSION} (live); see the per-rubric blocks below]",
     ]
     # The star distributions, one block per rubric version (live first), each
     # stamped — the same field re-scored under each rubric so a rubric change is

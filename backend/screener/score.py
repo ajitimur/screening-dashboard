@@ -166,7 +166,9 @@ def star_score(
     signal vector — never the stop, never the regime.
 
     Returns ``(stars, breakdown)`` where ``stars`` is ``points ÷ 2`` and
-    ``breakdown`` is the eight :class:`Dimension` rows in published order.
+    ``breakdown`` is the eight :class:`Dimension` rows in published order. The
+    totalling is :func:`stars_under` under the live weights — one site owns the
+    ``÷ 2``, so the live rubric cannot drift from the version table it is keyed in.
     """
     hits = {
         "Tightness": det.cluster_k >= TIGHT_K,
@@ -179,5 +181,4 @@ def star_score(
         "ADR": det.adr >= ADR_MIN,
     }
     breakdown = [Dimension(name, weight, hits[name]) for name, weight in DIMENSIONS]
-    points = sum(d.weight for d in breakdown if d.hit)
-    return points / 2, breakdown
+    return stars_under(breakdown, RUBRIC_WEIGHTS[RUBRIC_VERSION]), breakdown

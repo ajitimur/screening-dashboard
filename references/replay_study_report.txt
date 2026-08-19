@@ -43,8 +43,8 @@ scope: US 2019–2022 (not an IDX expectation)
 blind-spot coverage: 91 tickers missing from the field
 
 placed trades:       658
-appeared in field:   104/658
-inside top 30:      45/658
+appeared in field:   104/658  (rubric-invariant)
+inside top 30:      45/658  [rubric v2 (live); see the per-rubric blocks below]
 
 star distribution [rubric v2 (live)] (his picks vs the field, same sessions):
   inside top 30: 45/658 (field re-ranked under this rubric)

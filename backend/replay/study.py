@@ -221,8 +221,14 @@ def _iso(d: date | None) -> str | None:
 
 
 def _star_dist(dist: StarDistribution) -> dict:
-    # Star values are multiples of 0.5; JSON object keys must be strings.
-    return {"total": dist.total, "counts": {str(k): v for k, v in dist.counts.items()}}
+    # Star values are multiples of 0.5; JSON object keys must be strings. Emitted
+    # high-to-low rather than in the order the scores happened to arrive: this file
+    # is committed beside the findings, so two runs of the same field must produce
+    # the same bytes or the diff reports churn where nothing moved.
+    return {
+        "total": dist.total,
+        "counts": {str(k): dist.counts[k] for k in sorted(dist.counts, reverse=True)},
+    }
 
 
 def _distribution(dist: Distribution | None) -> dict | None:

@@ -86,8 +86,8 @@ export function Chart({ data, height = 360 }: { data: ChartResponse; height?: nu
     // Trigger and stop as horizontal rules read against the candles (spec §7). Two
     // real order levels — the cluster high and the cluster low.
     if (setup) {
-      candles.createPriceLine({ price: setup.trigger, color: TRIGGER_COLOR, lineWidth: 1, title: "trigger" });
-      candles.createPriceLine({ price: setup.stop, color: STOP_COLOR, lineWidth: 1, title: "stop" });
+      candles.createPriceLine({ price: setup.trigger, color: TRIGGER_COLOR, lineWidth: 1 });
+      candles.createPriceLine({ price: setup.stop, color: STOP_COLOR, lineWidth: 1 });
     }
 
     // The daily MA set as line series (spec §5.1).

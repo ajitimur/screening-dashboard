@@ -262,12 +262,20 @@ the hysteretic liquidity floor, so a gapped session sequence is rejected by cons
 (`GapError`); burn-in sessions are computed and persisted but excluded from the reported
 results. Each trade is then placed within its night's field.
 
-### Reported
+### Reported — **rubric v1** (the rubric live when A2 was first measured)
+
+Every star figure in this section is **rubric v1**, the ten-point table superseded by #138.
+Nothing here may be compared against a v2 figure without the stamp; §4a is the paired
+measurement that makes the comparison legitimately.
 
 | Result | Value |
 | --- | --- |
 | Appeared in the field at all (`in_field`) | **104/658 (15.8%)** |
 | Landed inside the top 30 by star score (`top_thirty`, board size from `screener.boards.BOARD_SIZE`) | **41/658 (6.2%)** |
+
+`in_field` is a property of the *field*, not the rubric — a name is present or it is not,
+whatever the weights say — so it is the one figure here that survives a rubric change
+unchanged. `top_thirty` does not: the board is a re-ranking (§4a).
 
 Star distribution of his picks against the replayed field, on the same sessions:
 
@@ -286,7 +294,9 @@ Star distribution of his picks against the replayed field, on the same sessions:
 
 ### The rubric does not discriminate his picks from the field
 
-**Picks at ≥3.5 stars: 17.3%. Field at ≥3.5 stars: 17.8%.**
+**Picks at ≥3.5 stars: 17.3%. Field at ≥3.5 stars: 17.8%.** (Rubric v1. Under the live v2
+rubric, on this same field, the gap opens to +5.6pp — §4a, which is where this conclusion is
+revised.)
 
 His real, high-conviction, hand-picked entries land in the top of the star scale at
 essentially **the same rate as the general population of detections they were drawn
@@ -323,6 +333,118 @@ the missing field; a percentile would look precise while quietly flattering the 
 > setups are _built_; A2 is the only analysis that speaks to _ranking_, and it speaks softly.
 > The star score is also **stop-blind and regime-blind** by construction, so the stop-width
 > finding below cannot move ranking at all.
+
+---
+
+## 4a. A2 re-run — the paired measurement (#136)
+
+**Question.** #136 asked to re-run A2 once the field was no longer missing a quarter of its
+names, and warned that #138's reweight would move the rubric underneath it — so a naive re-run
+would change two variables and attribute the result to neither.
+
+**One of those two variables is now permanently frozen.** #129, which was to source
+delisted/renamed bar history, is **closed won't-do**: every provider carrying that history is
+paid, retail tiers start near $100/month, and there is no budget. The free tiers give listing
+*identity*, never prices. So the fuller field is not late — it does not exist, and the §2 hole
+is a permanent property of the study rather than a gap awaiting a ticket. The half of #136 that
+depended on it cannot be delivered and is not deferred; it is closed.
+
+What that leaves is the other half, and it is now clean rather than confounded: with the field
+frozen, the rubric is the **only** variable, so the pairing measures it alone. The run is
+`python -m replay.study` over the built `replay.duckdb` — one chain, one detection pass, the
+same field scored and re-ranked under both rubrics (`PlacementReport.by_rubric`).
+
+### The v1 block reproduces the committed result exactly
+
+Before reading the v2 column, note that the v1 column is a **cell-for-cell reproduction** of
+§4 above — 17.31% / 17.82%, 41/658 inside the board, and every one of the nine histogram rows.
+That is the control: the field is demonstrably the same field §4 measured, so any v2 difference
+is the rubric and nothing else.
+
+### Reported — same field, both rubrics
+
+| Result | **v1** (superseded, ten-point) | **v2** (live, #138, nine-point) |
+| --- | --- | --- |
+| Appeared in the field (`in_field`) | 104/658 (15.8%) | 104/658 (15.8%) — rubric-invariant |
+| Inside the top 30 (`top_thirty`) | **41/658 (6.2%)** | **45/658 (6.8%)** |
+| His picks at ≥3.5★ | **17.31%** (18/104) | **14.42%** (15/104) |
+| The field at ≥3.5★ | **17.82%** (2,538/14,239) | **8.83%** (1,258/14,239) |
+| Gap (picks − field) | **−0.52pp** | **+5.59pp** |
+| Exact binomial p (picks ≥3.5★ vs the field rate) | 1.000 | **0.055** |
+| Mean stars, his picks | 2.486 | 2.495 |
+| Mean stars, the field | 2.400 | 2.214 |
+
+Full histograms, both stamped (picks n=104, field n=14,239 under either rubric — the same
+detections, only the weights move):
+
+| Stars | v1 picks | v1 field | | v2 picks | v2 field |
+| --- | --- | --- | --- | --- | --- |
+| 4.5 | 4 (3.8%) | 324 (2.3%) | | — | — |
+| 4.0 | 5 (4.8%) | 1,049 (7.4%) | | 4 (3.8%) | 342 (2.4%) |
+| 3.5 | 9 (8.7%) | 1,165 (8.2%) | | 11 (10.6%) | 916 (6.4%) |
+| 3.0 | 20 (19.2%) | 2,822 (19.8%) | | 22 (21.2%) | 2,531 (17.8%) |
+| 2.5 | 25 (24.0%) | 2,533 (17.8%) | | 36 (34.6%) | 3,014 (21.2%) |
+| 2.0 | 22 (21.2%) | 2,394 (16.8%) | | 15 (14.4%) | 3,259 (22.9%) |
+| 1.5 | 10 (9.6%) | 2,129 (15.0%) | | 9 (8.7%) | 2,649 (18.6%) |
+| 1.0 | 6 (5.8%) | 1,511 (10.6%) | | 4 (3.8%) | 1,132 (7.9%) |
+| 0.5 | 3 (2.9%) | 312 (2.2%) | | 3 (2.9%) | 396 (2.8%) |
+
+**`>3.5★` does not mean what it meant.** Under v2's nine-point ceiling 3.5 stars is 7 of 9, not
+7 of 10, and the 4.5 bucket is unreachable — the zeroed `Base length` removed it. That is why
+the full histogram is reported and not only the top share: the v1→v2 move in the ≥3.5 share is
+partly a move in what the threshold *is*. The gap between his picks and the field on the same
+scale is the comparison that survives this; the level does not.
+
+### Verdict: the ranking conclusion is **weakened, not reversed**
+
+§4's null — *no evidence the star score ranks his picks above the field* — was measured under
+v1 and remains exactly true under v1. Under v2 it no longer holds in the same form: his picks
+sit at ≥3.5★ at **1.63× the field's rate** (14.4% vs 8.8%), the board hit rises 41→45, and the
+direction is the one a discriminating rubric would produce. **The §4 statement may no longer be
+quoted without its v1 stamp**, and this is a revision of that conclusion, not a restatement of
+it.
+
+It is **not** reversed into "the ranking is validated", for three reasons that are each
+sufficient on their own:
+
+1. **It is in-sample, and close to circular.** v2's weights were derived from §5b's selection
+   contrast — taken vs not-taken detections — measured over *these* 69 taken detections on
+   *this* field. A2 then asks whether those weights separate taken from not-taken on the same
+   field. A rubric fitted to a separation will reproduce that separation; this is a fit
+   statistic dressed as a test, and the only honest reading is "the reweight did what it was
+   built to do", not "the rubric ranks".
+2. **It is marginal even so.** Exact binomial p = 0.055 on n=104 — a positive result that,
+   fitted in-sample, still fails to clear the conventional threshold.
+3. **The field is still missing 29% of its names.** The coverage bound below did not improve
+   and never will.
+
+**The mechanism: the field fell, his picks did not rise.** Mean stars moved **+0.010** for his
+picks and **−0.187** for the field — the reweight did not recognise his entries, it demoted the
+population around them. That is exactly the shape §5b predicts (he hits `Base length` and
+`Orderliness` *less* than the field he passed over, so zeroing one and halving the other costs
+the field more than it costs him), and it is a weaker claim than "the rubric found his picks".
+The measured picks-minus-field shift is **+0.196 stars**, which confirms §5c's computed
+expectation of **+0.19** to three decimal places — the arithmetic prediction was right, and the
+≥3.5★ share it declined to predict has now been measured.
+
+### Coverage, restated so this result carries its own bound
+
+Unchanged and now permanent: **91 blind-spot tickers / 170 trades / 18.1% of total realised R**
+(§2), and only **104 of 658** replayable trades appeared in the field at all, **45** inside the
+board. So this is a rubric comparison measured on a **sixth of his record** against a field
+missing a quarter of its names, and the population missing is the one a momentum screener
+surfaces. #139 corrects these figures to **92 / 172 / 18.02%** once the recycled-symbol check
+lands; the correction is small and moves nothing here.
+
+**The no-percentile constraint stands, permanently.** #136 said to keep it "unless the coverage
+hole is fully closed". With #129 closed won't-do the hole cannot be closed, so the constraint is
+no longer conditional: no percentile and no rank position is emitted, only the top-thirty hit
+and the star histogram.
+
+_Reproduce: `python -m replay.study --store data/replay.duckdb`, which writes
+`references/replay_study_report.txt` and `references/replay_study_results.json` — both committed
+beside this document. The store's derived tables must be empty; bars are the only input a chain
+reads (write-once rows from an earlier pass are read back, not recomputed)._
 
 ---
 
@@ -503,11 +625,11 @@ is needed:
 The swap moves his picks **~0.19 stars more than the field** — the first quantified statement
 that a rubric change pushes in the direction A2 (§4) says the current rubric does not. It is
 real but modest against A2's 17.3% / 17.8% gap, and says nothing about whether the **3.5★
-share** moves, which depends on the joint distribution around the boundary. The **measured**
-paired A2 re-run — same field, both rubrics, one variable — is #136, and waits on the fuller
-field (#129); it cannot be run against the §2-holed field without the null having two
-candidate explanations (the rubric moved, or the field did). The numbers above are the
-computed expectation, not the measured result.
+share** moves, which depends on the joint distribution around the boundary. The numbers above
+are the computed expectation; the **measured** paired A2 re-run is **§4a**, and it confirms them
+— measured picks-minus-field shift **+0.196 stars** against the +0.19 predicted here. The 3.5★
+share this paragraph declined to predict was also measured there, and it moves: **17.3% / 17.8%
+under v1 → 14.4% / 8.8% under v2 on the same field**.
 
 **#136 — the paired re-run is now wired, and separates the two variables by construction.**
 The obstacle #136 was written against — "re-run A2 and risk moving the field *and* the rubric
@@ -523,24 +645,19 @@ identical to the headline `picks`/`field` by identity (the detections were score
 nothing is scored twice. `format_report` prints the two stamped blocks and `study.py`
 serialises `by_rubric`, so the machine-readable results file is the paired result.
 
-What this buys #136 when the fuller field (#129) lands: `python -m replay.study` produces, in
-one run over one chain, **old rubric on the new field** and **new rubric on the new field** —
-the field held fixed while only the weights move — so a change in the ≥3.5★ share is
-attributable to the rubric, and any change against the current 17.3% / 17.8% that the *field*
-alone caused is read off the v1 block, which is the old rubric on the new field measured against
-the old rubric on the old (§2) field. Every star figure the run emits carries its rubric-version
-stamp, so a v2 histogram is never silently compared against the committed v1 17.3% / 17.8%.
+`by_rubric` also carries the **top-thirty figure** per version, not only the histogram: a board
+place is a re-ranking rather than a re-scoring, so the weights reorder the whole field around a
+pick and can move it on or off the board even where its own hits never changed (41→45, §4a).
+Reading the board under one rubric and the histogram under another would have reintroduced
+exactly the cross-run comparison this pairing exists to prevent.
 
-**The ranking conclusion is unchanged, and held — not strengthened, weakened or reversed —
-because the field has not moved here.** #129 sources delisted/renamed bars for a real
-`replay.duckdb`; that store is **absent in this environment**, so no fuller field exists to
-re-measure against and the paired re-run has been exercised only on the seam's synthetic
-fixtures, never on the 2019–2022 record. Reporting a re-run result now would mean quoting the
-§2-holed field a second time and calling it the fuller one. The §4 null therefore stands as
-written — *no evidence the ranking discriminates*, measured on a sixth of his record against a
-field missing 29% of its names — and the explicit strengthen/weaken/reverse verdict #136 asks
-for is deferred to the run against the built store, which the wiring above now makes a single
-command with the two variables already separated.
+**What the pairing was for, and what it delivered.** It was built to separate a rubric change
+from a field change when the fuller field (#129) landed. #129 is now **closed won't-do** — the
+delisted-bar history is paid-only and there is no budget — so the field variable is frozen
+permanently, which makes the pairing measure the rubric *alone* rather than disentangle two
+movers. The measured result and the explicit verdict — the ranking conclusion is **weakened,
+not reversed**, and the §4 null holds only under its v1 stamp — are in **§4a**, together with
+why an in-sample gap at p = 0.055 is not a validation.
 
 ---
 
@@ -720,10 +837,14 @@ expectation; the reference set contains no IDX trade.
 
 ## 9. What the study cannot say
 
-- It cannot claim the **ranking** is validated. A2 measured a flat null (§4) on 104 of his
-  658 replayable trades against a field missing 29% of its tickers. That is evidence
-  *against* discrimination, not proof of its absence — and in neither direction may it be
-  read as ranking validation.
+- It cannot claim the **ranking** is validated. A2 measured a flat null under the **v1**
+  rubric (§4) on 104 of his 658 replayable trades against a field missing 29% of its
+  tickers. The paired re-run under the live **v2** rubric on that same field (§4a) opens a
+  gap in the discriminating direction — 14.4% of his picks at ≥3.5★ against the field's
+  8.8% — which **weakens** that null without validating the ranking: the v2 weights were
+  fitted to this very taken-vs-not-taken separation (§5b), so the gap is in-sample, and it
+  is marginal (p = 0.055) even so. Neither the v1 null nor the v2 gap may be read as
+  ranking validation.
 - It cannot report a **precision** or **false-positive** rate. There is no control group.
 - It cannot say anything about **`Prior move`**. The dimension is 100% in every group the
   study can construct, so its spread is zero everywhere and no correlation exists to

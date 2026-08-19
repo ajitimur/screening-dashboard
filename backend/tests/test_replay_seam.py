@@ -2020,8 +2020,12 @@ def test_run_study_writes_human_and_machine_readable_outputs(tmp_path, store: St
     assert stamps == {1, RUBRIC_VERSION}
     for r in by_rubric:
         assert "picks" in r and "field" in r and "total" in r["picks"]
+        # The board figure is paired too — a rubric reorders the field around a
+        # pick, so top-thirty moves independently of the histogram (#136).
+        assert "top_thirty" in r
     live = next(r for r in by_rubric if r["rubric_version"] == RUBRIC_VERSION)
     assert live["picks"] == raw["placement"]["picks"]
+    assert live["top_thirty"] == raw["placement"]["top_thirty_count"]
 
 
 def test_run_study_reports_progress_with_a_running_count(store: Store):
@@ -2086,3 +2090,57 @@ def test_study_cli_writes_outputs_and_prints_summary(tmp_path, store: Store, cap
     assert rc == 0
     assert report_path.exists()
     assert json.loads(json_path.read_text())["funnel"]["rows"]
+
+
+def test_placement_pairs_the_top_thirty_hit_per_rubric_not_only_the_histogram():
+    """#136 asks for the top-thirty figure *and* the star distribution paired, and
+    a board place is a re-ranking, not a re-scoring: the same detection can sit
+    inside the board under one rubric and outside it under the other, because the
+    weights reorder the whole field around it.
+
+    So ``by_rubric`` carries ``top_thirty`` alongside the two histograms. Here the
+    field is thirty-one names on one session: thirty that hit Base length (×1 under
+    v1, ×0 under v2) and his pick, which does not. Under v1 the thirty outscore him
+    and he is pushed to rank 31 — off the board; under v2 the dimension is worth
+    nothing, the field collapses level with him, and the symbol-ordered tie-break
+    puts him first. One field, one set of hits, two board verdicts."""
+    from screener.score import RUBRIC_VERSION
+
+    session = date(2020, 6, 1)
+    # His pick misses Base length (base_len > 14); the thirty others hit it. Every
+    # other dimension is identical, so v1's ×1 on Base length is the only gap.
+    pick = _det("AAA", cluster_k=6)
+    pick = dataclasses.replace(pick, base_len=40)
+    others = [_det(f"Z{i:02d}", cluster_k=6) for i in range(BOARD_SIZE)]
+
+    def _scored(det: Detection, rank: int) -> ScoredDetection:
+        return ScoredDetection(
+            symbol=det.symbol,
+            detection=det,
+            score=seven_dimension_score(det, prior_move=True),
+            star_rank=rank,
+            not_taken=False,
+        )
+
+    # Star order under the live rubric (v2): Base length is worth nothing, so all
+    # thirty-one tie and the field falls back to the symbol tie-break — AAA first.
+    detections = [_scored(pick, 1)] + [
+        _scored(det, i) for i, det in enumerate(others, start=2)
+    ]
+    field = FieldSession(
+        session=session, burn_in=False,
+        members=[d.symbol for d in detections],
+        detections=detections, blind_spot_count=0,
+    )
+    calendar = [session, date(2020, 6, 2)]
+    trade = parse_trades([_funnel_record("AAA", date(2020, 6, 2))])[0]
+
+    report = build_placement_report([trade], calendar, [field], blind_spot_count=0)
+
+    live = next(r for r in report.by_rubric if r.rubric_version == RUBRIC_VERSION)
+    old = next(r for r in report.by_rubric if r.rubric_version == 1)
+    # The live entry is the report's headline top-thirty count by identity — the
+    # detections were ranked under the live rubric, so nothing is ranked twice.
+    assert live.top_thirty == report.top_thirty_count == 1
+    # Under the old rubric the same pick, in the same field, is off the board.
+    assert old.top_thirty == 0

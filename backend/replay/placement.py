@@ -108,11 +108,21 @@ class RubricStarDistributions:
     carry (#138): a distribution quoted without it cannot be compared against the
     committed 17.3% / 17.8%. ``picks`` and ``field`` are the two distributions under
     that version, scored from the *same* detections' hit booleans.
+
+    ``top_thirty`` is the board figure under that version. A board place is a
+    *re-ranking*, not a re-scoring: the weights reorder the whole field around a
+    detection, so the same pick can sit inside :data:`BOARD_SIZE` under one rubric
+    and outside it under the other even where its own hits never changed. It is
+    paired here for the same reason the histograms are — #136 asks for the
+    top-thirty figure too, and reading it under one rubric while reading the
+    histogram under another would reintroduce the cross-run comparison this
+    pairing exists to prevent.
     """
 
     rubric_version: int
     picks: StarDistribution
     field: StarDistribution
+    top_thirty: int = 0
 
 
 @dataclass(frozen=True)
@@ -182,6 +192,37 @@ def place_trade(
     )
 
 
+def _top_thirty_under(
+    picks_in_field: list[tuple[date, str, list[Dimension]]],
+    by_session: Mapping[date, FieldSession],
+    version: int,
+) -> int:
+    """How many in-field picks sat inside the board when the field is ranked under
+    ``version``'s weights (#136).
+
+    Re-ranking, not re-scoring: a pick's own hits do not change between rubrics,
+    but the weights reorder every *other* name around it, so its board place can
+    move even when its star total does not. Each session's detections are sorted
+    on :func:`replay.field.score_detections`' own key — stars descending, then a
+    drawable line, then symbol — so a re-ranked board is ordered exactly as the
+    live one is and the live version reproduces ``PlacementReport.top_thirty_count``
+    by construction.
+    """
+    weights = RUBRIC_WEIGHTS[version]
+    boards: dict[date, set[str]] = {}
+    for session in {s for s, _, _ in picks_in_field}:
+        ranked = sorted(
+            by_session[session].detections,
+            key=lambda d: (
+                -stars_under(d.score.breakdown, weights),
+                not d.detection.line_ok,
+                d.symbol,
+            ),
+        )
+        boards[session] = {d.symbol for d in ranked[:BOARD_SIZE]}
+    return sum(1 for session, symbol, _ in picks_in_field if symbol in boards[session])
+
+
 def build_placement_report(
     replayable: list[ExecutedTrade],
     calendar: list[date],
@@ -199,10 +240,11 @@ def build_placement_report(
 
     placements: list[TradePlacement] = []
     pick_sessions: set[date] = set()
-    # The seven-dimension breakdowns of his in-field picks, kept so the same hit
-    # booleans can be re-scored under every rubric version (#136) — the field is
+    # Each in-field pick as (its session, its symbol, its seven-dimension
+    # breakdown), kept so the same hit booleans can be re-scored *and* the same
+    # field re-ranked around them under every rubric version (#136) — the field is
     # held fixed, only the weights move.
-    pick_breakdowns: list[list[Dimension]] = []
+    picks_in_field: list[tuple[date, str, list[Dimension]]] = []
     for trade in replayable:
         eval_session = evaluation_session(calendar, trade.entry_date)
         session_field = by_session.get(eval_session) if eval_session else None
@@ -212,8 +254,11 @@ def build_placement_report(
             pick_sessions.add(session_field.session)
             match = field_match(session_field, trade.ticker)
             if match is not None:
-                pick_breakdowns.append(match.score.breakdown)
+                picks_in_field.append(
+                    (session_field.session, trade.ticker, match.score.breakdown)
+                )
 
+    pick_breakdowns = [b for _, _, b in picks_in_field]
     field_breakdowns = [
         det.score.breakdown
         for session in pick_sessions
@@ -235,6 +280,7 @@ def build_placement_report(
             field=StarDistribution.from_stars(
                 stars_under(b, RUBRIC_WEIGHTS[version]) for b in field_breakdowns
             ),
+            top_thirty=_top_thirty_under(picks_in_field, by_session, version),
         )
         for version in versions
     ]
@@ -311,6 +357,10 @@ def format_report(report: PlacementReport) -> str:
         lines.append("")
         lines.append(
             f"star distribution [{stamp}] (his picks vs the field, same sessions):"
+        )
+        lines.append(
+            f"  inside top {report.board_size}: {rubric.top_thirty}/{placed} "
+            "(field re-ranked under this rubric)"
         )
         all_stars = sorted(
             set(rubric.picks.counts) | set(rubric.field.counts), reverse=True

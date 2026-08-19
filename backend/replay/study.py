@@ -336,6 +336,7 @@ def study_to_dict(result: StudyResult) -> dict:
                     "rubric_version": r.rubric_version,
                     "picks": _star_dist(r.picks),
                     "field": _star_dist(r.field),
+                    "top_thirty": r.top_thirty,
                 }
                 for r in p.by_rubric
             ],

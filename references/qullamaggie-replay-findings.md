@@ -12,14 +12,20 @@ This document exists so that any constant later changed has a **citable provenan
 each carries the caveat that bounds it. The caveats are given the same weight as the
 results, because the results are not usable without them.
 
-> **Every magnitude below is measured.** The study was run end to end on 2026-08-15
+> **Every magnitude below is measured.** The study was last run end to end on **2026-08-19**
 > against a `replay.duckdb` built from the live store (5,892,590 US bars, 7,529 tickers,
 > 2019-04-01..2022-12-31) and the committed reference set
 > (`references/trades_bo_gain10smaPct_desc.json`). The chain replayed all 947 sessions —
 > 126 burn-in, 821 measured — in one forward pass, and all four analyses were computed
-> against that single chain. Run time 29.8 minutes. Nothing here is projected or
-> extrapolated; where a number is absent it is because the measurement is *impossible*
-> (§9), not pending.
+> against that single chain. Nothing here is projected or extrapolated; where a number is
+> absent it is because the measurement is *impossible* (§9), not pending.
+>
+> That run's own outputs are committed beside this file — `replay_study_report.txt` and
+> `replay_study_results.json` — so every figure below is checkable against the run that
+> produced it rather than quoted from one. It closed the three figures the previous write-up
+> still carried as pending: the paired A2 re-run (§4a, #136), the decile decomposition (§3,
+> #133) and the cluster miss split (§3a, #132) — the last of which **contradicted** what §3a
+> expected, and is recorded as such.
 >
 > **How to reproduce it.** See [§10](#10-reproducing-the-study). Build the store once, then
 > run `python -m replay.study` against it: one command builds the field once and computes
@@ -154,6 +160,29 @@ tagged `continuation`.
 > see than his first ones — consistent with the `cluster` condition below, which fires on
 > exactly that pattern.
 
+### The decile miss decomposed (#133) — a third of it is the gate's width, not his names
+
+The 40% is a headline, and on its own it invites the wrong fix. `decompose_decile_misses`
+splits all **263** decile misses into three exclusive buckets, so the loss is attributed
+before anything is widened on the strength of it:
+
+| Bucket | Count | Share | What it is |
+| --- | --- | --- | --- |
+| Coverage gap (absent from the field) | **64** | 24.3% | Not a ranking verdict at all — the ticker was not a universe member that session. §2's hole, showing up inside the funnel. |
+| Recovered by widening the gate 3→5 | **75** | 28.5% | Present, outside the **three**-union gate, but inside the **five**-union one. |
+| Outside even the five-union gate | **124** | 47.1% | A genuine cross-sectional miss: the name was not top-decile on any lookback. |
+
+**The middle bucket is the study's most concrete lead.** 75 of his real entries — 11.4% of all
+658 replayable trades — sat inside the five-lookback union and outside the three. That is a
+*width* decision, not a judgement about his names, and it is the one decile change A1 measures
+directly rather than inferring from an A3 null (§7).
+
+Read it against the other two buckets before acting: a quarter of the "miss" is §2's coverage
+hole wearing the decile gate's clothes and would not be recovered by any widening, and nearly
+half are outside every union the app could plausibly offer. So the honest size of the gate's own
+width problem is **75, not 263** — and the precision cost of admitting the wider union is still
+unmeasurable (§7), so this is a lead to size, not a change licensed here.
+
 Detection-failure breakdown (`condition_counts`) — which geometric condition to change:
 
 | Failed condition | Count | Share of the 278 detection misses |
@@ -232,14 +261,42 @@ motion). Both counts, plus the tightest-range and prior-distance distributions, 
 and the machine-readable `replay_study_results.json`, so the per-miss shape is recomputable
 without another rebuild.
 
-> **Note for the next run (this write-up's one un-refreshed figure).** The 171 count is from the
-> 2026-08-15 study run recorded in the header; the per-miss `continuation`/`marginal` split and the
-> two distributions were added by #132 and want a fresh `python -m replay.study` against the built
-> store to populate. The **decision does not depend on them**: it rests on the calibration rule
-> and the two already-measured signals above, both of which point the same way regardless of the
-> exact split. What the split *would* do is quantify how much of the 171 is continuation-driven —
-> the expected confirmation — and it cannot license a loosening even if it came back
-> continuation-light, because Tightness's §5b signal (not the split) is what the rule turns on.
+#### The split is now measured, and it did **not** confirm what this section expected
+
+An earlier draft of this note predicted the split would come back continuation-heavy — "the
+expected confirmation". It did not. Measured over the same 171 misses (`ClusterDecomposition`,
+committed in `replay_study_report.txt`):
+
+| Partition | Count | Share |
+| --- | --- | --- |
+| **Fresh entries** | **148** | **86.5%** |
+| Continuation entries (re-entries) | **23** | 13.5% |
+| **Marginal** (≤ 2.0× ADR — a modest widen recovers) | **113** | 66.1% |
+| Far (name genuinely in motion, no base) | 58 | 33.9% |
+
+Tightest-window range in ADR: median **1.85** (p25 1.68, p75 2.13, max 3.42) against the 1.5×
+threshold. Continuation misses sit a median of 4.0 sessions from the prior entry.
+
+**This is a real weakening of signal 1, and it is recorded rather than absorbed.** The
+re-entry story explains **23 of 171**, not the bulk. The remaining 148 are fresh entries the
+detector declined, and two thirds of the whole set are *marginal* — clustered just past the
+threshold at a median 1.85× against a 1.5× gate, which is the shape of a boundary set slightly
+tight, not of names wildly in motion.
+
+**The verdict still stands, but now on one leg rather than three.** Leave `TIGHT_MULT`, `K_MIN`
+and `K_MAX` unchanged — because the **calibration rule** (§7) forbids the loosening outright:
+Tightness has clear signal (§5b's +20.8pp, the second-strongest selector in the rubric), so the
+rule's precondition fails no matter how the misses are distributed. That was always the load-
+bearing argument, and this section said so in advance: the split "cannot license a loosening
+even if it came back continuation-light". It came back continuation-light. The rule holds.
+
+What has changed is the **strength of the case, not its direction**. Signal 1 (the
+ex-continuation inversion, §3) is still a true measurement — stripping re-entries does make the
+detector look better — but it can no longer be read as explaining most of the `cluster` loss.
+Anyone re-opening this should treat the 113 marginal misses as the open question, and note that
+answering it properly needs the thing the study does not have: a measurable false-positive rate
+(§7, §9). A widen that recovers 113 of his entries at an unmeasured cost in noise is exactly the
+trade this study cannot price.
 
 **What would re-open it (gather more evidence, not act now).** A dataset that makes precision
 measurable — a control group of setups he *passed over* — so a recall gain could be weighed against
@@ -477,15 +534,19 @@ construction**: every detection cleared the decile gate, so it never varies with
 
 Across the **104 detected** trades (of 658 replayable), n=103 carry an MFE:
 
-| Dimension | Weight | Hit rate | Spread | Correlation vs MFE | Untestable |
+Weights are the **live v2** rubric (#138). They are shown for orientation only — a hit rate,
+a spread and a point-biserial correlation are properties of the dimension, not of what the
+rubric pays for it, so nothing in the three right-hand columns moves when the weights do.
+
+| Dimension | Weight (v2) | Hit rate | Spread | Correlation vs MFE | Untestable |
 | --- | --- | --- | --- | --- | --- |
 | Tightness | ×2 | 44.7% | 0.497 | +0.076 | |
-| Orderliness | ×2 | 30.1% | 0.459 | −0.060 | |
+| Orderliness | ×1 | 30.1% | 0.459 | −0.060 | |
 | Prior move | ×1 | 100.0% | 0.000 | — | **yes** (no spread) |
-| Base length | ×1 | 48.5% | 0.500 | −0.083 | |
+| Base length | ×0 | 48.5% | 0.500 | −0.083 | |
 | MA support | ×1 | 76.7% | 0.423 | −0.158 | |
 | Volume | ×1 | 36.9% | 0.483 | −0.125 | |
-| ADR | ×1 | 81.6% | 0.388 | +0.092 | |
+| ADR | ×2 | 81.6% | 0.388 | +0.092 | |
 
 > **Nothing in the rubric predicts a run.** Every testable correlation is negligible —
 > the largest is MA support at **−0.158**, and even that points the *wrong* way. Four of
@@ -917,9 +978,12 @@ python -m replay.contrast    --store data/replay.duckdb
 Run separately, each rebuilds (or, on a built store, reuses) the whole chain; `replay.study`
 is the way to get all four for the price of one forward pass.
 
-**Runtime.** The chain is 947 sessions (126 burn-in + 821 measured) and dominates: the
-whole study ran in **29.8 minutes**, of which the chain was 29.1 and the per-session
-detection pass that builds the field added 0.6.
+**Runtime.** The chain is 947 sessions (126 burn-in + 821 measured) and dominates: on the
+2026-08-15 run the whole study took **29.8 minutes**, of which the chain was 29.1 and the
+per-session detection pass that builds the field added 0.6. Treat it as an order of
+magnitude, not a benchmark — it is one machine's cold run. A **second** run against a store
+whose sessions are already persisted is far cheaper: the chain reuses them rather than
+rebuilding (#126), which is what makes an added-column re-run affordable.
 
 That figure depends on caching bar reads. `rebuild_universe` reads every candidate's full
 bar history on every session — 7,529 symbols × 947 sessions ≈ **7.1M identical DuckDB
@@ -933,5 +997,6 @@ or more.
 
 _Provenance: PRD #114; A1 funnel #116/#119; A2 chain/field/placement #117/#118/#120; A3
 outcome regression #121; A3 selection contrast #122; this write-up #123. Analysis code:
-`backend/replay/`. Row-level seam: `backend/tests/test_replay_seam.py`. Study run
-2026-08-15._
+`backend/replay/`. Row-level seam: `backend/tests/test_replay_seam.py`. Decile decomposition
+#133; cluster characterisation #132; recalibration #138; paired A2 re-run #136. Study last run
+2026-08-19; the survivorship hole closed won't-do as #129._

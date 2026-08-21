@@ -758,6 +758,23 @@ The headline was not an artefact of a small sample — it holds across every rep
 entry. (The `min` of 0.000 is the single degenerate row where entry equals stop; it is one
 row and is pinned as such in the seam.)
 
+**Independently replicated since.** The entry-to-MA study
+([`qullamaggie-entry-ma-distance.md`](qullamaggie-entry-ma-distance.md)) measured stop width
+again from a different direction — a different matched subset (n=579, not 649), bars read
+straight from the US store rather than through the replay chain, and ADR recomputed over the
+20 sessions before entry rather than taken from the night's field. It lands on the same
+numbers: median **0.346** ADR (here: 0.345), p25 **0.241** (0.238), p75 **0.488** (0.490),
+share at or under 1.0 ADR **97.9%** (98.15%). Two independent paths to four matching figures
+is about as firm as this record gets.
+
+That study also settles a question this one leaves open — whether the tight stop is a
+*consequence* of entering near the moving average, as `qullamaggie-method.md` §5 claims ("the
+geometry rule and the stop rule are the same rule"). It is not: stop width and entry-to-SMA10
+distance are uncorrelated across his book (Spearman −0.002). He stops at the entry day's low,
+which is set by that day's range and not by how far price has travelled from the 10-day. The
+stop convention in this finding is therefore its own constant, independent of any MA-distance
+rule the app might later adopt.
+
 > This is the strongest preliminary finding, and it is worth stating what it can and cannot
 > do. The star score is stop-blind by construction, so the gap **cannot move ranking at
 > all**. It changes what the detector proposes and what a card claims about risk, and nothing
@@ -915,7 +932,15 @@ expectation; the reference set contains no IDX trade.
 - It cannot report a **precision** or **false-positive** rate. There is no control group.
 - It cannot say anything about **`Prior move`**. The dimension is 100% in every group the
   study can construct, so its spread is zero everywhere and no correlation exists to
-  measure.
+  measure. **A partial route around this has since been found:** the entry-to-MA study
+  ([`qullamaggie-entry-ma-distance.md`](qullamaggie-entry-ma-distance.md) §5) uses distance
+  above the SMA50, in ADR units, as a *continuous* proxy for prior move — and unlike the
+  binary dimension it has real spread (p5 −1.07 ×ADR to p95 +6.12 ×ADR). Over that spread it
+  correlates weakly **positively** with realised R (Spearman +0.048), the opposite sign to
+  distance above the SMA10 (−0.052). This does not validate the `Prior move` gate, which is
+  still unmeasurable here; it establishes that the underlying quantity is measurable once
+  expressed continuously, and that its sign is favourable. The caveat attached there —
+  a 2020–21 tape rewarded distance-from-50 nearly everywhere — applies with full force.
 - It cannot speak to **Episodic Pivot** or **Parabolic Short** setups, to **intraday**
   entries, or to any name in the **blind-spot** list. The reference set is entirely US
   end-of-day breakouts, and the blind-spot hole is measured and documented, not filled.

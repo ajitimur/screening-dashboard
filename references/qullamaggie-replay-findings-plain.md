@@ -128,6 +128,22 @@ So the study adopts a strict rule, and enforces it throughout:
 > doesn't matter *and* that there was enough variety in the data to have detected
 > it if it did.**
 
+The rule has **two limbs**, because the app has two different kinds of filter, and
+what counts as evidence differs between them:
+
+- **Scoring qualities** (is the base tidy? is the stock swinging enough?) — the
+  test above applies as written.
+- **Cross-sectional cuts** (is this among the strongest performers?) — these can't
+  be tested the same way, because everything that reaches the scoring stage has
+  already passed them, so there's no variety left to measure. Instead the loss must
+  be measured directly, shown *not* to be an artefact of missing data, fixed
+  **structurally** rather than by nudging a threshold, and quoted with its cost in
+  how much wider the net gets.
+
+An earlier version of this study exempted cross-sectional cuts from the rule
+entirely. **That exemption was wrong** and was replaced — the second limb exists so
+those cuts are governed rather than unguarded.
+
 That second half matters more than it sounds. Every trade in the sample already
 passed his judgement, so the qualities he applies *most* consistently barely vary
 — and anything that barely varies will correlate with nothing. **A flat result on
@@ -154,6 +170,14 @@ blended number can hide a disaster at one stage:
 **The "strongest performers" filter is the expensive one.** It discards **40% of
 his real trades on its own**, before the setup detector even looks — nearly five
 times what the liquidity check costs.
+
+> **This filter is a third tighter than every document said.** There are two
+> versions of "strongest performers" in the code, and they were being conflated.
+> One combines five time horizons and lets through 27.2% of all stocks; the other —
+> **the one the detector actually uses** — combines only three (1-month, 3-month,
+> 6-month) and lets through just **19.4%**. Every write-up quoted the looser figure
+> while measuring the tighter gate. Corrected throughout; the glossary now names
+> them separately.
 
 **One oddity worth noting:** the setup detector is the only stage that scores
 *better* once repeat entries are removed (59.0% vs 57.8%). His add-on buys are

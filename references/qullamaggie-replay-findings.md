@@ -7,6 +7,10 @@ app's funnel, field and rubric (PRD #114).
 `detection.py`, `score.py`, `universe.py` or `ranks.py` is touched by it, and none is
 touched by this write-up (PRD "Out of Scope"; #114 acceptance).
 
+**A plain-language version of this document** — same numbers, same conclusions, no assumed
+vocabulary — is at [`qullamaggie-replay-findings-plain.md`](qullamaggie-replay-findings-plain.md).
+This file remains the authority: its figures are the ones checked against the committed run output.
+
 This document exists so that any constant later changed has a **citable provenance**
 (user story 26): each figure below names the analysis and the module that produced it, and
 each carries the caveat that bounds it. The caveats are given the same weight as the
@@ -303,6 +307,130 @@ measurable — a control group of setups he *passed over* — so a recall gain c
 its false-positive cost; and an out-of-regime or IDX reference set, so the window is not tuned to a
 once-in-a-decade US momentum regime (§8). Absent those, the question is re-openable rather than
 settled by omission, and the machinery above is what a re-opening would read.
+
+---
+
+### 3b. What "tight" is in the trade record itself — the shape of the tightness signal (prototype, side-car)
+
+**Question.** §3a characterised the `cluster` **misses** and left the 113 marginal ones as its open
+question. It never asked the complementary question: across the trades he *did* take, what geometry
+did the tightness dimension actually have? `TIGHT_MULT = 1.5` and `TIGHT_K = 5` are borrowed
+q-scanner-v2 defaults; nothing in the study had yet placed them against his own distribution.
+
+**Method.** For each replayable trade, walk to the evaluation session (§1's convention — the last
+session strictly before entry) and record the raw trailing k-bar range in ADR for **every** k in
+3..7, gating nothing at measurement time. Same reference set, same ADR definition
+(`screener.indicators.adr_abs`), same n as §6: **649 of 828 (78.4%)**, the missing rows being 170
+tickers absent from the bar store, 7 short of 20 bars and 2 with no prior session. Because nothing
+is gated during measurement, any threshold can be re-derived afterwards without a rebuild.
+
+Produced by a **throwaway prototype**, not by `replay.study`: `backend/replay/prototype-tightness/`
+on branch `worktree-prototype-tightness` (see that directory's `FINDINGS.md`). It is a side-car to a
+side-car, and is **not** part of the reproducible study in §10 — the figures below are checkable by
+re-running `measure_tightness.py`, not by `python -m replay.study`. Treated as preliminary in the
+sense of §6, and flagged as such wherever cited.
+
+#### The distribution `TIGHT_MULT` is cutting into
+
+| Trailing window | p25 | median | p75 | p90 | max | share ≤ 1.5 ADR |
+| --- | --- | --- | --- | --- | --- | --- |
+| **k = 3** | 1.00 | **1.31** | 1.73 | 2.16 | 5.09 | **64.4%** |
+| k = 4 | 1.20 | 1.55 | 2.05 | 2.48 | 7.65 | 47.3% |
+| k = 5 | 1.36 | 1.86 | 2.31 | 2.84 | 13.12 | 33.1% |
+| k = 6 | 1.61 | 2.06 | 2.55 | 3.24 | 17.03 | 20.3% |
+| k = 7 | 1.77 | 2.25 | 2.81 | 3.55 | 17.50 | 13.9% |
+
+`TIGHT_MULT = 1.5` sits at roughly his **64th percentile** on the binding window: it admits 418 of
+his 649 replayable entries and declines 231. There is no gap, shoulder or inflection at 1.5 —
+the distribution runs straight through it.
+
+Note the last column against `TIGHT_K = 5`: only a third of his entries had a 5-bar window inside
+1.5 ADR, so the rubric's ×2 tightness dimension is a genuinely selective test rather than a
+formality — consistent with §5b's +20.8pp.
+
+#### `cluster_min_range_adr` is the 3-bar range, and only `K_MIN` can gate
+
+Range is monotone in `k`: a longer trailing window can only contain more high and more low, never
+less. So the minimum over `k ∈ 3..7` is **always** `k = 3` — confirmed on all 649 rows, identical to
+the last decimal. Two consequences for how §3a's machinery should be read:
+
+- `screener.detection.cluster_min_range_adr` reports **the 3-bar range** under a more general name.
+  §3a's "tightest-window range in ADR: median 1.85" over the misses is a 3-bar median.
+- **`K_MAX` cannot affect pass/fail.** `_find_cluster` scans downward from `K_MAX` and returns the
+  first window under the threshold, so widening or narrowing `K_MAX` changes only the *reported*
+  `cluster_k` — which is what the rubric's ×2 dimension then scores. `K_MIN` alone decides whether a
+  name clears the gate. The two constants sit together in `detection.py` as if they were a matched
+  pair; they are doing unrelated jobs.
+
+#### The signal is graded, and the decline is smooth through 1.5
+
+Grouping the taken trades by the 3-bar range they sat in, against the record's own 10-SMA exit:
+
+| 3-bar range (ADR) | Trades | Mean R | Median R | Win rate |
+| --- | --- | --- | --- | --- |
+| 0.0–1.0 | 164 | **+2.02** | −1.00 | 23.2% |
+| 1.0–1.5 | 254 | **+1.35** | −1.00 | 25.3% |
+| 1.5–2.0 | 139 | **+0.84** | −1.00 | 18.0% |
+| 2.0–3.0 | 82 | **+0.35** | −1.00 | 22.0% |
+| 3.0+ | 10 | **−0.36** | −1.00 | 20.0% |
+
+Monotone across the whole range and **smooth** — the decline through 1.5 looks like the decline
+through 1.0 or 2.0. Median R is −1.00 in every bucket: most of his trades stop out and the record
+lives in its tail, so mean R is the statistic here and the median is uninformative by construction.
+
+At the shipped 1.5 the gate splits mean R **1.61 kept vs 0.61 rejected**, keeping 64.4% of his
+trades and 82.6% of his summed R. Widened to ~3.0 it keeps 98.5% of trades and 100.4% of his R —
+over 100% because the rejected tail is net negative.
+
+**This corroborates §5b from the opposite direction.** §5b showed he *selects* for tightness
+(+20.8pp, second-strongest selector); §3b shows the dimension also *predicts outcome* among the
+trades he took, and does so continuously. Tightness is the best-evidenced dimension in the study.
+
+#### The stop is not the base — a 3.8× gap between two things called "tight"
+
+Measured on the same evaluation sessions:
+
+| | p25 | median | p75 | max |
+| --- | --- | --- | --- | --- |
+| The base (3-bar range, ADR) | 1.00 | **1.310** | 1.73 | 5.09 |
+| His stop width (ADR) | 0.238 | **0.345** | 0.490 | 2.753 |
+
+**Ratio of medians 3.80×**; median of the per-trade ratio 3.77×. The stop row **reproduces §6
+Finding 1 exactly** — every quantile, the 98.15% at-or-under-1.0-ADR share, and the same n — which
+is the provenance of `STOP_CONVENTION_ADR = 0.345` (#127). That is an independent reproduction by a
+different code path, not a new result, and is the main external check this prototype has passed.
+
+What is new is the pairing: base tightness and stop width are **different quantities by ~3.8×**, and
+both are called "tight" in the codebase and in the method notes. Worth separating in the domain
+model before either is tuned.
+
+> *Method note, recorded because the first pass got it wrong.* Both rows above are **ratios** — his
+> stop as a fraction of entry, ADR as a fraction of close — so a split cancels and all 649 rows
+> count. Measuring the stop as a *price difference* against a bar-derived ADR does **not** work: the
+> reference set's prices are raw while the stored bars are split-adjusted, so any ticker that split
+> after the trade puts the two on different scales, yielding a median of 0.36 and a max of 30.94
+> ADR. Anyone extending the study should use the ratio form. The range-in-ADR figures are computed
+> from bars alone and were never exposed to this.
+
+#### What this does and does not license
+
+**It does not license loosening `TIGHT_MULT`, and §3a's verdict stands unchanged.** The calibration
+rule (§7) permits a loosening only when A3 shows the dimension has **no signal and real spread**.
+§3b makes the precondition fail *harder*: tightness now has demonstrated selection signal (§5b)
+*and* demonstrated outcome signal (above). Nothing here is a licence to widen a gate.
+
+**What it adds is a price tag on the current shape.** §3a left the 113 marginal misses as the open
+question and noted that answering it needs a false-positive rate the study does not have. §3b does
+not supply that rate — it cannot, being conditioned entirely on trades he took. It supplies the
+other half of the ledger: the hard cut at 1.5 declines **231 of his own entries (35.6%)** carrying
+**17.4% of his summed R**, to express a signal that varies smoothly. That cost was previously
+unquantified.
+
+**The re-openable question this reframes.** The live proposal is no longer "is 1.5 the right cutoff"
+but "should tightness be a cutoff at all, or a graded rubric input with a much looser outlier
+guard". That is a larger change than §3a considered, it is still unpriceable without a control group
+of setups he passed over (§7, §9), and it is filed rather than acted on. No constant is touched by
+this section.
 
 ---
 

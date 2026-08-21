@@ -289,9 +289,18 @@ something that varies gradually.
 | his actual stop-loss distance | **0.345 ADR** |
 
 A **3.8× gap** between two things both called "tight". He risks that single day's
-move, not the whole base. This exactly reproduces a figure the main study already
-established (Test 4 below), by a different route — a good sign the measurement is
-sound.
+move, not the whole base.
+
+**And we now know exactly where his stop comes from.** A separate study (Test 5
+below) found that his stop width has **no relationship at all** to how far the
+stock is from its moving average — the correlation is essentially zero. Its
+conclusion: **he places his stop at the low of the day he buys.** So the stop is
+set by that one day's trading range. Not by the calm stretch before it, not by
+anything else. That's the mechanism behind the 3.8× gap.
+
+Three separate measurements of his stop now agree with each other (Test 4, Test 5,
+and this one — different subsets of trades, different calculation routes, same
+answer). This is about as solid as anything in the project gets.
 
 **What this does and doesn't justify.** It does **not** justify loosening the
 cutoff — if anything it makes the case against loosening stronger, since quietness
@@ -300,6 +309,27 @@ we now know what the hard cutoff costs. The live question is no longer "is 1.5 t
 right number" but "should this be a pass/fail gate at all, rather than a graded
 score with a much looser safety net" — and that still can't be settled without the
 false-positive rate we don't have.
+
+### A useful contrast with the "extended" study
+
+Test 5 below sets a hard cutoff for a *different* quality, and its reasoning is
+worth borrowing. It explicitly refuses to draw the line at "wherever most of his
+trades fall", on the grounds that **where his habits sit and where trades stop
+working are two different questions, and the outcome data should win.**
+
+Applying that same test to quietness gives the *opposite* answer, and that's the
+point:
+
+| | What the results look like | So the honest way to encode it |
+|---|---|---|
+| Distance from the moving average (Test 5) | A **cliff** — profit collapses past a specific point | A hard cutoff |
+| Quietness (Test 1b) | A **smooth slope** — no special point anywhere | A graded score |
+
+These two qualities genuinely differ in kind, so they shouldn't be built the same
+way. And note that the current 1.5 cutoff satisfies *neither* test: it isn't a
+percentile anyone deliberately chose (it was inherited, and merely happens to land
+at his 64th), and it isn't placed at a feature in the results, because there is no
+feature there to place it at.
 
 ---
 
@@ -464,6 +494,13 @@ convention was simply wrong.
 score never looks at the stop, so **this cannot change the ranking at all.** It
 changes what the app proposes and what a card claims about risk. Nothing else.
 
+**Independently confirmed twice since.** A later study (Test 5) measured his stop
+again on a different subset of trades, reading prices from a different source and
+calculating the daily swing a different way. It got **0.346** where this got
+0.345, and matched on every other quartile too. The tightness experiment (Test 1b)
+makes a third. Two independent routes to four matching figures is about as firm as
+this record gets.
+
 ### The daily-swing requirement silently withholds a point from a third of his trades. **Confirmed.**
 
 The minimum daily swing is set at 5%. His actual swing at entry is 4.7% at the
@@ -474,6 +511,82 @@ Since daily swing is the quality he selects on *most* sharply, a floor that
 withholds credit from the bottom third of his own trades is blunting the single
 dimension the record says matters most to him. Note this costs a *score point*
 only — the swing requirement never rejected a trade outright.
+
+---
+
+## Test 5 — How far above the moving average does he actually buy?
+
+*Full detail in [`qullamaggie-entry-ma-distance.md`](qullamaggie-entry-ma-distance.md).
+Matched on 579 trades.*
+
+The method notes claim his entries "hug the rising 10/20/50-day average", and that
+this is really the same rule as his stop-size limit. Neither half had a number
+attached. Both turn out to be checkable.
+
+**He does enter close — to the 10-day.** The typical entry sits **4.1% above the
+10-day average** (about 0.7× a normal day's swing). 70% of entries are within one
+day's swing of it; 92% within two.
+
+**But "10/20/50-day" is not one thing.** The typical entry is **2.11× ADR above the
+50-day** — he is not hugging that one in any meaningful sense. Only 21.5% are
+within one day's swing of it. Lumping the three together, as the method notes do,
+hides a real distinction.
+
+### Why buying "extended" hurts — not for the reason anyone assumed
+
+The assumed reason for staying near the average is that buying far away forces a
+wider stop, or gets you shaken out. **The data says that's wrong.** Trades bought
+far from the average get stopped out at about the *same* rate — the win rate holds
+steady out to 2× ADR, and the stop size he sets barely changes.
+
+**What collapses is the upside.** The share of big winners (3R or better) roughly
+halves between 1× and 2× ADR while the win rate stays flat. The trades still
+*work* about as often — they just stop *paying*.
+
+The interpretation: buying well above the 10-day means buying late into a move
+that's already largely spent. You get a normal win rate on truncated gains. And a
+strategy that only wins 23% of the time **cannot survive on truncated gains** — it
+needs the huge winners to carry everything.
+
+> **This distinction decides what a fix would even look like.** If the problem were
+> getting shaken out, a wider stop or smaller position would rescue an extended
+> entry. Since the problem is a spent move, **nothing about position management
+> rescues it.** The only correct action is to not take the trade.
+
+### The proposed definition of "extended"
+
+> **More than 1.5× ADR above the 10-day average.** Past that, the strategy's
+> expected return is zero. **Past 2.5× ADR, don't trade it at all** — that bucket
+> contains 24 trades and *zero* winners.
+
+At a typical 5.9% daily swing, 1.5× ADR is roughly **9% above the 10-day**, and the
+hard line about 15%. Encouragingly, that lands close to a rule of thumb he'd stated
+himself on stream from completely different reasoning ("already ~14% past the
+trigger — it's gone").
+
+**Two lines rather than one**, deliberately, because the data has two features: a
+zone where the edge thins (worth a warning) and a zone where it's absent (worth a
+refusal). One number would throw that distinction away.
+
+### One result that complicates it
+
+Entries *below* the 10-day do **badly** — worse than entries just above it
+(−0.20R average, 14.6% win rate). So being *near* the average isn't the goal;
+being near it **on the correct side** is. Below the 10-day means the breakout has
+already failed, or hasn't happened yet — a different setup wearing a breakout's
+clothes. Any "extended" rule must therefore be **one-sided**: it should disqualify
+far-above and stay silent about below, which is a separate problem.
+
+### And it settles a claim in the method notes
+
+The notes say the moving-average rule and the stop-size rule "are the same rule".
+**In this record they aren't even correlated** (essentially zero). Because he stops
+at the low of the day he buys, his stop is set by that day's range — not by how far
+price has run from the average.
+
+So these are two genuinely separate filters that fail for different reasons: one
+rejects trades you can't size, the other rejects trades whose move is already
+spent. **Both are needed.**
 
 ---
 
@@ -513,8 +626,17 @@ trade record contains no IDX trade.
   weights is real. The improvement under new weights is in-sample and marginal.
   Neither may be read as validation.
 - **It cannot give a false-positive rate.** No control group.
-- **It cannot say anything about the prior run-up quality.** It's 100% in every
-  group that can be constructed, so there is nothing to measure.
+- **It cannot say anything about the prior run-up quality** — it's 100% in every
+  group that can be constructed, so there's nothing to measure. **A partial way
+  around this has since been found:** Test 5 uses *distance above the 50-day
+  average* as a continuous stand-in for "how far has this already run". Unlike the
+  yes/no version, that has real variety in it, and across that range it correlates
+  weakly **positively** with results — the opposite sign to distance above the
+  10-day. This doesn't validate the existing check, which stays unmeasurable. It
+  shows the underlying quantity becomes measurable once expressed as a *degree*
+  rather than a *yes/no* — the same move proposed for quietness in Test 1b. The
+  caveat attached there applies at full force: a 2020–21 market rewarded
+  distance-from-the-50-day almost everywhere.
 - **It cannot speak to other setup types** (Episodic Pivot, Parabolic Short), to
   intraday entries, or to any stock in the missing-data list.
 
@@ -531,5 +653,9 @@ against it, writing both a readable report and a machine-readable results file �
 both committed next to this document, so every figure above is checkable against
 the run that produced it rather than quoted from memory.
 
-The Test 1b figures are the exception: they come from the throwaway experiment
-and are rebuilt with `backend/replay/prototype-tightness/measure_tightness.py`.
+Two sets of figures sit outside that command:
+
+- **Test 1b** comes from a throwaway experiment — rebuild with
+  `backend/replay/prototype-tightness/measure_tightness.py`.
+- **Test 5** is its own study — rebuild with `scripts/entry_ma_distance.py`, which
+  writes `references/qullamaggie-entry-ma-distance.csv` alongside its write-up.

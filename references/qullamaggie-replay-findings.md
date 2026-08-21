@@ -412,6 +412,47 @@ model before either is tuned.
 > ADR. Anyone extending the study should use the ratio form. The range-in-ADR figures are computed
 > from bars alone and were never exposed to this.
 
+#### Read against the entry-to-MA study (#143) — one mechanism confirmed, one method borrowed
+
+Two points of contact with [`qullamaggie-entry-ma-distance.md`](qullamaggie-entry-ma-distance.md),
+which landed independently and measured a different quantity on an overlapping subset (n=579).
+
+**1. It supplies the mechanism for the 3.8× gap above.** That study finds stop width and
+entry-to-SMA10 distance are **uncorrelated across his book (Spearman −0.002)**, and concludes he
+stops at the low of the **entry day** — so the stop is set by that day's range, not by the base
+geometry and not by how far price has travelled from the MA. That is exactly the shape §3b
+measures from the other side: a stop at 0.345 ADR against a base of 1.310 ADR is not a base-derived
+stop, and now it is clear what it *is* derived from. Three independent measurements of the stop now
+agree (§6's 0.345, that study's 0.346 on a different subset and a different ADR basis, and §3b's
+reproduction), and the mechanism is no longer a guess.
+
+**2. Its method for setting a line is the right one, and applying it here gives the opposite
+answer.** That study explicitly refuses to set "extended" at a percentile of his habits —
+*"a percentile describes his habits; it does not describe where trades stop working. The two
+disagree, and the outcome data should win"* — and sets the line at 1.5 × ADR above the SMA10
+because the outcome data has a **feature** there: the ≥3R share halves between 1× and 2× while the
+win rate holds, and expectancy reaches zero past 1.5×. A cliff exists, so a threshold is the honest
+encoding of it.
+
+Applying the same test to tightness gives the opposite result. §3b's outcome table has **no such
+feature** — mean R declines monotonically and smoothly, and the decline through 1.5 is
+indistinguishable from the decline through 1.0 or 2.0. So the two dimensions genuinely differ in
+kind, and should not be encoded the same way:
+
+| | Outcome shape | Honest encoding |
+| --- | --- | --- |
+| Entry-to-MA distance (#143) | A cliff — expectancy → 0 past 1.5 ×ADR, ≥3R share halves | A threshold (plus a hard no-trade line past 2.5 ×) |
+| Tightness (§3b) | A smooth monotone decline, no feature anywhere | A graded score |
+
+Note also that `TIGHT_MULT = 1.5` is currently justified by neither test: it is not a percentile
+anyone chose (it is a borrowed q-scanner-v2 default that happens to land at his 64th) and it is not
+sited on a feature in the outcome data, because there is no feature to site it on.
+
+That study's **two-line design** — a soft zone that warns and a hard zone that refuses — is the
+pattern worth borrowing if tightness is ever restructured: a graded rubric input across the range
+where the signal varies, plus a far outlier guard, rather than one line doing both jobs. Filed as
+#145.
+
 #### What this does and does not license
 
 **It does not license loosening `TIGHT_MULT`, and §3a's verdict stands unchanged.** The calibration

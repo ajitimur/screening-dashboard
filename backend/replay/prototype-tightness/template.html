@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — What does "tight" mean in Qullamägi's trades?</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f4f3ef;
+    --surface-1: #fcfcfb;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --good: #0ca30c;
+    --critical: #d03b3b;
+    --warning: #fab219;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-0: #111110;
+      --surface-1: #1a1a19;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255,255,255,0.10);
+      --series-1: #3987e5;
+      --series-2: #d95926;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--surface-0); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 80px; }
+  .proto { display: inline-block; font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--critical); border: 1px solid var(--critical); border-radius: 4px; padding: 2px 7px; font-weight: 700; }
+  h1 { font-size: 26px; margin: 12px 0 6px; letter-spacing: -0.01em; }
+  h2 { font-size: 17px; margin: 0 0 10px; }
+  .sub { color: var(--text-secondary); margin: 0 0 22px; max-width: 70ch; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .tab { font: inherit; font-size: 13px; cursor: pointer; padding: 7px 12px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary); }
+  .tab[aria-selected="true"] { background: var(--series-1); border-color: var(--series-1); color: #fff; font-weight: 600; }
+  .ctrls { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; align-items: end; }
+  .ctrl label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; }
+  .ctrl output { font-weight: 700; color: var(--text-primary); }
+  input[type=range] { width: 100%; accent-color: var(--series-1); }
+  .state { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1px;
+    background: var(--border); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 16px; }
+  .cell { background: var(--surface-1); padding: 11px 13px; }
+  .cell .k { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+  .cell .v { font-size: 21px; font-weight: 700; margin-top: 3px; }
+  .cell .n { font-size: 12px; color: var(--text-secondary); }
+  .pos { color: var(--good); } .neg { color: var(--critical); }
+  figure { margin: 0 0 6px; }
+  figcaption { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); margin: 2px 0 8px; }
+  .swatch { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .grid-line { stroke: var(--grid); stroke-width: 1; }
+  .axis-line { stroke: var(--axis); stroke-width: 1; }
+  .tick { fill: var(--text-muted); font-size: 11px; }
+  .alab { fill: var(--text-secondary); font-size: 12px; }
+  .note { font-size: 13px; color: var(--text-secondary); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 780px) { .grid2 { grid-template-columns: 1fr; } }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: right; padding: 6px 9px; border-bottom: 1px solid var(--border); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  .tip { position: fixed; pointer-events: none; background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 7px; padding: 7px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.16); opacity: 0; transition: opacity .1s; z-index: 10; }
+  .panel[hidden] { display: none; }
+  code { background: var(--surface-0); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .verdict { border-left: 3px solid var(--series-1); padding-left: 14px; }
+  .caveat { border-left: 3px solid var(--warning); padding-left: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="proto">Prototype — throwaway</span>
+  <h1>What does “tight” mean in Qullamägi's own trades?</h1>
+  <p class="sub">
+    The detector gates on a trailing 3–7 bar window spanning <code>≤ TIGHT_MULT × ADR</code>, with
+    <code>TIGHT_MULT = 1.5</code>, and the rubric scores tightness as <code>cluster_k ≥ 5</code>. Both are
+    borrowed defaults. This measures the geometry his <em>actual</em> entries had, at the evaluation
+    session (the last session strictly before entry), so the number can be read off his record.
+  </p>
+
+  <div class="tabs" role="tablist" id="tabs"></div>
+
+  <!-- FREE PLAY -->
+  <section class="panel" id="p-play">
+    <div class="card">
+      <h2>Move the gate, watch his record</h2>
+      <div class="ctrls">
+        <div class="ctrl">
+          <label>TIGHT_MULT — window must span ≤ <output id="o-mult"></output> × ADR</label>
+          <input type="range" id="i-mult" min="0.5" max="4" step="0.05" value="1.5">
+        </div>
+        <div class="ctrl">
+          <label>K_MIN — shortest window <output id="o-kmin"></output></label>
+          <input type="range" id="i-kmin" min="2" max="7" step="1" value="3">
+        </div>
+        <div class="ctrl">
+          <label>K_MAX — longest window <output id="o-kmax"></output></label>
+          <input type="range" id="i-kmax" min="3" max="7" step="1" value="7">
+        </div>
+      </div>
+      <div class="state" id="state"></div>
+      <p class="note" id="state-note" style="margin-top:12px"></p>
+    </div>
+
+    <div class="card">
+      <h2>Where his entries actually sat</h2>
+      <figure>
+        <div class="legend"><span><span class="swatch" style="background:var(--series-1)"></span>his entries</span>
+          <span><span class="swatch" style="background:var(--critical)"></span>the gate</span></div>
+        <div id="hist"></div>
+        <figcaption id="hist-cap"></figcaption>
+      </figure>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>How much of him survives the gate</h2>
+        <div class="legend"><span><span class="swatch" style="background:var(--series-1)"></span>trades kept</span>
+          <span><span class="swatch" style="background:var(--series-2)"></span>his total R kept</span></div>
+        <div id="sweep-cov"></div>
+        <figcaption>Sweeping TIGHT_MULT. Both series are % of his measured record.</figcaption>
+      </div>
+      <div class="card">
+        <h2>Are the kept ones the better ones</h2>
+        <div class="legend"><span><span class="swatch" style="background:var(--series-1)"></span>kept, mean R</span>
+          <span><span class="swatch" style="background:var(--series-2)"></span>rejected, mean R</span></div>
+        <div id="sweep-r"></div>
+        <figcaption>Mean R per trade on each side of the gate, at the 10-SMA exit.</figcaption>
+      </div>
+    </div>
+  </section>
+
+  <!-- GUIDED PANELS -->
+  <section class="panel" id="p-1">
+    <div class="card">
+      <h2>1 · 1.5 × ADR is not a wall — it is his 64th percentile</h2>
+      <p class="note">The tightest trailing window his entries offered has median <strong>1.31 ADR</strong>
+      (p25 1.00, p75 1.73, p90 2.16). The shipped gate at 1.5 sits partway up his own distribution:
+      it keeps <strong id="f1-keep"></strong> of his measured trades and turns away the rest.
+      There is no gap in the histogram at 1.5 — nothing about his record marks that spot.</p>
+      <figure><div id="hist-1"></div>
+      <figcaption>Tightest trailing 3–7 bar range at the evaluation session, in ADR. Dashed rule = 1.5.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="panel" id="p-2">
+    <div class="card">
+      <h2>2 · The “tightest window” diagnostic is just the 3-bar range</h2>
+      <p class="note">Range is monotone in <code>k</code> — a longer window can only contain more high and
+      more low — so the minimum over <code>k ∈ 3..7</code> is <em>always</em> <code>k = 3</code>. Measured on
+      his record the two distributions are identical to the last decimal, in
+      <strong id="f2-n"></strong> of <strong id="f2-tot"></strong> trades. <code>cluster_min_range_adr</code>
+      in <code>detection.py</code> therefore reports the 3-bar range under a more general name.</p>
+      <table id="t-k"></table>
+      <p class="note" style="margin-top:12px">Consequence: <code>K_MIN</code> alone decides whether a name is
+      “tight enough” to enter the funnel; <code>K_MAX</code> only decides the <em>reported</em>
+      <code>cluster_k</code>, which is what the rubric's ×2 tightness dimension then scores.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-3">
+    <div class="card">
+      <h2>3 · Tightness pays — and it pays continuously</h2>
+      <p class="note">Median R is <code>−1.00</code> in every bucket: most of his trades stop out, and the
+      record lives in its tail. So mean R, not median, is the statistic. It falls monotonically as the
+      3-bar range loosens — with no step at 1.5.</p>
+      <figure><div id="bucket"></div>
+      <figcaption>Mean R at the 10-SMA exit, by the 3-bar range his entry sat in. Bars below zero in red.</figcaption></figure>
+      <table id="t-bucket" style="margin-top:14px"></table>
+    </div>
+  </section>
+
+  <section class="panel" id="p-4">
+    <div class="card">
+      <h2>4 · His stop is nowhere near the consolidation low</h2>
+      <p class="note">If “tight” meant “stop under the cluster,” his risk would be about as wide as the
+      cluster: ~1.3 ADR. It is not. His stop is a median <strong id="f4-stop"></strong> ADR wide —
+      roughly a third of the tightest window — and it sits a median <strong id="f4-above"></strong> ADR
+      <em>above</em> the 3-bar low. He is risking the entry bar, not the base.</p>
+      <figure><div class="legend">
+        <span><span class="swatch" style="background:var(--series-1)"></span>tightest window (3-bar range)</span>
+        <span><span class="swatch" style="background:var(--series-2)"></span>his stop width</span></div>
+        <div id="hist-stop"></div>
+        <figcaption>Both in ADR at the evaluation session. Scale-mismatched rows excluded — see the caveat.</figcaption></figure>
+      <p class="note caveat" style="margin-top:14px"><strong>Caveat.</strong> The trade record's prices are raw
+      while the stored bars are split-adjusted, so any ticker that split after the trade compares two
+      different scales. Rows whose entry price sits within 0.7–1.45× the prior close are treated as
+      comparable (<strong id="f4-n"></strong> of <strong id="f4-tot"></strong>); the rest are excluded from
+      stop figures only. The range-in-ADR numbers are computed from bars alone and are unaffected.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-5">
+    <div class="card">
+      <h2>5 · What the record says “tight” is</h2>
+      <div class="verdict">
+        <p class="note"><strong>Tight = the last 3 bars spanning about 1.3 ADR or less.</strong> That is his
+        median. Not a threshold he respects — a centre of mass he drifts around. Half his entries are
+        looser than 1.3, a quarter looser than 1.73.</p>
+        <p class="note"><strong>Tight is a score, not a gate.</strong> Mean R declines smoothly across the
+        whole range (2.02 → 1.35 → 0.84 → 0.35 → −0.36) with no discontinuity anywhere near 1.5. A hard
+        cut at 1.5 throws away <span id="f5-lost"></span> of his trades to buy a mean-R improvement the
+        rubric could have got by scoring the same quantity continuously.</p>
+        <p class="note"><strong>“Tight” describes the base; his stop is a separate, much tighter number</strong>
+        (median 0.38 ADR ≈ 2.3% of price). Conflating the two would triple his risk per trade.</p>
+      </div>
+      <p class="note" style="margin-top:16px"><strong>What this does not settle.</strong> Every number here is
+      conditioned on trades he <em>took</em> — there is no counterfactual for the tight bases he passed over,
+      which is what A3's selection contrast covers. Coverage is <span id="f5-cov"></span> of the 828-trade
+      record; the missing tickers are absent from the bar store (mostly delisted). And the R figures use the
+      record's own 10-SMA exit, not the app's.</p>
+    </div>
+  </section>
+
+  <p class="note" id="prov" style="margin-top:24px"></p>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+const DATA = __DATA__;
+const T = DATA.trades;
+const $ = s => document.querySelector(s);
+const fmt = (x, d = 2) => (x === null || x === undefined || Number.isNaN(x)) ? "—" : x.toFixed(d);
+const pct = x => fmt(x * 100, 1) + "%";
+
+// ---- stats helpers ---------------------------------------------------------
+const mean = xs => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN;
+const sum = xs => xs.reduce((a, b) => a + b, 0);
+function quant(xs, p) {
+  const s = [...xs].sort((a, b) => a - b);
+  if (!s.length) return NaN;
+  const i = (s.length - 1) * p, lo = Math.floor(i), hi = Math.min(lo + 1, s.length - 1);
+  return s[lo] + (s[hi] - s[lo]) * (i - lo);
+}
+const median = xs => quant(xs, 0.5);
+
+// r is [r3,r4,r5,r6,r7]; index k-3
+const rangeAt = (t, k) => t.r[k - 3];
+// K_MIN can go to 2 on the slider but we only measured 3..7 — clamp for honesty.
+const kClamp = k => Math.min(7, Math.max(3, k));
+
+function evaluate(mult, kmin, kmax) {
+  kmin = kClamp(kmin); kmax = kClamp(kmax);
+  if (kmax < kmin) kmax = kmin;
+  const kept = [], rej = [];
+  for (const t of T) {
+    let bestK = null;
+    for (let k = kmax; k >= kmin; k--) if (rangeAt(t, k) <= mult) { bestK = k; break; }
+    if (bestK !== null) { kept.push({ t, k: bestK }); } else rej.push(t);
+  }
+  const rOf = xs => xs.map(x => (x.t || x).rr).filter(v => v !== null);
+  const keptR = rOf(kept), rejR = rOf(rej), allR = rOf(T.map(t => ({ t })));
+  return {
+    kmin, kmax, kept, rej,
+    keepRate: kept.length / T.length,
+    meanRKept: mean(keptR), meanRRej: mean(rejR),
+    rShare: sum(allR) !== 0 ? sum(keptR) / sum(allR) : NaN,
+    winKept: keptR.length ? keptR.filter(v => v > 0).length / keptR.length : NaN,
+    winRej: rejR.length ? rejR.filter(v => v > 0).length / rejR.length : NaN,
+    k5: kept.length ? kept.filter(x => x.k >= 5).length / kept.length : NaN,
+  };
+}
+
+// ---- tiny svg toolkit ------------------------------------------------------
+const NS = "http://www.w3.org/2000/svg";
+function el(n, attrs = {}, parent) {
+  const e = document.createElementNS(NS, n);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function frame(host, w, h, m) {
+  host.innerHTML = "";
+  const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, role: "img" }, host);
+  return { svg, w, h, m, iw: w - m.l - m.r, ih: h - m.t - m.b };
+}
+const tip = $("#tip");
+function hoverable(node, html) {
+  node.style.cursor = "default";
+  node.addEventListener("pointerenter", e => { tip.innerHTML = html; tip.style.opacity = 1; });
+  node.addEventListener("pointermove", e => {
+    tip.style.left = Math.min(innerWidth - 210, e.clientX + 14) + "px";
+    tip.style.top = (e.clientY - 12) + "px";
+  });
+  node.addEventListener("pointerleave", () => tip.style.opacity = 0);
+}
+function yAxis(g, scale, ticks, label, fmtT = (v => v)) {
+  for (const v of ticks) {
+    const y = scale(v);
+    el("line", { class: "grid-line", x1: g.m.l, x2: g.m.l + g.iw, y1: y, y2: y }, g.svg);
+    el("text", { class: "tick", x: g.m.l - 8, y: y + 4, "text-anchor": "end" }, g.svg).textContent = fmtT(v);
+  }
+  if (label) {
+    const t = el("text", { class: "alab", x: 12, y: g.m.t + g.ih / 2, "text-anchor": "middle",
+      transform: `rotate(-90 12 ${g.m.t + g.ih / 2})` }, g.svg);
+    t.textContent = label;
+  }
+}
+function xLabel(g, text) {
+  el("text", { class: "alab", x: g.m.l + g.iw / 2, y: g.h - 6, "text-anchor": "middle" }, g.svg).textContent = text;
+}
+
+// ---- histogram -------------------------------------------------------------
+function histogram(hostSel, series, opts) {
+  const host = $(hostSel);
+  const { binW = 0.2, max = 4.0, rule = null, ruleLabel = "" } = opts || {};
+  const nBins = Math.ceil(max / binW);
+  const counts = series.map(s => {
+    const c = new Array(nBins).fill(0);
+    for (const v of s.values) { const i = Math.min(nBins - 1, Math.floor(v / binW)); if (i >= 0) c[i]++; }
+    return c;
+  });
+  const total = series.map(s => s.values.length);
+  const peak = Math.max(...counts.flatMap((c, i) => c.map(v => v / (total[i] || 1))));
+  const g = frame(host, 720, 260, { l: 46, r: 14, t: 12, b: 42 });
+  const x = v => g.m.l + (v / max) * g.iw;
+  const y = v => g.m.t + g.ih - (v / peak) * g.ih;
+  const yt = []; for (let v = 0; v <= peak + 1e-9; v += peak / 4) yt.push(v);
+  yAxis(g, y, yt, "share of trades", v => (v * 100).toFixed(0) + "%");
+
+  const bw = (g.iw / nBins);
+  counts.forEach((c, si) => {
+    c.forEach((n, i) => {
+      if (!n) return;
+      const frac = n / total[si];
+      const h = g.m.t + g.ih - y(frac);
+      const pad = series.length > 1 ? 1 : 1;   // 2px surface gap between adjacent bars
+      const w = series.length > 1 ? (bw - 2 * pad) / series.length : bw - 2 * pad;
+      const bx = g.m.l + i * bw + pad + si * w;
+      const r = el("rect", { x: bx, y: y(frac), width: Math.max(0.6, w), height: Math.max(0, h),
+        rx: Math.min(4, w / 2), fill: series[si].color,
+        "fill-opacity": series.length > 1 ? 0.85 : 1 }, g.svg);
+      hoverable(r, `<strong>${series[si].name}</strong><br>${(i * binW).toFixed(2)}–${((i + 1) * binW).toFixed(2)} ADR<br>${n} trades · ${(frac * 100).toFixed(1)}%`);
+    });
+  });
+  el("line", { class: "axis-line", x1: g.m.l, x2: g.m.l + g.iw, y1: g.m.t + g.ih, y2: g.m.t + g.ih }, g.svg);
+  for (let v = 0; v <= max + 1e-9; v += 0.5) {
+    el("text", { class: "tick", x: x(v), y: g.m.t + g.ih + 16, "text-anchor": "middle" }, g.svg).textContent = v.toFixed(1);
+  }
+  xLabel(g, opts.xLabel || "range in ADR");
+  if (rule !== null && rule <= max) {
+    el("line", { x1: x(rule), x2: x(rule), y1: g.m.t, y2: g.m.t + g.ih,
+      stroke: "var(--critical)", "stroke-width": 2, "stroke-dasharray": "5 4" }, g.svg);
+    const tx = el("text", { class: "tick", x: x(rule) + 6, y: g.m.t + 12, fill: "var(--critical)",
+      "font-weight": 700 }, g.svg);
+    tx.textContent = ruleLabel;
+  }
+  // median markers, direct-labelled
+  series.forEach((s, si) => {
+    const md = median(s.values);
+    if (md > max) return;
+    el("line", { x1: x(md), x2: x(md), y1: g.m.t, y2: g.m.t + g.ih, stroke: s.color,
+      "stroke-width": 2, "stroke-dasharray": "2 3", "stroke-opacity": .8 }, g.svg);
+    // Direct label rides above the bars, with a surface halo so it never sits
+    // unreadably on top of a fill.
+    const right = x(md) < g.m.l + g.iw * 0.75;
+    const t = el("text", {
+      class: "tick", x: x(md) + (right ? 6 : -6), y: g.m.t + 28 + si * 16,
+      "text-anchor": right ? "start" : "end", fill: s.color, "font-weight": 700,
+      stroke: "var(--surface-1)", "stroke-width": 3, "paint-order": "stroke",
+    }, g.svg);
+    t.textContent = `median ${md.toFixed(2)}`;
+  });
+}
+
+// ---- line sweep ------------------------------------------------------------
+function sweep(hostSel, seriesDefs, opts) {
+  const host = $(hostSel);
+  const xs = []; for (let m = 0.5; m <= 4.001; m += 0.1) xs.push(+m.toFixed(2));
+  const rows = xs.map(m => ({ m, e: evaluate(m, state.kmin, state.kmax) }));
+  // At tiny TIGHT_MULT the kept set is a handful of trades and mean R explodes on
+  // one or two monster winners. Drop points whose side is too thin to mean
+  // anything rather than letting them set the axis.
+  const thin = opts.minN || 0;
+  const series = seriesDefs.map(d => ({
+    ...d,
+    pts: rows.map(r => ({
+      x: r.m,
+      y: (r.e.kept.length < thin || r.e.rej.length < thin) ? NaN : d.get(r.e),
+      n: r.e.kept.length,
+    })),
+  }));
+  const allY = series.flatMap(s => s.pts.map(p => p.y)).filter(v => Number.isFinite(v));
+  let lo = Math.min(...allY, opts.zero ? 0 : Infinity), hi = Math.max(...allY);
+  const padY = (hi - lo) * 0.12 || 1; lo -= padY; hi += padY;
+  // Nice round ticks beat five evenly-spaced decimals.
+  const raw = (hi - lo) / 4;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(s => s * mag).find(s => s >= raw) || raw;
+  lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+  const g = frame(host, 480, 260, { l: 48, r: 16, t: 12, b: 42 });
+  const x = v => g.m.l + ((v - 0.5) / 3.5) * g.iw;
+  const y = v => g.m.t + g.ih - ((v - lo) / (hi - lo)) * g.ih;
+  const yt = []; for (let v = lo; v <= hi + 1e-9; v += step) yt.push(+v.toFixed(6));
+  yAxis(g, y, yt, opts.yLabel, opts.fmtY);
+  if (lo < 0 && hi > 0) el("line", { class: "axis-line", x1: g.m.l, x2: g.m.l + g.iw, y1: y(0), y2: y(0),
+    "stroke-width": 1.5 }, g.svg);
+  for (let v = 1; v <= 4; v++)
+    el("text", { class: "tick", x: x(v), y: g.m.t + g.ih + 16, "text-anchor": "middle" }, g.svg).textContent = v.toFixed(1);
+  xLabel(g, "TIGHT_MULT");
+  const placed = [];
+  for (const s of series) {
+    const pts = s.pts.filter(p => Number.isFinite(p.y));
+    if (!pts.length) continue;
+    const d = pts.map((p, i) => `${i ? "L" : "M"}${x(p.x).toFixed(1)},${y(p.y).toFixed(1)}`).join(" ");
+    el("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round" }, g.svg);
+    const last = pts[pts.length - 1];
+    // Nudge a direct label off any already-placed one rather than stacking them.
+    let ly = y(last.y) - 9;
+    while (placed.some(p => Math.abs(p - ly) < 15)) ly -= 15;
+    placed.push(ly);
+    const t = el("text", { class: "tick", x: x(last.x) - 4, y: ly, "text-anchor": "end",
+      fill: s.color, "font-weight": 700, stroke: "var(--surface-1)", "stroke-width": 3,
+      "paint-order": "stroke" }, g.svg);
+    t.textContent = s.name;
+  }
+  // current-setting marker + crosshair hit areas
+  el("line", { x1: x(state.mult), x2: x(state.mult), y1: g.m.t, y2: g.m.t + g.ih,
+    stroke: "var(--critical)", "stroke-width": 2, "stroke-dasharray": "5 4" }, g.svg);
+  for (const s of series) {
+    const p = s.pts.find(p => Math.abs(p.x - state.mult) < 0.05);
+    if (p && Number.isFinite(p.y)) {
+      el("circle", { cx: x(p.x), cy: y(p.y), r: 5, fill: s.color, stroke: "var(--surface-1)", "stroke-width": 2 }, g.svg);
+    }
+  }
+  rows.forEach(r => {
+    const hit = el("rect", { x: x(r.m) - g.iw / xs.length / 2, y: g.m.t, width: g.iw / xs.length, height: g.ih,
+      fill: "transparent" }, g.svg);
+    hoverable(hit, `<strong>TIGHT_MULT ${r.m.toFixed(2)}</strong><br>` +
+      series.map(s => `${s.name}: ${opts.fmtY(s.get(r.e))}`).join("<br>"));
+  });
+}
+
+// ---- bucket bars -----------------------------------------------------------
+function buckets() {
+  const defs = [[0, 1.0], [1.0, 1.5], [1.5, 2.0], [2.0, 3.0], [3.0, 99]];
+  return defs.map(([lo, hi]) => {
+    const sel = T.filter(t => t.r[0] >= lo && t.r[0] < hi);
+    const r = sel.map(t => t.rr).filter(v => v !== null);
+    const gn = sel.map(t => t.g).filter(v => v !== null);
+    return { lo, hi, n: sel.length, meanR: mean(r), medR: median(r),
+      win: r.length ? r.filter(v => v > 0).length / r.length : NaN, meanG: mean(gn),
+      label: hi === 99 ? "3.0+" : `${lo.toFixed(1)}–${hi.toFixed(1)}` };
+  }).filter(b => b.n > 0);
+}
+function bucketChart() {
+  const bs = buckets();
+  const g = frame($("#bucket"), 720, 276, { l: 48, r: 16, t: 14, b: 64 });
+  const hi = Math.max(...bs.map(b => b.meanR), 0.5), lo = Math.min(...bs.map(b => b.meanR), 0);
+  const pad = (hi - lo) * 0.15;
+  const y = v => g.m.t + g.ih - ((v - (lo - pad)) / ((hi + pad) - (lo - pad))) * g.ih;
+  const yt = []; for (let i = 0; i <= 4; i++) yt.push((lo - pad) + ((hi + pad) - (lo - pad)) * i / 4);
+  yAxis(g, y, yt, "mean R per trade", v => v.toFixed(1));
+  const bw = g.iw / bs.length;
+  bs.forEach((b, i) => {
+    const zero = y(0), top = y(b.meanR);
+    const up = b.meanR >= 0;
+    const x0 = g.m.l + i * bw + 12;
+    const w = bw - 24;
+    const r = el("rect", { x: x0, y: Math.min(zero, top), width: w, height: Math.max(1, Math.abs(zero - top)),
+      rx: 4, fill: up ? "var(--series-1)" : "var(--critical)" }, g.svg);
+    hoverable(r, `<strong>${b.label} ADR</strong><br>n = ${b.n}<br>mean R ${b.meanR.toFixed(2)} · median R ${b.medR.toFixed(2)}<br>win ${(b.win * 100).toFixed(1)}%`);
+    const t = el("text", { class: "tick", x: x0 + w / 2, y: up ? top - 7 : top + 15, "text-anchor": "middle",
+      "font-weight": 700, fill: "var(--text-primary)" }, g.svg);
+    t.textContent = b.meanR.toFixed(2);
+    el("text", { class: "tick", x: x0 + w / 2, y: g.m.t + g.ih + 17, "text-anchor": "middle" }, g.svg).textContent = b.label;
+    el("text", { class: "tick", x: x0 + w / 2, y: g.m.t + g.ih + 31, "text-anchor": "middle",
+      "fill-opacity": .75 }, g.svg).textContent = `n=${b.n}`;
+  });
+  el("line", { class: "axis-line", x1: g.m.l, x2: g.m.l + g.iw, y1: y(0), y2: y(0), "stroke-width": 1.5 }, g.svg);
+  xLabel(g, "3-bar range at the evaluation session (ADR)");
+
+  $("#t-bucket").innerHTML =
+    "<tr><th>3-bar range (ADR)</th><th>trades</th><th>mean R</th><th>median R</th><th>win rate</th><th>mean gain</th></tr>" +
+    bs.map(b => `<tr><td>${b.label}</td><td>${b.n}</td><td>${b.meanR.toFixed(2)}</td><td>${b.medR.toFixed(2)}</td><td>${(b.win * 100).toFixed(1)}%</td><td>${b.meanG.toFixed(1)}%</td></tr>`).join("");
+}
+
+// ---- state / render --------------------------------------------------------
+const state = { mult: 1.5, kmin: 3, kmax: 7, tab: "play" };
+
+function renderState() {
+  const e = evaluate(state.mult, state.kmin, state.kmax);
+  const sign = v => v >= 0 ? "pos" : "neg";
+  $("#state").innerHTML = [
+    ["trades kept", pct(e.keepRate), `${e.kept.length} of ${T.length}`, ""],
+    ["his total R kept", pct(e.rShare), "sum of R on the kept side", ""],
+    ["mean R · kept", fmt(e.meanRKept), `win ${pct(e.winKept)}`, sign(e.meanRKept)],
+    ["mean R · rejected", fmt(e.meanRRej), `win ${pct(e.winRej)}`, sign(e.meanRRej)],
+    ["edge from the gate", (e.meanRKept - e.meanRRej >= 0 ? "+" : "") + fmt(e.meanRKept - e.meanRRej),
+      "kept − rejected", sign(e.meanRKept - e.meanRRej)],
+    ["cluster_k ≥ 5", pct(e.k5), "of the kept, rubric's ×2 dimension", ""],
+  ].map(([k, v, n, c]) => `<div class="cell"><div class="k">${k}</div><div class="v ${c}">${v}</div><div class="n">${n}</div></div>`).join("");
+
+  $("#state-note").innerHTML =
+    `Gate: a trailing window of ${e.kmin}–${e.kmax} bars spanning ≤ <strong>${state.mult.toFixed(2)} × ADR</strong>. ` +
+    `Shipped setting is 1.50 over 3–7. Because range grows with k, only <strong>K_MIN = ${e.kmin}</strong> decides ` +
+    `pass/fail — K_MAX only sets the reported cluster_k.`;
+
+  histogram("#hist", [{ name: "tightest window", values: T.map(t => Math.min(t.r[state.kmin - 3], t.r[kClamp(state.kmax) - 3])), color: "var(--series-1)" }],
+    { rule: state.mult, ruleLabel: `gate ${state.mult.toFixed(2)}`, xLabel: `tightest ${e.kmin}–${e.kmax} bar range (ADR)` });
+  $("#hist-cap").textContent =
+    `Tightest trailing window per trade, in ADR, across ${T.length} measured entries. Dashed red = the gate; dashed blue = his median.`;
+
+  sweep("#sweep-cov", [
+    { name: "trades kept", color: "var(--series-1)", get: e => e.keepRate * 100 },
+    { name: "R kept", color: "var(--series-2)", get: e => e.rShare * 100 },
+  ], { yLabel: "% of his record", fmtY: v => fmt(v, 1) + "%", zero: true });
+
+  sweep("#sweep-r", [
+    { name: "kept", color: "var(--series-1)", get: e => e.meanRKept },
+    { name: "rejected", color: "var(--series-2)", get: e => e.meanRRej },
+  ], { yLabel: "mean R per trade", fmtY: v => fmt(v, 1), zero: true, minN: 30 });
+}
+
+function renderStatic() {
+  // panel 1
+  const e15 = evaluate(1.5, 3, 7);
+  $("#f1-keep").textContent = `${pct(e15.keepRate)} (${e15.kept.length}/${T.length})`;
+  histogram("#hist-1", [{ name: "tightest window", values: T.map(t => t.r[0]), color: "var(--series-1)" }],
+    { rule: 1.5, ruleLabel: "TIGHT_MULT 1.5", xLabel: "tightest 3–7 bar range (ADR)" });
+
+  // panel 2 — identity of min-over-k and k=3
+  const same = T.filter(t => Math.abs(Math.min(...t.r) - t.r[0]) < 1e-9).length;
+  $("#f2-n").textContent = same; $("#f2-tot").textContent = T.length;
+  const rows = [3, 4, 5, 6, 7].map(k => {
+    const v = T.map(t => t.r[k - 3]);
+    return `<tr><td>k = ${k}</td><td>${quant(v, .25).toFixed(2)}</td><td>${median(v).toFixed(2)}</td>` +
+      `<td>${quant(v, .75).toFixed(2)}</td><td>${quant(v, .9).toFixed(2)}</td>` +
+      `<td>${pct(v.filter(x => x <= 1.5).length / v.length)}</td></tr>`;
+  }).join("");
+  const mv = T.map(t => Math.min(...t.r));
+  $("#t-k").innerHTML = "<tr><th>window</th><th>p25</th><th>median</th><th>p75</th><th>p90</th><th>≤ 1.5 ADR</th></tr>" + rows +
+    `<tr><td><strong>min over k</strong></td><td>${quant(mv, .25).toFixed(2)}</td><td>${median(mv).toFixed(2)}</td>` +
+    `<td>${quant(mv, .75).toFixed(2)}</td><td>${quant(mv, .9).toFixed(2)}</td>` +
+    `<td>${pct(mv.filter(x => x <= 1.5).length / mv.length)}</td></tr>`;
+
+  // panel 3
+  bucketChart();
+
+  // panel 4 — stops, scale-comparable rows only
+  const ok = T.filter(t => t.ok);
+  const stops = ok.map(t => t.stop).filter(v => v !== null);
+  const above = ok.map(t => t.sl3).filter(v => v !== null);
+  $("#f4-stop").textContent = median(stops).toFixed(2);
+  $("#f4-above").textContent = median(above).toFixed(2);
+  $("#f4-n").textContent = ok.length; $("#f4-tot").textContent = T.length;
+  histogram("#hist-stop", [
+    { name: "tightest window (3-bar)", values: ok.map(t => t.r[0]), color: "var(--series-1)" },
+    { name: "his stop width", values: stops, color: "var(--series-2)" },
+  ], { max: 3.0, binW: 0.15, xLabel: "width in ADR" });
+
+  // panel 5
+  $("#f5-lost").textContent = `${T.length - e15.kept.length} (${pct(1 - e15.keepRate)})`;
+  $("#f5-cov").textContent = `${T.length}/${DATA.n_trades_total} (${pct(T.length / DATA.n_trades_total)})`;
+
+  $("#prov").innerHTML =
+    `<strong>Provenance.</strong> ${T.length} of ${DATA.n_trades_total} trades in ` +
+    `<code>references/trades_bo_gain10smaPct_desc.json</code>, measured against <code>data/replay.duckdb</code> ` +
+    `bars (${DATA.bar_window[0]} → ${DATA.bar_window[1]}). Skipped: ` +
+    Object.entries(DATA.skipped).map(([k, v]) => `${k} ${v}`).join(", ") + `. ` +
+    `ADR = SMA20(high/low − 1) × close, evaluation session = last session strictly before entry — both as in ` +
+    `<code>screener/indicators.py</code> and <code>replay/funnel.py</code>. Regenerate with ` +
+    `<code>measure_tightness.py</code>.`;
+}
+
+// ---- tabs ------------------------------------------------------------------
+const TABS = [
+  ["play", "Free play"],
+  ["1", "1 · Where 1.5 sits"],
+  ["2", "2 · min over k is k=3"],
+  ["3", "3 · Tightness pays"],
+  ["4", "4 · His stop ≠ the low"],
+  ["5", "5 · Verdict"],
+];
+function renderTabs() {
+  $("#tabs").innerHTML = TABS.map(([id, label]) =>
+    `<button class="tab" role="tab" data-tab="${id}" aria-selected="${state.tab === id}">${label}</button>`).join("");
+  for (const [id] of TABS) $("#p-" + id).hidden = state.tab !== id;
+  $("#tabs").querySelectorAll(".tab").forEach(b =>
+    b.onclick = () => { state.tab = b.dataset.tab; renderTabs(); if (state.tab === "play") renderState(); });
+}
+
+for (const [id, key, parse] of [["#i-mult", "mult", parseFloat], ["#i-kmin", "kmin", parseInt], ["#i-kmax", "kmax", parseInt]]) {
+  $(id).addEventListener("input", ev => {
+    state[key] = parse(ev.target.value);
+    $("#o-" + key).textContent = key === "mult" ? state.mult.toFixed(2) : state[key];
+    renderState();
+  });
+  $("#o-" + key).textContent = key === "mult" ? state.mult.toFixed(2) : state[key];
+}
+
+renderTabs();
+renderStatic();
+renderState();
+</script>
+</body>
+</html>

@@ -71,6 +71,23 @@ nothing — so those trades are dropped instead.
 70% coverage is enough for the distributional claim in §3. It is thinner than ideal for the
 tail buckets in the outcome analysis, and the caveats section says so plainly.
 
+### The pipeline checks out against an independent study
+
+The replay study ([`qullamaggie-replay-findings.md`](qullamaggie-replay-findings.md) §6)
+measured his stop width over the same trade record, but by a different route: a different
+matched subset (n=649), bars read through the replay chain, and ADR taken from the night's
+field rather than recomputed here. Running the same statistic over this study's 579 rows
+reproduces it to three decimals:
+
+| | replay study | this pipeline |
+|---|---|---|
+| median stop width | 0.345 ADR | **0.346 ADR** |
+| p25 / p75 | 0.238 / 0.490 | **0.241 / 0.488** |
+| share ≤ 1.0 ADR | 98.15% | **97.93%** |
+
+Two independent paths agreeing to that tolerance is the best available evidence that the
+split-frame recovery and the ADR computation above are not quietly wrong.
+
 ## 3. Result: he enters close, and the tail is short
 
 Distance above the MA at entry, prior-close basis, n = 579:

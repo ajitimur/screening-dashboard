@@ -121,8 +121,15 @@ def main():
             "price_scale_ok": 0.7 <= scale <= 1.45,
             "adr_pct": round(a / bars[eval_i][4] * 100.0, 3),
             "range_adr": {str(k): round(v, 4) for k, v in ranges.items()},
-            # His own risk, in the detector's units: how many ADR wide is his stop?
-            "stop_adr": round((entry_px - stop_px) / a, 4) if stop_px else None,
+            # His own risk in ADR units. Both terms are ratios (stop as a fraction
+            # of entry, ADR as a fraction of close), so a split cancels and this
+            # needs no scale filter. Reproduces the committed §6 Finding 1
+            # distribution exactly (median 0.345, p25 0.238, p75 0.490, max 2.753).
+            "stop_adr": round(t["stopPercentage"] / (a / eval_close), 4)
+                        if t.get("stopPercentage") else None,
+            # The naive price-difference form, kept only to show why it is wrong:
+            # it compares the record's raw prices against split-adjusted bars.
+            "stop_adr_naive": round((entry_px - stop_px) / a, 4) if stop_px else None,
             "stop_pct": t.get("stopPercentage"),
             # Where he entered relative to the 3-bar and 7-bar cluster highs.
             "entry_vs_high3_adr": round((entry_px - highs[3]) / a, 4),

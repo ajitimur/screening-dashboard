@@ -120,26 +120,37 @@ otherwise.
 You'd reasonably assume he puts his stop-loss just below the quiet zone. **He
 doesn't.**
 
-| | typical |
+| measured on the same days | typical |
 |---|---|
-| width of the quiet zone | 1.31 ADR |
-| **his actual stop-loss distance** | **0.38 ADR** (about 2.3% below his buy price) |
-| how far his stop sits *above* the zone's floor | 0.99 ADR |
+| width of the quiet zone | **1.31 ADR** |
+| **his actual stop-loss distance** | **0.345 ADR** |
 
-His stop is roughly **a third** of the quiet zone's width, sitting comfortably
-*inside* it rather than beneath it. He's risking that single day's move, not the
-whole base.
+His stop is only about **a quarter** of the quiet zone's width — the two differ
+by **3.8×**. He's risking that single day's move, not the whole calm stretch he
+bought out of.
 
 So two very different things share the word "tight": how calm the stock has been,
-and how little he's willing to lose. They differ by about 3.5×. Confusing them
-would roughly **triple the risk on every trade** — worth keeping as separate,
-separately-named ideas.
+and how little he's willing to lose. Treating them as the same measurement would
+put the stop nearly four times further away, and so risk nearly four times as
+much on every trade. Worth keeping as two clearly separate, separately-named
+ideas.
 
-*One data caveat:* the trade records store original prices, while the price
-history has been adjusted for stock splits. For any company that split after the
-trade, those two are on different scales. So 173 trades were excluded **from the
-stop-loss figures only**. All the quietness measurements come purely from price
-history and aren't affected by this at all.
+**This part isn't new — it's a double-check that passed.** The project already
+measured his stop-loss habit (in `qullamaggie-replay-findings.md`, section 6) and
+already built it into the app. This study re-derived it from scratch, by a
+different route, and landed on exactly the same numbers — right down to the
+0.345. That's a good sign the whole measurement pipeline here is sound. What's
+genuinely new is the *comparison*: his stop set side by side with the width of
+the calm stretch, measured on the very same days.
+
+> **A note on how this was measured, because the first attempt was wrong.** The
+> trade records store original prices, while the price history has been adjusted
+> for stock splits — so for any company that split after the trade, the two are
+> on different scales, and comparing them directly gives nonsense (one trade came
+> out at 30 ADR). The fix is to compare *percentages* rather than prices: his
+> stop as a percentage below his buy price, against the stock's daily swing as a
+> percentage. Splits affect both equally, so they cancel out — and all 649 trades
+> can be used, with nothing thrown away.
 
 ---
 

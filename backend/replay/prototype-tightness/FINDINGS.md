@@ -86,27 +86,35 @@ splitting mean R 1.61 (kept) vs 0.61 (rejected). Loosen it to ~3.0 and it keeps
 98.5% of trades and 100.4% of his R — the rejected tail is net negative, which is
 why the share can exceed 100%.
 
-### 4. His stop is not the consolidation low
+### 4. His stop is not the consolidation low — the base is 3.8× his risk
 
 If "tight" meant "stop under the cluster," his risk would be about as wide as the
 cluster (~1.3 ADR). It is not:
 
-| | p25 | median | p75 | p90 |
+| measured on the same nights | p25 | median | p75 | max |
 |---|---|---|---|---|
-| his stop width (ADR) | 0.26 | **0.38** | 0.52 | 0.72 |
-| his stop width (% of price) | 1.46% | **2.28%** | 3.42% | 5.50% |
-| stop distance *above* the 3-bar low (ADR) | 0.67 | **0.99** | 1.40 | 1.99 |
+| the base (3-bar range, ADR) | 1.00 | **1.310** | 1.73 | 5.09 |
+| his stop width (ADR) | 0.238 | **0.345** | 0.490 | 2.753 |
 
-His stop is about **a third of the tightest window**, and sits a median 0.99 ADR
-*above* the 3-bar low. He risks the entry bar, not the base. Two different
-quantities wear the word "tight"; conflating them would roughly triple risk per
-trade.
+**Ratio of medians: 3.80×** (median of the per-trade ratio: 3.77×). He risks the
+entry bar, not the base. Two different quantities wear the word "tight", and
+conflating them would nearly quadruple risk per trade.
 
-*Caveat:* the trade record's prices are raw while the stored bars are
-split-adjusted, so a ticker that split after the trade compares two scales. Rows
-whose entry price sits within 0.7–1.45× the prior close are treated as comparable
-(476 of 649); the rest are excluded from **stop figures only**. Every
-range-in-ADR number is computed from bars alone and is unaffected.
+**This reproduces §6 Finding 1 of `qullamaggie-replay-findings.md` exactly** —
+median 0.345, p25 0.238, p75 0.490, max 2.753, 98.15% at or under 1.0 ADR, same
+n=649 — which is the provenance of `STOP_CONVENTION_ADR = 0.345` (issue #127).
+The stop convention itself is therefore not a new finding; it is an independent
+reproduction. What is new is the **comparison**: his stop set against the base
+width measured on the same evaluation sessions.
+
+*On method, because the first pass got this wrong.* Both figures are **ratios** —
+his stop as a fraction of entry, ADR as a fraction of close — so a split cancels
+and all 649 trades count with no exclusions. Measuring the stop as a *price
+difference* against a bar-derived ADR does not work: the record's prices are raw
+while the bars are split-adjusted, and any ticker that split after the trade puts
+the two on different scales. That naive form yields a median of 0.36 and a max of
+30.94 ADR. It is retained in the JSON as `stop_adr_naive` only to demonstrate the
+error; on the 476 rows whose scales do agree it lands in the same place.
 
 ## Verdict
 
@@ -134,7 +142,7 @@ and strengthens (+20.8pp in A3's contrast). What is new is that the signal is
 2. Rename `cluster_min_range_adr` to what it is (`range_3bar_adr`), and document
    that `K_MAX` cannot affect pass/fail.
 3. Keep base tightness and stop width as separate named concepts in the domain
-   model — they differ by ~3.5×.
+   model — they differ by ~3.8×.
 
 ## What this does not settle
 

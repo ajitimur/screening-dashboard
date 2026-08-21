@@ -25,7 +25,8 @@
     "6": 0.6112,
     "7": 0.6821
    },
-   "stop_adr": 0.2559,
+   "stop_adr": 0.0619,
+   "stop_adr_naive": 0.2559,
    "stop_pct": 0.03376344086021506,
    "entry_vs_high3_adr": 5.6025,
    "entry_vs_high7_adr": 5.3283,
@@ -48,7 +49,8 @@
     "6": 3.5724,
     "7": 3.6079
    },
-   "stop_adr": 0.0005,
+   "stop_adr": 1.2164,
+   "stop_adr_naive": 0.0005,
    "stop_pct": 0.1086350974930361,
    "entry_vs_high3_adr": -12.2768,
    "entry_vs_high7_adr": -12.2768,
@@ -71,7 +73,8 @@
     "6": 1.4683,
     "7": 1.4683
    },
-   "stop_adr": 0.2989,
+   "stop_adr": 0.2862,
+   "stop_adr_naive": 0.2989,
    "stop_pct": 0.03571428571428577,
    "entry_vs_high3_adr": 0.0158,
    "entry_vs_high7_adr": -0.5082,
@@ -94,7 +97,8 @@
     "6": 1.144,
     "7": 1.5679
    },
-   "stop_adr": 0.236,
+   "stop_adr": 0.2251,
+   "stop_adr_naive": 0.236,
    "stop_pct": 0.03986486486486485,
    "entry_vs_high3_adr": 0.056,
    "entry_vs_high7_adr": -0.368,
@@ -117,7 +121,8 @@
     "6": 1.9162,
     "7": 1.9162
    },
-   "stop_adr": 0.0075,
+   "stop_adr": 0.2645,
+   "stop_adr_naive": 0.0075,
    "stop_pct": 0.05970149253731349,
    "entry_vs_high3_adr": -4.8338,
    "entry_vs_high7_adr": -4.8338,
@@ -140,7 +145,8 @@
     "6": 1.9976,
     "7": 3.371
    },
-   "stop_adr": 0.0083,
+   "stop_adr": 0.2393,
+   "stop_adr_naive": 0.0083,
    "stop_pct": 0.0277777777777778,
    "entry_vs_high3_adr": -8.4399,
    "entry_vs_high7_adr": -9.4387,
@@ -163,7 +169,8 @@
     "6": 1.6644,
     "7": 1.6644
    },
-   "stop_adr": 0.3645,
+   "stop_adr": 0.3453,
+   "stop_adr_naive": 0.3645,
    "stop_pct": 0.05454545454545452,
    "entry_vs_high3_adr": 0.1458,
    "entry_vs_high7_adr": -0.5832,
@@ -186,7 +193,8 @@
     "6": 1.7247,
     "7": 1.9449
    },
-   "stop_adr": 0.2569,
+   "stop_adr": 0.2486,
+   "stop_adr_naive": 0.2569,
    "stop_pct": 0.02834008097166003,
    "entry_vs_high3_adr": 0.0734,
    "entry_vs_high7_adr": -0.4404,
@@ -209,7 +217,8 @@
     "6": 1.9019,
     "7": 2.2032
    },
-   "stop_adr": 0.4885,
+   "stop_adr": 0.4635,
+   "stop_adr_naive": 0.4885,
    "stop_pct": 0.05845771144278594,
    "entry_vs_high3_adr": -0.0904,
    "entry_vs_high7_adr": -0.9353,
@@ -232,7 +241,8 @@
     "6": 1.6898,
     "7": 2.3733
    },
-   "stop_adr": 0.03,
+   "stop_adr": 0.287,
+   "stop_adr_naive": 0.03,
    "stop_pct": 0.0158478605388272,
    "entry_vs_high3_adr": -17.0832,
    "entry_vs_high7_adr": -17.3761,
@@ -255,7 +265,8 @@
     "6": 2.1831,
     "7": 2.1831
    },
-   "stop_adr": 0.0852,
+   "stop_adr": 0.7815,
+   "stop_adr_naive": 0.0852,
    "stop_pct": 0.06111111111111119,
    "entry_vs_high3_adr": -12.185,
    "entry_vs_high7_adr": -13.0211,
@@ -278,7 +289,8 @@
     "6": 1.7837,
     "7": 2.5873
    },
-   "stop_adr": 0.4128,
+   "stop_adr": 0.3737,
+   "stop_adr_naive": 0.4128,
    "stop_pct": 0.06717948717948712,
    "entry_vs_high3_adr": -0.0284,
    "entry_vs_high7_adr": -1.3961,
@@ -301,7 +313,8 @@
     "6": 1.5281,
     "7": 1.5281
    },
-   "stop_adr": 0.4967,
+   "stop_adr": 0.4781,
+   "stop_adr_naive": 0.4967,
    "stop_pct": 0.0228302544440572,
    "entry_vs_high3_adr": 0.2389,
    "entry_vs_high7_adr": 0.2199,
@@ -324,7 +337,8 @@
     "6": 4.4208,
     "7": 4.4208
    },
-   "stop_adr": 0.0011,
+   "stop_adr": 0.9695,
+   "stop_adr_naive": 0.0011,
    "stop_pct": 0.08771929824561399,
    "entry_vs_high3_adr": -12.537,
    "entry_vs_high7_adr": -12.537,
@@ -347,7 +361,8 @@
     "6": 1.9818,
     "7": 2.4511
    },
-   "stop_adr": 2.7689,
+   "stop_adr": 0.2639,
+   "stop_adr_naive": 2.7689,
    "stop_pct": 0.02329480278831719,
    "entry_vs_high3_adr": 106.2955,
    "entry_vs_high7_adr": 105.8262,
@@ -370,7 +385,8 @@
     "6": 2.6731,
     "7": 2.6731
    },
-   "stop_adr": 0.8445,
+   "stop_adr": 0.7277,
+   "stop_adr_naive": 0.8445,
    "stop_pct": 0.03226086956521743,
    "entry_vs_high3_adr": 2.9414,
    "entry_vs_high7_adr": 2.9414,
@@ -393,7 +409,8 @@
     "6": 1.8402,
     "7": 2.3337
    },
-   "stop_adr": 0.5567,
+   "stop_adr": 0.5034,
+   "stop_adr_naive": 0.5567,
    "stop_pct": 0.05676747645017367,
    "entry_vs_high3_adr": 0.0851,
    "entry_vs_high7_adr": -0.5494,
@@ -416,7 +433,8 @@
     "6": 6.7792,
     "7": 6.9576
    },
-   "stop_adr": 0.0238,
+   "stop_adr": 0.6553,
+   "stop_adr_naive": 0.0238,
    "stop_pct": 0.08163265306122446,
    "entry_vs_high3_adr": -8.9854,
    "entry_vs_high7_adr": -10.9478,
@@ -439,7 +457,8 @@
     "6": 2.8975,
     "7": 3.0657
    },
-   "stop_adr": 0.7469,
+   "stop_adr": 0.68,
+   "stop_adr_naive": 0.7469,
    "stop_pct": 0.07434782608695656,
    "entry_vs_high3_adr": -0.8491,
    "entry_vs_high7_adr": -0.8491,
@@ -462,7 +481,8 @@
     "6": 2.252,
     "7": 2.252
    },
-   "stop_adr": 0.0469,
+   "stop_adr": 0.4338,
+   "stop_adr_naive": 0.0469,
    "stop_pct": 0.05950653120464443,
    "entry_vs_high3_adr": -7.1237,
    "entry_vs_high7_adr": -7.4176,
@@ -485,7 +505,8 @@
     "6": 1.7333,
     "7": 1.8252
    },
-   "stop_adr": 8.0654,
+   "stop_adr": 0.5416,
+   "stop_adr_naive": 8.0654,
    "stop_pct": 0.02317365269461081,
    "entry_vs_high3_adr": 324.6528,
    "entry_vs_high7_adr": 324.5145,
@@ -508,7 +529,8 @@
     "6": 2.6073,
     "7": 2.7891
    },
-   "stop_adr": 0.4631,
+   "stop_adr": 0.4517,
+   "stop_adr_naive": 0.4631,
    "stop_pct": 0.01253481894150426,
    "entry_vs_high3_adr": 0.1441,
    "entry_vs_high7_adr": -0.0858,
@@ -531,7 +553,8 @@
     "6": 2.2563,
     "7": 2.4689
    },
-   "stop_adr": 1.0472,
+   "stop_adr": 1.0231,
+   "stop_adr_naive": 1.0472,
    "stop_pct": 0.04117647058823529,
    "entry_vs_high3_adr": 0.3035,
    "entry_vs_high7_adr": -0.7752,
@@ -554,7 +577,8 @@
     "6": 3.2432,
     "7": 3.5628
    },
-   "stop_adr": 0.2987,
+   "stop_adr": 0.2457,
+   "stop_adr_naive": 0.2987,
    "stop_pct": 0.02023145400593479,
    "entry_vs_high3_adr": 1.8238,
    "entry_vs_high7_adr": 0.4907,
@@ -577,7 +601,8 @@
     "6": 1.955,
     "7": 1.955
    },
-   "stop_adr": 0.5954,
+   "stop_adr": 0.5777,
+   "stop_adr_naive": 0.5954,
    "stop_pct": 0.03349303135888501,
    "entry_vs_high3_adr": -0.12,
    "entry_vs_high7_adr": -0.3693,
@@ -600,7 +625,8 @@
     "6": 1.6191,
     "7": 2.1791
    },
-   "stop_adr": 0.6452,
+   "stop_adr": 0.6119,
+   "stop_adr_naive": 0.6452,
    "stop_pct": 0.03253529772866786,
    "entry_vs_high3_adr": 0.843,
    "entry_vs_high7_adr": -0.1826,
@@ -623,7 +649,8 @@
     "6": 1.7257,
     "7": 2.0006
    },
-   "stop_adr": 0.2301,
+   "stop_adr": 0.2238,
+   "stop_adr_naive": 0.2301,
    "stop_pct": 0.01861427094105478,
    "entry_vs_high3_adr": 0.115,
    "entry_vs_high7_adr": -0.3451,
@@ -646,7 +673,8 @@
     "6": 2.7673,
     "7": 2.7673
    },
-   "stop_adr": 0.6925,
+   "stop_adr": 0.6603,
+   "stop_adr_naive": 0.6925,
    "stop_pct": 0.03866366366366371,
    "entry_vs_high3_adr": -0.1519,
    "entry_vs_high7_adr": -0.1519,
@@ -669,7 +697,8 @@
     "6": 1.9618,
     "7": 1.9618
    },
-   "stop_adr": 0.0019,
+   "stop_adr": 0.8315,
+   "stop_adr_naive": 0.0019,
    "stop_pct": 0.089430894308943,
    "entry_vs_high3_adr": -10.1292,
    "entry_vs_high7_adr": -10.1292,
@@ -692,7 +721,8 @@
     "6": 1.0401,
     "7": 1.1775
    },
-   "stop_adr": 0.0046,
+   "stop_adr": 0.1304,
+   "stop_adr_naive": 0.0046,
    "stop_pct": 0.0283251231527093,
    "entry_vs_high3_adr": -4.913,
    "entry_vs_high7_adr": -5.3374,
@@ -715,7 +745,8 @@
     "6": 1.8753,
     "7": 1.9727
    },
-   "stop_adr": 6.2812,
+   "stop_adr": 0.4067,
+   "stop_adr_naive": 6.2812,
    "stop_pct": 0.01902285752218259,
    "entry_vs_high3_adr": 307.74,
    "entry_vs_high7_adr": 307.6426,
@@ -738,7 +769,8 @@
     "6": 1.1583,
     "7": 1.3572
    },
-   "stop_adr": 0.39,
+   "stop_adr": 0.3764,
+   "stop_adr_naive": 0.39,
    "stop_pct": 0.06963788300835655,
    "entry_vs_high3_adr": -0.2028,
    "entry_vs_high7_adr": -0.2028,
@@ -761,7 +793,8 @@
     "6": 1.442,
     "7": 1.442
    },
-   "stop_adr": 0.0107,
+   "stop_adr": 0.308,
+   "stop_adr_naive": 0.0107,
    "stop_pct": 0.03333333333333336,
    "entry_vs_high3_adr": -9.1858,
    "entry_vs_high7_adr": -9.1858,
@@ -784,7 +817,8 @@
     "6": 2.3688,
     "7": 2.3688
    },
-   "stop_adr": 0.9452,
+   "stop_adr": 0.311,
+   "stop_adr_naive": 0.9452,
    "stop_pct": 0.01829324204541985,
    "entry_vs_high3_adr": 34.0718,
    "entry_vs_high7_adr": 33.3743,
@@ -807,7 +841,8 @@
     "6": 1.318,
     "7": 1.3397
    },
-   "stop_adr": 0.2941,
+   "stop_adr": 0.2809,
+   "stop_adr_naive": 0.2941,
    "stop_pct": 0.01889433170048982,
    "entry_vs_high3_adr": -0.0762,
    "entry_vs_high7_adr": -0.098,
@@ -830,7 +865,8 @@
     "6": 3.2144,
     "7": 3.2144
    },
-   "stop_adr": 0.4155,
+   "stop_adr": 0.3539,
+   "stop_adr_naive": 0.4155,
    "stop_pct": 0.03473611111111118,
    "entry_vs_high3_adr": 0.2107,
    "entry_vs_high7_adr": 0.2107,
@@ -853,7 +889,8 @@
     "6": 2.1134,
     "7": 2.1134
    },
-   "stop_adr": 0.6753,
+   "stop_adr": 0.6165,
+   "stop_adr_naive": 0.6753,
    "stop_pct": 0.07761467889908256,
    "entry_vs_high3_adr": -0.6785,
    "entry_vs_high7_adr": -0.6785,
@@ -876,7 +913,8 @@
     "6": 1.8137,
     "7": 2.3732
    },
-   "stop_adr": 0.2724,
+   "stop_adr": 0.2278,
+   "stop_adr_naive": 0.2724,
    "stop_pct": 0.05526315789473691,
    "entry_vs_high3_adr": -0.4648,
    "entry_vs_high7_adr": -0.5404,
@@ -899,7 +937,8 @@
     "6": 2.7332,
     "7": 3.1356
    },
-   "stop_adr": 0.3744,
+   "stop_adr": 0.362,
+   "stop_adr_naive": 0.3744,
    "stop_pct": 0.02941176470588238,
    "entry_vs_high3_adr": 0.1591,
    "entry_vs_high7_adr": 0.1591,
@@ -922,7 +961,8 @@
     "6": 2.0702,
     "7": 2.251
    },
-   "stop_adr": 1.0125,
+   "stop_adr": 0.9504,
+   "stop_adr_naive": 1.0125,
    "stop_pct": 0.0768878718535469,
    "entry_vs_high3_adr": -0.0573,
    "entry_vs_high7_adr": -0.2381,
@@ -945,7 +985,8 @@
     "6": 1.3652,
     "7": 1.7559
    },
-   "stop_adr": 0.3947,
+   "stop_adr": 0.3845,
+   "stop_adr_naive": 0.3947,
    "stop_pct": 0.02397506593143131,
    "entry_vs_high3_adr": 0.1579,
    "entry_vs_high7_adr": -0.0351,
@@ -968,7 +1009,8 @@
     "6": 1.6387,
     "7": 1.9407
    },
-   "stop_adr": 2.5807,
+   "stop_adr": 0.2457,
+   "stop_adr_naive": 2.5807,
    "stop_pct": 0.01282051282051282,
    "entry_vs_high3_adr": 181.5386,
    "entry_vs_high7_adr": 181.2367,
@@ -991,7 +1033,8 @@
     "6": 1.3448,
     "7": 1.594
    },
-   "stop_adr": 3.0192,
+   "stop_adr": 0.7113,
+   "stop_adr_naive": 3.0192,
    "stop_pct": 0.05591107871720111,
    "entry_vs_high3_adr": 40.743,
    "entry_vs_high7_adr": 40.4938,
@@ -1014,7 +1057,8 @@
     "6": 1.4653,
     "7": 1.4653
    },
-   "stop_adr": 0.0291,
+   "stop_adr": 0.831,
+   "stop_adr_naive": 0.0291,
    "stop_pct": 0.07085427135678393,
    "entry_vs_high3_adr": -11.6152,
    "entry_vs_high7_adr": -11.6152,
@@ -1037,7 +1081,8 @@
     "6": 2.4542,
     "7": 2.4542
    },
-   "stop_adr": 0.0091,
+   "stop_adr": 0.2636,
+   "stop_adr_naive": 0.0091,
    "stop_pct": 0.03295225285810346,
    "entry_vs_high3_adr": -8.4247,
    "entry_vs_high7_adr": -8.4247,
@@ -1060,7 +1105,8 @@
     "6": 1.9391,
     "7": 2.2039
    },
-   "stop_adr": 0.7398,
+   "stop_adr": 0.7108,
+   "stop_adr_naive": 0.7398,
    "stop_pct": 0.03079416531604547,
    "entry_vs_high3_adr": 0.3349,
    "entry_vs_high7_adr": 0.0234,
@@ -1083,7 +1129,8 @@
     "6": 1.313,
     "7": 1.313
    },
-   "stop_adr": 0.3403,
+   "stop_adr": 0.3316,
+   "stop_adr_naive": 0.3403,
    "stop_pct": 0.01739843323009653,
    "entry_vs_high3_adr": 0.1529,
    "entry_vs_high7_adr": -0.2174,
@@ -1106,7 +1153,8 @@
     "6": 1.5822,
     "7": 1.8172
    },
-   "stop_adr": 0.2765,
+   "stop_adr": 0.2676,
+   "stop_adr_naive": 0.2765,
    "stop_pct": 0.02930402930402933,
    "entry_vs_high3_adr": 0.2627,
    "entry_vs_high7_adr": -0.788,
@@ -1129,7 +1177,8 @@
     "6": 1.7638,
     "7": 1.7638
    },
-   "stop_adr": 0.6382,
+   "stop_adr": 0.6101,
+   "stop_adr_naive": 0.6382,
    "stop_pct": 0.03583673469387755,
    "entry_vs_high3_adr": 0.3181,
    "entry_vs_high7_adr": 0.3181,
@@ -1152,7 +1201,8 @@
     "6": 2.2567,
     "7": 2.2567
    },
-   "stop_adr": 0.4704,
+   "stop_adr": 0.3941,
+   "stop_adr_naive": 0.4704,
    "stop_pct": 0.04855562384757216,
    "entry_vs_high3_adr": 0.5602,
    "entry_vs_high7_adr": 0.5602,
@@ -1175,7 +1225,8 @@
     "6": 1.9606,
     "7": 1.9606
    },
-   "stop_adr": 0.4329,
+   "stop_adr": 0.4239,
+   "stop_adr_naive": 0.4329,
    "stop_pct": 0.01940789473684203,
    "entry_vs_high3_adr": -0.2421,
    "entry_vs_high7_adr": -1.0185,
@@ -1198,7 +1249,8 @@
     "6": 1.5274,
     "7": 1.5274
    },
-   "stop_adr": 0.6445,
+   "stop_adr": 0.6212,
+   "stop_adr_naive": 0.6445,
    "stop_pct": 0.0334448160535117,
    "entry_vs_high3_adr": 0.1547,
    "entry_vs_high7_adr": 0.1547,
@@ -1221,7 +1273,8 @@
     "6": 1.0116,
     "7": 1.1162
    },
-   "stop_adr": 0.0145,
+   "stop_adr": 0.2841,
+   "stop_adr_naive": 0.0145,
    "stop_pct": 0.02713704206241519,
    "entry_vs_high3_adr": -10.3765,
    "entry_vs_high7_adr": -10.4201,
@@ -1244,7 +1297,8 @@
     "6": 1.5932,
     "7": 1.5932
    },
-   "stop_adr": 0.3729,
+   "stop_adr": 0.3587,
+   "stop_adr_naive": 0.3729,
    "stop_pct": 0.0281818181818182,
    "entry_vs_high3_adr": -0.1323,
    "entry_vs_high7_adr": -0.1323,
@@ -1267,7 +1321,8 @@
     "6": 2.1902,
     "7": 2.1902
    },
-   "stop_adr": 0.359,
+   "stop_adr": 0.3476,
+   "stop_adr_naive": 0.359,
    "stop_pct": 0.01740812379110262,
    "entry_vs_high3_adr": 0.5625,
    "entry_vs_high7_adr": 0.5625,
@@ -1290,7 +1345,8 @@
     "6": 1.2648,
     "7": 1.7652
    },
-   "stop_adr": 0.3104,
+   "stop_adr": 0.3021,
+   "stop_adr_naive": 0.3104,
    "stop_pct": 0.02203856749311287,
    "entry_vs_high3_adr": -0.2134,
    "entry_vs_high7_adr": -0.2134,
@@ -1313,7 +1369,8 @@
     "6": 2.5944,
     "7": 2.5944
    },
-   "stop_adr": 0.016,
+   "stop_adr": 0.3104,
+   "stop_adr_naive": 0.016,
    "stop_pct": 0.03015966883500875,
    "entry_vs_high3_adr": -10.1292,
    "entry_vs_high7_adr": -10.3114,
@@ -1336,7 +1393,8 @@
     "6": 2.0075,
     "7": 2.0075
    },
-   "stop_adr": 0.4776,
+   "stop_adr": 0.4657,
+   "stop_adr_naive": 0.4776,
    "stop_pct": 0.0244565217391304,
    "entry_vs_high3_adr": -0.6279,
    "entry_vs_high7_adr": -1.017,
@@ -1359,7 +1417,8 @@
     "6": 1.8623,
     "7": 1.8623
    },
-   "stop_adr": 2.9809,
+   "stop_adr": 0.2928,
+   "stop_adr_naive": 2.9809,
    "stop_pct": 0.01455223211885518,
    "entry_vs_high3_adr": 183.7055,
    "entry_vs_high7_adr": 183.7055,
@@ -1382,7 +1441,8 @@
     "6": 1.3544,
     "7": 1.7108
    },
-   "stop_adr": 0.0214,
+   "stop_adr": 0.6042,
+   "stop_adr_naive": 0.0214,
    "stop_pct": 0.05232558139534888,
    "entry_vs_high3_adr": -11.638,
    "entry_vs_high7_adr": -11.638,
@@ -1405,7 +1465,8 @@
     "6": 1.6832,
     "7": 3.0962
    },
-   "stop_adr": 0.3434,
+   "stop_adr": 0.3359,
+   "stop_adr_naive": 0.3434,
    "stop_pct": 0.01848484848484847,
    "entry_vs_high3_adr": -0.4363,
    "entry_vs_high7_adr": -1.9703,
@@ -1428,7 +1489,8 @@
     "6": 3.4237,
     "7": 3.4237
    },
-   "stop_adr": 0.4923,
+   "stop_adr": 0.5112,
+   "stop_adr_naive": 0.4923,
    "stop_pct": 0.035480093676815,
    "entry_vs_high3_adr": -1.9158,
    "entry_vs_high7_adr": -1.9158,
@@ -1451,7 +1513,8 @@
     "6": 1.9813,
     "7": 1.9813
    },
-   "stop_adr": 0.6331,
+   "stop_adr": 0.6052,
+   "stop_adr_naive": 0.6331,
    "stop_pct": 0.04267844002943341,
    "entry_vs_high3_adr": -0.1965,
    "entry_vs_high7_adr": -0.4476,
@@ -1474,7 +1537,8 @@
     "6": 2.1505,
     "7": 2.1505
    },
-   "stop_adr": 0.6277,
+   "stop_adr": 0.6064,
+   "stop_adr_naive": 0.6277,
    "stop_pct": 0.0322388059701492,
    "entry_vs_high3_adr": 0.3371,
    "entry_vs_high7_adr": -0.1511,
@@ -1497,7 +1561,8 @@
     "6": 1.4487,
     "7": 1.4487
    },
-   "stop_adr": 0.8401,
+   "stop_adr": 0.8289,
+   "stop_adr_naive": 0.8401,
    "stop_pct": 0.07099999999999998,
    "entry_vs_high3_adr": 0.0034,
    "entry_vs_high7_adr": -0.2096,
@@ -1520,7 +1585,8 @@
     "6": 3.0641,
     "7": 3.0641
    },
-   "stop_adr": 0.3707,
+   "stop_adr": 0.4013,
+   "stop_adr_naive": 0.3707,
    "stop_pct": 0.02541666666666664,
    "entry_vs_high3_adr": -2.0661,
    "entry_vs_high7_adr": -2.0661,
@@ -1543,7 +1609,8 @@
     "6": 2.2292,
     "7": 2.2292
    },
-   "stop_adr": 0.2316,
+   "stop_adr": 0.2277,
+   "stop_adr_naive": 0.2316,
    "stop_pct": 0.01601601601601603,
    "entry_vs_high3_adr": 0.1592,
    "entry_vs_high7_adr": -1.0929,
@@ -1566,7 +1633,8 @@
     "6": 2.0778,
     "7": 2.0778
    },
-   "stop_adr": 0.064,
+   "stop_adr": 0.0317,
+   "stop_adr_naive": 0.064,
    "stop_pct": 0.001787994891443175,
    "entry_vs_high3_adr": 17.6111,
    "entry_vs_high7_adr": 16.6949,
@@ -1589,7 +1657,8 @@
     "6": 1.3195,
     "7": 1.6564
    },
-   "stop_adr": 0.758,
+   "stop_adr": 0.6779,
+   "stop_adr_naive": 0.758,
    "stop_pct": 0.06074240719910021,
    "entry_vs_high3_adr": 0.5475,
    "entry_vs_high7_adr": 0.5475,
@@ -1612,7 +1681,8 @@
     "6": 1.9264,
     "7": 2.0424
    },
-   "stop_adr": 0.0983,
+   "stop_adr": 0.0951,
+   "stop_adr_naive": 0.0983,
    "stop_pct": 0.0106151333696244,
    "entry_vs_high3_adr": -0.2521,
    "entry_vs_high7_adr": -0.3681,
@@ -1635,7 +1705,8 @@
     "6": 3.4174,
     "7": 3.4174
    },
-   "stop_adr": 0.417,
+   "stop_adr": 0.3973,
+   "stop_adr_naive": 0.417,
    "stop_pct": 0.02889447236180899,
    "entry_vs_high3_adr": 0.0363,
    "entry_vs_high7_adr": -1.6861,
@@ -1658,7 +1729,8 @@
     "6": 1.9495,
     "7": 1.9495
    },
-   "stop_adr": 0.7717,
+   "stop_adr": 0.6769,
+   "stop_adr_naive": 0.7717,
    "stop_pct": 0.06666666666666665,
    "entry_vs_high3_adr": 0.0812,
    "entry_vs_high7_adr": 0.0812,
@@ -1681,7 +1753,8 @@
     "6": 1.3977,
     "7": 1.6161
    },
-   "stop_adr": 0.3582,
+   "stop_adr": 0.3488,
+   "stop_adr_naive": 0.3582,
    "stop_pct": 0.01352912060716054,
    "entry_vs_high3_adr": 0.1616,
    "entry_vs_high7_adr": -0.0568,
@@ -1704,7 +1777,8 @@
     "6": 2.1951,
     "7": 2.1951
    },
-   "stop_adr": 0.3818,
+   "stop_adr": 0.3748,
+   "stop_adr_naive": 0.3818,
    "stop_pct": 0.01791530944625398,
    "entry_vs_high3_adr": -0.0607,
    "entry_vs_high7_adr": -0.8503,
@@ -1727,7 +1801,8 @@
     "6": 2.1448,
     "7": 2.1448
    },
-   "stop_adr": 0.6002,
+   "stop_adr": 0.5479,
+   "stop_adr_naive": 0.6002,
    "stop_pct": 0.03746606334841634,
    "entry_vs_high3_adr": 0.5558,
    "entry_vs_high7_adr": 0.3141,
@@ -1750,7 +1825,8 @@
     "6": 1.7368,
     "7": 1.9827
    },
-   "stop_adr": 1.7289,
+   "stop_adr": 0.4119,
+   "stop_adr_naive": 1.7289,
    "stop_pct": 0.03183133526250524,
    "entry_vs_high3_adr": 41.3343,
    "entry_vs_high7_adr": 40.8925,
@@ -1773,7 +1849,8 @@
     "6": 3.3772,
     "7": 3.3772
    },
-   "stop_adr": 0.6242,
+   "stop_adr": 0.658,
+   "stop_adr_naive": 0.6242,
    "stop_pct": 0.05277401894451958,
    "entry_vs_high3_adr": -1.1524,
    "entry_vs_high7_adr": -1.1524,
@@ -1796,7 +1873,8 @@
     "6": 2.5166,
     "7": 2.5166
    },
-   "stop_adr": 0.3298,
+   "stop_adr": 0.3252,
+   "stop_adr_naive": 0.3298,
    "stop_pct": 0.01474464579901158,
    "entry_vs_high3_adr": -0.8106,
    "entry_vs_high7_adr": -0.8106,
@@ -1819,7 +1897,8 @@
     "6": 3.6268,
     "7": 3.6268
    },
-   "stop_adr": 0.6466,
+   "stop_adr": 0.6056,
+   "stop_adr_naive": 0.6466,
    "stop_pct": 0.04273175238681858,
    "entry_vs_high3_adr": 0.5918,
    "entry_vs_high7_adr": -1.6986,
@@ -1842,7 +1921,8 @@
     "6": 1.327,
     "7": 1.634
    },
-   "stop_adr": 0.3428,
+   "stop_adr": 0.334,
+   "stop_adr_naive": 0.3428,
    "stop_pct": 0.02879999999999995,
    "entry_vs_high3_adr": -0.5367,
    "entry_vs_high7_adr": -0.5367,
@@ -1865,7 +1945,8 @@
     "6": 3.4538,
     "7": 3.5066
    },
-   "stop_adr": 0.5902,
+   "stop_adr": 0.5843,
+   "stop_adr_naive": 0.5902,
    "stop_pct": 0.01991476172026352,
    "entry_vs_high3_adr": 0.2779,
    "entry_vs_high7_adr": -1.6144,
@@ -1888,7 +1969,8 @@
     "6": 2.2733,
     "7": 2.2733
    },
-   "stop_adr": 0.235,
+   "stop_adr": 0.2242,
+   "stop_adr_naive": 0.235,
    "stop_pct": 0.01300000000000002,
    "entry_vs_high3_adr": -0.2329,
    "entry_vs_high7_adr": -0.2329,
@@ -1911,7 +1993,8 @@
     "6": 2.7364,
     "7": 2.7364
    },
-   "stop_adr": 0.459,
+   "stop_adr": 0.4458,
+   "stop_adr_naive": 0.459,
    "stop_pct": 0.01920739119863844,
    "entry_vs_high3_adr": 0.0349,
    "entry_vs_high7_adr": -0.3834,
@@ -1934,7 +2017,8 @@
     "6": 2.1319,
     "7": 2.4872
    },
-   "stop_adr": 0.984,
+   "stop_adr": 0.89,
+   "stop_adr_naive": 0.984,
    "stop_pct": 0.05373134328358214,
    "entry_vs_high3_adr": 1.148,
    "entry_vs_high7_adr": 0.6013,
@@ -1957,7 +2041,8 @@
     "6": 2.1453,
     "7": 2.3006
    },
-   "stop_adr": 0.3822,
+   "stop_adr": 0.3651,
+   "stop_adr_naive": 0.3822,
    "stop_pct": 0.02639484978540771,
    "entry_vs_high3_adr": -0.2496,
    "entry_vs_high7_adr": -0.2496,
@@ -1980,7 +2065,8 @@
     "6": 2.3972,
     "7": 2.3972
    },
-   "stop_adr": 0.4992,
+   "stop_adr": 0.4829,
+   "stop_adr_naive": 0.4992,
    "stop_pct": 0.03257839721254351,
    "entry_vs_high3_adr": -0.1068,
    "entry_vs_high7_adr": -1.0251,
@@ -2003,7 +2089,8 @@
     "6": 2.4249,
     "7": 2.4249
    },
-   "stop_adr": 0.3106,
+   "stop_adr": 0.2979,
+   "stop_adr_naive": 0.3106,
    "stop_pct": 0.01902219255798433,
    "entry_vs_high3_adr": -0.8773,
    "entry_vs_high7_adr": -0.8773,
@@ -2026,7 +2113,8 @@
     "6": 1.7116,
     "7": 1.8516
    },
-   "stop_adr": 0.0187,
+   "stop_adr": 0.3521,
+   "stop_adr_naive": 0.0187,
    "stop_pct": 0.03076923076923077,
    "entry_vs_high3_adr": -11.1674,
    "entry_vs_high7_adr": -12.0484,
@@ -2049,7 +2137,8 @@
     "6": 3.1902,
     "7": 3.1902
    },
-   "stop_adr": 0.4758,
+   "stop_adr": 0.4689,
+   "stop_adr_naive": 0.4758,
    "stop_pct": 0.02087794432548183,
    "entry_vs_high3_adr": -0.43,
    "entry_vs_high7_adr": -1.8726,
@@ -2072,7 +2161,8 @@
     "6": 5.008,
     "7": 5.008
    },
-   "stop_adr": 0.0102,
+   "stop_adr": 0.2267,
+   "stop_adr_naive": 0.0102,
    "stop_pct": 0.05213764337851929,
    "entry_vs_high3_adr": -6.1711,
    "entry_vs_high7_adr": -6.1711,
@@ -2095,7 +2185,8 @@
     "6": 1.9537,
     "7": 1.9537
    },
-   "stop_adr": 0.002,
+   "stop_adr": 0.0665,
+   "stop_adr_naive": 0.002,
    "stop_pct": 0.003436426116838536,
    "entry_vs_high3_adr": -18.8389,
    "entry_vs_high7_adr": -18.8389,
@@ -2118,7 +2209,8 @@
     "6": 1.7469,
     "7": 1.7469
    },
-   "stop_adr": 0.7381,
+   "stop_adr": 0.7093,
+   "stop_adr_naive": 0.7381,
    "stop_pct": 0.03853281853281849,
    "entry_vs_high3_adr": 0.0362,
    "entry_vs_high7_adr": -0.5051,
@@ -2141,7 +2233,8 @@
     "6": 1.7465,
     "7": 1.7465
    },
-   "stop_adr": 0.4773,
+   "stop_adr": 0.4665,
+   "stop_adr_naive": 0.4773,
    "stop_pct": 0.02436164669098495,
    "entry_vs_high3_adr": -0.2578,
    "entry_vs_high7_adr": -0.2578,
@@ -2164,7 +2257,8 @@
     "6": 2.6155,
     "7": 2.825
    },
-   "stop_adr": 0.3813,
+   "stop_adr": 0.3652,
+   "stop_adr_naive": 0.3813,
    "stop_pct": 0.02306259848159289,
    "entry_vs_high3_adr": 0.4322,
    "entry_vs_high7_adr": 0.4322,
@@ -2187,7 +2281,8 @@
     "6": 2.2215,
     "7": 2.5926
    },
-   "stop_adr": 0.349,
+   "stop_adr": 0.3397,
+   "stop_adr_naive": 0.349,
    "stop_pct": 0.01161932866101061,
    "entry_vs_high3_adr": 0.6315,
    "entry_vs_high7_adr": -0.4764,
@@ -2210,7 +2305,8 @@
     "6": 2.1607,
     "7": 2.7567
    },
-   "stop_adr": 0.9313,
+   "stop_adr": 0.9133,
+   "stop_adr_naive": 0.9313,
    "stop_pct": 0.04032258064516129,
    "entry_vs_high3_adr": 0.0,
    "entry_vs_high7_adr": 0.0,
@@ -2233,7 +2329,8 @@
     "6": 2.3302,
     "7": 2.3302
    },
-   "stop_adr": 0.0138,
+   "stop_adr": 0.2648,
+   "stop_adr_naive": 0.0138,
    "stop_pct": 0.007033997655333965,
    "entry_vs_high3_adr": -37.3684,
    "entry_vs_high7_adr": -37.5299,
@@ -2256,7 +2353,8 @@
     "6": 2.0549,
     "7": 2.0549
    },
-   "stop_adr": 0.4816,
+   "stop_adr": 0.4719,
+   "stop_adr_naive": 0.4816,
    "stop_pct": 0.01004016064257031,
    "entry_vs_high3_adr": 0.5458,
    "entry_vs_high7_adr": 0.5458,
@@ -2279,7 +2377,8 @@
     "6": 3.0115,
     "7": 3.0115
    },
-   "stop_adr": 0.6256,
+   "stop_adr": 0.592,
+   "stop_adr_naive": 0.6256,
    "stop_pct": 0.03443398792362515,
    "entry_vs_high3_adr": 0.428,
    "entry_vs_high7_adr": -1.1149,
@@ -2302,7 +2401,8 @@
     "6": 1.8779,
     "7": 2.638
    },
-   "stop_adr": 0.4471,
+   "stop_adr": 0.4359,
+   "stop_adr_naive": 0.4471,
    "stop_pct": 0.01324503311258273,
    "entry_vs_high3_adr": 0.3577,
    "entry_vs_high7_adr": -0.8942,
@@ -2325,7 +2425,8 @@
     "6": 1.8623,
     "7": 2.2897
    },
-   "stop_adr": 0.5294,
+   "stop_adr": 0.5171,
+   "stop_adr_naive": 0.5294,
    "stop_pct": 0.01964497041420114,
    "entry_vs_high3_adr": -0.0989,
    "entry_vs_high7_adr": -0.0989,
@@ -2348,7 +2449,8 @@
     "6": 1.9115,
     "7": 2.0371
    },
-   "stop_adr": 0.4325,
+   "stop_adr": 0.4157,
+   "stop_adr_naive": 0.4325,
    "stop_pct": 0.02616033755274266,
    "entry_vs_high3_adr": -0.3488,
    "entry_vs_high7_adr": -0.3628,
@@ -2371,7 +2473,8 @@
     "6": 2.1583,
     "7": 2.1583
    },
-   "stop_adr": 0.3432,
+   "stop_adr": 0.3351,
+   "stop_adr_naive": 0.3432,
    "stop_pct": 0.02037533512064338,
    "entry_vs_high3_adr": 0.0271,
    "entry_vs_high7_adr": -0.6682,
@@ -2394,7 +2497,8 @@
     "6": 2.2696,
     "7": 2.2696
    },
-   "stop_adr": 0.5952,
+   "stop_adr": 0.5739,
+   "stop_adr_naive": 0.5952,
    "stop_pct": 0.03015075376884422,
    "entry_vs_high3_adr": -0.5952,
    "entry_vs_high7_adr": -0.5952,
@@ -2417,7 +2521,8 @@
     "6": 1.9407,
     "7": 1.9407
    },
-   "stop_adr": 0.3975,
+   "stop_adr": 0.3879,
+   "stop_adr_naive": 0.3975,
    "stop_pct": 0.02289232712346073,
    "entry_vs_high3_adr": -0.5318,
    "entry_vs_high7_adr": -0.54,
@@ -2440,7 +2545,8 @@
     "6": 1.3531,
     "7": 1.3531
    },
-   "stop_adr": 10.1859,
+   "stop_adr": 0.2597,
+   "stop_adr_naive": 10.1859,
    "stop_pct": 0.0145940594059406,
    "entry_vs_high3_adr": 680.1447,
    "entry_vs_high7_adr": 680.1447,
@@ -2463,7 +2569,8 @@
     "6": 2.4733,
     "7": 2.8836
    },
-   "stop_adr": 0.2637,
+   "stop_adr": 0.2565,
+   "stop_adr_naive": 0.2637,
    "stop_pct": 0.01125000000000007,
    "entry_vs_high3_adr": 0.3341,
    "entry_vs_high7_adr": 0.0821,
@@ -2486,7 +2593,8 @@
     "6": 2.0506,
     "7": 2.0506
    },
-   "stop_adr": 0.7104,
+   "stop_adr": 0.7004,
+   "stop_adr_naive": 0.7104,
    "stop_pct": 0.01328320802005015,
    "entry_vs_high3_adr": 0.067,
    "entry_vs_high7_adr": -0.7506,
@@ -2509,7 +2617,8 @@
     "6": 1.5339,
     "7": 1.6278
    },
-   "stop_adr": 0.7513,
+   "stop_adr": 0.6888,
+   "stop_adr_naive": 0.7513,
    "stop_pct": 0.05117270788912584,
    "entry_vs_high3_adr": 1.1269,
    "entry_vs_high7_adr": 1.033,
@@ -2532,7 +2641,8 @@
     "6": 2.0281,
     "7": 2.0281
    },
-   "stop_adr": 0.3756,
+   "stop_adr": 0.3593,
+   "stop_adr_naive": 0.3756,
    "stop_pct": 0.02173913043478253,
    "entry_vs_high3_adr": 0.0376,
    "entry_vs_high7_adr": 0.0376,
@@ -2555,7 +2665,8 @@
     "6": 0.9163,
     "7": 0.9229
    },
-   "stop_adr": 0.2637,
+   "stop_adr": 0.2522,
+   "stop_adr_naive": 0.2637,
    "stop_pct": 0.03212851405622479,
    "entry_vs_high3_adr": 0.0396,
    "entry_vs_high7_adr": -0.2109,
@@ -2578,7 +2689,8 @@
     "6": 1.5919,
     "7": 3.2717
    },
-   "stop_adr": 0.4497,
+   "stop_adr": 0.4354,
+   "stop_adr_naive": 0.4497,
    "stop_pct": 0.02026082906380991,
    "entry_vs_high3_adr": 0.2688,
    "entry_vs_high7_adr": -1.8141,
@@ -2601,7 +2713,8 @@
     "6": 1.9346,
     "7": 1.9346
    },
-   "stop_adr": 3.3209,
+   "stop_adr": 0.3231,
+   "stop_adr_naive": 3.3209,
    "stop_pct": 0.01453911020645536,
    "entry_vs_high3_adr": 205.8267,
    "entry_vs_high7_adr": 205.6012,
@@ -2624,7 +2737,8 @@
     "6": 1.4848,
     "7": 1.5896
    },
-   "stop_adr": 0.1793,
+   "stop_adr": 0.175,
+   "stop_adr_naive": 0.1793,
    "stop_pct": 0.01046511627906976,
    "entry_vs_high3_adr": 0.0248,
    "entry_vs_high7_adr": -0.6042,
@@ -2647,7 +2761,8 @@
     "6": 1.5336,
     "7": 1.5336
    },
-   "stop_adr": 0.4208,
+   "stop_adr": 0.4059,
+   "stop_adr_naive": 0.4208,
    "stop_pct": 0.02304687499999999,
    "entry_vs_high3_adr": -0.1855,
    "entry_vs_high7_adr": -0.3923,
@@ -2670,7 +2785,8 @@
     "6": 2.4773,
     "7": 2.5304
    },
-   "stop_adr": 0.059,
+   "stop_adr": 0.5701,
+   "stop_adr_naive": 0.059,
    "stop_pct": 0.0733944954128441,
    "entry_vs_high3_adr": -8.0439,
    "entry_vs_high7_adr": -8.0439,
@@ -2693,7 +2809,8 @@
     "6": 2.1326,
     "7": 2.1326
    },
-   "stop_adr": 0.7718,
+   "stop_adr": 0.7413,
+   "stop_adr_naive": 0.7718,
    "stop_pct": 0.08441176470588238,
    "entry_vs_high3_adr": 0.1654,
    "entry_vs_high7_adr": -0.2622,
@@ -2716,7 +2833,8 @@
     "6": 2.3171,
     "7": 2.705
    },
-   "stop_adr": 0.6533,
+   "stop_adr": 0.6479,
+   "stop_adr_naive": 0.6533,
    "stop_pct": 0.01639344262295083,
    "entry_vs_high3_adr": 0.1021,
    "entry_vs_high7_adr": 0.1021,
@@ -2739,7 +2857,8 @@
     "6": 2.8678,
     "7": 3.4348
    },
-   "stop_adr": 0.174,
+   "stop_adr": 0.1712,
+   "stop_adr_naive": 0.174,
    "stop_pct": 0.005658536585365837,
    "entry_vs_high3_adr": -0.444,
    "entry_vs_high7_adr": -0.444,
@@ -2762,7 +2881,8 @@
     "6": 1.2819,
     "7": 1.6919
    },
-   "stop_adr": 0.3596,
+   "stop_adr": 0.3462,
+   "stop_adr_naive": 0.3596,
    "stop_pct": 0.02413709872073377,
    "entry_vs_high3_adr": -0.4998,
    "entry_vs_high7_adr": -0.9098,
@@ -2785,7 +2905,8 @@
     "6": 1.905,
     "7": 2.3109
    },
-   "stop_adr": 0.3208,
+   "stop_adr": 0.315,
+   "stop_adr_naive": 0.3208,
    "stop_pct": 0.01131378434541681,
    "entry_vs_high3_adr": -0.3011,
    "entry_vs_high7_adr": -0.3011,
@@ -2808,7 +2929,8 @@
     "6": 1.9248,
     "7": 2.0615
    },
-   "stop_adr": 0.6373,
+   "stop_adr": 0.6184,
+   "stop_adr_naive": 0.6373,
    "stop_pct": 0.01982102908277408,
    "entry_vs_high3_adr": 0.1065,
    "entry_vs_high7_adr": -0.4949,
@@ -2831,7 +2953,8 @@
     "6": 1.6997,
     "7": 1.6997
    },
-   "stop_adr": 0.4595,
+   "stop_adr": 0.4467,
+   "stop_adr_naive": 0.4595,
    "stop_pct": 0.02310077519379844,
    "entry_vs_high3_adr": 0.4014,
    "entry_vs_high7_adr": 0.4014,
@@ -2854,7 +2977,8 @@
     "6": 2.2564,
     "7": 2.2564
    },
-   "stop_adr": 0.6367,
+   "stop_adr": 0.6193,
+   "stop_adr_naive": 0.6367,
    "stop_pct": 0.01523489544111681,
    "entry_vs_high3_adr": 0.2494,
    "entry_vs_high7_adr": 0.0266,
@@ -2877,7 +3001,8 @@
     "6": 2.5282,
     "7": 2.5282
    },
-   "stop_adr": 0.6016,
+   "stop_adr": 0.5784,
+   "stop_adr_naive": 0.6016,
    "stop_pct": 0.01700753498385374,
    "entry_vs_high3_adr": 0.5711,
    "entry_vs_high7_adr": -0.0761,
@@ -2900,7 +3025,8 @@
     "6": 1.1282,
     "7": 1.6642
    },
-   "stop_adr": 0.1935,
+   "stop_adr": 0.2069,
+   "stop_adr_naive": 0.1935,
    "stop_pct": 0.0322061191626409,
    "entry_vs_high3_adr": -0.4528,
    "entry_vs_high7_adr": -0.4528,
@@ -2923,7 +3049,8 @@
     "6": 2.6139,
     "7": 2.8362
    },
-   "stop_adr": 0.6224,
+   "stop_adr": 0.6243,
+   "stop_adr_naive": 0.6224,
    "stop_pct": 0.01808785529715769,
    "entry_vs_high3_adr": -0.4445,
    "entry_vs_high7_adr": -0.4445,
@@ -2946,7 +3073,8 @@
     "6": 2.0457,
     "7": 2.0457
    },
-   "stop_adr": 0.7448,
+   "stop_adr": 0.7272,
+   "stop_adr_naive": 0.7448,
    "stop_pct": 0.02633531157270033,
    "entry_vs_high3_adr": 0.2308,
    "entry_vs_high7_adr": -0.042,
@@ -2969,7 +3097,8 @@
     "6": 1.5361,
     "7": 1.5361
    },
-   "stop_adr": 0.3626,
+   "stop_adr": 0.1217,
+   "stop_adr_naive": 0.3626,
    "stop_pct": 0.007978219696969708,
    "entry_vs_high3_adr": 29.8965,
    "entry_vs_high7_adr": 29.3499,
@@ -2992,7 +3121,8 @@
     "6": 1.5278,
     "7": 1.8442
    },
-   "stop_adr": 0.7306,
+   "stop_adr": 0.694,
+   "stop_adr_naive": 0.7306,
    "stop_pct": 0.05839664361038657,
    "entry_vs_high3_adr": 0.4809,
    "entry_vs_high7_adr": 0.1376,
@@ -3015,7 +3145,8 @@
     "6": 1.4091,
     "7": 2.0425
    },
-   "stop_adr": 0.0349,
+   "stop_adr": 0.1608,
+   "stop_adr_naive": 0.0349,
    "stop_pct": 0.02195121951219523,
    "entry_vs_high3_adr": -5.9918,
    "entry_vs_high7_adr": -6.58,
@@ -3038,7 +3169,8 @@
     "6": 1.1518,
     "7": 1.3046
    },
-   "stop_adr": 0.0423,
+   "stop_adr": 0.4091,
+   "stop_adr_naive": 0.0423,
    "stop_pct": 0.02377807133421408,
    "entry_vs_high3_adr": -16.1207,
    "entry_vs_high7_adr": -16.1207,
@@ -3061,7 +3193,8 @@
     "6": 1.3683,
     "7": 1.3735
    },
-   "stop_adr": 0.2883,
+   "stop_adr": 0.28,
+   "stop_adr_naive": 0.2883,
    "stop_pct": 0.01277584204413466,
    "entry_vs_high3_adr": 0.0157,
    "entry_vs_high7_adr": 0.0157,
@@ -3084,7 +3217,8 @@
     "6": 2.5325,
     "7": 2.5325
    },
-   "stop_adr": 0.5061,
+   "stop_adr": 0.4253,
+   "stop_adr_naive": 0.5061,
    "stop_pct": 0.03606557377049176,
    "entry_vs_high3_adr": 1.7927,
    "entry_vs_high7_adr": 1.6602,
@@ -3107,7 +3241,8 @@
     "6": 1.9914,
     "7": 2.0468
    },
-   "stop_adr": 2.2226,
+   "stop_adr": 0.4369,
+   "stop_adr_naive": 2.2226,
    "stop_pct": 0.009224137931034423,
    "entry_vs_high3_adr": 193.2107,
    "entry_vs_high7_adr": 193.2107,
@@ -3130,7 +3265,8 @@
     "6": 2.5953,
     "7": 2.5953
    },
-   "stop_adr": 0.8826,
+   "stop_adr": 0.8594,
+   "stop_adr_naive": 0.8826,
    "stop_pct": 0.02837499999999995,
    "entry_vs_high3_adr": 0.0253,
    "entry_vs_high7_adr": 0.0253,
@@ -3153,7 +3289,8 @@
     "6": 1.3289,
     "7": 1.3289
    },
-   "stop_adr": 0.5902,
+   "stop_adr": 0.5381,
+   "stop_adr_naive": 0.5902,
    "stop_pct": 0.0472829189806404,
    "entry_vs_high3_adr": 0.4989,
    "entry_vs_high7_adr": 0.1082,
@@ -3176,7 +3313,8 @@
     "6": 1.6167,
     "7": 1.6167
    },
-   "stop_adr": 5.4902,
+   "stop_adr": 0.3571,
+   "stop_adr_naive": 5.4902,
    "stop_pct": 0.03012820512820506,
    "entry_vs_high3_adr": 170.0576,
    "entry_vs_high7_adr": 170.0576,
@@ -3199,7 +3337,8 @@
     "6": 1.6221,
     "7": 1.6221
    },
-   "stop_adr": 0.5424,
+   "stop_adr": 0.5301,
+   "stop_adr_naive": 0.5424,
    "stop_pct": 0.01952395299789082,
    "entry_vs_high3_adr": 0.6211,
    "entry_vs_high7_adr": 0.616,
@@ -3222,7 +3361,8 @@
     "6": 3.0368,
     "7": 3.1048
    },
-   "stop_adr": 0.3417,
+   "stop_adr": 0.3315,
+   "stop_adr_naive": 0.3417,
    "stop_pct": 0.01955555555555561,
    "entry_vs_high3_adr": -0.1806,
    "entry_vs_high7_adr": -1.7456,
@@ -3245,7 +3385,8 @@
     "6": 2.2663,
     "7": 2.3851
    },
-   "stop_adr": 2.4333,
+   "stop_adr": 0.2363,
+   "stop_adr_naive": 2.4333,
    "stop_pct": 0.01151241534988718,
    "entry_vs_high3_adr": 190.5718,
    "entry_vs_high7_adr": 189.6997,
@@ -3268,7 +3409,8 @@
     "6": 2.3239,
     "7": 2.3239
    },
-   "stop_adr": 0.027,
+   "stop_adr": 0.5335,
+   "stop_adr_naive": 0.027,
    "stop_pct": 0.01247965274009769,
    "entry_vs_high3_adr": -41.3344,
    "entry_vs_high7_adr": -42.3438,
@@ -3291,7 +3433,8 @@
     "6": 3.4533,
     "7": 3.4533
    },
-   "stop_adr": 0.5154,
+   "stop_adr": 0.5337,
+   "stop_adr_naive": 0.5154,
    "stop_pct": 0.02022756005056883,
    "entry_vs_high3_adr": -1.0244,
    "entry_vs_high7_adr": -1.0244,
@@ -3314,7 +3457,8 @@
     "6": 2.1034,
     "7": 2.7671
    },
-   "stop_adr": 0.5125,
+   "stop_adr": 0.4964,
+   "stop_adr_naive": 0.5125,
    "stop_pct": 0.01997799034961479,
    "entry_vs_high3_adr": 0.0557,
    "entry_vs_high7_adr": -0.676,
@@ -3337,7 +3481,8 @@
     "6": 1.0296,
     "7": 1.0296
    },
-   "stop_adr": 0.0114,
+   "stop_adr": 0.1095,
+   "stop_adr_naive": 0.0114,
    "stop_pct": 0.02735346358792183,
    "entry_vs_high3_adr": -4.1059,
    "entry_vs_high7_adr": -4.3916,
@@ -3360,7 +3505,8 @@
     "6": 2.1421,
     "7": 2.1421
    },
-   "stop_adr": 0.181,
+   "stop_adr": 0.1787,
+   "stop_adr_naive": 0.181,
    "stop_pct": 0.007527700245284619,
    "entry_vs_high3_adr": 0.181,
    "entry_vs_high7_adr": 0.181,
@@ -3383,7 +3529,8 @@
     "6": 1.6703,
     "7": 2.0446
    },
-   "stop_adr": 0.3485,
+   "stop_adr": 0.3427,
+   "stop_adr_naive": 0.3485,
    "stop_pct": 0.01637157409653158,
    "entry_vs_high3_adr": -0.1549,
    "entry_vs_high7_adr": -0.4027,
@@ -3406,7 +3553,8 @@
     "6": 1.5638,
     "7": 1.5638
    },
-   "stop_adr": 0.0,
+   "stop_adr": 0.2289,
+   "stop_adr_naive": 0.0,
    "stop_pct": 0.06666666666666665,
    "entry_vs_high3_adr": -3.9624,
    "entry_vs_high7_adr": -4.2682,
@@ -3429,7 +3577,8 @@
     "6": 1.8252,
     "7": 2.1167
    },
-   "stop_adr": 1.1794,
+   "stop_adr": 1.0834,
+   "stop_adr_naive": 1.1794,
    "stop_pct": 0.0911295911295911,
    "entry_vs_high3_adr": 0.3408,
    "entry_vs_high7_adr": 0.0493,
@@ -3452,7 +3601,8 @@
     "6": 3.1236,
     "7": 3.1236
    },
-   "stop_adr": 0.3288,
+   "stop_adr": 0.3239,
+   "stop_adr_naive": 0.3288,
    "stop_pct": 0.01109877913429525,
    "entry_vs_high3_adr": 0.0658,
    "entry_vs_high7_adr": 0.0658,
@@ -3475,7 +3625,8 @@
     "6": 4.3995,
     "7": 4.3995
    },
-   "stop_adr": 0.0658,
+   "stop_adr": 0.6085,
+   "stop_adr_naive": 0.0658,
    "stop_pct": 0.02745098039215683,
    "entry_vs_high3_adr": -21.8565,
    "entry_vs_high7_adr": -23.7179,
@@ -3498,7 +3649,8 @@
     "6": 1.5296,
     "7": 2.1539
    },
-   "stop_adr": 0.5378,
+   "stop_adr": 0.5215,
+   "stop_adr_naive": 0.5378,
    "stop_pct": 0.02862073924924486,
    "entry_vs_high3_adr": -0.027,
    "entry_vs_high7_adr": -0.1189,
@@ -3521,7 +3673,8 @@
     "6": 3.2134,
     "7": 3.5626
    },
-   "stop_adr": 0.1397,
+   "stop_adr": 0.1347,
+   "stop_adr_naive": 0.1397,
    "stop_pct": 0.002600780234070166,
    "entry_vs_high3_adr": 0.978,
    "entry_vs_high7_adr": 0.6287,
@@ -3544,7 +3697,8 @@
     "6": 2.7612,
     "7": 2.7612
    },
-   "stop_adr": 0.0525,
+   "stop_adr": 0.0515,
+   "stop_adr_naive": 0.0525,
    "stop_pct": 0.002658662092624376,
    "entry_vs_high3_adr": 0.0463,
    "entry_vs_high7_adr": -1.0785,
@@ -3567,7 +3721,8 @@
     "6": 1.7588,
     "7": 1.7588
    },
-   "stop_adr": 0.1917,
+   "stop_adr": 0.0467,
+   "stop_adr_naive": 0.1917,
    "stop_pct": 0.002824624075766415,
    "entry_vs_high3_adr": 51.0667,
    "entry_vs_high7_adr": 51.0667,
@@ -3590,7 +3745,8 @@
     "6": 2.891,
     "7": 2.891
    },
-   "stop_adr": 0.7712,
+   "stop_adr": 0.7456,
+   "stop_adr_naive": 0.7712,
    "stop_pct": 0.02268329391528703,
    "entry_vs_high3_adr": -1.2646,
    "entry_vs_high7_adr": -1.2646,
@@ -3613,7 +3769,8 @@
     "6": 1.9576,
     "7": 1.9576
    },
-   "stop_adr": 0.2257,
+   "stop_adr": 0.0562,
+   "stop_adr_naive": 0.2257,
    "stop_pct": 0.002900000000000063,
    "entry_vs_high3_adr": 58.1411,
    "entry_vs_high7_adr": 57.6095,
@@ -3636,7 +3793,8 @@
     "6": 1.6497,
     "7": 1.6687
    },
-   "stop_adr": 0.6388,
+   "stop_adr": 0.6259,
+   "stop_adr_naive": 0.6388,
    "stop_pct": 0.04444752146219875,
    "entry_vs_high3_adr": -0.0338,
    "entry_vs_high7_adr": -0.1274,
@@ -3659,7 +3817,8 @@
     "6": 2.4109,
     "7": 2.4947
    },
-   "stop_adr": 0.0018,
+   "stop_adr": 0.0612,
+   "stop_adr_naive": 0.0018,
    "stop_pct": 0.003185840707964597,
    "entry_vs_high3_adr": -18.6951,
    "entry_vs_high7_adr": -18.9537,
@@ -3682,7 +3841,8 @@
     "6": 2.4023,
     "7": 2.7573
    },
-   "stop_adr": 0.1065,
+   "stop_adr": 0.1051,
+   "stop_adr_naive": 0.1065,
    "stop_pct": 0.00331125827814569,
    "entry_vs_high3_adr": 0.3846,
    "entry_vs_high7_adr": 0.0296,
@@ -3705,7 +3865,8 @@
     "6": 4.771,
     "7": 4.771
    },
-   "stop_adr": 0.1871,
+   "stop_adr": 0.183,
+   "stop_adr_naive": 0.1871,
    "stop_pct": 0.003470715835141078,
    "entry_vs_high3_adr": 0.6315,
    "entry_vs_high7_adr": -2.1282,
@@ -3728,7 +3889,8 @@
     "6": 2.0219,
     "7": 2.0219
    },
-   "stop_adr": 1.2028,
+   "stop_adr": 0.0775,
+   "stop_adr_naive": 1.2028,
    "stop_pct": 0.003651935743320979,
    "entry_vs_high3_adr": 308.0182,
    "entry_vs_high7_adr": 307.1805,
@@ -3751,7 +3913,8 @@
     "6": 1.6407,
     "7": 1.6407
    },
-   "stop_adr": 1.1371,
+   "stop_adr": 0.1106,
+   "stop_adr_naive": 1.1371,
    "stop_pct": 0.00385642737896485,
    "entry_vs_high3_adr": 265.7469,
    "entry_vs_high7_adr": 265.7469,
@@ -3774,7 +3937,8 @@
     "6": 3.0096,
     "7": 3.3618
    },
-   "stop_adr": 0.4162,
+   "stop_adr": 0.4093,
+   "stop_adr_naive": 0.4162,
    "stop_pct": 0.01450353291186317,
    "entry_vs_high3_adr": 0.0427,
    "entry_vs_high7_adr": -1.3447,
@@ -3797,7 +3961,8 @@
     "6": 1.5026,
     "7": 1.5026
    },
-   "stop_adr": 0.0934,
+   "stop_adr": 0.0925,
+   "stop_adr_naive": 0.0934,
    "stop_pct": 0.004769712326725404,
    "entry_vs_high3_adr": -0.1021,
    "entry_vs_high7_adr": -0.674,
@@ -3820,7 +3985,8 @@
     "6": 1.7629,
     "7": 1.7629
    },
-   "stop_adr": 0.1828,
+   "stop_adr": 0.1789,
+   "stop_adr_naive": 0.1828,
    "stop_pct": 0.005083514887436477,
    "entry_vs_high3_adr": 0.4484,
    "entry_vs_high7_adr": 0.2351,
@@ -3843,7 +4009,8 @@
     "6": 1.6585,
     "7": 2.1697
    },
-   "stop_adr": 0.0991,
+   "stop_adr": 0.0899,
+   "stop_adr_naive": 0.0991,
    "stop_pct": 0.005193045834274085,
    "entry_vs_high3_adr": 1.1947,
    "entry_vs_high7_adr": 1.1947,
@@ -3866,7 +4033,8 @@
     "6": 2.583,
     "7": 2.583
    },
-   "stop_adr": 0.1516,
+   "stop_adr": 0.1489,
+   "stop_adr_naive": 0.1516,
    "stop_pct": 0.005189750243269432,
    "entry_vs_high3_adr": -0.881,
    "entry_vs_high7_adr": -1.0926,
@@ -3889,7 +4057,8 @@
     "6": 1.4214,
     "7": 1.4214
    },
-   "stop_adr": 0.2225,
+   "stop_adr": 0.2236,
+   "stop_adr_naive": 0.2225,
    "stop_pct": 0.00517241379310344,
    "entry_vs_high3_adr": -0.2225,
    "entry_vs_high7_adr": -0.2843,
@@ -3912,7 +4081,8 @@
     "6": 4.108,
     "7": 4.5765
    },
-   "stop_adr": 0.1966,
+   "stop_adr": 0.1942,
+   "stop_adr_naive": 0.1966,
    "stop_pct": 0.005276156264032317,
    "entry_vs_high3_adr": 0.1088,
    "entry_vs_high7_adr": 0.1088,
@@ -3935,7 +4105,8 @@
     "6": 2.0432,
     "7": 2.5641
    },
-   "stop_adr": 0.1189,
+   "stop_adr": 0.1122,
+   "stop_adr_naive": 0.1189,
    "stop_pct": 0.0053475935828877,
    "entry_vs_high3_adr": 1.0513,
    "entry_vs_high7_adr": 0.5304,
@@ -3958,7 +4129,8 @@
     "6": 1.5376,
     "7": 2.1589
    },
-   "stop_adr": 0.1214,
+   "stop_adr": 0.1181,
+   "stop_adr_naive": 0.1214,
    "stop_pct": 0.005407725321888373,
    "entry_vs_high3_adr": 0.5385,
    "entry_vs_high7_adr": 0.3459,
@@ -3981,7 +4153,8 @@
     "6": 1.7374,
     "7": 1.7374
    },
-   "stop_adr": 0.1064,
+   "stop_adr": 0.105,
+   "stop_adr_naive": 0.1064,
    "stop_pct": 0.005444646098003707,
    "entry_vs_high3_adr": 0.0,
    "entry_vs_high7_adr": -0.0532,
@@ -4004,7 +4177,8 @@
     "6": 3.7548,
     "7": 3.7601
    },
-   "stop_adr": 3.9065,
+   "stop_adr": 0.7751,
+   "stop_adr_naive": 3.9065,
    "stop_pct": 0.01832817337461305,
    "entry_vs_high3_adr": 170.2582,
    "entry_vs_high7_adr": 168.9674,
@@ -4027,7 +4201,8 @@
     "6": 2.5259,
     "7": 3.8568
    },
-   "stop_adr": 0.2914,
+   "stop_adr": 0.2801,
+   "stop_adr_naive": 0.2914,
    "stop_pct": 0.005523844595838782,
    "entry_vs_high3_adr": 2.0498,
    "entry_vs_high7_adr": 1.671,
@@ -4050,7 +4225,8 @@
     "6": 1.7674,
     "7": 2.1335
    },
-   "stop_adr": 0.1115,
+   "stop_adr": 0.1099,
+   "stop_adr_naive": 0.1115,
    "stop_pct": 0.005698005698005645,
    "entry_vs_high3_adr": -0.039,
    "entry_vs_high7_adr": -0.039,
@@ -4073,7 +4249,8 @@
     "6": 2.8042,
     "7": 2.8042
    },
-   "stop_adr": 0.1471,
+   "stop_adr": 0.1254,
+   "stop_adr_naive": 0.1471,
    "stop_pct": 0.005936319481921178,
    "entry_vs_high3_adr": 3.3487,
    "entry_vs_high7_adr": 3.3487,
@@ -4096,7 +4273,8 @@
     "6": 2.2395,
     "7": 2.2395
    },
-   "stop_adr": 0.1271,
+   "stop_adr": 0.123,
+   "stop_adr_naive": 0.1271,
    "stop_pct": 0.005894128113879016,
    "entry_vs_high3_adr": 0.4196,
    "entry_vs_high7_adr": 0.0288,
@@ -4119,7 +4297,8 @@
     "6": 3.5668,
     "7": 3.5668
    },
-   "stop_adr": 0.2027,
+   "stop_adr": 0.1956,
+   "stop_adr_naive": 0.2027,
    "stop_pct": 0.006036217303823023,
    "entry_vs_high3_adr": -0.5269,
    "entry_vs_high7_adr": -0.5269,
@@ -4142,7 +4321,8 @@
     "6": 2.8139,
     "7": 2.8139
    },
-   "stop_adr": 0.449,
+   "stop_adr": 0.1462,
+   "stop_adr_naive": 0.449,
    "stop_pct": 0.006121676926780523,
    "entry_vs_high3_adr": 48.734,
    "entry_vs_high7_adr": 48.6661,
@@ -4165,7 +4345,8 @@
     "6": 2.2642,
     "7": 2.2738
    },
-   "stop_adr": 0.198,
+   "stop_adr": 0.1901,
+   "stop_adr_naive": 0.198,
    "stop_pct": 0.006073667711598791,
    "entry_vs_high3_adr": 0.7856,
    "entry_vs_high7_adr": 0.7856,
@@ -4188,7 +4369,8 @@
     "6": 1.4779,
     "7": 1.4779
    },
-   "stop_adr": 1.6745,
+   "stop_adr": 0.165,
+   "stop_adr_naive": 1.6745,
    "stop_pct": 0.006270447110141667,
    "entry_vs_high3_adr": 240.4552,
    "entry_vs_high7_adr": 239.9372,
@@ -4211,7 +4393,8 @@
     "6": 2.418,
     "7": 2.418
    },
-   "stop_adr": 1.1226,
+   "stop_adr": 0.2167,
+   "stop_adr_naive": 1.1226,
    "stop_pct": 0.006528289253431546,
    "entry_vs_high3_adr": 138.6027,
    "entry_vs_high7_adr": 138.6027,
@@ -4234,7 +4417,8 @@
     "6": 1.4316,
     "7": 1.4316
    },
-   "stop_adr": 0.2038,
+   "stop_adr": 0.1993,
+   "stop_adr_naive": 0.2038,
    "stop_pct": 0.006519967400162975,
    "entry_vs_high3_adr": 0.2293,
    "entry_vs_high7_adr": 0.1477,
@@ -4257,7 +4441,8 @@
     "6": 1.2703,
     "7": 1.2703
    },
-   "stop_adr": 1.5414,
+   "stop_adr": 0.1515,
+   "stop_adr_naive": 1.5414,
    "stop_pct": 0.006682464454976261,
    "entry_vs_high3_adr": 207.7685,
    "entry_vs_high7_adr": 207.7685,
@@ -4280,7 +4465,8 @@
     "6": 3.6799,
     "7": 3.6799
    },
-   "stop_adr": 0.0171,
+   "stop_adr": 0.325,
+   "stop_adr_naive": 0.0171,
    "stop_pct": 0.00669912816683658,
    "entry_vs_high3_adr": -47.4066,
    "entry_vs_high7_adr": -48.9376,
@@ -4303,7 +4489,8 @@
     "6": 1.2759,
     "7": 1.6519
    },
-   "stop_adr": 0.3494,
+   "stop_adr": 0.1146,
+   "stop_adr_naive": 0.3494,
    "stop_pct": 0.006848072562358236,
    "entry_vs_high3_adr": 34.0952,
    "entry_vs_high7_adr": 33.7141,
@@ -4326,7 +4513,8 @@
     "6": 1.1104,
     "7": 1.1104
    },
-   "stop_adr": 0.0043,
+   "stop_adr": 0.0408,
+   "stop_adr_naive": 0.0043,
    "stop_pct": 0.006896551724137907,
    "entry_vs_high3_adr": -5.6169,
    "entry_vs_high7_adr": -5.8164,
@@ -4349,7 +4537,8 @@
     "6": 2.3792,
     "7": 2.3792
    },
-   "stop_adr": 0.3372,
+   "stop_adr": 0.3199,
+   "stop_adr_naive": 0.3372,
    "stop_pct": 0.007290400972053451,
    "entry_vs_high3_adr": 1.4987,
    "entry_vs_high7_adr": 0.8992,
@@ -4372,7 +4561,8 @@
     "6": 1.0397,
     "7": 1.3127
    },
-   "stop_adr": 1.5071,
+   "stop_adr": 0.0996,
+   "stop_adr_naive": 1.5071,
    "stop_pct": 0.007343124165554072,
    "entry_vs_high3_adr": 191.2912,
    "entry_vs_high7_adr": 190.9505,
@@ -4395,7 +4585,8 @@
     "6": 2.2505,
     "7": 2.4112
    },
-   "stop_adr": 0.2893,
+   "stop_adr": 0.2741,
+   "stop_adr_naive": 0.2893,
    "stop_pct": 0.007447248655358016,
    "entry_vs_high3_adr": 0.7475,
    "entry_vs_high7_adr": 0.2733,
@@ -4418,7 +4609,8 @@
     "6": 1.7681,
     "7": 2.3595
    },
-   "stop_adr": 0.2844,
+   "stop_adr": 0.2807,
+   "stop_adr_naive": 0.2844,
    "stop_pct": 0.007559251189470357,
    "entry_vs_high3_adr": 0.0661,
    "entry_vs_high7_adr": -0.6482,
@@ -4441,7 +4633,8 @@
     "6": 2.3963,
     "7": 2.5933
    },
-   "stop_adr": 0.1735,
+   "stop_adr": 0.169,
+   "stop_adr_naive": 0.1735,
    "stop_pct": 0.007743825868564348,
    "entry_vs_high3_adr": 0.0375,
    "entry_vs_high7_adr": -0.1594,
@@ -4464,7 +4657,8 @@
     "6": 1.7914,
     "7": 2.1831
    },
-   "stop_adr": 0.16,
+   "stop_adr": 0.157,
+   "stop_adr_naive": 0.16,
    "stop_pct": 0.007846926942404225,
    "entry_vs_high3_adr": -0.0969,
    "entry_vs_high7_adr": -0.4886,
@@ -4487,7 +4681,8 @@
     "6": 1.8098,
     "7": 1.8098
    },
-   "stop_adr": 0.1833,
+   "stop_adr": 0.0879,
+   "stop_adr_naive": 0.1833,
    "stop_pct": 0.007759456838021288,
    "entry_vs_high3_adr": 12.0862,
    "entry_vs_high7_adr": 11.1393,
@@ -4510,7 +4705,8 @@
     "6": 2.8694,
     "7": 2.8694
    },
-   "stop_adr": 0.1983,
+   "stop_adr": 0.195,
+   "stop_adr_naive": 0.1983,
    "stop_pct": 0.007847650936486346,
    "entry_vs_high3_adr": -0.1402,
    "entry_vs_high7_adr": -0.1402,
@@ -4533,7 +4729,8 @@
     "6": 3.3888,
     "7": 4.6698
    },
-   "stop_adr": 0.239,
+   "stop_adr": 0.2357,
+   "stop_adr_naive": 0.239,
    "stop_pct": 0.007936507936507936,
    "entry_vs_high3_adr": -0.0335,
    "entry_vs_high7_adr": -2.9539,
@@ -4556,7 +4753,8 @@
     "6": 2.2618,
     "7": 2.6212
    },
-   "stop_adr": 0.2789,
+   "stop_adr": 0.2753,
+   "stop_adr_naive": 0.2789,
    "stop_pct": 0.007854016880275051,
    "entry_vs_high3_adr": 0.2692,
    "entry_vs_high7_adr": -0.4232,
@@ -4579,7 +4777,8 @@
     "6": 2.6869,
     "7": 2.6869
    },
-   "stop_adr": 0.2877,
+   "stop_adr": 0.0937,
+   "stop_adr_naive": 0.2877,
    "stop_pct": 0.008003537475127137,
    "entry_vs_high3_adr": 23.8154,
    "entry_vs_high7_adr": 23.7055,
@@ -4602,7 +4801,8 @@
     "6": 1.7663,
     "7": 1.7663
    },
-   "stop_adr": 0.4518,
+   "stop_adr": 0.1491,
+   "stop_adr_naive": 0.4518,
    "stop_pct": 0.008149557819321586,
    "entry_vs_high3_adr": 36.8742,
    "entry_vs_high7_adr": 36.8742,
@@ -4625,7 +4825,8 @@
     "6": 1.0226,
     "7": 1.0226
    },
-   "stop_adr": 0.2239,
+   "stop_adr": 0.2205,
+   "stop_adr_naive": 0.2239,
    "stop_pct": 0.008441871683550388,
    "entry_vs_high3_adr": -0.0064,
    "entry_vs_high7_adr": -0.1376,
@@ -4648,7 +4849,8 @@
     "6": 2.205,
     "7": 2.205
    },
-   "stop_adr": 0.1541,
+   "stop_adr": 0.1496,
+   "stop_adr_naive": 0.1541,
    "stop_pct": 0.008363826450601219,
    "entry_vs_high3_adr": -0.5392,
    "entry_vs_high7_adr": -0.5392,
@@ -4671,7 +4873,8 @@
     "6": 3.5692,
     "7": 4.2876
    },
-   "stop_adr": 0.1874,
+   "stop_adr": 0.1823,
+   "stop_adr_naive": 0.1874,
    "stop_pct": 0.008583690987124498,
    "entry_vs_high3_adr": 0.5086,
    "entry_vs_high7_adr": -0.3078,
@@ -4694,7 +4897,8 @@
     "6": 2.6961,
     "7": 2.7198
    },
-   "stop_adr": 0.1462,
+   "stop_adr": 0.1427,
+   "stop_adr_naive": 0.1462,
    "stop_pct": 0.00863981319322825,
    "entry_vs_high3_adr": 0.2213,
    "entry_vs_high7_adr": -1.102,
@@ -4717,7 +4921,8 @@
     "6": 2.9739,
     "7": 3.903
    },
-   "stop_adr": 0.5534,
+   "stop_adr": 0.5166,
+   "stop_adr_naive": 0.5534,
    "stop_pct": 0.04220338983050851,
    "entry_vs_high3_adr": 0.0956,
    "entry_vs_high7_adr": -2.196,
@@ -4740,7 +4945,8 @@
     "6": 2.5866,
     "7": 4.1687
    },
-   "stop_adr": 0.3432,
+   "stop_adr": 0.334,
+   "stop_adr_naive": 0.3432,
    "stop_pct": 0.008723404255319077,
    "entry_vs_high3_adr": 0.0586,
    "entry_vs_high7_adr": 0.0586,
@@ -4763,7 +4969,8 @@
     "6": 2.5305,
     "7": 2.5305
    },
-   "stop_adr": 0.2887,
+   "stop_adr": 0.2743,
+   "stop_adr_naive": 0.2887,
    "stop_pct": 0.008848540565387222,
    "entry_vs_high3_adr": 1.346,
    "entry_vs_high7_adr": 0.7836,
@@ -4786,7 +4993,8 @@
     "6": 2.2177,
     "7": 2.2177
    },
-   "stop_adr": 0.4717,
+   "stop_adr": 0.1543,
+   "stop_adr_naive": 0.4717,
    "stop_pct": 0.008951189165480633,
    "entry_vs_high3_adr": 35.094,
    "entry_vs_high7_adr": 35.094,
@@ -4809,7 +5017,8 @@
     "6": 1.352,
     "7": 2.0235
    },
-   "stop_adr": 1.4617,
+   "stop_adr": 0.1428,
+   "stop_adr_naive": 1.4617,
    "stop_pct": 0.009037490410312203,
    "entry_vs_high3_adr": 145.9351,
    "entry_vs_high7_adr": 145.7875,
@@ -4832,7 +5041,8 @@
     "6": 1.741,
     "7": 1.7744
    },
-   "stop_adr": 0.1116,
+   "stop_adr": 0.1097,
+   "stop_adr_naive": 0.1116,
    "stop_pct": 0.009140767824497225,
    "entry_vs_high3_adr": -0.3013,
    "entry_vs_high7_adr": -0.3013,
@@ -4855,7 +5065,8 @@
     "6": 3.4346,
     "7": 3.4346
    },
-   "stop_adr": 0.4856,
+   "stop_adr": 0.4785,
+   "stop_adr_naive": 0.4856,
    "stop_pct": 0.009207317073170676,
    "entry_vs_high3_adr": 0.0868,
    "entry_vs_high7_adr": -1.3796,
@@ -4878,7 +5089,8 @@
     "6": 3.228,
     "7": 3.6075
    },
-   "stop_adr": 1.3758,
+   "stop_adr": 0.1557,
+   "stop_adr_naive": 1.3758,
    "stop_pct": 0.009245670678015783,
    "entry_vs_high3_adr": 131.5542,
    "entry_vs_high7_adr": 129.702,
@@ -4901,7 +5113,8 @@
     "6": 2.0754,
     "7": 2.4428
    },
-   "stop_adr": 0.255,
+   "stop_adr": 0.2513,
+   "stop_adr_naive": 0.255,
    "stop_pct": 0.009332191780821947,
    "entry_vs_high3_adr": 0.0094,
    "entry_vs_high7_adr": -0.358,
@@ -4924,7 +5137,8 @@
     "6": 2.9309,
     "7": 3.8341
    },
-   "stop_adr": 0.1647,
+   "stop_adr": 0.1599,
+   "stop_adr_naive": 0.1647,
    "stop_pct": 0.00944625407166121,
    "entry_vs_high3_adr": 0.4544,
    "entry_vs_high7_adr": -1.7381,
@@ -4947,7 +5161,8 @@
     "6": 3.3843,
     "7": 3.3843
    },
-   "stop_adr": 0.295,
+   "stop_adr": 0.2867,
+   "stop_adr_naive": 0.295,
    "stop_pct": 0.009529147982062875,
    "entry_vs_high3_adr": 0.0983,
    "entry_vs_high7_adr": -1.1455,
@@ -4970,7 +5185,8 @@
     "6": 2.2244,
     "7": 2.2244
    },
-   "stop_adr": 0.2487,
+   "stop_adr": 0.2184,
+   "stop_adr_naive": 0.2487,
    "stop_pct": 0.009643201542912214,
    "entry_vs_high3_adr": 3.0549,
    "entry_vs_high7_adr": 3.0549,
@@ -4993,7 +5209,8 @@
     "6": 2.4217,
     "7": 2.4217
    },
-   "stop_adr": 0.1359,
+   "stop_adr": 0.1324,
+   "stop_adr_naive": 0.1359,
    "stop_pct": 0.00974391005621488,
    "entry_vs_high3_adr": -0.4181,
    "entry_vs_high7_adr": -0.4181,
@@ -5016,7 +5233,8 @@
     "6": 2.1019,
     "7": 3.5783
    },
-   "stop_adr": 0.2002,
+   "stop_adr": 0.198,
+   "stop_adr_naive": 0.2002,
    "stop_pct": 0.009840304182509547,
    "entry_vs_high3_adr": -0.3165,
    "entry_vs_high7_adr": -2.0952,
@@ -5039,7 +5257,8 @@
     "6": 1.5395,
     "7": 1.7115
    },
-   "stop_adr": 0.0901,
+   "stop_adr": 0.0887,
+   "stop_adr_naive": 0.0901,
    "stop_pct": 0.009809750297265109,
    "entry_vs_high3_adr": 0.0136,
    "entry_vs_high7_adr": -0.232,
@@ -5062,7 +5281,8 @@
     "6": 3.0151,
     "7": 3.0151
    },
-   "stop_adr": 3.227,
+   "stop_adr": 0.3967,
+   "stop_adr_naive": 3.227,
    "stop_pct": 0.0260778859527121,
    "entry_vs_high3_adr": 107.9426,
    "entry_vs_high7_adr": 106.7098,
@@ -5085,7 +5305,8 @@
     "6": 2.9834,
     "7": 2.9834
    },
-   "stop_adr": 0.2396,
+   "stop_adr": 0.222,
+   "stop_adr_naive": 0.2396,
    "stop_pct": 0.009926054226900332,
    "entry_vs_high3_adr": 1.232,
    "entry_vs_high7_adr": 1.232,
@@ -5108,7 +5329,8 @@
     "6": 2.7436,
     "7": 2.7436
    },
-   "stop_adr": 0.2045,
+   "stop_adr": 0.1967,
+   "stop_adr_naive": 0.2045,
    "stop_pct": 0.01004211208292848,
    "entry_vs_high3_adr": 0.3232,
    "entry_vs_high7_adr": -0.2374,
@@ -5131,7 +5353,8 @@
     "6": 2.2571,
     "7": 2.2571
    },
-   "stop_adr": 0.3601,
+   "stop_adr": 0.3515,
+   "stop_adr_naive": 0.3601,
    "stop_pct": 0.009996342801414206,
    "entry_vs_high3_adr": -0.8519,
    "entry_vs_high7_adr": -1.0671,
@@ -5154,7 +5377,8 @@
     "6": 1.1352,
     "7": 1.1686
    },
-   "stop_adr": 0.1479,
+   "stop_adr": 0.145,
+   "stop_adr_naive": 0.1479,
    "stop_pct": 0.01021080368906452,
    "entry_vs_high3_adr": 0.0859,
    "entry_vs_high7_adr": 0.0525,
@@ -5177,7 +5401,8 @@
     "6": 2.3941,
     "7": 2.5698
    },
-   "stop_adr": 0.3013,
+   "stop_adr": 0.2979,
+   "stop_adr_naive": 0.3013,
    "stop_pct": 0.0101538461538461,
    "entry_vs_high3_adr": 0.2465,
    "entry_vs_high7_adr": -0.477,
@@ -5200,7 +5425,8 @@
     "6": 2.0121,
     "7": 2.7386
    },
-   "stop_adr": 0.4517,
+   "stop_adr": 0.445,
+   "stop_adr_naive": 0.4517,
    "stop_pct": 0.0104166666666667,
    "entry_vs_high3_adr": 0.0,
    "entry_vs_high7_adr": 0.0,
@@ -5223,7 +5449,8 @@
     "6": 3.6215,
     "7": 3.6215
    },
-   "stop_adr": 2.9564,
+   "stop_adr": 0.291,
+   "stop_adr_naive": 2.9564,
    "stop_pct": 0.01685714285714288,
    "entry_vs_high3_adr": 157.8339,
    "entry_vs_high7_adr": 156.1576,
@@ -5246,7 +5473,8 @@
     "6": 2.1199,
     "7": 3.6501
    },
-   "stop_adr": 0.1848,
+   "stop_adr": 0.1835,
+   "stop_adr_naive": 0.1848,
    "stop_pct": 0.01046153846153857,
    "entry_vs_high3_adr": -0.0217,
    "entry_vs_high7_adr": -1.84,
@@ -5269,7 +5497,8 @@
     "6": 2.29,
     "7": 2.29
    },
-   "stop_adr": 0.2111,
+   "stop_adr": 0.2071,
+   "stop_adr_naive": 0.2111,
    "stop_pct": 0.01051354630004053,
    "entry_vs_high3_adr": -0.0731,
    "entry_vs_high7_adr": -0.0731,
@@ -5292,7 +5521,8 @@
     "6": 2.31,
     "7": 2.31
    },
-   "stop_adr": 0.2686,
+   "stop_adr": 0.2488,
+   "stop_adr_naive": 0.2686,
    "stop_pct": 0.01056338028169014,
    "entry_vs_high3_adr": 1.7697,
    "entry_vs_high7_adr": 1.7697,
@@ -5315,7 +5545,8 @@
     "6": 2.4451,
     "7": 2.4509
    },
-   "stop_adr": 0.4446,
+   "stop_adr": 0.4372,
+   "stop_adr_naive": 0.4446,
    "stop_pct": 0.01074053137365751,
    "entry_vs_high3_adr": -0.5382,
    "entry_vs_high7_adr": -0.5382,
@@ -5338,7 +5569,8 @@
     "6": 1.7073,
     "7": 1.7073
    },
-   "stop_adr": 0.0001,
+   "stop_adr": 0.2479,
+   "stop_adr_naive": 0.0001,
    "stop_pct": 0.02994011976047904,
    "entry_vs_high3_adr": -9.3336,
    "entry_vs_high7_adr": -9.3336,
@@ -5361,7 +5593,8 @@
     "6": 2.7105,
     "7": 2.7105
    },
-   "stop_adr": 0.3754,
+   "stop_adr": 0.3686,
+   "stop_adr_naive": 0.3754,
    "stop_pct": 0.01082568807339456,
    "entry_vs_high3_adr": 0.4008,
    "entry_vs_high7_adr": -1.3107,
@@ -5384,7 +5617,8 @@
     "6": 1.2723,
     "7": 1.2723
    },
-   "stop_adr": 0.2238,
+   "stop_adr": 0.2156,
+   "stop_adr_naive": 0.2238,
    "stop_pct": 0.01078524124881741,
    "entry_vs_high3_adr": -0.2867,
    "entry_vs_high7_adr": -0.2867,
@@ -5407,7 +5641,8 @@
     "6": 3.8552,
     "7": 3.8552
    },
-   "stop_adr": 0.6001,
+   "stop_adr": 0.1953,
+   "stop_adr_naive": 0.6001,
    "stop_pct": 0.01085321100917424,
    "entry_vs_high3_adr": 37.0148,
    "entry_vs_high7_adr": 34.8661,
@@ -5430,7 +5665,8 @@
     "6": 2.4787,
     "7": 2.8084
    },
-   "stop_adr": 0.1927,
+   "stop_adr": 0.1908,
+   "stop_adr_naive": 0.1927,
    "stop_pct": 0.01089887640449437,
    "entry_vs_high3_adr": 0.0516,
    "entry_vs_high7_adr": -0.7448,
@@ -5453,7 +5689,8 @@
     "6": 1.9662,
     "7": 2.7986
    },
-   "stop_adr": 0.3875,
+   "stop_adr": 0.3776,
+   "stop_adr_naive": 0.3875,
    "stop_pct": 0.01100244498777504,
    "entry_vs_high3_adr": 0.6745,
    "entry_vs_high7_adr": -0.3875,
@@ -5476,7 +5713,8 @@
     "6": 2.4625,
     "7": 2.6579
    },
-   "stop_adr": 0.3396,
+   "stop_adr": 0.336,
+   "stop_adr_naive": 0.3396,
    "stop_pct": 0.01112,
    "entry_vs_high3_adr": 0.1417,
    "entry_vs_high7_adr": -0.5912,
@@ -5499,7 +5737,8 @@
     "6": 2.329,
     "7": 2.8452
    },
-   "stop_adr": 0.494,
+   "stop_adr": 0.4854,
+   "stop_adr_naive": 0.494,
    "stop_pct": 0.01112347052280311,
    "entry_vs_high3_adr": 0.1383,
    "entry_vs_high7_adr": 0.0395,
@@ -5522,7 +5761,8 @@
     "6": 1.1007,
     "7": 1.3796
    },
-   "stop_adr": 0.2402,
+   "stop_adr": 0.2364,
+   "stop_adr_naive": 0.2402,
    "stop_pct": 0.01115241635687739,
    "entry_vs_high3_adr": 0.2588,
    "entry_vs_high7_adr": -0.1388,
@@ -5545,7 +5785,8 @@
     "6": 1.3486,
     "7": 1.3486
    },
-   "stop_adr": 0.1455,
+   "stop_adr": 0.1484,
+   "stop_adr_naive": 0.1455,
    "stop_pct": 0.01124543154343537,
    "entry_vs_high3_adr": -0.302,
    "entry_vs_high7_adr": -0.302,
@@ -5568,7 +5809,8 @@
     "6": 1.7477,
     "7": 1.7679
    },
-   "stop_adr": 0.144,
+   "stop_adr": 0.1269,
+   "stop_adr_naive": 0.144,
    "stop_pct": 0.0111764705882353,
    "entry_vs_high3_adr": 1.0188,
    "entry_vs_high7_adr": 0.1692,
@@ -5591,7 +5833,8 @@
     "6": 1.2873,
     "7": 2.053
    },
-   "stop_adr": 2.422,
+   "stop_adr": 0.2394,
+   "stop_adr_naive": 2.422,
    "stop_pct": 0.01129578361484372,
    "entry_vs_high3_adr": 193.1748,
    "entry_vs_high7_adr": 192.4092,
@@ -5614,7 +5857,8 @@
     "6": 1.3244,
     "7": 1.7725
    },
-   "stop_adr": 0.2652,
+   "stop_adr": 0.2605,
+   "stop_adr_naive": 0.2652,
    "stop_pct": 0.0112609040444091,
    "entry_vs_high3_adr": 0.2876,
    "entry_vs_high7_adr": -0.4948,
@@ -5637,7 +5881,8 @@
     "6": 2.8491,
     "7": 3.8739
    },
-   "stop_adr": 0.2307,
+   "stop_adr": 0.2087,
+   "stop_adr_naive": 0.2307,
    "stop_pct": 0.01398373983739836,
    "entry_vs_high3_adr": 1.2448,
    "entry_vs_high7_adr": 1.2448,
@@ -5660,7 +5905,8 @@
     "6": 1.3424,
     "7": 1.3424
    },
-   "stop_adr": 0.0278,
+   "stop_adr": 0.1325,
+   "stop_adr_naive": 0.0278,
    "stop_pct": 0.01146131805157603,
    "entry_vs_high3_adr": -9.7856,
    "entry_vs_high7_adr": -10.0633,
@@ -5683,7 +5929,8 @@
     "6": 2.5233,
     "7": 2.5924
    },
-   "stop_adr": 0.288,
+   "stop_adr": 0.276,
+   "stop_adr_naive": 0.288,
    "stop_pct": 0.01154467790348649,
    "entry_vs_high3_adr": 0.4724,
    "entry_vs_high7_adr": 0.4033,
@@ -5706,7 +5953,8 @@
     "6": 5.7653,
     "7": 5.7653
    },
-   "stop_adr": 0.7248,
+   "stop_adr": 0.1754,
+   "stop_adr_naive": 0.7248,
    "stop_pct": 0.01161862527716188,
    "entry_vs_high3_adr": 44.7001,
    "entry_vs_high7_adr": 44.7001,
@@ -5729,7 +5977,8 @@
     "6": 1.7835,
     "7": 2.0079
    },
-   "stop_adr": 0.4369,
+   "stop_adr": 0.4304,
+   "stop_adr_naive": 0.4369,
    "stop_pct": 0.01169463071334395,
    "entry_vs_high3_adr": 0.4487,
    "entry_vs_high7_adr": 0.2243,
@@ -5752,7 +6001,8 @@
     "6": 1.4175,
     "7": 2.6695
    },
-   "stop_adr": 0.3116,
+   "stop_adr": 0.3087,
+   "stop_adr_naive": 0.3116,
    "stop_pct": 0.01174514083775071,
    "entry_vs_high3_adr": -0.0496,
    "entry_vs_high7_adr": -0.0496,
@@ -5775,7 +6025,8 @@
     "6": 6.9437,
     "7": 6.9437
    },
-   "stop_adr": 1.1171,
+   "stop_adr": 0.3683,
+   "stop_adr_naive": 1.1171,
    "stop_pct": 0.01179236618786958,
    "entry_vs_high3_adr": 62.9749,
    "entry_vs_high7_adr": 62.9749,
@@ -5798,7 +6049,8 @@
     "6": 1.5913,
     "7": 1.5913
    },
-   "stop_adr": 0.2458,
+   "stop_adr": 0.2372,
+   "stop_adr_naive": 0.2458,
    "stop_pct": 0.01184873949579829,
    "entry_vs_high3_adr": -0.373,
    "entry_vs_high7_adr": -0.3956,
@@ -5821,7 +6073,8 @@
     "6": 1.813,
     "7": 2.5943
    },
-   "stop_adr": 0.2009,
+   "stop_adr": 0.1999,
+   "stop_adr_naive": 0.2009,
    "stop_pct": 0.01194295900178256,
    "entry_vs_high3_adr": -0.0225,
    "entry_vs_high7_adr": -0.0225,
@@ -5844,7 +6097,8 @@
     "6": 1.8279,
     "7": 1.9967
    },
-   "stop_adr": 0.3448,
+   "stop_adr": 0.3446,
+   "stop_adr_naive": 0.3448,
    "stop_pct": 0.01199999999999992,
    "entry_vs_high3_adr": -0.0718,
    "entry_vs_high7_adr": -0.079,
@@ -5867,7 +6121,8 @@
     "6": 2.4354,
     "7": 3.5581
    },
-   "stop_adr": 0.8158,
+   "stop_adr": 0.1964,
+   "stop_adr_naive": 0.8158,
    "stop_pct": 0.01205312737698205,
    "entry_vs_high3_adr": 49.5015,
    "entry_vs_high7_adr": 49.5015,
@@ -5890,7 +6145,8 @@
     "6": 1.4183,
     "7": 1.7453
    },
-   "stop_adr": 0.3073,
+   "stop_adr": 0.301,
+   "stop_adr_naive": 0.3073,
    "stop_pct": 0.01219893650297155,
    "entry_vs_high3_adr": 0.4255,
    "entry_vs_high7_adr": 0.0985,
@@ -5913,7 +6169,8 @@
     "6": 2.3919,
     "7": 2.7376
    },
-   "stop_adr": 0.1702,
+   "stop_adr": 0.167,
+   "stop_adr_naive": 0.1702,
    "stop_pct": 0.01226140816584501,
    "entry_vs_high3_adr": -0.5387,
    "entry_vs_high7_adr": -0.8845,
@@ -5936,7 +6193,8 @@
     "6": 2.4595,
     "7": 2.5981
    },
-   "stop_adr": 0.5312,
+   "stop_adr": 0.5225,
+   "stop_adr_naive": 0.5312,
    "stop_pct": 0.01229289150187068,
    "entry_vs_high3_adr": 0.4157,
    "entry_vs_high7_adr": -0.9238,
@@ -5959,7 +6217,8 @@
     "6": 3.2345,
     "7": 3.2345
    },
-   "stop_adr": 0.1744,
+   "stop_adr": 0.2758,
+   "stop_adr_naive": 0.1744,
    "stop_pct": 0.01232993197278908,
    "entry_vs_high3_adr": -8.405,
    "entry_vs_high7_adr": -8.405,
@@ -5982,7 +6241,8 @@
     "6": 1.6182,
     "7": 1.6182
    },
-   "stop_adr": 0.328,
+   "stop_adr": 0.3192,
+   "stop_adr_naive": 0.328,
    "stop_pct": 0.01247712527033771,
    "entry_vs_high3_adr": 0.2493,
    "entry_vs_high7_adr": -0.2755,
@@ -6005,7 +6265,8 @@
     "6": 3.4095,
     "7": 3.4095
    },
-   "stop_adr": 2.7381,
+   "stop_adr": 0.1782,
+   "stop_adr_naive": 2.7381,
    "stop_pct": 0.01251564455569462,
    "entry_vs_high3_adr": 204.1916,
    "entry_vs_high7_adr": 202.8974,
@@ -6028,7 +6289,8 @@
     "6": 2.6274,
     "7": 2.6274
    },
-   "stop_adr": 0.4706,
+   "stop_adr": 0.467,
+   "stop_adr_naive": 0.4706,
    "stop_pct": 0.01264933239634583,
    "entry_vs_high3_adr": 0.1307,
    "entry_vs_high7_adr": 0.1307,
@@ -6051,7 +6313,8 @@
     "6": 1.3926,
     "7": 1.3926
    },
-   "stop_adr": 1.0478,
+   "stop_adr": 0.3422,
+   "stop_adr_naive": 1.0478,
    "stop_pct": 0.01273922199338161,
    "entry_vs_high3_adr": 54.9852,
    "entry_vs_high7_adr": 54.8742,
@@ -6074,7 +6337,8 @@
     "6": 2.9842,
     "7": 2.9842
    },
-   "stop_adr": 0.612,
+   "stop_adr": 0.5982,
+   "stop_adr_naive": 0.612,
    "stop_pct": 0.02087347463070013,
    "entry_vs_high3_adr": -0.0636,
    "entry_vs_high7_adr": -1.3271,
@@ -6097,7 +6361,8 @@
     "6": 3.7841,
     "7": 3.7841
    },
-   "stop_adr": 1.0422,
+   "stop_adr": 0.3395,
+   "stop_adr_naive": 1.0422,
    "stop_pct": 0.0127045454545454,
    "entry_vs_high3_adr": 54.6892,
    "entry_vs_high7_adr": 54.6892,
@@ -6120,7 +6385,8 @@
     "6": 1.29,
     "7": 1.29
    },
-   "stop_adr": 0.339,
+   "stop_adr": 0.3305,
+   "stop_adr_naive": 0.339,
    "stop_pct": 0.01282478347768148,
    "entry_vs_high3_adr": 0.4029,
    "entry_vs_high7_adr": 0.4029,
@@ -6143,7 +6409,8 @@
     "6": 2.8944,
     "7": 2.8944
    },
-   "stop_adr": 0.22,
+   "stop_adr": 0.2126,
+   "stop_adr_naive": 0.22,
    "stop_pct": 0.01275362318840573,
    "entry_vs_high3_adr": 0.12,
    "entry_vs_high7_adr": 0.12,
@@ -6166,7 +6433,8 @@
     "6": 2.4668,
     "7": 2.4668
    },
-   "stop_adr": 0.3157,
+   "stop_adr": 0.3054,
+   "stop_adr_naive": 0.3157,
    "stop_pct": 0.0129372304743651,
    "entry_vs_high3_adr": -0.5027,
    "entry_vs_high7_adr": -0.7249,
@@ -6189,7 +6457,8 @@
     "6": 2.2389,
     "7": 2.2389
    },
-   "stop_adr": 0.4661,
+   "stop_adr": 0.4599,
+   "stop_adr_naive": 0.4661,
    "stop_pct": 0.01296969696969689,
    "entry_vs_high3_adr": -0.4966,
    "entry_vs_high7_adr": -0.8537,
@@ -6212,7 +6481,8 @@
     "6": 1.9506,
     "7": 2.5346
    },
-   "stop_adr": 0.4771,
+   "stop_adr": 0.4487,
+   "stop_adr_naive": 0.4771,
    "stop_pct": 0.01310547284546026,
    "entry_vs_high3_adr": 1.2826,
    "entry_vs_high7_adr": 1.023,
@@ -6235,7 +6505,8 @@
     "6": 2.3581,
     "7": 2.3581
    },
-   "stop_adr": 0.2583,
+   "stop_adr": 0.2512,
+   "stop_adr_naive": 0.2583,
    "stop_pct": 0.01308304891922646,
    "entry_vs_high3_adr": -0.5233,
    "entry_vs_high7_adr": -1.3475,
@@ -6258,7 +6529,8 @@
     "6": 1.421,
     "7": 1.7232
    },
-   "stop_adr": 0.2752,
+   "stop_adr": 0.2609,
+   "stop_adr_naive": 0.2752,
    "stop_pct": 0.01311545904106643,
    "entry_vs_high3_adr": 0.0271,
    "entry_vs_high7_adr": 0.0271,
@@ -6281,7 +6553,8 @@
     "6": 1.8581,
     "7": 2.1054
    },
-   "stop_adr": 0.5082,
+   "stop_adr": 0.245,
+   "stop_adr_naive": 0.5082,
    "stop_pct": 0.01318888365520495,
    "entry_vs_high3_adr": 19.291,
    "entry_vs_high7_adr": 19.0437,
@@ -6304,7 +6577,8 @@
     "6": 2.324,
     "7": 2.811
    },
-   "stop_adr": 0.3479,
+   "stop_adr": 0.3391,
+   "stop_adr_naive": 0.3479,
    "stop_pct": 0.01317870321560359,
    "entry_vs_high3_adr": 0.4523,
    "entry_vs_high7_adr": -1.082,
@@ -6327,7 +6601,8 @@
     "6": 2.7802,
     "7": 2.7802
    },
-   "stop_adr": 0.2083,
+   "stop_adr": 0.2037,
+   "stop_adr_naive": 0.2083,
    "stop_pct": 0.01320299606449146,
    "entry_vs_high3_adr": -0.6089,
    "entry_vs_high7_adr": -1.2158,
@@ -6350,7 +6625,8 @@
     "6": 1.4651,
     "7": 1.9925
    },
-   "stop_adr": 0.1282,
+   "stop_adr": 0.1219,
+   "stop_adr_naive": 0.1282,
    "stop_pct": 0.01330798479087458,
    "entry_vs_high3_adr": -0.0952,
    "entry_vs_high7_adr": -1.3955,
@@ -6373,7 +6649,8 @@
     "6": 2.3166,
     "7": 2.6812
    },
-   "stop_adr": 0.2465,
+   "stop_adr": 0.2406,
+   "stop_adr_naive": 0.2465,
    "stop_pct": 0.01328081035453002,
    "entry_vs_high3_adr": -0.9902,
    "entry_vs_high7_adr": -0.9902,
@@ -6396,7 +6673,8 @@
     "6": 2.3447,
     "7": 2.4434
    },
-   "stop_adr": 0.2495,
+   "stop_adr": 0.2374,
+   "stop_adr_naive": 0.2495,
    "stop_pct": 0.01325234676974039,
    "entry_vs_high3_adr": 0.3847,
    "entry_vs_high7_adr": 0.0104,
@@ -6419,7 +6697,8 @@
     "6": 3.858,
     "7": 3.858
    },
-   "stop_adr": 0.3076,
+   "stop_adr": 0.2667,
+   "stop_adr_naive": 0.3076,
    "stop_pct": 0.01344719687092575,
    "entry_vs_high3_adr": 2.6421,
    "entry_vs_high7_adr": 0.3683,
@@ -6442,7 +6721,8 @@
     "6": 1.4687,
     "7": 1.9105
    },
-   "stop_adr": 0.0096,
+   "stop_adr": 0.1843,
+   "stop_adr_naive": 0.0096,
    "stop_pct": 0.01344266702513779,
    "entry_vs_high3_adr": -13.3487,
    "entry_vs_high7_adr": -13.8019,
@@ -6465,7 +6745,8 @@
     "6": 2.3985,
     "7": 2.3985
    },
-   "stop_adr": 0.2928,
+   "stop_adr": 0.2729,
+   "stop_adr_naive": 0.2928,
    "stop_pct": 0.0134285714285714,
    "entry_vs_high3_adr": 0.6666,
    "entry_vs_high7_adr": 0.6666,
@@ -6488,7 +6769,8 @@
     "6": 2.0303,
     "7": 2.0303
    },
-   "stop_adr": 0.298,
+   "stop_adr": 0.2903,
+   "stop_adr_naive": 0.298,
    "stop_pct": 0.01349168646080762,
    "entry_vs_high3_adr": -0.0525,
    "entry_vs_high7_adr": -0.8342,
@@ -6511,7 +6793,8 @@
     "6": 3.3337,
     "7": 3.3337
    },
-   "stop_adr": 0.9702,
+   "stop_adr": 0.3177,
+   "stop_adr_naive": 0.9702,
    "stop_pct": 0.01365231633130552,
    "entry_vs_high3_adr": 47.5636,
    "entry_vs_high7_adr": 46.1115,
@@ -6534,7 +6817,8 @@
     "6": 1.5632,
     "7": 1.8678
    },
-   "stop_adr": 0.5402,
+   "stop_adr": 0.5352,
+   "stop_adr_naive": 0.5402,
    "stop_pct": 0.01376281112737918,
    "entry_vs_high3_adr": 0.1034,
    "entry_vs_high7_adr": -0.0287,
@@ -6557,7 +6841,8 @@
     "6": 2.3035,
     "7": 2.3035
    },
-   "stop_adr": 0.0112,
+   "stop_adr": 0.2208,
+   "stop_adr_naive": 0.0112,
    "stop_pct": 0.01394122079879418,
    "entry_vs_high3_adr": -15.2023,
    "entry_vs_high7_adr": -16.5334,
@@ -6580,7 +6865,8 @@
     "6": 1.9036,
     "7": 1.9036
    },
-   "stop_adr": 1.3046,
+   "stop_adr": 0.3147,
+   "stop_adr_naive": 1.3046,
    "stop_pct": 0.0138568129330254,
    "entry_vs_high3_adr": 70.6912,
    "entry_vs_high7_adr": 70.3579,
@@ -6603,7 +6889,8 @@
     "6": 2.8339,
     "7": 2.8339
    },
-   "stop_adr": 0.0001,
+   "stop_adr": 0.2428,
+   "stop_adr_naive": 0.0001,
    "stop_pct": 0.01401869158878491,
    "entry_vs_high3_adr": -17.7587,
    "entry_vs_high7_adr": -17.7587,
@@ -6626,7 +6913,8 @@
     "6": 2.1858,
     "7": 2.1858
    },
-   "stop_adr": 0.2377,
+   "stop_adr": 0.2328,
+   "stop_adr_naive": 0.2377,
    "stop_pct": 0.01400809716599193,
    "entry_vs_high3_adr": 0.0721,
    "entry_vs_high7_adr": -1.0235,
@@ -6649,7 +6937,8 @@
     "6": 4.0872,
     "7": 4.0872
    },
-   "stop_adr": 0.3376,
+   "stop_adr": 0.3288,
+   "stop_adr_naive": 0.3376,
    "stop_pct": 0.01397188049209142,
    "entry_vs_high3_adr": -0.8366,
    "entry_vs_high7_adr": -2.7326,
@@ -6672,7 +6961,8 @@
     "6": 3.2376,
     "7": 3.2376
    },
-   "stop_adr": 0.4598,
+   "stop_adr": 0.4424,
+   "stop_adr_naive": 0.4598,
    "stop_pct": 0.01412066752246463,
    "entry_vs_high3_adr": 0.4788,
    "entry_vs_high7_adr": -1.2768,
@@ -6695,7 +6985,8 @@
     "6": 2.0525,
     "7": 2.0525
    },
-   "stop_adr": 0.2714,
+   "stop_adr": 0.2656,
+   "stop_adr_naive": 0.2714,
    "stop_pct": 0.01419782300047324,
    "entry_vs_high3_adr": 0.193,
    "entry_vs_high7_adr": 0.0573,
@@ -6718,7 +7009,8 @@
     "6": 1.6994,
     "7": 1.6994
    },
-   "stop_adr": 0.4427,
+   "stop_adr": 0.2043,
+   "stop_adr_naive": 0.4427,
    "stop_pct": 0.01427671635523829,
    "entry_vs_high3_adr": 15.955,
    "entry_vs_high7_adr": 15.955,
@@ -6741,7 +7033,8 @@
     "6": 2.1771,
     "7": 2.1771
    },
-   "stop_adr": 0.2389,
+   "stop_adr": 0.2322,
+   "stop_adr_naive": 0.2389,
    "stop_pct": 0.01429987257539276,
    "entry_vs_high3_adr": -0.395,
    "entry_vs_high7_adr": -1.127,
@@ -6764,7 +7057,8 @@
     "6": 1.7593,
     "7": 1.9448
    },
-   "stop_adr": 0.3351,
+   "stop_adr": 0.3219,
+   "stop_adr_naive": 0.3351,
    "stop_pct": 0.01439588688946003,
    "entry_vs_high3_adr": 0.6044,
    "entry_vs_high7_adr": 0.2094,
@@ -6787,7 +7081,8 @@
     "6": 1.3286,
     "7": 1.3286
    },
-   "stop_adr": 25.5754,
+   "stop_adr": 0.633,
+   "stop_adr_naive": 25.5754,
    "stop_pct": 0.02290609981515712,
    "entry_vs_high3_adr": 1088.6111,
    "entry_vs_high7_adr": 1088.6111,
@@ -6810,7 +7105,8 @@
     "6": 2.0647,
     "7": 2.2798
    },
-   "stop_adr": 0.2151,
+   "stop_adr": 0.2089,
+   "stop_adr_naive": 0.2151,
    "stop_pct": 0.01436781609195397,
    "entry_vs_high3_adr": -0.4732,
    "entry_vs_high7_adr": -1.2474,
@@ -6833,7 +7129,8 @@
     "6": 2.1562,
     "7": 3.1521
    },
-   "stop_adr": 0.238,
+   "stop_adr": 0.2244,
+   "stop_adr_naive": 0.238,
    "stop_pct": 0.01436834373852367,
    "entry_vs_high3_adr": 0.4866,
    "entry_vs_high7_adr": -0.5033,
@@ -6856,7 +7153,8 @@
     "6": 1.7003,
     "7": 1.7958
    },
-   "stop_adr": 0.2183,
+   "stop_adr": 0.21,
+   "stop_adr_naive": 0.2183,
    "stop_pct": 0.01447016918967056,
    "entry_vs_high3_adr": 0.2736,
    "entry_vs_high7_adr": 0.0211,
@@ -6879,7 +7177,8 @@
     "6": 0.6327,
     "7": 1.5151
    },
-   "stop_adr": 0.0159,
+   "stop_adr": 0.1531,
+   "stop_adr_naive": 0.0159,
    "stop_pct": 0.02551724137931029,
    "entry_vs_high3_adr": -5.746,
    "entry_vs_high7_adr": -6.6456,
@@ -6902,7 +7201,8 @@
     "6": 3.3797,
     "7": 4.3363
    },
-   "stop_adr": 0.2641,
+   "stop_adr": 0.2254,
+   "stop_adr_naive": 0.2641,
    "stop_pct": 0.01455037593984969,
    "entry_vs_high3_adr": 2.1575,
    "entry_vs_high7_adr": -0.6395,
@@ -6925,7 +7225,8 @@
     "6": 2.1469,
     "7": 2.1469
    },
-   "stop_adr": 0.3432,
+   "stop_adr": 0.3354,
+   "stop_adr_naive": 0.3432,
    "stop_pct": 0.01479976784677882,
    "entry_vs_high3_adr": -0.2019,
    "entry_vs_high7_adr": -1.1845,
@@ -6948,7 +7249,8 @@
     "6": 1.2863,
     "7": 1.2863
    },
-   "stop_adr": 0.2127,
+   "stop_adr": 0.2079,
+   "stop_adr_naive": 0.2127,
    "stop_pct": 0.01480124048491679,
    "entry_vs_high3_adr": 0.2026,
    "entry_vs_high7_adr": 0.1904,
@@ -6971,7 +7273,8 @@
     "6": 2.0559,
     "7": 2.0559
    },
-   "stop_adr": 0.2374,
+   "stop_adr": 0.2218,
+   "stop_adr_naive": 0.2374,
    "stop_pct": 0.01499999999999995,
    "entry_vs_high3_adr": 0.1978,
    "entry_vs_high7_adr": 0.1978,
@@ -6994,7 +7297,8 @@
     "6": 1.5367,
     "7": 2.2709
    },
-   "stop_adr": 3.2786,
+   "stop_adr": 0.205,
+   "stop_adr_naive": 3.2786,
    "stop_pct": 0.01500938086303935,
    "entry_vs_high3_adr": 204.4689,
    "entry_vs_high7_adr": 204.435,
@@ -7017,7 +7321,8 @@
     "6": 1.8637,
     "7": 2.3184
    },
-   "stop_adr": 1.0779,
+   "stop_adr": 0.2553,
+   "stop_adr_naive": 1.0779,
    "stop_pct": 0.01510676006414037,
    "entry_vs_high3_adr": 53.4321,
    "entry_vs_high7_adr": 52.9775,
@@ -7040,7 +7345,8 @@
     "6": 1.2191,
     "7": 1.4004
    },
-   "stop_adr": 0.3973,
+   "stop_adr": 0.38,
+   "stop_adr_naive": 0.3973,
    "stop_pct": 0.03170584689572043,
    "entry_vs_high3_adr": 0.1737,
    "entry_vs_high7_adr": 0.1707,
@@ -7063,7 +7369,8 @@
     "6": 1.8193,
     "7": 2.1404
    },
-   "stop_adr": 0.3375,
+   "stop_adr": 0.332,
+   "stop_adr_naive": 0.3375,
    "stop_pct": 0.01516552616977992,
    "entry_vs_high3_adr": 0.3128,
    "entry_vs_high7_adr": -0.0906,
@@ -7086,7 +7393,8 @@
     "6": 1.4805,
     "7": 1.4805
    },
-   "stop_adr": 0.2059,
+   "stop_adr": 0.2007,
+   "stop_adr_naive": 0.2059,
    "stop_pct": 0.01524601524601536,
    "entry_vs_high3_adr": 0.1722,
    "entry_vs_high7_adr": -0.3425,
@@ -7109,7 +7417,8 @@
     "6": 0.9758,
     "7": 1.0502
    },
-   "stop_adr": 0.381,
+   "stop_adr": 0.375,
+   "stop_adr_naive": 0.381,
    "stop_pct": 0.01523597175771089,
    "entry_vs_high3_adr": 0.0372,
    "entry_vs_high7_adr": -0.1348,
@@ -7132,7 +7441,8 @@
     "6": 1.9219,
     "7": 1.9219
    },
-   "stop_adr": 0.2874,
+   "stop_adr": 0.2865,
+   "stop_adr_naive": 0.2874,
    "stop_pct": 0.01516812865497073,
    "entry_vs_high3_adr": -0.4294,
    "entry_vs_high7_adr": -0.4294,
@@ -7155,7 +7465,8 @@
     "6": 2.6243,
     "7": 2.6634
    },
-   "stop_adr": 0.4798,
+   "stop_adr": 0.4601,
+   "stop_adr_naive": 0.4798,
    "stop_pct": 0.0314775160599573,
    "entry_vs_high3_adr": -0.8127,
    "entry_vs_high7_adr": -0.8486,
@@ -7178,7 +7489,8 @@
     "6": 2.2412,
     "7": 2.6824
    },
-   "stop_adr": 0.2858,
+   "stop_adr": 0.2786,
+   "stop_adr_naive": 0.2858,
    "stop_pct": 0.01550561797752804,
    "entry_vs_high3_adr": -0.1036,
    "entry_vs_high7_adr": -0.3438,
@@ -7201,7 +7513,8 @@
     "6": 2.0056,
     "7": 2.0056
    },
-   "stop_adr": 0.1827,
+   "stop_adr": 0.1775,
+   "stop_adr_naive": 0.1827,
    "stop_pct": 0.01550387596899225,
    "entry_vs_high3_adr": -0.0402,
    "entry_vs_high7_adr": -1.1325,
@@ -7224,7 +7537,8 @@
     "6": 1.9851,
     "7": 2.723
    },
-   "stop_adr": 0.2494,
+   "stop_adr": 0.2401,
+   "stop_adr_naive": 0.2494,
    "stop_pct": 0.01547161758429367,
    "entry_vs_high3_adr": 0.2804,
    "entry_vs_high7_adr": -0.4576,
@@ -7247,7 +7561,8 @@
     "6": 2.6232,
     "7": 3.2563
    },
-   "stop_adr": 0.2918,
+   "stop_adr": 0.2904,
+   "stop_adr_naive": 0.2918,
    "stop_pct": 0.0155197657393851,
    "entry_vs_high3_adr": -0.1652,
    "entry_vs_high7_adr": -0.1652,
@@ -7270,7 +7585,8 @@
     "6": 1.7566,
     "7": 1.9074
    },
-   "stop_adr": 0.22,
+   "stop_adr": 0.2072,
+   "stop_adr_naive": 0.22,
    "stop_pct": 0.01565995525727076,
    "entry_vs_high3_adr": -0.0031,
    "entry_vs_high7_adr": -0.5593,
@@ -7293,7 +7609,8 @@
     "6": 1.4486,
     "7": 1.4486
    },
-   "stop_adr": 2.9393,
+   "stop_adr": 0.2846,
+   "stop_adr_naive": 2.9393,
    "stop_pct": 0.01571428571428563,
    "entry_vs_high3_adr": 168.4046,
    "entry_vs_high7_adr": 168.3381,
@@ -7316,7 +7633,8 @@
     "6": 1.2669,
     "7": 1.2669
    },
-   "stop_adr": 1.2392,
+   "stop_adr": 0.2425,
+   "stop_adr_naive": 1.2392,
    "stop_pct": 0.01584149868347213,
    "entry_vs_high3_adr": 62.883,
    "entry_vs_high7_adr": 62.438,
@@ -7339,7 +7657,8 @@
     "6": 1.7134,
     "7": 1.9188
    },
-   "stop_adr": 0.4529,
+   "stop_adr": 0.4453,
+   "stop_adr_naive": 0.4529,
    "stop_pct": 0.01583544200473441,
    "entry_vs_high3_adr": -0.0887,
    "entry_vs_high7_adr": -0.5509,
@@ -7362,7 +7681,8 @@
     "6": 2.4519,
     "7": 2.5723
    },
-   "stop_adr": 0.3582,
+   "stop_adr": 0.3482,
+   "stop_adr_naive": 0.3582,
    "stop_pct": 0.01619512195121948,
    "entry_vs_high3_adr": 0.0734,
    "entry_vs_high7_adr": -1.0919,
@@ -7385,7 +7705,8 @@
     "6": 4.371,
     "7": 5.0114
    },
-   "stop_adr": 0.1554,
+   "stop_adr": 0.1507,
+   "stop_adr_naive": 0.1554,
    "stop_pct": 0.01618122977346279,
    "entry_vs_high3_adr": -0.1741,
    "entry_vs_high7_adr": -0.1741,
@@ -7408,7 +7729,8 @@
     "6": 2.1511,
     "7": 2.1511
    },
-   "stop_adr": 0.3044,
+   "stop_adr": 0.2938,
+   "stop_adr_naive": 0.3044,
    "stop_pct": 0.016159420289855,
    "entry_vs_high3_adr": 0.2225,
    "entry_vs_high7_adr": 0.0307,
@@ -7431,7 +7753,8 @@
     "6": 2.2161,
     "7": 2.2161
    },
-   "stop_adr": 0.3257,
+   "stop_adr": 0.3203,
+   "stop_adr_naive": 0.3257,
    "stop_pct": 0.01620274200249256,
    "entry_vs_high3_adr": -1.1248,
    "entry_vs_high7_adr": -1.3002,
@@ -7454,7 +7777,8 @@
     "6": 2.1965,
     "7": 2.1965
    },
-   "stop_adr": 0.4259,
+   "stop_adr": 0.4195,
+   "stop_adr_naive": 0.4259,
    "stop_pct": 0.01628578933543466,
    "entry_vs_high3_adr": 0.1202,
    "entry_vs_high7_adr": -0.7814,
@@ -7477,7 +7801,8 @@
     "6": 0.8456,
     "7": 0.9737
    },
-   "stop_adr": 0.3306,
+   "stop_adr": 0.2992,
+   "stop_adr_naive": 0.3306,
    "stop_pct": 0.0724719101123595,
    "entry_vs_high3_adr": -0.1794,
    "entry_vs_high7_adr": -0.1794,
@@ -7500,7 +7825,8 @@
     "6": 2.4749,
     "7": 2.832
    },
-   "stop_adr": 0.0059,
+   "stop_adr": 0.116,
+   "stop_adr_naive": 0.0059,
    "stop_pct": 0.0163849603311486,
    "entry_vs_high3_adr": -6.9066,
    "entry_vs_high7_adr": -7.0095,
@@ -7523,7 +7849,8 @@
     "6": 3.7477,
     "7": 3.7477
    },
-   "stop_adr": 0.3664,
+   "stop_adr": 0.3382,
+   "stop_adr_naive": 0.3664,
    "stop_pct": 0.01642897889332586,
    "entry_vs_high3_adr": 0.5394,
    "entry_vs_high7_adr": 0.5394,
@@ -7546,7 +7873,8 @@
     "6": 1.2567,
     "7": 1.2567
    },
-   "stop_adr": 0.2872,
+   "stop_adr": 0.2828,
+   "stop_adr_naive": 0.2872,
    "stop_pct": 0.01651290279449123,
    "entry_vs_high3_adr": -0.3825,
    "entry_vs_high7_adr": -0.4476,
@@ -7569,7 +7897,8 @@
     "6": 2.871,
     "7": 4.145
    },
-   "stop_adr": 0.3936,
+   "stop_adr": 0.1928,
+   "stop_adr_naive": 0.3936,
    "stop_pct": 0.01651025373653104,
    "entry_vs_high3_adr": 11.6478,
    "entry_vs_high7_adr": 9.7151,
@@ -7592,7 +7921,8 @@
     "6": 1.899,
     "7": 2.8227
    },
-   "stop_adr": 0.5874,
+   "stop_adr": 0.5671,
+   "stop_adr_naive": 0.5874,
    "stop_pct": 0.01647156324458721,
    "entry_vs_high3_adr": -0.3214,
    "entry_vs_high7_adr": -1.2746,
@@ -7615,7 +7945,8 @@
     "6": 2.7202,
     "7": 2.7202
    },
-   "stop_adr": 0.7173,
+   "stop_adr": 0.7017,
+   "stop_adr_naive": 0.7173,
    "stop_pct": 0.01645819618169848,
    "entry_vs_high3_adr": 0.4361,
    "entry_vs_high7_adr": 0.4361,
@@ -7638,7 +7969,8 @@
     "6": 1.5795,
     "7": 1.5795
    },
-   "stop_adr": 0.2986,
+   "stop_adr": 0.2951,
+   "stop_adr_naive": 0.2986,
    "stop_pct": 0.02312499999999995,
    "entry_vs_high3_adr": 0.1301,
    "entry_vs_high7_adr": -0.3419,
@@ -7661,7 +7993,8 @@
     "6": 2.7213,
     "7": 3.0245
    },
-   "stop_adr": 0.2884,
+   "stop_adr": 0.2815,
+   "stop_adr_naive": 0.2884,
    "stop_pct": 0.01661695781849172,
    "entry_vs_high3_adr": 0.1331,
    "entry_vs_high7_adr": -1.2128,
@@ -7684,7 +8017,8 @@
     "6": 2.4134,
     "7": 2.4134
    },
-   "stop_adr": 0.1877,
+   "stop_adr": 0.1811,
+   "stop_adr_naive": 0.1877,
    "stop_pct": 0.01669902912621358,
    "entry_vs_high3_adr": 0.3579,
    "entry_vs_high7_adr": -0.8859,
@@ -7707,7 +8041,8 @@
     "6": 1.8761,
     "7": 1.8761
    },
-   "stop_adr": 4.9657,
+   "stop_adr": 0.4782,
+   "stop_adr_naive": 4.9657,
    "stop_pct": 0.01670762309682623,
    "entry_vs_high3_adr": 268.2353,
    "entry_vs_high7_adr": 267.5581,
@@ -7730,7 +8065,8 @@
     "6": 1.5218,
     "7": 1.5218
    },
-   "stop_adr": 0.2975,
+   "stop_adr": 0.2893,
+   "stop_adr_naive": 0.2975,
    "stop_pct": 0.01681759379042687,
    "entry_vs_high3_adr": -0.1545,
    "entry_vs_high7_adr": -0.4428,
@@ -7753,7 +8089,8 @@
     "6": 1.5136,
     "7": 1.5136
    },
-   "stop_adr": 0.0185,
+   "stop_adr": 0.2059,
+   "stop_adr_naive": 0.0185,
    "stop_pct": 0.0169491525423729,
    "entry_vs_high3_adr": -11.6108,
    "entry_vs_high7_adr": -11.6477,
@@ -7776,7 +8113,8 @@
     "6": 2.2621,
     "7": 2.9433
    },
-   "stop_adr": 0.3135,
+   "stop_adr": 0.3,
+   "stop_adr_naive": 0.3135,
    "stop_pct": 0.01686893203883496,
    "entry_vs_high3_adr": -0.4285,
    "entry_vs_high7_adr": -1.3171,
@@ -7799,7 +8137,8 @@
     "6": 1.1734,
     "7": 1.1734
    },
-   "stop_adr": 0.2627,
+   "stop_adr": 0.2501,
+   "stop_adr_naive": 0.2627,
    "stop_pct": 0.0168539325842697,
    "entry_vs_high3_adr": -0.0832,
    "entry_vs_high7_adr": -0.0832,
@@ -7822,7 +8161,8 @@
     "6": 1.8968,
     "7": 1.9949
    },
-   "stop_adr": 0.2547,
+   "stop_adr": 0.2465,
+   "stop_adr_naive": 0.2547,
    "stop_pct": 0.01687277300356319,
    "entry_vs_high3_adr": 0.2705,
    "entry_vs_high7_adr": -0.1202,
@@ -7845,7 +8185,8 @@
     "6": 2.2747,
     "7": 2.4692
    },
-   "stop_adr": 4.0937,
+   "stop_adr": 0.394,
+   "stop_adr_naive": 4.0937,
    "stop_pct": 0.01697173620457606,
    "entry_vs_high3_adr": 216.6799,
    "entry_vs_high7_adr": 215.9794,
@@ -7868,7 +8209,8 @@
     "6": 3.7208,
     "7": 3.7208
    },
-   "stop_adr": 0.3442,
+   "stop_adr": 0.332,
+   "stop_adr_naive": 0.3442,
    "stop_pct": 0.01722760981175134,
    "entry_vs_high3_adr": -0.8741,
    "entry_vs_high7_adr": -1.4188,
@@ -7891,7 +8233,8 @@
     "6": 2.2313,
     "7": 2.2313
    },
-   "stop_adr": 0.2561,
+   "stop_adr": 0.2424,
+   "stop_adr_naive": 0.2561,
    "stop_pct": 0.0172447968285432,
    "entry_vs_high3_adr": 0.2002,
    "entry_vs_high7_adr": 0.0074,
@@ -7914,7 +8257,8 @@
     "6": 3.6845,
     "7": 3.7025
    },
-   "stop_adr": 0.3774,
+   "stop_adr": 0.3637,
+   "stop_adr_naive": 0.3774,
    "stop_pct": 0.01721311475409829,
    "entry_vs_high3_adr": 0.5302,
    "entry_vs_high7_adr": -1.9232,
@@ -7937,7 +8281,8 @@
     "6": 1.0462,
     "7": 1.0584
    },
-   "stop_adr": 2.5012,
+   "stop_adr": 0.3057,
+   "stop_adr_naive": 2.5012,
    "stop_pct": 0.01741192411924115,
    "entry_vs_high3_adr": 125.6108,
    "entry_vs_high7_adr": 125.4782,
@@ -7960,7 +8305,8 @@
     "6": 1.2096,
     "7": 1.2096
    },
-   "stop_adr": 1.1333,
+   "stop_adr": 0.2689,
+   "stop_adr_naive": 1.1333,
    "stop_pct": 0.01740731441961669,
    "entry_vs_high3_adr": 49.4821,
    "entry_vs_high7_adr": 49.3227,
@@ -7983,7 +8329,8 @@
     "6": 2.8694,
     "7": 3.7277
    },
-   "stop_adr": 1.1034,
+   "stop_adr": 0.3523,
+   "stop_adr_naive": 1.1034,
    "stop_pct": 0.01761328236819512,
    "entry_vs_high3_adr": 41.2756,
    "entry_vs_high7_adr": 41.2756,
@@ -8006,7 +8353,8 @@
     "6": 1.9867,
     "7": 1.9867
    },
-   "stop_adr": 0.2605,
+   "stop_adr": 0.2531,
+   "stop_adr_naive": 0.2605,
    "stop_pct": 0.01766004415011039,
    "entry_vs_high3_adr": 0.2931,
    "entry_vs_high7_adr": -0.7165,
@@ -8029,7 +8377,8 @@
     "6": 1.8613,
     "7": 1.8613
    },
-   "stop_adr": 0.1237,
+   "stop_adr": 0.1209,
+   "stop_adr_naive": 0.1237,
    "stop_pct": 0.01770906535488412,
    "entry_vs_high3_adr": -0.2906,
    "entry_vs_high7_adr": -1.1947,
@@ -8052,7 +8401,8 @@
     "6": 3.015,
     "7": 3.015
    },
-   "stop_adr": 0.3939,
+   "stop_adr": 0.3786,
+   "stop_adr_naive": 0.3939,
    "stop_pct": 0.01769911504424781,
    "entry_vs_high3_adr": 0.4242,
    "entry_vs_high7_adr": -0.4899,
@@ -8075,7 +8425,8 @@
     "6": 2.8844,
     "7": 2.8844
    },
-   "stop_adr": 0.3272,
+   "stop_adr": 0.3213,
+   "stop_adr_naive": 0.3272,
    "stop_pct": 0.01784738663267159,
    "entry_vs_high3_adr": 0.1803,
    "entry_vs_high7_adr": -0.0968,
@@ -8098,7 +8449,8 @@
     "6": 1.9166,
     "7": 1.9166
    },
-   "stop_adr": 0.4209,
+   "stop_adr": 0.4078,
+   "stop_adr_naive": 0.4209,
    "stop_pct": 0.01780521099175025,
    "entry_vs_high3_adr": -0.5556,
    "entry_vs_high7_adr": -0.5556,
@@ -8121,7 +8473,8 @@
     "6": 2.0255,
     "7": 2.0255
    },
-   "stop_adr": 0.1848,
+   "stop_adr": 0.1786,
+   "stop_adr_naive": 0.1848,
    "stop_pct": 0.01779411764705873,
    "entry_vs_high3_adr": -0.3941,
    "entry_vs_high7_adr": -0.3941,
@@ -8144,7 +8497,8 @@
     "6": 1.6865,
     "7": 1.6865
    },
-   "stop_adr": 0.3649,
+   "stop_adr": 0.3476,
+   "stop_adr_naive": 0.3649,
    "stop_pct": 0.01794374393792439,
    "entry_vs_high3_adr": 0.0888,
    "entry_vs_high7_adr": -0.286,
@@ -8167,7 +8521,8 @@
     "6": 3.213,
     "7": 3.213
    },
-   "stop_adr": 0.0281,
+   "stop_adr": 0.2717,
+   "stop_adr_naive": 0.0281,
    "stop_pct": 0.01786576533075813,
    "entry_vs_high3_adr": -13.9655,
    "entry_vs_high7_adr": -15.8972,
@@ -8190,7 +8545,8 @@
     "6": 1.6093,
     "7": 2.1177
    },
-   "stop_adr": 0.3307,
+   "stop_adr": 0.324,
+   "stop_adr_naive": 0.3307,
    "stop_pct": 0.01786666666666671,
    "entry_vs_high3_adr": 0.0839,
    "entry_vs_high7_adr": -1.1206,
@@ -8213,7 +8569,8 @@
     "6": 3.1185,
     "7": 3.1185
    },
-   "stop_adr": 0.7948,
+   "stop_adr": 0.7868,
+   "stop_adr_naive": 0.7948,
    "stop_pct": 0.01806046329014516,
    "entry_vs_high3_adr": 0.2851,
    "entry_vs_high7_adr": 0.1641,
@@ -8236,7 +8593,8 @@
     "6": 1.3418,
     "7": 1.5193
    },
-   "stop_adr": 0.2594,
+   "stop_adr": 0.2578,
+   "stop_adr_naive": 0.2594,
    "stop_pct": 0.01808396124865454,
    "entry_vs_high3_adr": -0.4045,
    "entry_vs_high7_adr": -0.5821,
@@ -8259,7 +8617,8 @@
     "6": 3.2463,
     "7": 3.2463
    },
-   "stop_adr": 0.5283,
+   "stop_adr": 0.5175,
+   "stop_adr_naive": 0.5283,
    "stop_pct": 0.01807580174927106,
    "entry_vs_high3_adr": 0.2727,
    "entry_vs_high7_adr": 0.1108,
@@ -8282,7 +8641,8 @@
     "6": 2.327,
     "7": 2.327
    },
-   "stop_adr": 0.4248,
+   "stop_adr": 0.4134,
+   "stop_adr_naive": 0.4248,
    "stop_pct": 0.0181746345318055,
    "entry_vs_high3_adr": 0.3093,
    "entry_vs_high7_adr": 0.2447,
@@ -8305,7 +8665,8 @@
     "6": 1.9937,
     "7": 1.9937
    },
-   "stop_adr": 0.3467,
+   "stop_adr": 0.3354,
+   "stop_adr_naive": 0.3467,
    "stop_pct": 0.01832395558432508,
    "entry_vs_high3_adr": 0.0942,
    "entry_vs_high7_adr": -0.2308,
@@ -8328,7 +8689,8 @@
     "6": 2.3123,
     "7": 2.3123
    },
-   "stop_adr": 0.4309,
+   "stop_adr": 0.4119,
+   "stop_adr_naive": 0.4309,
    "stop_pct": 0.0183291197425879,
    "entry_vs_high3_adr": 0.651,
    "entry_vs_high7_adr": 0.2148,
@@ -8351,7 +8713,8 @@
     "6": 2.3244,
     "7": 2.3244
    },
-   "stop_adr": 0.3116,
+   "stop_adr": 0.2913,
+   "stop_adr_naive": 0.3116,
    "stop_pct": 0.01835985312117503,
    "entry_vs_high3_adr": 0.2306,
    "entry_vs_high7_adr": -0.8953,
@@ -8374,7 +8737,8 @@
     "6": 1.5521,
     "7": 1.6956
    },
-   "stop_adr": 0.2681,
+   "stop_adr": 0.2605,
+   "stop_adr_naive": 0.2681,
    "stop_pct": 0.0184182015167931,
    "entry_vs_high3_adr": 0.0473,
    "entry_vs_high7_adr": -0.8328,
@@ -8397,7 +8761,8 @@
     "6": 1.2304,
     "7": 1.5915
    },
-   "stop_adr": 0.3875,
+   "stop_adr": 0.3773,
+   "stop_adr_naive": 0.3875,
    "stop_pct": 0.01846558526961854,
    "entry_vs_high3_adr": 0.2346,
    "entry_vs_high7_adr": 0.2346,
@@ -8420,7 +8785,8 @@
     "6": 2.5108,
     "7": 2.8457
    },
-   "stop_adr": 5.0342,
+   "stop_adr": 0.4843,
+   "stop_adr_naive": 5.0342,
    "stop_pct": 0.01852641334569046,
    "entry_vs_high3_adr": 245.4272,
    "entry_vs_high7_adr": 243.9385,
@@ -8443,7 +8809,8 @@
     "6": 2.0667,
     "7": 2.3773
    },
-   "stop_adr": 0.939,
+   "stop_adr": 0.9151,
+   "stop_adr_naive": 0.939,
    "stop_pct": 0.03471731448763257,
    "entry_vs_high3_adr": -0.6451,
    "entry_vs_high7_adr": -1.0632,
@@ -8466,7 +8833,8 @@
     "6": 2.5422,
     "7": 2.5422
    },
-   "stop_adr": 0.3409,
+   "stop_adr": 0.3322,
+   "stop_adr_naive": 0.3409,
    "stop_pct": 0.01871966720591639,
    "entry_vs_high3_adr": 0.2273,
    "entry_vs_high7_adr": -1.0438,
@@ -8489,7 +8857,8 @@
     "6": 1.6513,
     "7": 1.6513
    },
-   "stop_adr": 0.5185,
+   "stop_adr": 0.4921,
+   "stop_adr_naive": 0.5185,
    "stop_pct": 0.01869488536155207,
    "entry_vs_high3_adr": 1.0056,
    "entry_vs_high7_adr": 1.0056,
@@ -8512,7 +8881,8 @@
     "6": 3.4075,
     "7": 3.4075
    },
-   "stop_adr": 0.2198,
+   "stop_adr": 0.2106,
+   "stop_adr_naive": 0.2198,
    "stop_pct": 0.01874999999999991,
    "entry_vs_high3_adr": -1.6937,
    "entry_vs_high7_adr": -1.6937,
@@ -8535,7 +8905,8 @@
     "6": 2.8781,
     "7": 2.8781
    },
-   "stop_adr": 0.2598,
+   "stop_adr": 0.2383,
+   "stop_adr_naive": 0.2598,
    "stop_pct": 0.01875732708089099,
    "entry_vs_high3_adr": 0.0589,
    "entry_vs_high7_adr": -0.5521,
@@ -8558,7 +8929,8 @@
     "6": 1.4198,
     "7": 1.4198
    },
-   "stop_adr": 0.367,
+   "stop_adr": 0.3541,
+   "stop_adr_naive": 0.367,
    "stop_pct": 0.01875753920386015,
    "entry_vs_high3_adr": 0.0189,
    "entry_vs_high7_adr": 0.0189,
@@ -8581,7 +8953,8 @@
     "6": 3.1637,
     "7": 3.1637
    },
-   "stop_adr": 30.9395,
+   "stop_adr": 0.7525,
+   "stop_adr_naive": 30.9395,
    "stop_pct": 0.01910641337998489,
    "entry_vs_high3_adr": 1579.513,
    "entry_vs_high7_adr": 1578.8263,
@@ -8604,7 +8977,8 @@
     "6": 1.7761,
     "7": 2.5038
    },
-   "stop_adr": 0.0329,
+   "stop_adr": 0.3252,
+   "stop_adr_naive": 0.0329,
    "stop_pct": 0.01909090909090917,
    "entry_vs_high3_adr": -15.8675,
    "entry_vs_high7_adr": -16.2744,
@@ -8627,7 +9001,8 @@
     "6": 2.8223,
     "7": 2.9752
    },
-   "stop_adr": 0.1411,
+   "stop_adr": 0.1368,
+   "stop_adr_naive": 0.1411,
    "stop_pct": 0.01920000000000002,
    "entry_vs_high3_adr": -0.5292,
    "entry_vs_high7_adr": -0.6821,
@@ -8650,7 +9025,8 @@
     "6": 1.0439,
     "7": 2.5821
    },
-   "stop_adr": 0.4186,
+   "stop_adr": 0.4012,
+   "stop_adr_naive": 0.4186,
    "stop_pct": 0.01925307353282297,
    "entry_vs_high3_adr": 0.5901,
    "entry_vs_high7_adr": -0.9481,
@@ -8673,7 +9049,8 @@
     "6": 1.1267,
     "7": 1.1337
    },
-   "stop_adr": 0.3662,
+   "stop_adr": 0.3584,
+   "stop_adr_naive": 0.3662,
    "stop_pct": 0.01942522618414053,
    "entry_vs_high3_adr": 0.298,
    "entry_vs_high7_adr": 0.291,
@@ -8696,7 +9073,8 @@
     "6": 1.7571,
     "7": 1.7571
    },
-   "stop_adr": 0.384,
+   "stop_adr": 0.3761,
+   "stop_adr_naive": 0.384,
    "stop_pct": 0.01946778711484595,
    "entry_vs_high3_adr": 0.1354,
    "entry_vs_high7_adr": 0.0083,
@@ -8719,7 +9097,8 @@
     "6": 1.7825,
     "7": 1.8436
    },
-   "stop_adr": 0.2076,
+   "stop_adr": 0.1999,
+   "stop_adr_naive": 0.2076,
    "stop_pct": 0.01949541284403673,
    "entry_vs_high3_adr": 0.1953,
    "entry_vs_high7_adr": 0.1953,
@@ -8742,7 +9121,8 @@
     "6": 1.0398,
     "7": 1.128
    },
-   "stop_adr": 0.2948,
+   "stop_adr": 0.2842,
+   "stop_adr_naive": 0.2948,
    "stop_pct": 0.01945763750574531,
    "entry_vs_high3_adr": -0.2739,
    "entry_vs_high7_adr": -0.3969,
@@ -8765,7 +9145,8 @@
     "6": 2.3159,
     "7": 2.3159
    },
-   "stop_adr": 1.0269,
+   "stop_adr": 0.2477,
+   "stop_adr_naive": 1.0269,
    "stop_pct": 0.01957563312799442,
    "entry_vs_high3_adr": 39.2695,
    "entry_vs_high7_adr": 39.0666,
@@ -8788,7 +9169,8 @@
     "6": 2.1562,
     "7": 2.1671
    },
-   "stop_adr": 0.6254,
+   "stop_adr": 0.6217,
+   "stop_adr_naive": 0.6254,
    "stop_pct": 0.01963305531029716,
    "entry_vs_high3_adr": -0.3494,
    "entry_vs_high7_adr": -0.3494,
@@ -8811,7 +9193,8 @@
     "6": 2.432,
     "7": 2.432
    },
-   "stop_adr": 0.5028,
+   "stop_adr": 0.4815,
+   "stop_adr_naive": 0.5028,
    "stop_pct": 0.01974672676540034,
    "entry_vs_high3_adr": -0.0547,
    "entry_vs_high7_adr": -0.4263,
@@ -8834,7 +9217,8 @@
     "6": 2.1349,
     "7": 2.1349
    },
-   "stop_adr": 0.3995,
+   "stop_adr": 0.3896,
+   "stop_adr_naive": 0.3995,
    "stop_pct": 0.01973684210526313,
    "entry_vs_high3_adr": -0.182,
    "entry_vs_high7_adr": -0.182,
@@ -8857,7 +9241,8 @@
     "6": 2.2106,
     "7": 2.2106
    },
-   "stop_adr": 0.4064,
+   "stop_adr": 0.3531,
+   "stop_adr_naive": 0.4064,
    "stop_pct": 0.01978723404255318,
    "entry_vs_high3_adr": 1.926,
    "entry_vs_high7_adr": 1.4878,
@@ -8880,7 +9265,8 @@
     "6": 2.8758,
     "7": 3.3987
    },
-   "stop_adr": 0.0116,
+   "stop_adr": 0.2128,
+   "stop_adr_naive": 0.0116,
    "stop_pct": 0.01980198019801982,
    "entry_vs_high3_adr": -11.0907,
    "entry_vs_high7_adr": -12.3978,
@@ -8903,7 +9289,8 @@
     "6": 2.1719,
     "7": 2.1719
    },
-   "stop_adr": 0.2763,
+   "stop_adr": 0.2646,
+   "stop_adr_naive": 0.2763,
    "stop_pct": 0.01988400994200494,
    "entry_vs_high3_adr": 0.0153,
    "entry_vs_high7_adr": 0.0153,
@@ -8926,7 +9313,8 @@
     "6": 2.2301,
     "7": 2.2301
    },
-   "stop_adr": 0.2563,
+   "stop_adr": 0.2501,
+   "stop_adr_naive": 0.2563,
    "stop_pct": 0.02012072434607639,
    "entry_vs_high3_adr": 0.0,
    "entry_vs_high7_adr": -0.9484,
@@ -8949,7 +9337,8 @@
     "6": 1.7825,
     "7": 1.7825
    },
-   "stop_adr": 0.3087,
+   "stop_adr": 0.3021,
+   "stop_adr_naive": 0.3087,
    "stop_pct": 0.02014184397163123,
    "entry_vs_high3_adr": 0.3087,
    "entry_vs_high7_adr": 0.3087,
@@ -8972,7 +9361,8 @@
     "6": 2.3816,
     "7": 3.5429
    },
-   "stop_adr": 0.3251,
+   "stop_adr": 0.3142,
+   "stop_adr_naive": 0.3251,
    "stop_pct": 0.02018592297476754,
    "entry_vs_high3_adr": -0.0813,
    "entry_vs_high7_adr": -0.4064,
@@ -8995,7 +9385,8 @@
     "6": 2.1613,
     "7": 2.1613
    },
-   "stop_adr": 0.3309,
+   "stop_adr": 0.32,
+   "stop_adr_naive": 0.3309,
    "stop_pct": 0.02024922118380069,
    "entry_vs_high3_adr": -0.7128,
    "entry_vs_high7_adr": -0.7128,
@@ -9018,7 +9409,8 @@
     "6": 1.9325,
     "7": 1.9325
    },
-   "stop_adr": 0.49,
+   "stop_adr": 0.4776,
+   "stop_adr_naive": 0.49,
    "stop_pct": 0.02029298751200766,
    "entry_vs_high3_adr": -0.4683,
    "entry_vs_high7_adr": -0.806,
@@ -9041,7 +9433,8 @@
     "6": 2.7937,
     "7": 2.7937
    },
-   "stop_adr": 0.3315,
+   "stop_adr": 0.3303,
+   "stop_adr_naive": 0.3315,
    "stop_pct": 0.02025316455696198,
    "entry_vs_high3_adr": 0.0474,
    "entry_vs_high7_adr": -0.9648,
@@ -9064,7 +9457,8 @@
     "6": 1.8899,
     "7": 2.1692
    },
-   "stop_adr": 0.4365,
+   "stop_adr": 0.4177,
+   "stop_adr_naive": 0.4365,
    "stop_pct": 0.02051702913418137,
    "entry_vs_high3_adr": -0.3535,
    "entry_vs_high7_adr": -0.3535,
@@ -9087,7 +9481,8 @@
     "6": 1.4726,
     "7": 1.592
    },
-   "stop_adr": 0.2274,
+   "stop_adr": 0.224,
+   "stop_adr_naive": 0.2274,
    "stop_pct": 0.02094240837696346,
    "entry_vs_high3_adr": -0.4435,
    "entry_vs_high7_adr": -0.6538,
@@ -9110,7 +9505,8 @@
     "6": 3.5299,
     "7": 3.5299
    },
-   "stop_adr": 0.3652,
+   "stop_adr": 0.3476,
+   "stop_adr_naive": 0.3652,
    "stop_pct": 0.02088948787061994,
    "entry_vs_high3_adr": 0.6812,
    "entry_vs_high7_adr": -1.9043,
@@ -9133,7 +9529,8 @@
     "6": 2.4667,
     "7": 2.4667
    },
-   "stop_adr": 0.4488,
+   "stop_adr": 0.3933,
+   "stop_adr_naive": 0.4488,
    "stop_pct": 0.02096518987341776,
    "entry_vs_high3_adr": 0.9446,
    "entry_vs_high7_adr": 0.9446,
@@ -9156,7 +9553,8 @@
     "6": 1.5745,
     "7": 1.736
    },
-   "stop_adr": 0.5483,
+   "stop_adr": 0.5302,
+   "stop_adr_naive": 0.5483,
    "stop_pct": 0.02111324376199615,
    "entry_vs_high3_adr": 0.2527,
    "entry_vs_high7_adr": -0.1633,
@@ -9179,7 +9577,8 @@
     "6": 1.9606,
     "7": 1.9606
    },
-   "stop_adr": 0.2576,
+   "stop_adr": 0.2521,
+   "stop_adr_naive": 0.2576,
    "stop_pct": 0.02120441051738762,
    "entry_vs_high3_adr": 0.0077,
    "entry_vs_high7_adr": -0.6905,
@@ -9202,7 +9601,8 @@
     "6": 1.8834,
     "7": 2.2419
    },
-   "stop_adr": 0.3245,
+   "stop_adr": 0.3421,
+   "stop_adr_naive": 0.3245,
    "stop_pct": 0.02122557726465365,
    "entry_vs_high3_adr": -0.9546,
    "entry_vs_high7_adr": -0.9546,
@@ -9225,7 +9625,8 @@
     "6": 2.3847,
     "7": 2.3847
    },
-   "stop_adr": 0.2821,
+   "stop_adr": 0.2657,
+   "stop_adr_naive": 0.2821,
    "stop_pct": 0.02127659574468091,
    "entry_vs_high3_adr": 0.0256,
    "entry_vs_high7_adr": 0.0256,
@@ -9248,7 +9649,8 @@
     "6": 2.1895,
     "7": 2.1895
    },
-   "stop_adr": 0.2316,
+   "stop_adr": 0.2242,
+   "stop_adr_naive": 0.2316,
    "stop_pct": 0.02130681818181818,
    "entry_vs_high3_adr": -0.4061,
    "entry_vs_high7_adr": -0.4061,
@@ -9271,7 +9673,8 @@
     "6": 2.2266,
     "7": 2.2266
    },
-   "stop_adr": 0.2118,
+   "stop_adr": 0.2078,
+   "stop_adr_naive": 0.2118,
    "stop_pct": 0.02137730951290261,
    "entry_vs_high3_adr": -0.2511,
    "entry_vs_high7_adr": -1.5126,
@@ -9294,7 +9697,8 @@
     "6": 2.0006,
     "7": 2.0006
    },
-   "stop_adr": 0.0001,
+   "stop_adr": 0.304,
+   "stop_adr_naive": 0.0001,
    "stop_pct": 0.02145922746781116,
    "entry_vs_high3_adr": -15.4209,
    "entry_vs_high7_adr": -15.4209,
@@ -9317,7 +9721,8 @@
     "6": 2.8466,
     "7": 3.2053
    },
-   "stop_adr": 0.4197,
+   "stop_adr": 0.393,
+   "stop_adr_naive": 0.4197,
    "stop_pct": 0.02152641878669279,
    "entry_vs_high3_adr": 0.0,
    "entry_vs_high7_adr": 0.0,
@@ -9340,7 +9745,8 @@
     "6": 3.0239,
     "7": 3.0239
    },
-   "stop_adr": 0.4798,
+   "stop_adr": 0.4656,
+   "stop_adr_naive": 0.4798,
    "stop_pct": 0.02166590805644056,
    "entry_vs_high3_adr": 0.1976,
    "entry_vs_high7_adr": 0.0,
@@ -9363,7 +9769,8 @@
     "6": 2.4595,
     "7": 2.4595
    },
-   "stop_adr": 0.477,
+   "stop_adr": 0.4102,
+   "stop_adr_naive": 0.477,
    "stop_pct": 0.02166826462128467,
    "entry_vs_high3_adr": 2.6883,
    "entry_vs_high7_adr": 1.613,
@@ -9386,7 +9793,8 @@
     "6": 3.1269,
     "7": 3.1269
    },
-   "stop_adr": 0.7884,
+   "stop_adr": 0.7635,
+   "stop_adr_naive": 0.7884,
    "stop_pct": 0.02169117647058823,
    "entry_vs_high3_adr": 0.6949,
    "entry_vs_high7_adr": -1.049,
@@ -9409,7 +9817,8 @@
     "6": 1.5719,
     "7": 1.64
    },
-   "stop_adr": 0.0199,
+   "stop_adr": 0.3903,
+   "stop_adr_naive": 0.0199,
    "stop_pct": 0.02188241026473927,
    "entry_vs_high3_adr": -17.105,
    "entry_vs_high7_adr": -17.1909,
@@ -9432,7 +9841,8 @@
     "6": 1.3415,
     "7": 1.6721
    },
-   "stop_adr": 0.4034,
+   "stop_adr": 0.4003,
+   "stop_adr_naive": 0.4034,
    "stop_pct": 0.02194444444444449,
    "entry_vs_high3_adr": 0.017,
    "entry_vs_high7_adr": -0.3531,
@@ -9455,7 +9865,8 @@
     "6": 4.1036,
     "7": 4.1036
    },
-   "stop_adr": 0.3605,
+   "stop_adr": 0.3454,
+   "stop_adr_naive": 0.3605,
    "stop_pct": 0.02192151556156975,
    "entry_vs_high3_adr": 0.5163,
    "entry_vs_high7_adr": -1.9005,
@@ -9478,7 +9889,8 @@
     "6": 1.9021,
     "7": 1.9021
    },
-   "stop_adr": 0.4733,
+   "stop_adr": 0.4628,
+   "stop_adr_naive": 0.4733,
    "stop_pct": 0.02192008879023305,
    "entry_vs_high3_adr": 0.3055,
    "entry_vs_high7_adr": 0.0359,
@@ -9501,7 +9913,8 @@
     "6": 2.0637,
     "7": 2.0637
    },
-   "stop_adr": 0.4378,
+   "stop_adr": 0.4172,
+   "stop_adr_naive": 0.4378,
    "stop_pct": 0.02187500000000009,
    "entry_vs_high3_adr": 0.4378,
    "entry_vs_high7_adr": 0.4378,
@@ -9524,7 +9937,8 @@
     "6": 1.474,
     "7": 1.474
    },
-   "stop_adr": 0.3709,
+   "stop_adr": 0.3543,
+   "stop_adr_naive": 0.3709,
    "stop_pct": 0.02188476998660125,
    "entry_vs_high3_adr": 0.6169,
    "entry_vs_high7_adr": 0.6169,
@@ -9547,7 +9961,8 @@
     "6": 1.1535,
     "7": 1.4868
    },
-   "stop_adr": 0.2307,
+   "stop_adr": 0.2296,
+   "stop_adr_naive": 0.2307,
    "stop_pct": 0.02195121951219509,
    "entry_vs_high3_adr": 0.0,
    "entry_vs_high7_adr": -0.2563,
@@ -9570,7 +9985,8 @@
     "6": 2.854,
     "7": 2.854
    },
-   "stop_adr": 0.9563,
+   "stop_adr": 0.2318,
+   "stop_adr_naive": 0.9563,
    "stop_pct": 0.02200000000000002,
    "entry_vs_high3_adr": 32.477,
    "entry_vs_high7_adr": 32.2651,
@@ -9593,7 +10009,8 @@
     "6": 2.3647,
     "7": 3.0713
    },
-   "stop_adr": 0.148,
+   "stop_adr": 0.1348,
+   "stop_adr_naive": 0.148,
    "stop_pct": 0.02212051868802434,
    "entry_vs_high3_adr": 0.2911,
    "entry_vs_high7_adr": -0.2985,
@@ -9616,7 +10033,8 @@
     "6": 1.9778,
     "7": 2.3226
    },
-   "stop_adr": 0.4361,
+   "stop_adr": 0.423,
+   "stop_adr_naive": 0.4361,
    "stop_pct": 0.02215352910870684,
    "entry_vs_high3_adr": 0.0609,
    "entry_vs_high7_adr": -0.284,
@@ -9639,7 +10057,8 @@
     "6": 1.2262,
     "7": 1.3518
    },
-   "stop_adr": 0.0068,
+   "stop_adr": 0.1279,
+   "stop_adr_naive": 0.0068,
    "stop_pct": 0.02222222222222217,
    "entry_vs_high3_adr": -5.8754,
    "entry_vs_high7_adr": -6.2616,
@@ -9662,7 +10081,8 @@
     "6": 2.2983,
     "7": 2.8098
    },
-   "stop_adr": 0.4174,
+   "stop_adr": 0.399,
+   "stop_adr_naive": 0.4174,
    "stop_pct": 0.02218355806872545,
    "entry_vs_high3_adr": 0.0982,
    "entry_vs_high7_adr": -1.3382,
@@ -9685,7 +10105,8 @@
     "6": 2.0014,
     "7": 2.2266
    },
-   "stop_adr": 0.4504,
+   "stop_adr": 0.4441,
+   "stop_adr_naive": 0.4504,
    "stop_pct": 0.02217573221757312,
    "entry_vs_high3_adr": 0.0085,
    "entry_vs_high7_adr": 0.0085,
@@ -9708,7 +10129,8 @@
     "6": 2.2381,
     "7": 2.2917
    },
-   "stop_adr": 0.4542,
+   "stop_adr": 0.4425,
+   "stop_adr_naive": 0.4542,
    "stop_pct": 0.02232142857142857,
    "entry_vs_high3_adr": 0.3815,
    "entry_vs_high7_adr": -0.6767,
@@ -9731,7 +10153,8 @@
     "6": 1.0904,
     "7": 1.6365
    },
-   "stop_adr": 0.4511,
+   "stop_adr": 0.438,
+   "stop_adr_naive": 0.4511,
    "stop_pct": 0.02230188679245293,
    "entry_vs_high3_adr": 0.3416,
    "entry_vs_high7_adr": 0.1611,
@@ -9754,7 +10177,8 @@
     "6": 1.3477,
     "7": 1.3545
    },
-   "stop_adr": 0.5541,
+   "stop_adr": 0.544,
+   "stop_adr_naive": 0.5541,
    "stop_pct": 0.02237569060773487,
    "entry_vs_high3_adr": 0.342,
    "entry_vs_high7_adr": 0.342,
@@ -9777,7 +10201,8 @@
     "6": 2.4271,
     "7": 2.4271
    },
-   "stop_adr": 0.5037,
+   "stop_adr": 0.465,
+   "stop_adr_naive": 0.5037,
    "stop_pct": 0.02249840153452683,
    "entry_vs_high3_adr": 1.2525,
    "entry_vs_high7_adr": 1.2525,
@@ -9800,7 +10225,8 @@
     "6": 1.8898,
     "7": 2.8602
    },
-   "stop_adr": 0.7508,
+   "stop_adr": 0.7169,
+   "stop_adr_naive": 0.7508,
    "stop_pct": 0.0226153846153846,
    "entry_vs_high3_adr": 0.7559,
    "entry_vs_high7_adr": -0.2554,
@@ -9823,7 +10249,8 @@
     "6": 1.899,
     "7": 1.899
    },
-   "stop_adr": 0.0427,
+   "stop_adr": 0.3917,
+   "stop_adr_naive": 0.0427,
    "stop_pct": 0.02270577105014193,
    "entry_vs_high3_adr": -15.3752,
    "entry_vs_high7_adr": -15.3752,
@@ -9846,7 +10273,8 @@
     "6": 0.8235,
     "7": 0.8235
    },
-   "stop_adr": 0.514,
+   "stop_adr": 0.5008,
+   "stop_adr_naive": 0.514,
    "stop_pct": 0.02268292682926829,
    "entry_vs_high3_adr": 0.2819,
    "entry_vs_high7_adr": 0.094,
@@ -9869,7 +10297,8 @@
     "6": 1.32,
     "7": 1.32
    },
-   "stop_adr": 0.2848,
+   "stop_adr": 0.2719,
+   "stop_adr_naive": 0.2848,
    "stop_pct": 0.02280813214739519,
    "entry_vs_high3_adr": 0.1904,
    "entry_vs_high7_adr": 0.1904,
@@ -9892,7 +10321,8 @@
     "6": 0.8035,
     "7": 1.0445
    },
-   "stop_adr": 0.1607,
+   "stop_adr": 0.1527,
+   "stop_adr_naive": 0.1607,
    "stop_pct": 0.02285714285714281,
    "entry_vs_high3_adr": -0.1779,
    "entry_vs_high7_adr": -0.5395,
@@ -9915,7 +10345,8 @@
     "6": 2.2693,
     "7": 3.1688
    },
-   "stop_adr": 1.0958,
+   "stop_adr": 0.259,
+   "stop_adr_naive": 1.0958,
    "stop_pct": 0.02293942403177758,
    "entry_vs_high3_adr": 35.5022,
    "entry_vs_high7_adr": 34.0458,
@@ -9938,7 +10369,8 @@
     "6": 2.023,
     "7": 2.2248
    },
-   "stop_adr": 0.5432,
+   "stop_adr": 0.5289,
+   "stop_adr_naive": 0.5432,
    "stop_pct": 0.02286689419795212,
    "entry_vs_high3_adr": 0.245,
    "entry_vs_high7_adr": -0.2045,
@@ -9961,7 +10393,8 @@
     "6": 2.9181,
     "7": 2.9938
    },
-   "stop_adr": 0.3074,
+   "stop_adr": 0.3006,
+   "stop_adr_naive": 0.3074,
    "stop_pct": 0.02313990744037019,
    "entry_vs_high3_adr": -0.1561,
    "entry_vs_high7_adr": -0.7094,
@@ -9984,7 +10417,8 @@
     "6": 1.67,
     "7": 1.8422
    },
-   "stop_adr": 0.3744,
+   "stop_adr": 0.3616,
+   "stop_adr_naive": 0.3744,
    "stop_pct": 0.0231696014828545,
    "entry_vs_high3_adr": 0.2396,
    "entry_vs_high7_adr": -0.4718,
@@ -10007,7 +10441,8 @@
     "6": 1.8691,
     "7": 1.8691
    },
-   "stop_adr": 0.454,
+   "stop_adr": 0.4418,
+   "stop_adr_naive": 0.454,
    "stop_pct": 0.02348586589799867,
    "entry_vs_high3_adr": -0.0905,
    "entry_vs_high7_adr": -0.4901,
@@ -10030,7 +10465,8 @@
     "6": 3.1198,
     "7": 3.1198
    },
-   "stop_adr": 0.0012,
+   "stop_adr": 0.2718,
+   "stop_adr_naive": 0.0012,
    "stop_pct": 0.02363636363636367,
    "entry_vs_high3_adr": -11.5615,
    "entry_vs_high7_adr": -11.5615,
@@ -10053,7 +10489,8 @@
     "6": 2.7056,
     "7": 3.1359
    },
-   "stop_adr": 0.2316,
+   "stop_adr": 0.2243,
+   "stop_adr_naive": 0.2316,
    "stop_pct": 0.02361764047459144,
    "entry_vs_high3_adr": -1.2963,
    "entry_vs_high7_adr": -1.7178,
@@ -10076,7 +10513,8 @@
     "6": 2.3325,
     "7": 2.5842
    },
-   "stop_adr": 0.5622,
+   "stop_adr": 0.5396,
+   "stop_adr_naive": 0.5622,
    "stop_pct": 0.0235832453361493,
    "entry_vs_high3_adr": 0.4279,
    "entry_vs_high7_adr": 0.1762,
@@ -10099,7 +10537,8 @@
     "6": 1.6297,
     "7": 1.6297
    },
-   "stop_adr": 0.5395,
+   "stop_adr": 0.5243,
+   "stop_adr_naive": 0.5395,
    "stop_pct": 0.02366379310344831,
    "entry_vs_high3_adr": -0.0373,
    "entry_vs_high7_adr": -0.0373,
@@ -10122,7 +10561,8 @@
     "6": 1.5636,
     "7": 1.8862
    },
-   "stop_adr": 0.2404,
+   "stop_adr": 0.2275,
+   "stop_adr_naive": 0.2404,
    "stop_pct": 0.0238482384823847,
    "entry_vs_high3_adr": -0.0667,
    "entry_vs_high7_adr": -0.3893,
@@ -10145,7 +10585,8 @@
     "6": 2.2679,
     "7": 2.7418
    },
-   "stop_adr": 0.299,
+   "stop_adr": 0.2865,
+   "stop_adr_naive": 0.299,
    "stop_pct": 0.02383720930232559,
    "entry_vs_high3_adr": -0.0802,
    "entry_vs_high7_adr": -0.5542,
@@ -10168,7 +10609,8 @@
     "6": 2.9423,
     "7": 2.9423
    },
-   "stop_adr": 6.3749,
+   "stop_adr": 0.9938,
+   "stop_adr_naive": 6.3749,
    "stop_pct": 0.02378156996587025,
    "entry_vs_high3_adr": 225.8112,
    "entry_vs_high7_adr": 225.8112,
@@ -10191,7 +10633,8 @@
     "6": 2.8101,
     "7": 2.8101
    },
-   "stop_adr": 0.2374,
+   "stop_adr": 0.2259,
+   "stop_adr_naive": 0.2374,
    "stop_pct": 0.02377751638380103,
    "entry_vs_high3_adr": -0.1527,
    "entry_vs_high7_adr": -1.5678,
@@ -10214,7 +10657,8 @@
     "6": 2.3285,
     "7": 2.8575
    },
-   "stop_adr": 0.5998,
+   "stop_adr": 0.5803,
+   "stop_adr_naive": 0.5998,
    "stop_pct": 0.02392638036809819,
    "entry_vs_high3_adr": 0.323,
    "entry_vs_high7_adr": -0.8582,
@@ -10237,7 +10681,8 @@
     "6": 3.5533,
     "7": 3.5533
    },
-   "stop_adr": 0.4492,
+   "stop_adr": 0.4017,
+   "stop_adr_naive": 0.4492,
    "stop_pct": 0.02393461762988916,
    "entry_vs_high3_adr": 1.7977,
    "entry_vs_high7_adr": 1.7977,
@@ -10260,7 +10705,8 @@
     "6": 2.0498,
     "7": 2.0498
    },
-   "stop_adr": 0.3388,
+   "stop_adr": 0.3285,
+   "stop_adr_naive": 0.3388,
    "stop_pct": 0.0240140815556767,
    "entry_vs_high3_adr": -0.0526,
    "entry_vs_high7_adr": -0.0526,
@@ -10283,7 +10729,8 @@
     "6": 1.2777,
     "7": 1.2777
    },
-   "stop_adr": 0.2871,
+   "stop_adr": 0.264,
+   "stop_adr_naive": 0.2871,
    "stop_pct": 0.02399520095980816,
    "entry_vs_high3_adr": 0.0287,
    "entry_vs_high7_adr": 0.0287,
@@ -10306,7 +10753,8 @@
     "6": 2.2906,
     "7": 2.6123
    },
-   "stop_adr": 7.9662,
+   "stop_adr": 0.7269,
+   "stop_adr_naive": 7.9662,
    "stop_pct": 0.02407407407407407,
    "entry_vs_high3_adr": 300.2732,
    "entry_vs_high7_adr": 300.2732,
@@ -10329,7 +10777,8 @@
     "6": 1.4547,
     "7": 1.4547
    },
-   "stop_adr": 0.4987,
+   "stop_adr": 0.4902,
+   "stop_adr_naive": 0.4987,
    "stop_pct": 0.02409523809523811,
    "entry_vs_high3_adr": -0.4455,
    "entry_vs_high7_adr": -0.4455,
@@ -10352,7 +10801,8 @@
     "6": 2.3242,
     "7": 2.3242
    },
-   "stop_adr": 0.0325,
+   "stop_adr": 0.3244,
+   "stop_adr_naive": 0.0325,
    "stop_pct": 0.02414772727272731,
    "entry_vs_high3_adr": -12.1122,
    "entry_vs_high7_adr": -12.1122,
@@ -10375,7 +10825,8 @@
     "6": 1.3789,
     "7": 1.3789
    },
-   "stop_adr": 0.6222,
+   "stop_adr": 0.5987,
+   "stop_adr_naive": 0.6222,
    "stop_pct": 0.02407286922576446,
    "entry_vs_high3_adr": 0.0729,
    "entry_vs_high7_adr": 0.0224,
@@ -10398,7 +10849,8 @@
     "6": 3.6069,
     "7": 3.6069
    },
-   "stop_adr": 0.345,
+   "stop_adr": 0.3368,
+   "stop_adr_naive": 0.345,
    "stop_pct": 0.02419354838709677,
    "entry_vs_high3_adr": 0.138,
    "entry_vs_high7_adr": -1.6056,
@@ -10421,7 +10873,8 @@
     "6": 1.6322,
     "7": 1.6322
    },
-   "stop_adr": 0.2074,
+   "stop_adr": 0.1939,
+   "stop_adr_naive": 0.2074,
    "stop_pct": 0.02429836127330959,
    "entry_vs_high3_adr": 0.0105,
    "entry_vs_high7_adr": -0.7655,
@@ -10444,7 +10897,8 @@
     "6": 2.5667,
     "7": 2.5667
    },
-   "stop_adr": 0.6265,
+   "stop_adr": 0.521,
+   "stop_adr_naive": 0.6265,
    "stop_pct": 0.02437962962962972,
    "entry_vs_high3_adr": 2.8878,
    "entry_vs_high7_adr": 2.8878,
@@ -10467,7 +10921,8 @@
     "6": 2.6063,
     "7": 2.9067
    },
-   "stop_adr": 0.389,
+   "stop_adr": 0.3789,
+   "stop_adr_naive": 0.389,
    "stop_pct": 0.02442333785617364,
    "entry_vs_high3_adr": -0.0195,
    "entry_vs_high7_adr": -1.5236,
@@ -10490,7 +10945,8 @@
     "6": 1.8456,
     "7": 2.4459
    },
-   "stop_adr": 0.4588,
+   "stop_adr": 0.4331,
+   "stop_adr_naive": 0.4588,
    "stop_pct": 0.02448002944965946,
    "entry_vs_high3_adr": -0.0397,
    "entry_vs_high7_adr": -0.8417,
@@ -10513,7 +10969,8 @@
     "6": 2.5077,
     "7": 2.5077
    },
-   "stop_adr": 0.5094,
+   "stop_adr": 0.4861,
+   "stop_adr_naive": 0.5094,
    "stop_pct": 0.02452504317789295,
    "entry_vs_high3_adr": 0.5202,
    "entry_vs_high7_adr": 0.0359,
@@ -10536,7 +10993,8 @@
     "6": 1.4992,
     "7": 1.6291
    },
-   "stop_adr": 0.4648,
+   "stop_adr": 0.4525,
+   "stop_adr_naive": 0.4648,
    "stop_pct": 0.0246031746031746,
    "entry_vs_high3_adr": -0.04,
    "entry_vs_high7_adr": -0.4698,
@@ -10559,7 +11017,8 @@
     "6": 1.6715,
     "7": 1.8772
    },
-   "stop_adr": 0.0257,
+   "stop_adr": 0.298,
+   "stop_adr_naive": 0.0257,
    "stop_pct": 0.02469135802469142,
    "entry_vs_high3_adr": -11.4565,
    "entry_vs_high7_adr": -11.9498,
@@ -10582,7 +11041,8 @@
     "6": 1.3702,
     "7": 1.468
    },
-   "stop_adr": 0.4728,
+   "stop_adr": 0.4561,
+   "stop_adr_naive": 0.4728,
    "stop_pct": 0.024898970147308,
    "entry_vs_high3_adr": 0.3701,
    "entry_vs_high7_adr": 0.0681,
@@ -10605,7 +11065,8 @@
     "6": 2.0412,
     "7": 2.0412
    },
-   "stop_adr": 0.4283,
+   "stop_adr": 0.4122,
+   "stop_adr_naive": 0.4283,
    "stop_pct": 0.02505873140172281,
    "entry_vs_high3_adr": 0.4484,
    "entry_vs_high7_adr": -0.3681,
@@ -10628,7 +11089,8 @@
     "6": 1.6467,
     "7": 1.7087
    },
-   "stop_adr": 0.2646,
+   "stop_adr": 0.2462,
+   "stop_adr_naive": 0.2646,
    "stop_pct": 0.0252688172043012,
    "entry_vs_high3_adr": 0.4785,
    "entry_vs_high7_adr": 0.0281,
@@ -10651,7 +11113,8 @@
     "6": 1.1356,
     "7": 1.4628
    },
-   "stop_adr": 0.1732,
+   "stop_adr": 0.1597,
+   "stop_adr_naive": 0.1732,
    "stop_pct": 0.0252631578947368,
    "entry_vs_high3_adr": -0.1299,
    "entry_vs_high7_adr": -0.1877,
@@ -10674,7 +11137,8 @@
     "6": 3.3228,
     "7": 3.3228
    },
-   "stop_adr": 0.0002,
+   "stop_adr": 0.3597,
+   "stop_adr_naive": 0.0002,
    "stop_pct": 0.02535714285714289,
    "entry_vs_high3_adr": -14.3626,
    "entry_vs_high7_adr": -14.3626,
@@ -10697,7 +11161,8 @@
     "6": 2.1719,
     "7": 2.1719
    },
-   "stop_adr": 3.7838,
+   "stop_adr": 0.7408,
+   "stop_adr_naive": 3.7838,
    "stop_pct": 0.0254376131758214,
    "entry_vs_high3_adr": 118.9339,
    "entry_vs_high7_adr": 118.9339,
@@ -10720,7 +11185,8 @@
     "6": 1.7467,
     "7": 1.8082
    },
-   "stop_adr": 0.2684,
+   "stop_adr": 0.2658,
+   "stop_adr_naive": 0.2684,
    "stop_pct": 0.02549857549857559,
    "entry_vs_high3_adr": -0.021,
    "entry_vs_high7_adr": -0.1065,
@@ -10743,7 +11209,8 @@
     "6": 1.7918,
     "7": 1.7918
    },
-   "stop_adr": 0.2993,
+   "stop_adr": 0.2812,
+   "stop_adr_naive": 0.2993,
    "stop_pct": 0.02545454545454556,
    "entry_vs_high3_adr": -0.1224,
    "entry_vs_high7_adr": -0.1224,
@@ -10766,7 +11233,8 @@
     "6": 2.0689,
     "7": 2.4238
    },
-   "stop_adr": 0.4814,
+   "stop_adr": 0.4614,
+   "stop_adr_naive": 0.4814,
    "stop_pct": 0.0257209664848013,
    "entry_vs_high3_adr": 0.3622,
    "entry_vs_high7_adr": -0.688,
@@ -10789,7 +11257,8 @@
     "6": 1.0691,
     "7": 1.6552
    },
-   "stop_adr": 0.2511,
+   "stop_adr": 0.2428,
+   "stop_adr_naive": 0.2511,
    "stop_pct": 0.02578947368421051,
    "entry_vs_high3_adr": -0.2065,
    "entry_vs_high7_adr": -0.8011,
@@ -10812,7 +11281,8 @@
     "6": 1.2339,
     "7": 1.2339
    },
-   "stop_adr": 0.0014,
+   "stop_adr": 0.0661,
+   "stop_adr_naive": 0.0014,
    "stop_pct": 0.02612826603325423,
    "entry_vs_high3_adr": -2.7999,
    "entry_vs_high7_adr": -3.1595,
@@ -10835,7 +11305,8 @@
     "6": 2.2381,
     "7": 2.8026
    },
-   "stop_adr": 0.2016,
+   "stop_adr": 0.1864,
+   "stop_adr_naive": 0.2016,
    "stop_pct": 0.02610966057441256,
    "entry_vs_high3_adr": -0.625,
    "entry_vs_high7_adr": -0.625,
@@ -10858,7 +11329,8 @@
     "6": 2.2485,
     "7": 2.5487
    },
-   "stop_adr": 0.9135,
+   "stop_adr": 0.8907,
+   "stop_adr_naive": 0.9135,
    "stop_pct": 0.02623853211009174,
    "entry_vs_high3_adr": -0.1341,
    "entry_vs_high7_adr": -0.4982,
@@ -10881,7 +11353,8 @@
     "6": 1.593,
     "7": 2.9257
    },
-   "stop_adr": 0.5379,
+   "stop_adr": 0.5235,
+   "stop_adr_naive": 0.5379,
    "stop_pct": 0.0262488646684832,
    "entry_vs_high3_adr": 0.3165,
    "entry_vs_high7_adr": 0.3165,
@@ -10904,7 +11377,8 @@
     "6": 3.7628,
     "7": 3.7628
    },
-   "stop_adr": 0.3369,
+   "stop_adr": 0.2865,
+   "stop_adr_naive": 0.3369,
    "stop_pct": 0.0262276785714287,
    "entry_vs_high3_adr": 0.993,
    "entry_vs_high7_adr": 0.9835,
@@ -10927,7 +11401,8 @@
     "6": 2.891,
     "7": 2.891
    },
-   "stop_adr": 5.543,
+   "stop_adr": 0.529,
+   "stop_adr_naive": 5.543,
    "stop_pct": 0.02633744855967078,
    "entry_vs_high3_adr": 190.0278,
    "entry_vs_high7_adr": 190.0278,
@@ -10950,7 +11425,8 @@
     "6": 1.182,
     "7": 1.7347
    },
-   "stop_adr": 2.8389,
+   "stop_adr": 0.6903,
+   "stop_adr_naive": 2.8389,
    "stop_pct": 0.02640866496288188,
    "entry_vs_high3_adr": 81.1192,
    "entry_vs_high7_adr": 81.1192,
@@ -10973,7 +11449,8 @@
     "6": 1.7703,
     "7": 1.7703
    },
-   "stop_adr": 0.5313,
+   "stop_adr": 0.5167,
+   "stop_adr_naive": 0.5313,
    "stop_pct": 0.02654773282361686,
    "entry_vs_high3_adr": 0.3889,
    "entry_vs_high7_adr": 0.3889,
@@ -10996,7 +11473,8 @@
     "6": 1.3164,
     "7": 1.3164
    },
-   "stop_adr": 0.4787,
+   "stop_adr": 0.4578,
+   "stop_adr_naive": 0.4787,
    "stop_pct": 0.02654028436018968,
    "entry_vs_high3_adr": 0.2564,
    "entry_vs_high7_adr": 0.2393,
@@ -11019,7 +11497,8 @@
     "6": 4.7514,
     "7": 4.7529
    },
-   "stop_adr": 0.1619,
+   "stop_adr": 0.1513,
+   "stop_adr_naive": 0.1619,
    "stop_pct": 0.02667960223138478,
    "entry_vs_high3_adr": -0.1869,
    "entry_vs_high7_adr": -1.7025,
@@ -11042,7 +11521,8 @@
     "6": 1.2459,
     "7": 1.3994
    },
-   "stop_adr": 0.3854,
+   "stop_adr": 0.3687,
+   "stop_adr_naive": 0.3854,
    "stop_pct": 0.02676666666666657,
    "entry_vs_high3_adr": 0.191,
    "entry_vs_high7_adr": -0.1627,
@@ -11065,7 +11545,8 @@
     "6": 2.041,
     "7": 2.0669
    },
-   "stop_adr": 0.6227,
+   "stop_adr": 0.5981,
+   "stop_adr_naive": 0.6227,
    "stop_pct": 0.02676579925650554,
    "entry_vs_high3_adr": 0.0865,
    "entry_vs_high7_adr": 0.0605,
@@ -11088,7 +11569,8 @@
     "6": 2.1696,
     "7": 2.9793
    },
-   "stop_adr": 0.9045,
+   "stop_adr": 0.8807,
+   "stop_adr_naive": 0.9045,
    "stop_pct": 0.02695570216776625,
    "entry_vs_high3_adr": 0.2467,
    "entry_vs_high7_adr": 0.2467,
@@ -11111,7 +11593,8 @@
     "6": 3.1308,
     "7": 3.6406
    },
-   "stop_adr": 0.4276,
+   "stop_adr": 0.4077,
+   "stop_adr_naive": 0.4276,
    "stop_pct": 0.02708333333333328,
    "entry_vs_high3_adr": -0.0013,
    "entry_vs_high7_adr": -1.1513,
@@ -11134,7 +11617,8 @@
     "6": 1.7244,
     "7": 1.7244
    },
-   "stop_adr": 0.0782,
+   "stop_adr": 0.3757,
+   "stop_adr_naive": 0.0782,
    "stop_pct": 0.02717770034843197,
    "entry_vs_high3_adr": -11.71,
    "entry_vs_high7_adr": -11.7801,
@@ -11157,7 +11641,8 @@
     "6": 1.4109,
     "7": 1.4396
    },
-   "stop_adr": 0.0142,
+   "stop_adr": 0.1607,
+   "stop_adr_naive": 0.0142,
    "stop_pct": 0.02730769230769234,
    "entry_vs_high3_adr": -6.2216,
    "entry_vs_high7_adr": -6.3174,
@@ -11180,7 +11665,8 @@
     "6": 5.5187,
     "7": 5.5649
    },
-   "stop_adr": 1.2147,
+   "stop_adr": 1.1684,
+   "stop_adr_naive": 1.2147,
    "stop_pct": 0.02733118971061094,
    "entry_vs_high3_adr": 1.6518,
    "entry_vs_high7_adr": -1.2147,
@@ -11203,7 +11689,8 @@
     "6": 1.459,
     "7": 2.2306
    },
-   "stop_adr": 0.3491,
+   "stop_adr": 0.3322,
+   "stop_adr_naive": 0.3491,
    "stop_pct": 0.02728799328295534,
    "entry_vs_high3_adr": -0.1378,
    "entry_vs_high7_adr": -0.4672,
@@ -11226,7 +11713,8 @@
     "6": 3.2232,
     "7": 3.2232
    },
-   "stop_adr": 0.5149,
+   "stop_adr": 0.483,
+   "stop_adr_naive": 0.5149,
    "stop_pct": 0.02742616033755271,
    "entry_vs_high3_adr": -0.003,
    "entry_vs_high7_adr": -0.4966,
@@ -11249,7 +11737,8 @@
     "6": 2.5584,
     "7": 3.965
    },
-   "stop_adr": 0.6394,
+   "stop_adr": 0.6213,
+   "stop_adr_naive": 0.6394,
    "stop_pct": 0.02745264949989355,
    "entry_vs_high3_adr": 0.6106,
    "entry_vs_high7_adr": -2.0866,
@@ -11272,7 +11761,8 @@
     "6": 5.6413,
     "7": 5.6413
    },
-   "stop_adr": 0.3195,
+   "stop_adr": 0.3024,
+   "stop_adr_naive": 0.3195,
    "stop_pct": 0.0276412776412777,
    "entry_vs_high3_adr": -1.0509,
    "entry_vs_high7_adr": -1.0509,
@@ -11295,7 +11785,8 @@
     "6": 2.5268,
     "7": 2.5268
    },
-   "stop_adr": 0.4043,
+   "stop_adr": 0.3957,
+   "stop_adr_naive": 0.4043,
    "stop_pct": 0.027643400138217,
    "entry_vs_high3_adr": 0.0384,
    "entry_vs_high7_adr": -0.5357,
@@ -11318,7 +11809,8 @@
     "6": 2.0604,
     "7": 2.1888
    },
-   "stop_adr": 0.196,
+   "stop_adr": 0.1809,
+   "stop_adr_naive": 0.196,
    "stop_pct": 0.02766634389265458,
    "entry_vs_high3_adr": -0.5401,
    "entry_vs_high7_adr": -1.0812,
@@ -11341,7 +11833,8 @@
     "6": 2.1942,
     "7": 2.1942
    },
-   "stop_adr": 0.3336,
+   "stop_adr": 0.3243,
+   "stop_adr_naive": 0.3336,
    "stop_pct": 0.02769177846577226,
    "entry_vs_high3_adr": -0.0269,
    "entry_vs_high7_adr": -1.4172,
@@ -11364,7 +11857,8 @@
     "6": 1.7294,
     "7": 2.3981
    },
-   "stop_adr": 0.2536,
+   "stop_adr": 0.2454,
+   "stop_adr_naive": 0.2536,
    "stop_pct": 0.02813299232736573,
    "entry_vs_high3_adr": -0.1499,
    "entry_vs_high7_adr": -0.8762,
@@ -11387,7 +11881,8 @@
     "6": 2.536,
     "7": 2.536
    },
-   "stop_adr": 0.5513,
+   "stop_adr": 0.5015,
+   "stop_adr_naive": 0.5513,
    "stop_pct": 0.0283018867924529,
    "entry_vs_high3_adr": 0.7412,
    "entry_vs_high7_adr": 0.7412,
@@ -11410,7 +11905,8 @@
     "6": 1.6094,
     "7": 1.6094
    },
-   "stop_adr": 0.3335,
+   "stop_adr": 0.3217,
+   "stop_adr_naive": 0.3335,
    "stop_pct": 0.02827868852459007,
    "entry_vs_high3_adr": 0.0918,
    "entry_vs_high7_adr": -0.6234,
@@ -11433,7 +11929,8 @@
     "6": 3.2289,
     "7": 3.2289
    },
-   "stop_adr": 0.7398,
+   "stop_adr": 0.7015,
+   "stop_adr_naive": 0.7398,
    "stop_pct": 0.0285273708558212,
    "entry_vs_high3_adr": 1.1596,
    "entry_vs_high7_adr": 0.2899,
@@ -11456,7 +11953,8 @@
     "6": 1.1672,
     "7": 1.7201
    },
-   "stop_adr": 0.0031,
+   "stop_adr": 0.351,
+   "stop_adr_naive": 0.0031,
    "stop_pct": 0.02857142857142859,
    "entry_vs_high3_adr": -12.1786,
    "entry_vs_high7_adr": -12.8543,
@@ -11479,7 +11977,8 @@
     "6": 2.0188,
     "7": 2.6346
    },
-   "stop_adr": 0.5016,
+   "stop_adr": 0.4841,
+   "stop_adr_naive": 0.5016,
    "stop_pct": 0.02873831775700927,
    "entry_vs_high3_adr": 0.0693,
    "entry_vs_high7_adr": -0.8972,
@@ -11502,7 +12001,8 @@
     "6": 0.949,
     "7": 0.986
    },
-   "stop_adr": 0.2807,
+   "stop_adr": 0.2698,
+   "stop_adr_naive": 0.2807,
    "stop_pct": 0.02892083243939073,
    "entry_vs_high3_adr": 0.2267,
    "entry_vs_high7_adr": 0.1614,
@@ -11525,7 +12025,8 @@
     "6": 2.6256,
     "7": 2.6256
    },
-   "stop_adr": 0.3127,
+   "stop_adr": 0.2936,
+   "stop_adr_naive": 0.3127,
    "stop_pct": 0.02909231962761831,
    "entry_vs_high3_adr": 0.1584,
    "entry_vs_high7_adr": -1.0257,
@@ -11548,7 +12049,8 @@
     "6": 2.4753,
     "7": 2.4753
    },
-   "stop_adr": 0.7971,
+   "stop_adr": 0.7301,
+   "stop_adr_naive": 0.7971,
    "stop_pct": 0.02944595118171244,
    "entry_vs_high3_adr": 1.9614,
    "entry_vs_high7_adr": 1.9614,
@@ -11571,7 +12073,8 @@
     "6": 2.175,
     "7": 2.175
    },
-   "stop_adr": 1.0075,
+   "stop_adr": 0.9629,
+   "stop_adr_naive": 1.0075,
    "stop_pct": 0.02939560439560441,
    "entry_vs_high3_adr": -0.1883,
    "entry_vs_high7_adr": -0.2542,
@@ -11594,7 +12097,8 @@
     "6": 1.4719,
     "7": 1.4719
    },
-   "stop_adr": 0.4839,
+   "stop_adr": 0.4634,
+   "stop_adr_naive": 0.4839,
    "stop_pct": 0.02953846153846157,
    "entry_vs_high3_adr": -0.121,
    "entry_vs_high7_adr": -0.121,
@@ -11617,7 +12121,8 @@
     "6": 1.3037,
     "7": 1.3037
    },
-   "stop_adr": 0.6496,
+   "stop_adr": 0.6282,
+   "stop_adr_naive": 0.6496,
    "stop_pct": 0.04039699122440449,
    "entry_vs_high3_adr": 0.1613,
    "entry_vs_high7_adr": 0.0538,
@@ -11640,7 +12145,8 @@
     "6": 2.4906,
     "7": 2.7009
    },
-   "stop_adr": 0.256,
+   "stop_adr": 0.2332,
+   "stop_adr_naive": 0.256,
    "stop_pct": 0.02989564149785147,
    "entry_vs_high3_adr": -0.3406,
    "entry_vs_high7_adr": -0.3406,
@@ -11663,7 +12169,8 @@
     "6": 2.0374,
     "7": 2.463
    },
-   "stop_adr": 0.8791,
+   "stop_adr": 0.8329,
+   "stop_adr_naive": 0.8791,
    "stop_pct": 0.02999999999999995,
    "entry_vs_high3_adr": 0.6489,
    "entry_vs_high7_adr": 0.6489,
@@ -11686,7 +12193,8 @@
     "6": 3.0521,
     "7": 3.7946
    },
-   "stop_adr": 2.7799,
+   "stop_adr": 2.7527,
+   "stop_adr_naive": 2.7799,
    "stop_pct": 0.03886966551326418,
    "entry_vs_high3_adr": 0.0,
    "entry_vs_high7_adr": 0.0,
@@ -11709,7 +12217,8 @@
     "6": 2.0143,
     "7": 2.0143
    },
-   "stop_adr": 0.3273,
+   "stop_adr": 0.3062,
+   "stop_adr_naive": 0.3273,
    "stop_pct": 0.03002309468822165,
    "entry_vs_high3_adr": 0.4054,
    "entry_vs_high7_adr": -0.1259,
@@ -11732,7 +12241,8 @@
     "6": 1.5193,
     "7": 1.7792
    },
-   "stop_adr": 0.3143,
+   "stop_adr": 0.291,
+   "stop_adr_naive": 0.3143,
    "stop_pct": 0.03033367037411527,
    "entry_vs_high3_adr": 0.0482,
    "entry_vs_high7_adr": -0.4275,
@@ -11755,7 +12265,8 @@
     "6": 1.2593,
     "7": 1.2593
    },
-   "stop_adr": 0.3697,
+   "stop_adr": 0.358,
+   "stop_adr_naive": 0.3697,
    "stop_pct": 0.03035777229467754,
    "entry_vs_high3_adr": 0.1531,
    "entry_vs_high7_adr": -0.0558,
@@ -11778,7 +12289,8 @@
     "6": 2.3905,
     "7": 2.3905
    },
-   "stop_adr": 0.6791,
+   "stop_adr": 0.6775,
+   "stop_adr_naive": 0.6791,
    "stop_pct": 0.03039014373716641,
    "entry_vs_high3_adr": -0.1239,
    "entry_vs_high7_adr": -0.1239,
@@ -11801,7 +12313,8 @@
     "6": 1.5143,
     "7": 2.0768
    },
-   "stop_adr": 0.6807,
+   "stop_adr": 0.6148,
+   "stop_adr_naive": 0.6807,
    "stop_pct": 0.03071317022384174,
    "entry_vs_high3_adr": 1.4105,
    "entry_vs_high7_adr": 1.1365,
@@ -11824,7 +12337,8 @@
     "6": 1.2386,
     "7": 1.7442
    },
-   "stop_adr": 0.4853,
+   "stop_adr": 0.4606,
+   "stop_adr_naive": 0.4853,
    "stop_pct": 0.0309677419354839,
    "entry_vs_high3_adr": 0.0101,
    "entry_vs_high7_adr": 0.0101,
@@ -11847,7 +12361,8 @@
     "6": 2.4975,
     "7": 2.6572
    },
-   "stop_adr": 0.1233,
+   "stop_adr": 0.5193,
+   "stop_adr_naive": 0.1233,
    "stop_pct": 0.03107221006564555,
    "entry_vs_high3_adr": -14.943,
    "entry_vs_high7_adr": -14.9448,
@@ -11870,7 +12385,8 @@
     "6": 2.7542,
     "7": 2.7542
    },
-   "stop_adr": 0.5776,
+   "stop_adr": 0.5263,
+   "stop_adr_naive": 0.5776,
    "stop_pct": 0.05990265818045681,
    "entry_vs_high3_adr": 0.2202,
    "entry_vs_high7_adr": -1.563,
@@ -11893,7 +12409,8 @@
     "6": 1.9803,
     "7": 2.0367
    },
-   "stop_adr": 0.0259,
+   "stop_adr": 0.3004,
+   "stop_adr_naive": 0.0259,
    "stop_pct": 0.03142857142857144,
    "entry_vs_high3_adr": -9.0828,
    "entry_vs_high7_adr": -10.0189,
@@ -11916,7 +12433,8 @@
     "6": 2.216,
     "7": 2.216
    },
-   "stop_adr": 0.3848,
+   "stop_adr": 0.3492,
+   "stop_adr_naive": 0.3848,
    "stop_pct": 0.03143939393939388,
    "entry_vs_high3_adr": -0.1762,
    "entry_vs_high7_adr": -0.9921,
@@ -11939,7 +12457,8 @@
     "6": 2.1809,
     "7": 2.1809
    },
-   "stop_adr": 0.5723,
+   "stop_adr": 0.5451,
+   "stop_adr_naive": 0.5723,
    "stop_pct": 0.03693345397713248,
    "entry_vs_high3_adr": 0.0701,
    "entry_vs_high7_adr": -0.3187,
@@ -11962,7 +12481,8 @@
     "6": 11.2457,
     "7": 12.4958
    },
-   "stop_adr": 0.1193,
+   "stop_adr": 0.1128,
+   "stop_adr_naive": 0.1193,
    "stop_pct": 0.03174603174603174,
    "entry_vs_high3_adr": -1.2906,
    "entry_vs_high7_adr": -10.5563,
@@ -11985,7 +12505,8 @@
     "6": 2.2846,
     "7": 2.2846
    },
-   "stop_adr": 0.0468,
+   "stop_adr": 0.4123,
+   "stop_adr_naive": 0.0468,
    "stop_pct": 0.03181818181818179,
    "entry_vs_high3_adr": -11.7169,
    "entry_vs_high7_adr": -11.7169,
@@ -12008,7 +12529,8 @@
     "6": 1.7907,
     "7": 1.7907
    },
-   "stop_adr": 0.531,
+   "stop_adr": 0.51,
+   "stop_adr_naive": 0.531,
    "stop_pct": 0.03186440677966106,
    "entry_vs_high3_adr": -0.0565,
    "entry_vs_high7_adr": -0.483,
@@ -12031,7 +12553,8 @@
     "6": 1.936,
     "7": 1.9443
    },
-   "stop_adr": 0.8747,
+   "stop_adr": 0.823,
+   "stop_adr_naive": 0.8747,
    "stop_pct": 0.03192133131618748,
    "entry_vs_high3_adr": 0.6301,
    "entry_vs_high7_adr": 0.6219,
@@ -12054,7 +12577,8 @@
     "6": 1.3529,
     "7": 1.7403
    },
-   "stop_adr": 0.0127,
+   "stop_adr": 0.1183,
+   "stop_adr_naive": 0.0127,
    "stop_pct": 0.03211678832116785,
    "entry_vs_high3_adr": -3.5355,
    "entry_vs_high7_adr": -4.5241,
@@ -12077,7 +12601,8 @@
     "6": 1.0204,
     "7": 1.0204
    },
-   "stop_adr": 0.3888,
+   "stop_adr": 0.3812,
+   "stop_adr_naive": 0.3888,
    "stop_pct": 0.03221775176786148,
    "entry_vs_high3_adr": -0.1148,
    "entry_vs_high7_adr": -0.1148,
@@ -12100,7 +12625,8 @@
     "6": 1.863,
     "7": 1.863
    },
-   "stop_adr": 0.3857,
+   "stop_adr": 0.3547,
+   "stop_adr_naive": 0.3857,
    "stop_pct": 0.0324254215304799,
    "entry_vs_high3_adr": 0.5477,
    "entry_vs_high7_adr": -0.2854,
@@ -12123,7 +12649,8 @@
     "6": 2.5089,
     "7": 2.7816
    },
-   "stop_adr": 0.3868,
+   "stop_adr": 0.3466,
+   "stop_adr_naive": 0.3868,
    "stop_pct": 0.03239651114495366,
    "entry_vs_high3_adr": 0.7619,
    "entry_vs_high7_adr": -0.9454,
@@ -12146,7 +12673,8 @@
     "6": 2.1906,
     "7": 2.2924
    },
-   "stop_adr": 1.7402,
+   "stop_adr": 0.5481,
+   "stop_adr_naive": 1.7402,
    "stop_pct": 0.03236620087336235,
    "entry_vs_high3_adr": 35.2893,
    "entry_vs_high7_adr": 34.9535,
@@ -12169,7 +12697,8 @@
     "6": 1.4334,
     "7": 1.4334
    },
-   "stop_adr": 0.4989,
+   "stop_adr": 0.478,
+   "stop_adr_naive": 0.4989,
    "stop_pct": 0.03260396593522723,
    "entry_vs_high3_adr": 0.4632,
    "entry_vs_high7_adr": 0.4632,
@@ -12192,7 +12721,8 @@
     "6": 2.6466,
     "7": 2.6466
    },
-   "stop_adr": 0.7186,
+   "stop_adr": 0.6269,
+   "stop_adr_naive": 0.7186,
    "stop_pct": 0.03266331658291447,
    "entry_vs_high3_adr": 2.5094,
    "entry_vs_high7_adr": 1.261,
@@ -12215,7 +12745,8 @@
     "6": 1.9727,
     "7": 3.7178
    },
-   "stop_adr": 0.2656,
+   "stop_adr": 0.2519,
+   "stop_adr_naive": 0.2656,
    "stop_pct": 0.0327102803738319,
    "entry_vs_high3_adr": -0.1517,
    "entry_vs_high7_adr": -2.0865,
@@ -12238,7 +12769,8 @@
     "6": 1.7304,
     "7": 1.9705
    },
-   "stop_adr": 0.5503,
+   "stop_adr": 0.5336,
+   "stop_adr_naive": 0.5503,
    "stop_pct": 0.03279999999999992,
    "entry_vs_high3_adr": -0.6365,
    "entry_vs_high7_adr": -0.8837,
@@ -12261,7 +12793,8 @@
     "6": 2.3619,
     "7": 2.3697
    },
-   "stop_adr": 0.2358,
+   "stop_adr": 0.4472,
+   "stop_adr_naive": 0.2358,
    "stop_pct": 0.03312636961285607,
    "entry_vs_high3_adr": -7.6478,
    "entry_vs_high7_adr": -7.6478,
@@ -12284,7 +12817,8 @@
     "6": 2.8009,
     "7": 3.0919
    },
-   "stop_adr": 0.0691,
+   "stop_adr": 0.6572,
+   "stop_adr_naive": 0.0691,
    "stop_pct": 0.03327495621716294,
    "entry_vs_high3_adr": -18.7658,
    "entry_vs_high7_adr": -18.7658,
@@ -12307,7 +12841,8 @@
     "6": 1.4471,
     "7": 1.4471
    },
-   "stop_adr": 0.2545,
+   "stop_adr": 0.2426,
+   "stop_adr_naive": 0.2545,
    "stop_pct": 0.0336470588235294,
    "entry_vs_high3_adr": 0.0205,
    "entry_vs_high7_adr": -0.3809,
@@ -12330,7 +12865,8 @@
     "6": 3.5616,
     "7": 4.5618
    },
-   "stop_adr": 0.5056,
+   "stop_adr": 0.4673,
+   "stop_adr_naive": 0.5056,
    "stop_pct": 0.03357446808510633,
    "entry_vs_high3_adr": 0.1346,
    "entry_vs_high7_adr": -2.6286,
@@ -12353,7 +12889,8 @@
     "6": 1.9726,
     "7": 2.5277
    },
-   "stop_adr": 0.4262,
+   "stop_adr": 0.4092,
+   "stop_adr_naive": 0.4262,
    "stop_pct": 0.03372549019607841,
    "entry_vs_high3_adr": 0.1982,
    "entry_vs_high7_adr": -0.3568,
@@ -12376,7 +12913,8 @@
     "6": 2.3137,
     "7": 2.342
    },
-   "stop_adr": 0.6199,
+   "stop_adr": 0.6033,
+   "stop_adr_naive": 0.6199,
    "stop_pct": 0.03384785005512687,
    "entry_vs_high3_adr": 0.1979,
    "entry_vs_high7_adr": -0.4927,
@@ -12399,7 +12937,8 @@
     "6": 1.7333,
     "7": 1.7333
    },
-   "stop_adr": 0.47,
+   "stop_adr": 0.4451,
+   "stop_adr_naive": 0.47,
    "stop_pct": 0.0339702760084926,
    "entry_vs_high3_adr": -0.7051,
    "entry_vs_high7_adr": -0.7051,
@@ -12422,7 +12961,8 @@
     "6": 1.1626,
     "7": 2.2821
    },
-   "stop_adr": 0.7751,
+   "stop_adr": 0.7178,
+   "stop_adr_naive": 0.7751,
    "stop_pct": 0.03409090909090921,
    "entry_vs_high3_adr": 1.4425,
    "entry_vs_high7_adr": 1.3563,
@@ -12445,7 +12985,8 @@
     "6": 3.1708,
     "7": 3.2773
    },
-   "stop_adr": 0.3869,
+   "stop_adr": 0.0961,
+   "stop_adr_naive": 0.3869,
    "stop_pct": 0.03415999999999997,
    "entry_vs_high3_adr": 8.2909,
    "entry_vs_high7_adr": 7.1426,
@@ -12468,7 +13009,8 @@
     "6": 1.3721,
     "7": 1.3721
    },
-   "stop_adr": 0.2185,
+   "stop_adr": 0.2105,
+   "stop_adr_naive": 0.2185,
    "stop_pct": 0.03460207612456748,
    "entry_vs_high3_adr": -0.083,
    "entry_vs_high7_adr": -0.083,
@@ -12491,7 +13033,8 @@
     "6": 2.2829,
     "7": 2.2829
    },
-   "stop_adr": 0.6288,
+   "stop_adr": 0.5504,
+   "stop_adr_naive": 0.6288,
    "stop_pct": 0.03456281407035174,
    "entry_vs_high3_adr": 0.9113,
    "entry_vs_high7_adr": 0.9113,
@@ -12514,7 +13057,8 @@
     "6": 4.1684,
     "7": 4.4922
    },
-   "stop_adr": 0.4823,
+   "stop_adr": 0.4658,
+   "stop_adr_naive": 0.4823,
    "stop_pct": 0.03460207612456744,
    "entry_vs_high3_adr": 0.1447,
    "entry_vs_high7_adr": 0.1447,
@@ -12537,7 +13081,8 @@
     "6": 2.4277,
     "7": 3.1418
    },
-   "stop_adr": 0.4284,
+   "stop_adr": 0.3775,
+   "stop_adr_naive": 0.4284,
    "stop_pct": 0.0347349177330896,
    "entry_vs_high3_adr": 0.9245,
    "entry_vs_high7_adr": 0.9245,
@@ -12560,7 +13105,8 @@
     "6": 1.4973,
     "7": 1.4973
    },
-   "stop_adr": 0.8986,
+   "stop_adr": 0.2719,
+   "stop_adr_naive": 0.8986,
    "stop_pct": 0.0350125944584383,
    "entry_vs_high3_adr": 17.0028,
    "entry_vs_high7_adr": 17.0028,
@@ -12583,7 +13129,8 @@
     "6": 2.118,
     "7": 3.6873
    },
-   "stop_adr": 0.3687,
+   "stop_adr": 0.3334,
+   "stop_adr_naive": 0.3687,
    "stop_pct": 0.03495934959349605,
    "entry_vs_high3_adr": 0.1887,
    "entry_vs_high7_adr": -1.8865,
@@ -12606,7 +13153,8 @@
     "6": 1.6556,
     "7": 1.7732
    },
-   "stop_adr": 0.6944,
+   "stop_adr": 0.6611,
+   "stop_adr_naive": 0.6944,
    "stop_pct": 0.03555644837284056,
    "entry_vs_high3_adr": -0.0863,
    "entry_vs_high7_adr": -0.2432,
@@ -12629,7 +13177,8 @@
     "6": 1.311,
     "7": 1.311
    },
-   "stop_adr": 0.271,
+   "stop_adr": 0.2573,
+   "stop_adr_naive": 0.271,
    "stop_pct": 0.03563877982482633,
    "entry_vs_high3_adr": 0.1653,
    "entry_vs_high7_adr": -0.1812,
@@ -12652,7 +13201,8 @@
     "6": 2.3423,
     "7": 2.8914
    },
-   "stop_adr": 0.0128,
+   "stop_adr": 0.2409,
+   "stop_adr_naive": 0.0128,
    "stop_pct": 0.03576388888888893,
    "entry_vs_high3_adr": -7.4261,
    "entry_vs_high7_adr": -7.4261,
@@ -12675,7 +13225,8 @@
     "6": 2.3944,
     "7": 2.3944
    },
-   "stop_adr": 0.2692,
+   "stop_adr": 0.259,
+   "stop_adr_naive": 0.2692,
    "stop_pct": 0.03584905660377349,
    "entry_vs_high3_adr": -0.0992,
    "entry_vs_high7_adr": -1.4027,
@@ -12698,7 +13249,8 @@
     "6": 4.1454,
     "7": 4.1454
    },
-   "stop_adr": 0.7954,
+   "stop_adr": 0.7193,
+   "stop_adr_naive": 0.7954,
    "stop_pct": 0.03583358639538414,
    "entry_vs_high3_adr": 2.0019,
    "entry_vs_high7_adr": 2.0019,
@@ -12721,7 +13273,8 @@
     "6": 6.798,
     "7": 8.8514
    },
-   "stop_adr": 0.2489,
+   "stop_adr": 0.2037,
+   "stop_adr_naive": 0.2489,
    "stop_pct": 0.03587443946188344,
    "entry_vs_high3_adr": -1.0111,
    "entry_vs_high7_adr": -7.0469,
@@ -12744,7 +13297,8 @@
     "6": 1.9113,
     "7": 2.6015
    },
-   "stop_adr": 0.5169,
+   "stop_adr": 0.4954,
+   "stop_adr_naive": 0.5169,
    "stop_pct": 0.03599137931034486,
    "entry_vs_high3_adr": -0.1315,
    "entry_vs_high7_adr": -0.1315,
@@ -12767,7 +13321,8 @@
     "6": 2.716,
     "7": 3.2163
    },
-   "stop_adr": 1.0006,
+   "stop_adr": 0.9808,
+   "stop_adr_naive": 1.0006,
    "stop_pct": 0.0462046204620461,
    "entry_vs_high3_adr": -0.7862,
    "entry_vs_high7_adr": -0.7862,
@@ -12790,7 +13345,8 @@
     "6": 0.9389,
     "7": 0.995
    },
-   "stop_adr": 0.0175,
+   "stop_adr": 0.1662,
+   "stop_adr_naive": 0.0175,
    "stop_pct": 0.03649635036496351,
    "entry_vs_high3_adr": -4.453,
    "entry_vs_high7_adr": -4.8104,
@@ -12813,7 +13369,8 @@
     "6": 1.4271,
     "7": 1.4271
    },
-   "stop_adr": 0.0556,
+   "stop_adr": 0.5292,
+   "stop_adr_naive": 0.0556,
    "stop_pct": 0.03675450762829399,
    "entry_vs_high3_adr": -13.0623,
    "entry_vs_high7_adr": -13.0623,
@@ -12836,7 +13393,8 @@
     "6": 1.9476,
     "7": 2.5041
    },
-   "stop_adr": 0.007,
+   "stop_adr": 0.1958,
+   "stop_adr_naive": 0.007,
    "stop_pct": 0.03703703703703707,
    "entry_vs_high3_adr": -5.9333,
    "entry_vs_high7_adr": -6.768,
@@ -12859,7 +13417,8 @@
     "6": 1.6446,
     "7": 1.6446
    },
-   "stop_adr": 0.5068,
+   "stop_adr": 0.4657,
+   "stop_adr_naive": 0.5068,
    "stop_pct": 0.03703703703703705,
    "entry_vs_high3_adr": 0.9685,
    "entry_vs_high7_adr": 0.9685,
@@ -12882,7 +13441,8 @@
     "6": 3.2471,
     "7": 3.3852
    },
-   "stop_adr": 0.4757,
+   "stop_adr": 0.4452,
+   "stop_adr_naive": 0.4757,
    "stop_pct": 0.03704588910133853,
    "entry_vs_high3_adr": 0.1688,
    "entry_vs_high7_adr": -1.9059,
@@ -12905,7 +13465,8 @@
     "6": 3.3299,
     "7": 3.3299
    },
-   "stop_adr": 0.3798,
+   "stop_adr": 0.3571,
+   "stop_adr_naive": 0.3798,
    "stop_pct": 0.03720930232558143,
    "entry_vs_high3_adr": 0.1356,
    "entry_vs_high7_adr": 0.1356,
@@ -12928,7 +13489,8 @@
     "6": 3.1588,
     "7": 3.1588
    },
-   "stop_adr": 0.0002,
+   "stop_adr": 0.5403,
+   "stop_adr_naive": 0.0002,
    "stop_pct": 0.0373070325900515,
    "entry_vs_high3_adr": -15.142,
    "entry_vs_high7_adr": -15.142,
@@ -12951,7 +13513,8 @@
     "6": 2.0798,
     "7": 2.0798
    },
-   "stop_adr": 0.8426,
+   "stop_adr": 0.8235,
+   "stop_adr_naive": 0.8426,
    "stop_pct": 0.03748320413436691,
    "entry_vs_high3_adr": -0.8331,
    "entry_vs_high7_adr": -0.8331,
@@ -12974,7 +13537,8 @@
     "6": 2.6113,
     "7": 2.6113
    },
-   "stop_adr": 0.5354,
+   "stop_adr": 0.5052,
+   "stop_adr_naive": 0.5354,
    "stop_pct": 0.03748079877112146,
    "entry_vs_high3_adr": 0.0015,
    "entry_vs_high7_adr": -0.9436,
@@ -12997,7 +13561,8 @@
     "6": 1.7912,
     "7": 1.9651
    },
-   "stop_adr": 0.4705,
+   "stop_adr": 0.4547,
+   "stop_adr_naive": 0.4705,
    "stop_pct": 0.03791492744981115,
    "entry_vs_high3_adr": -0.0703,
    "entry_vs_high7_adr": -0.0703,
@@ -13020,7 +13585,8 @@
     "6": 1.3936,
     "7": 1.4394
    },
-   "stop_adr": 0.2521,
+   "stop_adr": 0.2418,
+   "stop_adr_naive": 0.2521,
    "stop_pct": 0.03835425383542544,
    "entry_vs_high3_adr": -0.0825,
    "entry_vs_high7_adr": -0.1375,
@@ -13043,7 +13609,8 @@
     "6": 2.4253,
     "7": 2.4253
    },
-   "stop_adr": 0.4816,
+   "stop_adr": 0.4679,
+   "stop_adr_naive": 0.4816,
    "stop_pct": 0.03846153846153841,
    "entry_vs_high3_adr": -0.0254,
    "entry_vs_high7_adr": -0.0527,
@@ -13066,7 +13633,8 @@
     "6": 2.0689,
     "7": 2.0689
    },
-   "stop_adr": 0.645,
+   "stop_adr": 0.6056,
+   "stop_adr_naive": 0.645,
    "stop_pct": 0.03849999999999998,
    "entry_vs_high3_adr": 0.4607,
    "entry_vs_high7_adr": 0.3518,
@@ -13089,7 +13657,8 @@
     "6": 0.8841,
     "7": 1.0942
    },
-   "stop_adr": 0.2649,
+   "stop_adr": 0.2422,
+   "stop_adr_naive": 0.2649,
    "stop_pct": 0.03897849462365599,
    "entry_vs_high3_adr": -0.0018,
    "entry_vs_high7_adr": -0.3288,
@@ -13112,7 +13681,8 @@
     "6": 2.5178,
     "7": 2.5178
    },
-   "stop_adr": 2.3313,
+   "stop_adr": 1.998,
+   "stop_adr_naive": 2.3313,
    "stop_pct": 0.0390625,
    "entry_vs_high3_adr": 7.5533,
    "entry_vs_high7_adr": 7.5533,
@@ -13135,7 +13705,8 @@
     "6": 1.4015,
     "7": 1.4015
    },
-   "stop_adr": 0.294,
+   "stop_adr": 0.2763,
+   "stop_adr_naive": 0.294,
    "stop_pct": 0.03931847968545214,
    "entry_vs_high3_adr": -0.0,
    "entry_vs_high7_adr": -0.0,
@@ -13158,7 +13729,8 @@
     "6": 2.0706,
     "7": 2.6853
    },
-   "stop_adr": 1.8433,
+   "stop_adr": 0.4404,
+   "stop_adr_naive": 1.8433,
    "stop_pct": 0.0396756756756757,
    "entry_vs_high3_adr": 35.2066,
    "entry_vs_high7_adr": 34.5813,
@@ -13181,7 +13753,8 @@
     "6": 2.7369,
     "7": 2.7369
    },
-   "stop_adr": 0.5024,
+   "stop_adr": 0.4806,
+   "stop_adr_naive": 0.5024,
    "stop_pct": 0.03981264637002348,
    "entry_vs_high3_adr": 0.133,
    "entry_vs_high7_adr": -1.4246,
@@ -13204,7 +13777,8 @@
     "6": 2.0794,
     "7": 2.237
    },
-   "stop_adr": 0.1455,
+   "stop_adr": 0.6543,
+   "stop_adr_naive": 0.1455,
    "stop_pct": 0.04000000000000004,
    "entry_vs_high3_adr": -13.228,
    "entry_vs_high7_adr": -13.228,
@@ -13227,7 +13801,8 @@
     "6": 1.9167,
     "7": 1.9167
    },
-   "stop_adr": 11.9983,
+   "stop_adr": 1.1536,
+   "stop_adr_naive": 11.9983,
    "stop_pct": 0.04571681697371709,
    "entry_vs_high3_adr": 236.1891,
    "entry_vs_high7_adr": 236.1891,
@@ -13250,7 +13825,8 @@
     "6": 1.4631,
     "7": 2.3876
    },
-   "stop_adr": 0.4039,
+   "stop_adr": 0.3842,
+   "stop_adr_naive": 0.4039,
    "stop_pct": 0.04014251781472696,
    "entry_vs_high3_adr": 0.3609,
    "entry_vs_high7_adr": -0.8604,
@@ -13273,7 +13849,8 @@
     "6": 1.6414,
     "7": 1.8663
    },
-   "stop_adr": 0.4347,
+   "stop_adr": 0.388,
+   "stop_adr_naive": 0.4347,
    "stop_pct": 0.0401940401940402,
    "entry_vs_high3_adr": 0.4722,
    "entry_vs_high7_adr": 0.1049,
@@ -13296,7 +13873,8 @@
     "6": 1.703,
     "7": 1.703
    },
-   "stop_adr": 0.4229,
+   "stop_adr": 0.4178,
+   "stop_adr_naive": 0.4229,
    "stop_pct": 0.04026115342763865,
    "entry_vs_high3_adr": -0.2286,
    "entry_vs_high7_adr": -0.5372,
@@ -13319,7 +13897,8 @@
     "6": 2.5453,
     "7": 2.5453
    },
-   "stop_adr": 0.3997,
+   "stop_adr": 0.3722,
+   "stop_adr_naive": 0.3997,
    "stop_pct": 0.04163126593033137,
    "entry_vs_high3_adr": -0.0897,
    "entry_vs_high7_adr": -0.8974,
@@ -13342,7 +13921,8 @@
     "6": 1.815,
     "7": 1.8773
    },
-   "stop_adr": 0.7206,
+   "stop_adr": 0.7035,
+   "stop_adr_naive": 0.7206,
    "stop_pct": 0.04296618614229727,
    "entry_vs_high3_adr": -0.0746,
    "entry_vs_high7_adr": -0.8991,
@@ -13365,7 +13945,8 @@
     "6": 3.0182,
     "7": 3.1999
    },
-   "stop_adr": 0.0296,
+   "stop_adr": 0.2789,
+   "stop_adr_naive": 0.0296,
    "stop_pct": 0.04313000616142951,
    "entry_vs_high3_adr": -6.4535,
    "entry_vs_high7_adr": -7.6329,
@@ -13388,7 +13969,8 @@
     "6": 2.3267,
     "7": 2.3267
    },
-   "stop_adr": 0.447,
+   "stop_adr": 0.4156,
+   "stop_adr_naive": 0.447,
    "stop_pct": 0.04338461538461539,
    "entry_vs_high3_adr": -0.4335,
    "entry_vs_high7_adr": -0.4335,
@@ -13411,7 +13993,8 @@
     "6": 3.5858,
     "7": 3.5858
    },
-   "stop_adr": 0.0491,
+   "stop_adr": 0.467,
+   "stop_adr_naive": 0.0491,
    "stop_pct": 0.04386951631046125,
    "entry_vs_high3_adr": -10.5447,
    "entry_vs_high7_adr": -11.4757,
@@ -13434,7 +14017,8 @@
     "6": 1.4643,
     "7": 1.6591
    },
-   "stop_adr": 0.0227,
+   "stop_adr": 0.2122,
+   "stop_adr_naive": 0.0227,
    "stop_pct": 0.04389173372348205,
    "entry_vs_high3_adr": -4.7288,
    "entry_vs_high7_adr": -5.1393,
@@ -13457,7 +14041,8 @@
     "6": 2.8527,
     "7": 2.9561
    },
-   "stop_adr": 0.3183,
+   "stop_adr": 0.2934,
+   "stop_adr_naive": 0.3183,
    "stop_pct": 0.04438040345821317,
    "entry_vs_high3_adr": -0.4755,
    "entry_vs_high7_adr": -1.7158,
@@ -13480,7 +14065,8 @@
     "6": 2.3032,
     "7": 2.3032
    },
-   "stop_adr": 0.1684,
+   "stop_adr": 0.757,
+   "stop_adr_naive": 0.1684,
    "stop_pct": 0.0452469904524699,
    "entry_vs_high3_adr": -13.1827,
    "entry_vs_high7_adr": -13.1827,
@@ -13503,7 +14089,8 @@
     "6": 1.4893,
     "7": 1.4893
    },
-   "stop_adr": 0.8302,
+   "stop_adr": 0.7853,
+   "stop_adr_naive": 0.8302,
    "stop_pct": 0.04526364909006061,
    "entry_vs_high3_adr": 0.9073,
    "entry_vs_high7_adr": 0.6334,
@@ -13526,7 +14113,8 @@
     "6": 3.451,
     "7": 3.5199
    },
-   "stop_adr": 0.0423,
+   "stop_adr": 0.3842,
+   "stop_adr_naive": 0.0423,
    "stop_pct": 0.04543053354463811,
    "entry_vs_high3_adr": -8.2001,
    "entry_vs_high7_adr": -10.1988,
@@ -13549,7 +14137,8 @@
     "6": 1.7009,
     "7": 1.7009
    },
-   "stop_adr": 0.0006,
+   "stop_adr": 0.1082,
+   "stop_adr_naive": 0.0006,
    "stop_pct": 0.04571428571428576,
    "entry_vs_high3_adr": -3.2706,
    "entry_vs_high7_adr": -3.2706,
@@ -13572,7 +14161,8 @@
     "6": 2.8872,
     "7": 3.1531
    },
-   "stop_adr": 1.0257,
+   "stop_adr": 1.0014,
+   "stop_adr_naive": 1.0257,
    "stop_pct": 0.04568527918781733,
    "entry_vs_high3_adr": 0.4179,
    "entry_vs_high7_adr": 0.4179,
@@ -13595,7 +14185,8 @@
     "6": 1.1513,
     "7": 1.1513
    },
-   "stop_adr": 0.0001,
+   "stop_adr": 0.0941,
+   "stop_adr_naive": 0.0001,
    "stop_pct": 0.04635761589403978,
    "entry_vs_high3_adr": -2.2201,
    "entry_vs_high7_adr": -2.7478,
@@ -13618,7 +14209,8 @@
     "6": 0.4928,
     "7": 0.8383
    },
-   "stop_adr": 0.0026,
+   "stop_adr": 0.118,
+   "stop_adr_naive": 0.0026,
    "stop_pct": 0.04716981132075476,
    "entry_vs_high3_adr": -2.7103,
    "entry_vs_high7_adr": -3.2351,
@@ -13641,7 +14233,8 @@
     "6": 1.5368,
     "7": 1.8286
    },
-   "stop_adr": 0.6696,
+   "stop_adr": 0.6197,
+   "stop_adr_naive": 0.6696,
    "stop_pct": 0.04727272727272724,
    "entry_vs_high3_adr": 0.9873,
    "entry_vs_high7_adr": 0.6954,
@@ -13664,7 +14257,8 @@
     "6": 1.2075,
     "7": 1.5024
    },
-   "stop_adr": 0.5616,
+   "stop_adr": 0.5137,
+   "stop_adr_naive": 0.5616,
    "stop_pct": 0.04739336492891,
    "entry_vs_high3_adr": 0.5335,
    "entry_vs_high7_adr": 0.3651,
@@ -13687,7 +14281,8 @@
     "6": 1.9135,
     "7": 1.9135
    },
-   "stop_adr": 0.4227,
+   "stop_adr": 0.3932,
+   "stop_adr_naive": 0.4227,
    "stop_pct": 0.04749999999999999,
    "entry_vs_high3_adr": 0.3115,
    "entry_vs_high7_adr": -0.8121,
@@ -13710,7 +14305,8 @@
     "6": 2.6142,
     "7": 2.6142
    },
-   "stop_adr": 0.6125,
+   "stop_adr": 0.616,
+   "stop_adr_naive": 0.6125,
    "stop_pct": 0.04761904761904762,
    "entry_vs_high3_adr": -0.1286,
    "entry_vs_high7_adr": -0.1286,
@@ -13733,7 +14329,8 @@
     "6": 3.1687,
     "7": 3.1687
    },
-   "stop_adr": 0.7855,
+   "stop_adr": 0.7743,
+   "stop_adr_naive": 0.7855,
    "stop_pct": 0.04777777777777781,
    "entry_vs_high3_adr": -0.6942,
    "entry_vs_high7_adr": -0.6942,
@@ -13756,7 +14353,8 @@
     "6": 1.255,
     "7": 1.255
    },
-   "stop_adr": 0.0001,
+   "stop_adr": 0.3352,
+   "stop_adr_naive": 0.0001,
    "stop_pct": 0.04796163069544358,
    "entry_vs_high3_adr": -7.1554,
    "entry_vs_high7_adr": -7.441,
@@ -13779,7 +14377,8 @@
     "6": 2.3345,
     "7": 2.3345
    },
-   "stop_adr": 6.2923,
+   "stop_adr": 0.5767,
+   "stop_adr_naive": 6.2923,
    "stop_pct": 0.04850388349514569,
    "entry_vs_high3_adr": 117.433,
    "entry_vs_high7_adr": 116.2813,
@@ -13802,7 +14401,8 @@
     "6": 1.888,
     "7": 1.888
    },
-   "stop_adr": 0.6691,
+   "stop_adr": 0.6359,
+   "stop_adr_naive": 0.6691,
    "stop_pct": 0.04901408450704231,
    "entry_vs_high3_adr": 0.5383,
    "entry_vs_high7_adr": 0.0308,
@@ -13825,7 +14425,8 @@
     "6": 0.5149,
     "7": 0.7032
    },
-   "stop_adr": 0.0172,
+   "stop_adr": 0.1578,
+   "stop_adr_naive": 0.0172,
    "stop_pct": 0.05000000000000008,
    "entry_vs_high3_adr": -3.1172,
    "entry_vs_high7_adr": -3.3054,
@@ -13848,7 +14449,8 @@
     "6": 2.1543,
     "7": 2.3949
    },
-   "stop_adr": 0.7849,
+   "stop_adr": 0.7173,
+   "stop_adr_naive": 0.7849,
    "stop_pct": 0.05023835716905028,
    "entry_vs_high3_adr": -0.0917,
    "entry_vs_high7_adr": -0.0917,
@@ -13871,7 +14473,8 @@
     "6": 0.9657,
     "7": 1.4264
    },
-   "stop_adr": 0.0003,
+   "stop_adr": 0.1646,
+   "stop_adr_naive": 0.0003,
    "stop_pct": 0.05064935064935072,
    "entry_vs_high3_adr": -3.4704,
    "entry_vs_high7_adr": -4.0047,
@@ -13894,7 +14497,8 @@
     "6": 1.8497,
     "7": 1.8497
    },
-   "stop_adr": 0.6084,
+   "stop_adr": 0.5386,
+   "stop_adr_naive": 0.6084,
    "stop_pct": 0.05067567567567567,
    "entry_vs_high3_adr": 0.0162,
    "entry_vs_high7_adr": 0.0162,
@@ -13917,7 +14521,8 @@
     "6": 3.545,
     "7": 3.545
    },
-   "stop_adr": 0.1871,
+   "stop_adr": 0.7137,
+   "stop_adr_naive": 0.1871,
    "stop_pct": 0.05396290050590212,
    "entry_vs_high3_adr": -10.1942,
    "entry_vs_high7_adr": -10.1942,
@@ -13940,7 +14545,8 @@
     "6": 5.0215,
     "7": 5.3458
    },
-   "stop_adr": 0.6834,
+   "stop_adr": 0.6455,
+   "stop_adr_naive": 0.6834,
    "stop_pct": 0.05412844036697246,
    "entry_vs_high3_adr": 0.0579,
    "entry_vs_high7_adr": -1.2684,
@@ -13963,7 +14569,8 @@
     "6": 1.7979,
     "7": 1.7979
    },
-   "stop_adr": 0.0026,
+   "stop_adr": 0.4693,
+   "stop_adr_naive": 0.0026,
    "stop_pct": 0.0540540540540541,
    "entry_vs_high3_adr": -8.7879,
    "entry_vs_high7_adr": -8.7879,
@@ -13986,7 +14593,8 @@
     "6": 1.8211,
     "7": 1.8211
    },
-   "stop_adr": 0.7469,
+   "stop_adr": 0.6968,
+   "stop_adr_naive": 0.7469,
    "stop_pct": 0.05425000000000004,
    "entry_vs_high3_adr": 0.6918,
    "entry_vs_high7_adr": 0.6918,
@@ -14009,7 +14617,8 @@
     "6": 6.2112,
     "7": 7.0572
    },
-   "stop_adr": 0.1995,
+   "stop_adr": 0.1747,
+   "stop_adr_naive": 0.1995,
    "stop_pct": 0.05473453749315818,
    "entry_vs_high3_adr": -0.6744,
    "entry_vs_high7_adr": -4.6529,
@@ -14032,7 +14641,8 @@
     "6": 5.0429,
     "7": 5.0429
    },
-   "stop_adr": 0.0011,
+   "stop_adr": 0.2147,
+   "stop_adr_naive": 0.0011,
    "stop_pct": 0.05504587155963307,
    "entry_vs_high3_adr": -5.6691,
    "entry_vs_high7_adr": -5.6691,
@@ -14055,7 +14665,8 @@
     "6": 1.3556,
     "7": 1.6131
    },
-   "stop_adr": 0.548,
+   "stop_adr": 0.5295,
+   "stop_adr_naive": 0.548,
    "stop_pct": 0.05505836575875483,
    "entry_vs_high3_adr": 0.1065,
    "entry_vs_high7_adr": -0.0213,
@@ -14078,7 +14689,8 @@
     "6": 1.4458,
     "7": 1.4458
    },
-   "stop_adr": 0.1432,
+   "stop_adr": 0.3903,
+   "stop_adr_naive": 0.1432,
    "stop_pct": 0.1339869281045752,
    "entry_vs_high3_adr": -2.0116,
    "entry_vs_high7_adr": -2.6926,
@@ -14101,7 +14713,8 @@
     "6": 2.3462,
     "7": 2.4122
    },
-   "stop_adr": 0.9825,
+   "stop_adr": 0.9354,
+   "stop_adr_naive": 0.9825,
    "stop_pct": 0.05677364685944285,
    "entry_vs_high3_adr": 0.0055,
    "entry_vs_high7_adr": -0.2035,
@@ -14124,7 +14737,8 @@
     "6": 1.6676,
     "7": 2.3541
    },
-   "stop_adr": 0.0003,
+   "stop_adr": 0.7682,
+   "stop_adr_naive": 0.0003,
    "stop_pct": 0.05675675675675675,
    "entry_vs_high3_adr": -14.073,
    "entry_vs_high7_adr": -14.073,
@@ -14147,7 +14761,8 @@
     "6": 2.1934,
     "7": 2.206
    },
-   "stop_adr": 1.0862,
+   "stop_adr": 1.054,
+   "stop_adr_naive": 1.0862,
    "stop_pct": 0.05707964601769923,
    "entry_vs_high3_adr": 0.522,
    "entry_vs_high7_adr": 0.5094,
@@ -14170,7 +14785,8 @@
     "6": 1.4546,
     "7": 1.7955
    },
-   "stop_adr": 0.4773,
+   "stop_adr": 0.4577,
+   "stop_adr_naive": 0.4773,
    "stop_pct": 0.05753424657534246,
    "entry_vs_high3_adr": -0.1136,
    "entry_vs_high7_adr": -0.6591,
@@ -14193,7 +14809,8 @@
     "6": 2.5534,
     "7": 3.4923
    },
-   "stop_adr": 0.6524,
+   "stop_adr": 0.5963,
+   "stop_adr_naive": 0.6524,
    "stop_pct": 0.09798796216681009,
    "entry_vs_high3_adr": -1.2137,
    "entry_vs_high7_adr": -1.7633,
@@ -14216,7 +14833,8 @@
     "6": 2.4484,
     "7": 2.4484
    },
-   "stop_adr": 0.4701,
+   "stop_adr": 0.437,
+   "stop_adr_naive": 0.4701,
    "stop_pct": 0.06030150753768838,
    "entry_vs_high3_adr": -0.0392,
    "entry_vs_high7_adr": -0.0392,
@@ -14239,7 +14857,8 @@
     "6": 5.5635,
     "7": 5.8124
    },
-   "stop_adr": 0.7393,
+   "stop_adr": 0.6971,
+   "stop_adr_naive": 0.7393,
    "stop_pct": 0.06096059113300491,
    "entry_vs_high3_adr": -1.0281,
    "entry_vs_high7_adr": -1.0281,
@@ -14262,7 +14881,8 @@
     "6": 4.5046,
     "7": 4.5046
    },
-   "stop_adr": 0.0007,
+   "stop_adr": 0.6638,
+   "stop_adr_naive": 0.0007,
    "stop_pct": 0.06172839506172845,
    "entry_vs_high3_adr": -12.7754,
    "entry_vs_high7_adr": -12.7754,
@@ -14285,7 +14905,8 @@
     "6": 1.2012,
     "7": 1.3151
    },
-   "stop_adr": 0.0311,
+   "stop_adr": 0.3504,
+   "stop_adr_naive": 0.0311,
    "stop_pct": 0.06185185185185191,
    "entry_vs_high3_adr": -5.7025,
    "entry_vs_high7_adr": -5.8699,
@@ -14308,7 +14929,8 @@
     "6": 1.1414,
     "7": 1.2883
    },
-   "stop_adr": 0.0554,
+   "stop_adr": 0.4706,
+   "stop_adr_naive": 0.0554,
    "stop_pct": 0.06234096692111962,
    "entry_vs_high3_adr": -7.565,
    "entry_vs_high7_adr": -7.9267,
@@ -14331,7 +14953,8 @@
     "6": 0.9767,
     "7": 2.0674
    },
-   "stop_adr": 0.0006,
+   "stop_adr": 0.205,
+   "stop_adr_naive": 0.0006,
    "stop_pct": 0.06392694063926946,
    "entry_vs_high3_adr": -3.5392,
    "entry_vs_high7_adr": -4.4182,
@@ -14354,7 +14977,8 @@
     "6": 2.3144,
     "7": 2.5857
    },
-   "stop_adr": 0.2447,
+   "stop_adr": 0.2361,
+   "stop_adr_naive": 0.2447,
    "stop_pct": 0.06484375,
    "entry_vs_high3_adr": -0.5307,
    "entry_vs_high7_adr": -0.5307,
@@ -14377,7 +15001,8 @@
     "6": 1.9646,
     "7": 2.301
    },
-   "stop_adr": 0.6181,
+   "stop_adr": 0.4937,
+   "stop_adr_naive": 0.6181,
    "stop_pct": 0.06490233144297412,
    "entry_vs_high3_adr": 0.6342,
    "entry_vs_high7_adr": 0.2978,
@@ -14400,7 +15025,8 @@
     "6": 2.9197,
     "7": 2.9197
    },
-   "stop_adr": 0.458,
+   "stop_adr": 0.453,
+   "stop_adr_naive": 0.458,
    "stop_pct": 0.06575342465753418,
    "entry_vs_high3_adr": -0.7442,
    "entry_vs_high7_adr": -1.7747,
@@ -14423,7 +15049,8 @@
     "6": 2.8399,
     "7": 3.7129
    },
-   "stop_adr": 0.0093,
+   "stop_adr": 0.2254,
+   "stop_adr_naive": 0.0093,
    "stop_pct": 0.06609271523178802,
    "entry_vs_high3_adr": -4.5924,
    "entry_vs_high7_adr": -4.5924,
@@ -14446,7 +15073,8 @@
     "6": 0.8318,
     "7": 1.3152
    },
-   "stop_adr": 0.0146,
+   "stop_adr": 0.1323,
+   "stop_adr_naive": 0.0146,
    "stop_pct": 0.0674948240165631,
    "entry_vs_high3_adr": -1.9693,
    "entry_vs_high7_adr": -2.5951,
@@ -14469,7 +15097,8 @@
     "6": 2.9291,
     "7": 3.8877
    },
-   "stop_adr": 0.0011,
+   "stop_adr": 0.1789,
+   "stop_adr_naive": 0.0011,
    "stop_pct": 0.06857142857142863,
    "entry_vs_high3_adr": -3.3573,
    "entry_vs_high7_adr": -5.2923,
@@ -14492,7 +15121,8 @@
     "6": 3.3313,
     "7": 3.3313
    },
-   "stop_adr": 1.4709,
+   "stop_adr": 1.432,
+   "stop_adr_naive": 1.4709,
    "stop_pct": 0.07233814874264317,
    "entry_vs_high3_adr": -0.0435,
    "entry_vs_high7_adr": -1.7037,
@@ -14515,7 +15145,8 @@
     "6": 1.1604,
     "7": 1.2321
    },
-   "stop_adr": 0.4298,
+   "stop_adr": 0.3928,
+   "stop_adr_naive": 0.4298,
    "stop_pct": 0.06976744186046505,
    "entry_vs_high3_adr": 0.2149,
    "entry_vs_high7_adr": 0.1433,
@@ -14538,7 +15169,8 @@
     "6": 2.7,
     "7": 2.7
    },
-   "stop_adr": 0.3299,
+   "stop_adr": 0.3034,
+   "stop_adr_naive": 0.3299,
    "stop_pct": 0.06994818652849742,
    "entry_vs_high3_adr": -0.3665,
    "entry_vs_high7_adr": -1.6982,
@@ -14561,7 +15193,8 @@
     "6": 1.7809,
     "7": 1.7809
    },
-   "stop_adr": 0.5565,
+   "stop_adr": 0.481,
+   "stop_adr_naive": 0.5565,
    "stop_pct": 0.07142857142857137,
    "entry_vs_high3_adr": -0.1855,
    "entry_vs_high7_adr": -0.1855,
@@ -14584,7 +15217,8 @@
     "6": 1.7909,
     "7": 1.7909
    },
-   "stop_adr": 2.8277,
+   "stop_adr": 2.3564,
+   "stop_adr_naive": 2.8277,
    "stop_pct": 0.0714285714285715,
    "entry_vs_high3_adr": 5.8438,
    "entry_vs_high7_adr": 5.6553,
@@ -14607,7 +15241,8 @@
     "6": 3.2798,
     "7": 3.2798
    },
-   "stop_adr": 0.7687,
+   "stop_adr": 0.7215,
+   "stop_adr_naive": 0.7687,
    "stop_pct": 0.07204610951008646,
    "entry_vs_high3_adr": 0.2972,
    "entry_vs_high7_adr": 0.2972,
@@ -14630,7 +15265,8 @@
     "6": 0.6359,
     "7": 0.9199
    },
-   "stop_adr": 0.5293,
+   "stop_adr": 0.1122,
+   "stop_adr_naive": 0.5293,
    "stop_pct": 0.07312996239030506,
    "entry_vs_high3_adr": 5.3027,
    "entry_vs_high7_adr": 4.8626,
@@ -14653,7 +15289,8 @@
     "6": 2.8255,
     "7": 2.8255
    },
-   "stop_adr": 0.0,
+   "stop_adr": 0.4066,
+   "stop_adr_naive": 0.0,
    "stop_pct": 0.07627118644067785,
    "entry_vs_high3_adr": -5.9223,
    "entry_vs_high7_adr": -7.009,
@@ -14676,7 +15313,8 @@
     "6": 1.987,
     "7": 2.6716
    },
-   "stop_adr": 4.2727,
+   "stop_adr": 0.3664,
+   "stop_adr_naive": 4.2727,
    "stop_pct": 0.08102499999999999,
    "entry_vs_high3_adr": 47.607,
    "entry_vs_high7_adr": 46.7491,
@@ -14699,7 +15337,8 @@
     "6": 1.5281,
     "7": 2.7989
    },
-   "stop_adr": 0.348,
+   "stop_adr": 0.3281,
+   "stop_adr_naive": 0.348,
    "stop_pct": 0.08778625954198473,
    "entry_vs_high3_adr": 0.0605,
    "entry_vs_high7_adr": -1.6642,
@@ -14722,7 +15361,8 @@
     "6": 1.4101,
     "7": 1.4649
    },
-   "stop_adr": 0.0,
+   "stop_adr": 0.8003,
+   "stop_adr_naive": 0.0,
    "stop_pct": 0.1319587628865979,
    "entry_vs_high3_adr": -6.8451,
    "entry_vs_high7_adr": -6.8862,
@@ -14745,7 +15385,8 @@
     "6": 3.362,
     "7": 4.1438
    },
-   "stop_adr": 0.0188,
+   "stop_adr": 0.8364,
+   "stop_adr_naive": 0.0188,
    "stop_pct": 0.09302325581395357,
    "entry_vs_high3_adr": -9.9624,
    "entry_vs_high7_adr": -10.8224,
@@ -14768,7 +15409,8 @@
     "6": 17.0268,
     "7": 17.4973
    },
-   "stop_adr": 0.0912,
+   "stop_adr": 0.6762,
+   "stop_adr_naive": 0.0912,
    "stop_pct": 0.0930930930930931,
    "entry_vs_high3_adr": -9.725,
    "entry_vs_high7_adr": -23.664,
@@ -14791,7 +15433,8 @@
     "6": 1.726,
     "7": 2.43
    },
-   "stop_adr": 0.5677,
+   "stop_adr": 0.5415,
+   "stop_adr_naive": 0.5677,
    "stop_pct": 0.09615384615384615,
    "entry_vs_high3_adr": -0.3406,
    "entry_vs_high7_adr": -1.249,
@@ -14814,7 +15457,8 @@
     "6": 1.9633,
     "7": 2.0882
    },
-   "stop_adr": 0.0018,
+   "stop_adr": 0.2452,
+   "stop_adr_naive": 0.0018,
    "stop_pct": 0.101010101010101,
    "entry_vs_high3_adr": -3.2307,
    "entry_vs_high7_adr": -3.4984,
@@ -14837,7 +15481,8 @@
     "6": 3.1471,
     "7": 3.1471
    },
-   "stop_adr": 0.0161,
+   "stop_adr": 0.5011,
+   "stop_adr_naive": 0.0161,
    "stop_pct": 0.1015873015873015,
    "entry_vs_high3_adr": -5.1972,
    "entry_vs_high7_adr": -5.288,
@@ -14860,7 +15505,8 @@
     "6": 2.2623,
     "7": 2.2623
    },
-   "stop_adr": 0.4579,
+   "stop_adr": 0.4237,
+   "stop_adr_naive": 0.4579,
    "stop_pct": 0.1087557603686636,
    "entry_vs_high3_adr": -0.9235,
    "entry_vs_high7_adr": -1.4552,
@@ -14883,7 +15529,8 @@
     "6": 2.282,
     "7": 2.282
    },
-   "stop_adr": 0.0006,
+   "stop_adr": 0.666,
+   "stop_adr_naive": 0.0006,
    "stop_pct": 0.1473684210526315,
    "entry_vs_high3_adr": -4.6492,
    "entry_vs_high7_adr": -4.6492,
@@ -14906,7 +15553,8 @@
     "6": 2.6289,
     "7": 3.0059
    },
-   "stop_adr": 11.8769,
+   "stop_adr": 1.0767,
+   "stop_adr_naive": 11.8769,
    "stop_pct": 0.164390243902439,
    "entry_vs_high3_adr": 65.1321,
    "entry_vs_high7_adr": 65.1321,
@@ -14929,7 +15577,8 @@
     "6": 1.4633,
     "7": 1.4633
    },
-   "stop_adr": 0.0,
+   "stop_adr": null,
+   "stop_adr_naive": 0.0,
    "stop_pct": 0,
    "entry_vs_high3_adr": -0.514,
    "entry_vs_high7_adr": -0.514,

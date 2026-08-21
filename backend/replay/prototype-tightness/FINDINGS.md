@@ -3,6 +3,9 @@
 **Throwaway.** Nothing here is imported by the app. Delete the directory once the
 verdict is folded in.
 
+*A plain-language version of this study — same numbers, same conclusions, no
+jargon — is in [FINDINGS-plain.md](FINDINGS-plain.md).*
+
 ## The question
 
 `detection.py` gates on a trailing 3–7 bar window spanning `<= TIGHT_MULT x ADR`

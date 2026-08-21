@@ -205,17 +205,18 @@
       (issue #127). What is new here is the <em>comparison</em>: his stop against the base width
       measured on the same nights.</p>
       <figure><div class="legend">
-        <span><span class="swatch" style="background:var(--series-1)"></span>tightest window (3-bar range)</span>
+        <span><span class="swatch" style="background:var(--series-1)"></span>the base (3-bar range)</span>
         <span><span class="swatch" style="background:var(--series-2)"></span>his stop width</span></div>
         <div id="hist-stop"></div>
-        <figcaption>Both in ADR at the evaluation session. Scale-mismatched rows excluded — see the caveat.</figcaption></figure>
+        <figcaption>Both in ADR at the evaluation session, across all measured trades — nothing excluded.
+        Two clearly separate populations that share one word.</figcaption></figure>
       <p class="note caveat" style="margin-top:14px"><strong>Why the ratio form matters.</strong> The trade
       record's prices are raw while the stored bars are split-adjusted, so any ticker that split after the
       trade puts the two on different scales. Measuring the stop as a <em>price difference</em> against a
       bar-derived ADR inherits that error — it gives a median of 0.36 and a max of 30.94 ADR, which is
-      nonsense. The ratio form above avoids it entirely. The dashed line below marks the naive figure on
-      the <span id="f4-n"></span> of <span id="f4-tot"></span> rows whose scales do agree, as a check: it
-      lands on the same place.</p>
+      nonsense. The ratio form above avoids it entirely and needs no exclusions. As a check, the naive form
+      restricted to the <span id="f4-n"></span> of <span id="f4-tot"></span> rows whose scales <em>do</em>
+      agree lands in the same place; it is kept in the JSON as <code>stop_adr_naive</code> to show the error.</p>
     </div>
   </section>
 

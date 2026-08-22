@@ -10,7 +10,8 @@ scope: US 2019–2022
 
 baseline (the live gate, TIGHT_MULT = 1.5): 68,654 detections over 821 sessions, detection recall 57.9% (380/656), 113 marginal `cluster` misses
 
-the same fields counted on his evaluation sessions only — the denominator the study's committed field distribution uses, not the whole chain:
+the same fields counted on his evaluation sessions only — the denominator the study's committed field distribution uses, not the whole chain.
+NB the committed study reports 14,239 here, not the baseline below: its detection stage gates on Store.ranks, which the two-year retention has pruned on every measured session outside the retained window, so its field is empty on those sessions. 14,239 is therefore not the live gate's field on these sessions and is not what a widen should be priced against (§3a).
   TIGHT_MULT 1.5: 27,116 detections
   TIGHT_MULT 1.75: 36,253 detections  (+9,137)
   TIGHT_MULT 2: 43,067 detections  (+15,951)

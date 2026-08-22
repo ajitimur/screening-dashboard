@@ -351,6 +351,17 @@ bars:
 | 2.00 | 75.2% | 76.1% | 113 | **113 (all)** | 114,279 | +45,625 | **404** |
 | 2.25 | 80.2% | 80.6% | 146 | 113 | 128,651 | +59,997 | **411** |
 
+**Against which baseline?** Two are reported, because they answer different questions and the
+ticket's stated anchor turns out not to be usable. Field inflation above is the whole chain — all
+821 measured sessions, which is what a widen actually costs. The same fields counted on his
+evaluation sessions only run **27,116 → 43,067 at 2.0**; that is the denominator the committed
+field distribution in §4 uses. The ticket asked for the comparison to be made against "the
+14,239-detection baseline the current gate produces on A2's sessions", and it deliberately is not:
+**14,239 is not the live gate's field on those sessions.** It is the field the study's detection
+stage produced while gating on retention-pruned rank rows, which is empty on 316 of the 821
+measured sessions — see the subsection below, which measures this and reproduces 14,239 exactly.
+Pricing a widen against it would have priced it against a bug.
+
 **The headline is ~400.** A widen to 2.0 recovers **every one of the 113 marginal misses** — the
 partition above is exact, not approximate — and lifts detection recall from 57.9% to 75.2%. It
 does so by putting **45,625 more names into the field**, which is **404 extra detections field-wide
@@ -358,12 +369,16 @@ for each real entry it buys**. The answer to "2 or 2,000?" is: **a few hundred**
 flat across the sweep (385 → 404 → 411), so it is a property of the cut's neighbourhood rather than
 an artefact of one point.
 
-**Board displacement runs the wrong way, and this is the sharpest result in the ticket.** A widen
-was supposed to help his names surface. It does the opposite where it matters. His picks reaching
-the field at all rise (242 → 316 of 656), but the count landing **inside the top thirty — the board
-he actually reads — falls at every step: 112 → 109 → 104 → 103**. The admitted names crowd his own
-out: 10,905 board slots change hands at 2.0. The widen buys detection recall and pays for it in
-board placement, which is the thing a detection is for.
+**Board displacement runs the wrong way.** A widen was supposed to help his names surface. It does
+the opposite where it matters. His picks reaching the field at all rise (242 → 316 of 656), but the
+count landing **inside the top thirty — the board he actually reads — falls at every step: 112 →
+109 → 104 → 103**. The admitted names crowd his own out: 10,905 board slots change hands at 2.0.
+
+Read this one with its size in mind. The absolute move is small — nine picks out of 656 over 821
+sessions — so it is not on its own a decisive number, and the study has no significance machinery
+to put behind it. What makes it worth stating is that it is **monotone across all three widened
+cuts** and moves *against* the recall it is supposed to accompany, which is the opposite of what a
+loosening is argued for. It is corroborating, not load-bearing; leg 1 below is the argument.
 
 **Verdict: the refusal stands, and now on evidence as well as on principle.** Leave `TIGHT_MULT`,
 `K_MIN` and `K_MAX` unchanged. Three legs, in order of weight:

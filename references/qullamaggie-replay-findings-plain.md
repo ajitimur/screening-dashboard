@@ -262,6 +262,79 @@ matter how the rejections are distributed. That was always the load-bearing
 argument. The 113 near-misses are logged as **the open question**, and answering
 them properly needs the false-positive rate we don't have.
 
+### The near-misses now have a price tag: about **400 extra stocks per real trade recovered**
+
+That "open question" was left open because nobody could price the trade-off. The
+worry is real — loosening the check would let more stocks through, and we have no
+way to know how many of the extra ones would have been duds. That part is still
+true and always will be.
+
+But "how many duds?" and "how many *extra stocks*?" are different questions, and
+the second one is just counting. So it was counted, on every one of the 821 days
+the study covers:
+
+| Quietness cutoff | Trades of his the app now finds | Extra stocks on the whole list | **Extra stocks per real trade recovered** |
+|---|---|---|---|
+| **1.5 ADR** (today) | 57.9% | — | — |
+| 1.75 ADR | 68.1% | +25,813 | **385** |
+| 2.0 ADR | 75.2% | +45,625 | **404** |
+| 2.25 ADR | 80.2% | +59,997 | **411** |
+
+**The answer is about 400.** Loosening to 2.0 recovers *all 113* of the
+near-misses and takes the app from finding 57.9% of his trades to 75.2% — a big
+gain. It does it by putting **45,625 more stocks** onto the list across those 821
+days. Each real trade recovered costs roughly 400 extra names to look at.
+
+**And there's a second result that points the same way.** The whole point of finding
+a setup is that it appears on the **top-30 board** — the list he'd actually read.
+Loosening the check makes *fewer* of his real trades reach that board, not more:
+**112 → 109 → 104 → 103** as the cutoff widens. The extra stocks crowd his own out.
+So the change buys a better "did we spot it at all?" number and gives some of it
+back where it counts.
+
+That said, keep the size in view: nine trades out of 656, across 821 days. It isn't
+a big enough move to decide anything by itself. What makes it worth mentioning is
+that it goes the *same* direction at every cutoff, and the *opposite* direction to
+the recall gain it's supposed to come with.
+
+**Verdict: change nothing, and now there's a measurement behind it.** The one-sided
+ruler still forbids the loosening outright, and nothing measured here changes
+that — this number describes the cost, it doesn't license the change. Two of the
+three reasons are new: the cost is a stated ~400 rather than an unknown, and the
+board result argues against the change on its own terms.
+
+**What this number is not.** It counts *stocks*, not *mistakes*. Nothing here says
+any of those 45,625 extra names would have lost money — the record contains no
+setup he turned down, so there's nothing to check them against. Test 1b gives the
+newly-admitted band a rough quality (his own trades in that range averaged +0.84R,
+positive but weaker than the tighter band's +1.35R), but that's measured on trades
+he *took*, so it doesn't supply a dud rate either.
+
+### A bug found along the way, which affects Test 2's headline
+
+Setting this measurement up meant looking closely at how the study builds its daily
+list — and it turned out the list is **empty on 316 of the 821 days**, about 38% of
+them.
+
+The cause is mundane: the strength rankings are only kept for two years, and the
+study builds all 947 days of rankings *first* and only then goes looking for
+setups. By the time it looks, the early days' rankings have been thrown away, so
+those days find nothing and nobody noticed.
+
+It was measured directly, and the broken version reproduces the committed figures
+exactly — which is how we know that's the cause:
+
+| Where the rankings are read from | Days with any setups | His trades that reached the list | Reached the top 30 |
+|---|---|---|---|
+| The stored rankings (what the study did) | **505 / 821** | **104** | **45** |
+| The rankings the study just computed | **821 / 821** | **242** | **112** |
+
+So Test 2's headline — "only 104 of his trades, 15.8%, ever reached the list" — is
+substantially an artefact. Read properly it's **242 (36.9%)**, and 112 reached the
+top 30 rather than 45. This ticket fixed it *for the quietness measurement above*
+(which is why those numbers are trustworthy) and recorded it; correcting Test 2
+itself is a separate job needing a full re-run.
+
 ---
 
 ## Test 1b — What "tight" actually means in his own trades

@@ -589,7 +589,7 @@ def _wide_tail_hlc():
     detection at ``cluster`` while clearing every earlier gate (history, adr,
     prior_move, base_length, catch_up)."""
     hlc = [(100.5, 99.5, 100.0)] * 60
-    for i in range(1, 16):  # tight run-up 100 -> 110
+    for i in range(1, 16):  # a quiet run-up 100 -> 110
         p = 100.0 + (110.0 - 100.0) * i / 15
         hlc.append((p + 0.5, p - 0.5, p))
     hlc += [(110.5, 109.5, 110.0)] * 12   # a tight shelf at 110 (sets a small ADR)
@@ -2240,7 +2240,7 @@ def _marginal_tail_hlc(flat: int = 60):
     2.0 recovers it. This is the population #141 prices.
     """
     hlc = [(100.5, 99.5, 100.0)] * flat
-    for i in range(1, 16):  # tight run-up 100 -> 110
+    for i in range(1, 16):  # a quiet run-up 100 -> 110
         p = 100.0 + (110.0 - 100.0) * i / 15
         hlc.append((p + 0.5, p - 0.5, p))
     hlc += [(110.5, 109.5, 110.0)] * 12   # the shelf that sets ADR
@@ -2359,13 +2359,13 @@ def test_sweep_baseline_point_is_the_live_gate_and_prices_the_widen(store: Store
                       tight_mults=(TIGHT_MULT, 2.25))
 
     base, wide = sweep.points
-    assert base.tight_mult == TIGHT_MULT and base.baseline is True
+    assert base.tight_mult == TIGHT_MULT and base.is_baseline is True
     assert base.added_detections == 0
     assert base.recovered == 0
     assert base.added_per_recovered is None       # the live gate prices nothing
     assert base.detection_passed == 0             # MARG is a marginal miss today
 
-    assert wide.baseline is False
+    assert wide.is_baseline is False
     assert wide.detection_passed == 1             # the entry comes back
     assert wide.recovered == 1
     assert wide.marginal_recovered == 1
@@ -2408,9 +2408,9 @@ def test_a_measurement_field_gates_on_the_chains_ranks_not_the_stores(store: Sto
     chain = replay_chain(store, "US", burn_in=104)
     assert store.ranks("US", dates[104])            # the store's rows are present…
 
-    (with_chain_ranks,) = build_field_sessions(store, "US", chain, persist=False)
+    (with_chain_ranks,) = build_field_sessions(store, "US", chain, measurement=True)
     starved = dataclasses.replace(chain[0], ranks=[])
-    (with_no_ranks,) = build_field_sessions(store, "US", [starved], persist=False)
+    (with_no_ranks,) = build_field_sessions(store, "US", [starved], measurement=True)
 
     assert [d.symbol for d in with_chain_ranks.detections] == ["BASE"]
     # …and are ignored: an empty chain rank table gates every member out, which is

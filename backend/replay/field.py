@@ -242,7 +242,7 @@ def _session_detections(store: Store, market: str, session: date) -> list[Detect
     emptied that session's decile gate is the same on every pass, so a night that
     detected nothing the first time detects nothing again.
 
-    A measurement pass takes neither branch — see :func:`_detect_uncommitted`.
+    A measurement pass takes neither branch — see :func:`_detect_unpersisted`.
     """
     persisted = store.detections(market, session)
     if persisted:
@@ -250,7 +250,7 @@ def _session_detections(store: Store, market: str, session: date) -> list[Detect
     return rebuild_detections(store, market, session)
 
 
-def _detect_uncommitted(
+def _detect_unpersisted(
     store: Store, market: str, sf: SessionField, tight_mult: float
 ) -> list[Detection]:
     """Detect over one chain session's gated universe **in memory**, persisting nothing.
@@ -296,7 +296,7 @@ def build_field_sessions(
     trades: Iterable[ExecutedTrade] = (),
     progress: Callable[[int, int, date], None] | None = None,
     tight_mult: float = TIGHT_MULT,
-    persist: bool = True,
+    measurement: bool = False,
 ) -> list[FieldSession]:
     """Run the per-session detection pass over an already-built forward ``chain``.
 
@@ -311,15 +311,15 @@ def build_field_sessions(
     silently. The store is wrapped in the run-scoped bar cache if it is not already.
 
     ``tight_mult`` is the detector's cluster cut and defaults to the live constant.
-    ``persist`` chooses between the app's field and a **measurement** field: the
-    default reuses or appends the store's detection rows, while ``persist=False``
+    ``measurement`` chooses between the app's field and a **measurement** field: the
+    default reuses or appends the store's detection rows, while ``measurement=True``
     computes every session in memory off the chain's own ranks and writes nothing
-    (:func:`_detect_uncommitted`). A swept cut is always a measurement field —
-    passing one forces ``persist=False``, because a field built at a cut the app
-    does not run is not the app's field and must never be stored as one. The #141
-    sweep rebuilds the field at every cut it prices, over one shared chain.
+    (:func:`_detect_unpersisted`). A swept cut is always a measurement field — it is
+    forced on there regardless, because a field built at a cut the app does not run
+    is not the app's field and must never be stored as one. The #141 sweep rebuilds
+    the field at every cut it prices, over one shared chain.
     """
-    measure_only = not persist or tight_mult != TIGHT_MULT
+    measure_only = measurement or tight_mult != TIGHT_MULT
     store = CachingStore.wrap(store)
     entries = _entries_by_session(trades)
 
@@ -327,7 +327,7 @@ def build_field_sessions(
     fields: list[FieldSession] = []
     for i, sf in enumerate(chain, start=1):
         detections = (
-            _detect_uncommitted(store, market, sf, tight_mult)
+            _detect_unpersisted(store, market, sf, tight_mult)
             if measure_only
             else _session_detections(store, market, sf.session)
         )

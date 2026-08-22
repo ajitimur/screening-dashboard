@@ -66,11 +66,11 @@ from .caching_store import CachingStore
 from .chain import BURN_IN_SESSIONS, REPLAY_MARKET, replay_chain
 from .field import FieldSession, build_field_sessions
 from .funnel import (
-    COND_CLUSTER,
     MARGINAL_TIGHT_MULT,
     FunnelReport,
     FunnelRow,
     build_funnel_report,
+    is_marginal_cluster_miss,
 )
 from .placement import SCOPE, PlacementReport, build_placement_report
 from .reference import (
@@ -127,27 +127,16 @@ def _row_key(row: FunnelRow) -> tuple[str, date]:
     return (row.ticker, row.entry_date)
 
 
-def _is_marginal_cluster_miss(row: FunnelRow) -> bool:
-    """A `cluster` miss inside the reported marginal boundary — §3a's partition,
-    read from the same fields and the same :data:`MARGINAL_TIGHT_MULT` rather than
-    re-derived, so the 113 this module quotes is the 113 the findings quote."""
-    return (
-        row.failed_condition == COND_CLUSTER
-        and row.range_3bar_adr is not None
-        and row.range_3bar_adr <= MARGINAL_TIGHT_MULT
-    )
-
-
 def recovered_entries(
     baseline: Sequence[FunnelRow], swept: Sequence[FunnelRow]
 ) -> RecoveredEntries:
     """The entries ``swept`` detects that ``baseline`` missed, and the marginal share."""
     missed = {_row_key(r): r for r in baseline if not r.detection_pass}
-    marginal_baseline = sum(1 for r in missed.values() if _is_marginal_cluster_miss(r))
+    marginal_baseline = sum(1 for r in missed.values() if is_marginal_cluster_miss(r))
 
     recovered = [r for r in swept if r.detection_pass and _row_key(r) in missed]
     marginal_recovered = sum(
-        1 for r in recovered if _is_marginal_cluster_miss(missed[_row_key(r)])
+        1 for r in recovered if is_marginal_cluster_miss(missed[_row_key(r)])
     )
     return RecoveredEntries(
         recovered=len(recovered),
@@ -250,13 +239,15 @@ def added_per_recovered(*, added: int, recovered: int) -> float | None:
 class SweepPoint:
     """Everything measured at one ``tight_mult``, against the live gate's baseline.
 
-    ``baseline`` marks the point that *is* the live detector — its ``added_*`` and
-    ``recovered`` figures are zero by construction and its ratio is ``None``, since
-    it prices nothing. Every other point is read against it.
+    ``is_baseline`` marks the point that *is* the live detector — its ``added_*``
+    and ``recovered`` figures are zero by construction and its ratio is ``None``,
+    since it prices nothing. Every other point is read against it. (It is not named
+    ``baseline``: :attr:`TightMultSweep.baseline` is the *point*, and one name for
+    both a flag and the thing it flags reads wrong at every call site.)
     """
 
     tight_mult: float
-    baseline: bool
+    is_baseline: bool
     # A1 — recall
     detection_passed: int
     detection_total: int
@@ -309,7 +300,7 @@ class TightMultSweep:
 
     @property
     def baseline(self) -> SweepPoint:
-        return next(p for p in self.points if p.baseline)
+        return next(p for p in self.points if p.is_baseline)
 
 
 def _point(
@@ -323,7 +314,7 @@ def _point(
     picks_sessions: set[date],
 ) -> SweepPoint:
     """Assemble one swept cut's row against the live gate's baseline."""
-    is_baseline = tight_mult == TIGHT_MULT
+    is_live = tight_mult == TIGHT_MULT
     rec = recovered_entries(baseline_funnel.rows, funnel.rows)
     disp = board_displacement(baseline_fields, fields)
     detections = sum(f.field_size for f in fields)
@@ -334,7 +325,7 @@ def _point(
     )
     return SweepPoint(
         tight_mult=tight_mult,
-        baseline=is_baseline,
+        is_baseline=is_live,
         detection_passed=funnel.detection.passed,
         detection_total=funnel.detection.total,
         detection_passed_ex_continuation=funnel.detection.passed_ex_continuation,
@@ -446,7 +437,7 @@ def run_sweep(
             # the store's persisted detections for it and recomputing the others
             # would put the difference between two code paths into a column
             # labelled "added detections".
-            persist=False,
+            measurement=True,
         )
         if baseline_funnel is None or baseline_fields is None:
             baseline_funnel, baseline_fields = funnel, fields
@@ -505,7 +496,7 @@ def format_sweep(sweep: TightMultSweep) -> str:
         f"{'top-30':>7}  {'displaced':>9}",
     ]
     for p in sweep.points:
-        marker = "  (live)" if p.baseline else ""
+        marker = "  (live)" if p.is_baseline else ""
         lines.append(
             f"{p.tight_mult:>6.2f}  "
             f"{p.detection_recall:>6.1%}  "
@@ -530,19 +521,24 @@ def format_sweep(sweep: TightMultSweep) -> str:
         f"{base.marginal_baseline} marginal `cluster` misses",
         "",
         "the same fields counted on his evaluation sessions only — the denominator "
-        "the study's committed field distribution uses, not the whole chain:",
+        "the study's committed field distribution uses, not the whole chain.",
+        "NB the committed study reports 14,239 here, not the baseline below: its "
+        "detection stage gates on Store.ranks, which the two-year retention has "
+        "pruned on every measured session outside the retained window, so its field "
+        "is empty on those sessions. 14,239 is therefore not the live gate's field "
+        "on these sessions and is not what a widen should be priced against (§3a).",
     ]
     for p in sweep.points:
         lines.append(
             f"  TIGHT_MULT {p.tight_mult:g}: {p.pick_session_detections:,d} detections"
-            + ("" if p.baseline else f"  (+{p.added_pick_session_detections:,d})")
+            + ("" if p.is_baseline else f"  (+{p.added_pick_session_detections:,d})")
         )
     lines += [
         "",
         "headline — added detections per recovered entry:",
     ]
     for p in sweep.points:
-        if p.baseline:
+        if p.is_baseline:
             continue
         lines.append(
             f"  TIGHT_MULT {p.tight_mult:g}: {_ratio(p.added_per_recovered)} extra "
@@ -578,7 +574,7 @@ def sweep_to_dict(sweep: TightMultSweep) -> dict:
         "points": [
             {
                 "tight_mult": p.tight_mult,
-                "baseline": p.baseline,
+                "baseline": p.is_baseline,
                 "detection_passed": p.detection_passed,
                 "detection_total": p.detection_total,
                 "detection_recall": p.detection_recall,

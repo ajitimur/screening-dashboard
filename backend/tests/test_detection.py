@@ -289,7 +289,7 @@ def _marginal_cluster_series():
     declines it.
     """
     hlc = [(100.5, 99.5, 100.0)] * 60
-    for i in range(1, 16):  # tight run-up 100 -> 110
+    for i in range(1, 16):  # a quiet run-up 100 -> 110
         p = 100.0 + (110.0 - 100.0) * i / 15
         hlc.append((p + 0.5, p - 0.5, p))
     hlc += [(110.5, 109.5, 110.0)] * 12   # the shelf that sets ADR

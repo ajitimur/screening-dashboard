@@ -287,6 +287,28 @@ class ClusterDecomposition:
     prior_distance_distribution: "Distribution | None"
 
 
+def is_marginal_cluster_miss(row: FunnelRow) -> bool:
+    """Is ``row`` a `cluster` miss that a modest widen would recover?
+
+    The **one** definition of the marginal partition: a miss on the `cluster`
+    condition whose trailing 3-bar range — the tightest window the scan could have
+    found — sits within :data:`MARGINAL_TIGHT_MULT` of ADR. §3a's 113 is this
+    predicate counted over the funnel's rows.
+
+    Exported rather than inlined because it is read in two places under two
+    different questions: :func:`characterise_cluster_misses` counts the population,
+    and the #141 sweep asks which of its members a swept cut recovers
+    (:func:`replay.sweep.recovered_entries`). Two copies could drift, and the two
+    analyses would then quote different 113s while each claiming to quote the same
+    one.
+    """
+    return (
+        row.failed_condition == COND_CLUSTER
+        and row.range_3bar_adr is not None
+        and row.range_3bar_adr <= MARGINAL_TIGHT_MULT
+    )
+
+
 def characterise_cluster_misses(rows: Iterable[FunnelRow]) -> ClusterDecomposition:
     """Characterise every `cluster` detection miss across ``rows`` (#132).
 
@@ -306,12 +328,7 @@ def characterise_cluster_misses(rows: Iterable[FunnelRow]) -> ClusterDecompositi
         if r.range_3bar_adr is not None
     ]
     continuation = sum(1 for r in misses if r.continuation)
-    marginal = sum(
-        1
-        for r in misses
-        if r.range_3bar_adr is not None
-        and r.range_3bar_adr <= MARGINAL_TIGHT_MULT
-    )
+    marginal = sum(1 for r in misses if is_marginal_cluster_miss(r))
     prior_distances = [
         float(r.sessions_since_prior_entry)
         for r in misses

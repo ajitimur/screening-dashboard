@@ -16,7 +16,7 @@ The structure is two levels, ported from the wayfinding prototype
   ``TIGHT_MULT × ADR``. Its max high *is* the trigger, by identity. Its span is
   **base tightness** as this module gates it — setup geometry, and what the
   rubric scores ×2 through ``cluster_k``. (The *ungated* form of the same
-  quantity is :func:`cluster_min_range_adr`, which is what findings §3b puts at
+  quantity is :func:`range_3bar_adr`, which is what findings §3b puts at
   a median of 1.310 ADR.) A span is never a stop level; **stop width** is a
   separate quantity, measured 3.8× narrower on the same trades (issue #147).
 
@@ -66,9 +66,18 @@ MAX_BASE_LEN = 45  # re-anchor to the highest high within 45 bars past this
 MIN_BASE_LEN = 3   # §3.1's minimum; the base always ends today
 
 # The cluster: the largest trailing k in [K_MIN, K_MAX] spanning ≤ TIGHT_MULT×ADR.
-# TIGHT_MULT gates **base tightness** — how quiet the stock was before the break —
-# and nothing else. It has never bounded a stop; see STOP_CONVENTION_ADR below.
-K_MIN, K_MAX = 3, 7
+# The two bounds do unrelated jobs, and only one of them gates. Trailing range is
+# monotone in k (a longer window can only add high and add low, never less), so
+# the K_MIN window is the tightest one the scan can see: a name clears the cluster
+# gate iff its K_MIN window clears it.
+K_MIN = 3   # the gate: pass/fail is decided by this window, and nowhere else
+# K_MAX is a score input only: it sets the *reported* cluster_k, which the rubric's
+# ×2 Tightness dimension then scores. Widening or narrowing it cannot admit or
+# reject a single name.
+K_MAX = 7
+# TIGHT_MULT is the cut those windows are measured against. It gates **base
+# tightness** — how quiet the stock was before the break — and nothing else. It has
+# never bounded a stop; see STOP_CONVENTION_ADR below.
 TIGHT_MULT = 1.5
 
 # Catch-up: price back at the 10/20 MA, in ADR units (spec §4.5 step 2).
@@ -226,6 +235,10 @@ def _find_cluster(high: list[float], low: list[float], as_of: int, adr_abs: floa
     Returns ``(k, cluster_high, cluster_low, range_adr)`` for the first (largest)
     k whose **base tightness** clears the gate, or ``None`` (``no_cluster``, a
     rejection). ``cluster_low`` is base geometry for the chart, never a stop.
+
+    The scan runs down from ``K_MAX``, but pass/fail is settled at ``K_MIN`` —
+    ``K_MAX`` moves only the reported ``k``. :func:`range_3bar_adr` carries the
+    argument.
     """
     if adr_abs <= 0:
         return None
@@ -241,37 +254,42 @@ def _find_cluster(high: list[float], low: list[float], as_of: int, adr_abs: floa
     return None
 
 
-def cluster_min_range_adr(
+def range_3bar_adr(
     high: list[float], low: list[float], as_of: int, adr_abs: float
 ) -> float | None:
-    """The narrowest trailing 3–7 bar window range at ``as_of``, in ADR units.
+    """The trailing ``K_MIN``-bar (3-bar) range at ``as_of``, in ADR units.
 
-    **Base tightness**, ungated — the same quantity ``TIGHT_MULT`` cuts into, not
-    a stop width. Range is monotone in ``k``, so this is always the 3-bar range
-    (confirmed on all 649 replayable entries, findings §3b).
+    **Base tightness**, ungated — the same quantity ``TIGHT_MULT`` cuts into, and
+    never a stop width. This is the form findings §3b puts at a median of
+    1.310 ADR across his 649 replayable entries.
 
-    A read-only diagnostic: the minimum over ``k`` in ``[K_MIN, K_MAX]`` of the
-    ``k``-bar trailing range ``(max high − min low) / adr_abs``, taken regardless
-    of whether any window clears ``TIGHT_MULT``. It reuses the same trailing-window
-    scan as :func:`_find_cluster` but never gates, so a ``no_cluster`` rejection
-    (``_find_cluster`` returned ``None``) can still be quantified *against* the
-    condition's window — a value just over ``TIGHT_MULT`` is a marginal miss, a
-    large one a name genuinely in motion. Returns ``None`` only when ``adr_abs`` is
-    non-positive or no ``k``-bar window fits before ``as_of``; it changes no
-    detection verdict. Used by the A1 study to characterise the ``cluster`` misses
-    (issue #132), not by the detector itself.
+    A read-only diagnostic: ``(max high − min low) / adr_abs`` over the last
+    ``K_MIN`` bars, taken regardless of whether it clears ``TIGHT_MULT``. It is
+    also, exactly, the *tightest* window :func:`_find_cluster` can see. Trailing
+    range is monotone in ``k``: widening the window from ``k`` to ``k + 1`` adds
+    one bar to both extrema, so the max high can only rise and the min low can
+    only fall. Hence the minimum over ``k ∈ [K_MIN, K_MAX]`` is always attained at
+    ``k = K_MIN``, and this three-bar number *is* that minimum — an identity, not
+    a measurement (it was also confirmed empirically over all 649 replayable
+    entries in findings §3b, identical to the last decimal).
+
+    Two things follow. A ``no_cluster`` rejection (``_find_cluster`` returned
+    ``None``) can be quantified *against* the condition's window — a value just
+    over ``TIGHT_MULT`` is a marginal miss, a large one a name genuinely in
+    motion. And a name clears the cluster gate iff this number clears
+    ``TIGHT_MULT``; ``K_MAX`` decides only which ``cluster_k`` gets reported.
+
+    Returns ``None`` only when ``adr_abs`` is non-positive or the window runs off
+    the front of the series (``as_of`` is under ``K_MIN - 1``, so there are not
+    ``K_MIN`` bars ending at it); it changes no detection verdict. Used by the A1
+    study to characterise the ``cluster`` misses (issue #132), not by the detector.
     """
     if adr_abs <= 0:
         return None
-    best: float | None = None
-    for k in range(K_MIN, K_MAX + 1):
-        lo = as_of - k + 1
-        if lo < 0:
-            continue
-        rng = (max(high[lo:as_of + 1]) - min(low[lo:as_of + 1])) / adr_abs
-        if best is None or rng < best:
-            best = rng
-    return best
+    lo = as_of - K_MIN + 1
+    if lo < 0:
+        return None
+    return (max(high[lo:as_of + 1]) - min(low[lo:as_of + 1])) / adr_abs
 
 
 def _fit_envelope(

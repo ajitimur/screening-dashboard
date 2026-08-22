@@ -321,7 +321,7 @@ def study_to_dict(result: StudyResult) -> dict:
                     "entry_session_break": r.entry_session_break,
                     "continuation": r.continuation,
                     "median_dollar_volume": r.median_dollar_volume,
-                    "cluster_min_range_adr": r.cluster_min_range_adr,
+                    "range_3bar_adr": r.range_3bar_adr,
                     "sessions_since_prior_entry": r.sessions_since_prior_entry,
                 }
                 for r in f.rows

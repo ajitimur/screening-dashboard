@@ -70,7 +70,7 @@ from screener.detection import (
     _find_cluster,
     _prior_move,
     _sma_close,
-    cluster_min_range_adr,
+    range_3bar_adr,
     detect,
     detection_gate,
 )
@@ -108,7 +108,7 @@ COND_BASE_LENGTH = "base_length"  # base shorter than MIN_BASE_LEN
 COND_CATCH_UP = "catch_up"        # price not back at the 10/20 MA
 COND_CLUSTER = "cluster"          # no tight 3-7 bar cluster (size or tightness)
 
-# A `cluster` miss whose tightest trailing window sits within this multiple of ADR
+# A `cluster` miss whose trailing 3-bar range sits within this multiple of ADR
 # is *marginal* — a modest widening of the detector's TIGHT_MULT (1.5) would recover
 # it; beyond it the name is genuinely in motion and no plausible widening reaches a
 # base. This is the boundary the #132 characterisation reads the misses against; it
@@ -163,7 +163,7 @@ class FunnelRow:
     # -- `cluster`-miss characterisation (#132): both carry the *margin* of a
     # cluster miss so the 171-miss population can be read against the way he
     # re-enters names and against the condition's current window.
-    cluster_min_range_adr: float | None   # tightest trailing 3-7 bar range in ADR; set only on a cluster miss
+    range_3bar_adr: float | None   # trailing 3-bar range in ADR; set only on a cluster miss
     sessions_since_prior_entry: int | None  # market-session distance to the nearest prior entry (None = first)
 
 
@@ -263,16 +263,16 @@ class ClusterDecomposition:
       measurable. ``prior_distance_distribution`` summarises the market-session
       distance to the nearest prior entry across the continuation misses.
     - **how they distribute against the condition's window** — ``marginal`` counts
-      the misses whose tightest trailing window sits within
+      the misses whose trailing 3-bar range sits within
       :data:`MARGINAL_TIGHT_MULT` × ADR (a modest widening of the detector's
       ``TIGHT_MULT`` would recover them), ``far`` the ones beyond it (a name
       genuinely in motion no plausible widening reaches).
-      ``range_distribution`` summarises the tightest-window range in ADR across
-      all the misses.
+      ``range_distribution`` summarises the 3-bar range in ADR across all the
+      misses.
 
     ``continuation + fresh == total_misses`` and ``marginal + far ==
     total_misses`` (every real cluster miss cleared the ADR gate, so it always
-    carries a tightest-window range). The distributions are ``None`` when their
+    carries a 3-bar range). The distributions are ``None`` when their
     subset is empty. Nothing here changes a detector constant (PRD #114 out of
     scope); it is the evidence a change would have to rest on.
     """
@@ -290,7 +290,7 @@ def characterise_cluster_misses(rows: Iterable[FunnelRow]) -> ClusterDecompositi
     """Characterise every `cluster` detection miss across ``rows`` (#132).
 
     A miss is any row whose detection failed on the `cluster` condition. Each is
-    read off the margin the row already carries — ``cluster_min_range_adr`` (how
+    read off the margin the row already carries — ``range_3bar_adr`` (how
     far over the condition's window) and ``continuation`` /
     ``sessions_since_prior_entry`` (how far from a prior entry) — never re-running
     the detector. ``distribution`` is imported locally to keep :mod:`replay.funnel`
@@ -300,16 +300,16 @@ def characterise_cluster_misses(rows: Iterable[FunnelRow]) -> ClusterDecompositi
 
     misses = [r for r in rows if r.failed_condition == COND_CLUSTER]
     ranges = [
-        r.cluster_min_range_adr
+        r.range_3bar_adr
         for r in misses
-        if r.cluster_min_range_adr is not None
+        if r.range_3bar_adr is not None
     ]
     continuation = sum(1 for r in misses if r.continuation)
     marginal = sum(
         1
         for r in misses
-        if r.cluster_min_range_adr is not None
-        and r.cluster_min_range_adr <= MARGINAL_TIGHT_MULT
+        if r.range_3bar_adr is not None
+        and r.range_3bar_adr <= MARGINAL_TIGHT_MULT
     )
     prior_distances = [
         float(r.sessions_since_prior_entry)
@@ -474,13 +474,14 @@ def _is_continuation(distance: int | None) -> bool:
     return distance is not None and distance <= CONTINUATION_SESSIONS
 
 
-def _eval_cluster_min_range(bars: list[Bar], as_of: date) -> float | None:
-    """The tightest trailing 3–7 bar cluster range at ``as_of``, in ADR units.
+def _eval_range_3bar(bars: list[Bar], as_of: date) -> float | None:
+    """The trailing 3-bar cluster range at ``as_of``, in ADR units.
 
-    Reuses the detector's own :func:`screener.detection.cluster_min_range_adr` over
-    the same ADR the detector would compute, so a `cluster` miss carries how far
-    over the condition's window it sat. ``None`` when there is no session on or
-    before ``as_of`` or ADR is non-positive.
+    Reuses the detector's own :func:`screener.detection.range_3bar_adr` over the
+    same ADR the detector would compute, so a `cluster` miss carries how far over
+    the condition's window it sat — and, since range is monotone in ``k``, that
+    is the tightest window the cluster scan could have found. ``None`` when there
+    is no session on or before ``as_of`` or ADR is non-positive.
     """
     idx = _as_of_index(bars, as_of)
     if idx is None:
@@ -491,7 +492,7 @@ def _eval_cluster_min_range(bars: list[Bar], as_of: date) -> float | None:
     high = [b.high for b in bars]
     low = [b.low for b in bars]
     adr_abs = a * bars[idx].close
-    return cluster_min_range_adr(high, low, idx, adr_abs)
+    return range_3bar_adr(high, low, idx, adr_abs)
 
 
 def _funnel_row(
@@ -529,7 +530,7 @@ def _funnel_row(
             entry_session_break=entry_session_break,
             continuation=continuation,
             median_dollar_volume=0.0,
-            cluster_min_range_adr=None,
+            range_3bar_adr=None,
             sessions_since_prior_entry=sessions_since_prior_entry,
         )
 
@@ -555,11 +556,12 @@ def _funnel_row(
     detection = detect(trade.ticker, bars, eval_session)
     detection_pass = detection is not None
     failed_condition = None if detection_pass else diagnose_detection(bars, eval_session)
-    # The margin of a `cluster` miss (#132): how far the tightest trailing window
-    # sat over the condition's TIGHT_MULT window. Set only on a cluster miss — the
-    # other conditions have their own margins and a pass has no miss to characterise.
-    cluster_min_range = (
-        _eval_cluster_min_range(bars, eval_session)
+    # The margin of a `cluster` miss (#132): how far the trailing 3-bar range —
+    # the tightest window there is — sat over the condition's TIGHT_MULT window.
+    # Set only on a cluster miss — the other conditions have their own margins and
+    # a pass has no miss to characterise.
+    range_3bar = (
+        _eval_range_3bar(bars, eval_session)
         if failed_condition == COND_CLUSTER
         else None
     )
@@ -589,7 +591,7 @@ def _funnel_row(
         entry_session_break=entry_session_break,
         continuation=continuation,
         median_dollar_volume=mdv,
-        cluster_min_range_adr=cluster_min_range,
+        range_3bar_adr=range_3bar,
         sessions_since_prior_entry=sessions_since_prior_entry,
     )
 
@@ -781,7 +783,7 @@ def format_report(report: FunnelReport) -> str:
     if c.range_distribution is not None:
         r = c.range_distribution
         lines.append(
-            f"  tightest-window range in ADR: median {r.median:.2f} "
+            f"  3-bar range in ADR: median {r.median:.2f} "
             f"(p25 {r.p25:.2f}, p75 {r.p75:.2f}, max {r.maximum:.2f})"
         )
     if c.prior_distance_distribution is not None:

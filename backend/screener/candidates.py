@@ -41,7 +41,7 @@ from __future__ import annotations
 from .detection import Detection, detection_gate
 from .models import Candidate, ScoreRow
 from .ranks import Rank, breadth_counts
-from .score import star_score
+from .score import live_points, star_score
 from .sectors import leave_one_out_sector_shares
 
 # §7's 1×ADR affordability cap: a row at or below it is the highlighted minority.
@@ -106,7 +106,10 @@ def build_candidates(
                 Candidate(
                     symbol=det.symbol,
                     score=stars,
-                    breakdown=[ScoreRow(**vars(d)) for d in breakdown],
+                    breakdown=[
+                        ScoreRow(**vars(d), points=live_points(d))
+                        for d in breakdown
+                    ],
                     dist_adr=det.dist_adr,
                     stopw_adr=det.stopw_adr,
                     affordable=det.stopw_adr <= AFFORDABLE_ADR,

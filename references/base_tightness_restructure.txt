@@ -1,0 +1,29 @@
+Base-tightness restructure (#145/#154) — TIGHT_MULT 1.5 gate -> OUTLIER_MULT 3.0 guard
+==============================================================================
+
+1. Detection-stage recall, 828-trade reference set
+   replayable trades          : 656
+   v1 (hard 1.5 cut)          : 380/658 (57.8%)
+   v2 (far-outlier guard)     : 549/656 (83.7%)
+   recovered                  : 169 trades
+   ex-continuation            : 487/577 (84.4%)
+
+   Failed condition           v1     v2
+     cluster                  171      2
+     catch_up                  47     47
+     base_length               37     37
+     history                   23     21
+
+   Three-bar range of the recovered trades (all past the old 1.5 cut):
+     n=169  p25 1.68  median 1.83  p75 2.10  max 2.90
+
+   Trades the guard still declines: 2
+     three-bar range: n=2  p25 3.24  median 3.30  p75 3.36  max 3.42
+
+2. Field inflation per session (same universe, same decile gate)
+   sessions measured          : 505
+   v1 detections / session    : 90.3
+   v2 detections / session    : 201.6
+   inflation                  : +111.3 names/session (+123.2%)
+   names admitted per trade recovered, per session: 0.66
+

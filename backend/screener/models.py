@@ -309,13 +309,28 @@ class ScoreRow(BaseModel):
     the rest — recalibrated by PRD #138) and whether it hit. ``Tightness`` is **base
     tightness** — the setup's geometry, not the stop width the row also carries
     (issue #147); the label is published, so it is qualified here rather than
-    renamed. ``n/9 → stars`` is ``sum(weight where hit) ÷ 2``; the ceiling is nine
-    points, not ten.
+    renamed. The ceiling is nine points, not ten, and stars are ``points ÷ 2``.
+
+    ``value`` is the graded quantity, present only on a **graded** dimension — since
+    rubric v3 that is ``Tightness`` alone, carrying its three-bar range in ADR
+    (#154). On a graded row ``hit`` is *not* what scored: it is the boolean the
+    setup satisfies (Tightness keeps v1/v2's ``cluster_k >= 5``), kept so a stored
+    breakdown re-scores exactly under an older rubric.
+
+    ``points`` is what the row **actually earned**, under the rubric the payload's
+    ``rubric_version`` names. It is published because ``weight where hit`` no longer
+    totals a graded breakdown, and the client must not carry a second copy of the
+    band table: a breakdown that does not add up to the star it sits beside is
+    exactly the un-auditable sort key the rubric exists to avoid. ``points`` is a
+    property of a *rubric applied to* the row, which is why it rides the API model
+    and never the stored :class:`~screener.score.Dimension`.
     """
 
     dimension: str
     weight: int
     hit: bool
+    value: float | None = None
+    points: int
 
 
 class Candidate(BaseModel):

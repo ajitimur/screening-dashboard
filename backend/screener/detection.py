@@ -13,12 +13,12 @@ The structure is two levels, ported from the wayfinding prototype
   the envelope does not invalidate it (the boundaries are fits, not monotonic
   tests).
 - **The cluster** is the largest 3–7 bar trailing window whose span sits under
-  ``TIGHT_MULT × ADR``. Its max high *is* the trigger, by identity. Its span is
-  **base tightness** as this module gates it — setup geometry, and what the
-  rubric scores ×2 through ``cluster_k``. (The *ungated* form of the same
-  quantity is :func:`range_3bar_adr`, which is what findings §3b puts at
-  a median of 1.310 ADR.) A span is never a stop level; **stop width** is a
-  separate quantity, measured 3.8× narrower on the same trades (issue #147).
+  ``TIGHT_MULT × ADR``, falling back to the 3-bar window when none does. Its max
+  high *is* the trigger, by identity. Its span is **base tightness** — setup
+  geometry, which the rubric grades ×2 off the ungated form of the same quantity,
+  :func:`range_3bar_adr` (findings §3b puts its median at 1.310 ADR across his
+  entries). A span is never a stop level; **stop width** is a separate quantity,
+  measured 3.8× narrower on the same trades (issue #147).
 
 The envelope is anchored at the cluster's max-high bar and searched over
 **non-positive slopes only**, so the fitted line can never exceed the anchor —
@@ -27,7 +27,10 @@ reaches the trigger**: it gates ``line_ok`` and it draws the chart, nothing else
 
 Gates (a name is a detection iff all hold):
 
-- **Cluster** — a 3–7 bar cluster inside ``TIGHT_MULT × ADR`` exists (step 3).
+- **Cluster** — the trailing 3-bar range sits inside ``OUTLIER_MULT × ADR`` (step
+  3). A **far-outlier guard**, not a cut on how quiet the base is: since #145/#154
+  that is *graded* by the rubric, and only a name genuinely in motion is rejected
+  here (ADR 0004).
 - **Catch-up** — price is back at the 10/20 MA (step 2).
 - **Decile** — top decile in **any of 1m/3m/6m**, off the rank table
   (:func:`detection_gate`). 1w is a momentum burst, not §3.1's big prior move;
@@ -66,19 +69,40 @@ MAX_BASE_LEN = 45  # re-anchor to the highest high within 45 bars past this
 MIN_BASE_LEN = 3   # §3.1's minimum; the base always ends today
 
 # The cluster: the largest trailing k in [K_MIN, K_MAX] spanning ≤ TIGHT_MULT×ADR.
-# The two bounds do unrelated jobs, and only one of them gates. Trailing range is
+# The two bounds do unrelated jobs, and neither of them gates. Trailing range is
 # monotone in k (a longer window can only add high and add low, never less), so
-# the K_MIN window is the tightest one the scan can see: a name clears the cluster
-# gate iff its K_MIN window clears it.
-K_MIN = 3   # the gate: pass/fail is decided by this window, and nowhere else
-# K_MAX is a score input only: it sets the *reported* cluster_k, which the rubric's
-# ×2 Tightness dimension then scores. Widening or narrowing it cannot admit or
-# reject a single name.
+# the K_MIN window is the tightest one the scan can see — which is why it, and
+# nothing else, is what the far-outlier guard measures.
+K_MIN = 3   # the guard's window, and the cluster's fallback shape
+# K_MAX sets only the *reported* cluster_k. It could never admit or reject a name,
+# and since #154 it no longer feeds the score either: the rubric grades the 3-bar
+# range, not k.
 K_MAX = 7
-# TIGHT_MULT is the cut those windows are measured against. It gates **base
-# tightness** — how quiet the stock was before the break — and nothing else. It has
-# never bounded a stop; see STOP_CONVENTION_ADR below.
+# TIGHT_MULT is the cut those windows are measured against. Since #145/#154 it
+# **shapes the cluster and no longer gates**: it decides which trailing window is
+# reported as the cluster (and so where the trigger sits), not whether the name is
+# a detection. A name whose 3-bar window is over it still detects — with the 3-bar
+# window as its cluster — and the rubric grades how far over it sat. It has never
+# bounded a stop; see STOP_CONVENTION_ADR below.
 TIGHT_MULT = 1.5
+# OUTLIER_MULT is the **far-outlier guard** that replaced the hard cut (#145/#154):
+# past this the trailing 3-bar range is not a quiet base at all but a name in
+# motion, and no rubric grade should be asked to express that. Sited on the only
+# feature findings §3b's outcome table offers — mean R by three-bar range is
+# positive in every bucket up to 2.0–3.0 (+0.35) and turns negative only in the
+# 3.0+ bucket (−0.36).
+#
+# **Provisional, and on n = 10.** That last bucket holds ten of his 649 replayable
+# entries; it is the only feature available and far too thin to carry a bound on its
+# own. §3b's complementary figure is why it is nonetheless the right order of
+# magnitude: widening to ~3.0 keeps 98.5% of his trades and 100.4% of his summed R —
+# over 100% because the tail this guard cuts is net negative. It is also a
+# *magnitude*, which ADR 0001 says the replay does not license; it is adopted anyway
+# under the provisional-with-an-n condition in
+# `docs/adr/0004-replacing-a-threshold-with-a-graded-input.md`. Do not tune it on a
+# swept in-sample number — the out-of-sample backtest re-derives it
+# (`docs/out-of-sample-backtest-plan.md`).
+OUTLIER_MULT = 3.0
 
 # Catch-up: price back at the 10/20 MA, in ADR units (spec §4.5 step 2).
 CATCHUP_10, CATCHUP_20 = 1.0, 2.0
@@ -135,7 +159,12 @@ DETECTION_LOOKBACKS = ("1m", "3m", "6m")
 
 # Stamped on every detection row; bump when the detector's output changes so
 # rows from different logic are never silently compared (spec §7.2 / A1).
-DETECTOR_VERSION = 1
+# v2 (#145/#154): the hard 1.5×ADR cluster cut became the OUTLIER_MULT far-outlier
+# guard, so a v2 session's rows are drawn from a **different population** than a
+# v1 session's — the funnel's denominators, the detected-count anchor and every
+# field-derived share move with it. That is exactly the comparison this stamp
+# exists to stop happening silently.
+DETECTOR_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -161,7 +190,16 @@ class Detection:
     cluster_k: int
     cluster_high: float
     cluster_low: float
-    cluster_range_adr: float
+    cluster_range_adr: float  # the reported window's span — gated by TIGHT_MULT's shape
+    # **Base tightness, ungated** — the trailing 3-bar range in ADR, the tightest
+    # window there is and the quantity the far-outlier guard tests. Persisted (not
+    # merely derived) because the rubric *grades* it: a breakdown has to carry the
+    # value so any rubric version can map it to points (#154, score.Dimension).
+    # Equal to cluster_range_adr exactly when no window cleared TIGHT_MULT.
+    # ``None`` only on a row read back from a store written before the column
+    # existed (schema v10): the night had no value for it and inventing one would
+    # fabricate a signal. :func:`detect` always sets a float.
+    range_3bar_adr: float | None
     line_ok: bool           # a verdict on the fit's quality, NOT a gate
     touch_zones: int
     overshoot_adr: float
@@ -229,18 +267,52 @@ def _prior_move(high: list[float], low: list[float], as_of: int):
     return best
 
 
-def _find_cluster(high: list[float], low: list[float], as_of: int, adr_abs: float):
-    """Largest trailing 3–7 bar window spanning ≤ ``TIGHT_MULT × ADR``.
+@dataclass(frozen=True)
+class ClusterWindow:
+    """The trailing window :func:`_find_cluster` settled on, and the guard's ruler.
 
-    Returns ``(k, cluster_high, cluster_low, range_adr)`` for the first (largest)
-    k whose **base tightness** clears the gate, or ``None`` (``no_cluster``, a
-    rejection). ``cluster_low`` is base geometry for the chart, never a stop.
+    ``k``, ``high``, ``low`` and ``range_adr`` describe the window that was chosen —
+    its high is the trigger by identity, its low is base geometry for the chart and
+    never a stop. ``range_3bar`` is the *ungated* trailing 3-bar range: the number
+    the far-outlier guard tested to admit the name at all, and the one the rubric
+    grades. It rides on the window rather than being recomputed downstream because
+    the two are decided together and must agree.
+    """
 
-    The scan runs down from ``K_MAX``, but pass/fail is settled at ``K_MIN`` —
-    ``K_MAX`` moves only the reported ``k``. :func:`range_3bar_adr` carries the
-    argument.
+    k: int
+    high: float
+    low: float
+    range_adr: float
+    range_3bar: float
+
+
+def _find_cluster(
+    high: list[float], low: list[float], as_of: int, adr_abs: float
+) -> ClusterWindow | None:
+    """The cluster window, or ``None`` if the far-outlier guard rejects the name.
+
+    **The guard and the window are two jobs, and since #145/#154 two constants.**
+    Pass/fail is settled entirely by the trailing 3-bar range against
+    ``OUTLIER_MULT``: over it, the name is in motion and there is no base
+    (``no_cluster``, the only rejection this function makes). Inside it, the name
+    detects, and the scan then runs down from ``K_MAX`` for the largest window
+    under ``TIGHT_MULT`` — how quiet it was is graded by the rubric, not gated
+    here.
+
+    When no window clears ``TIGHT_MULT`` the **3-bar window is the cluster**: it is
+    the tightest one there is (range is monotone in ``k``, see
+    :func:`range_3bar_adr`), so it is the honest choice of anchor for a name that
+    is inside the guard but past 1.5. Its ``range_adr`` is then exactly
+    ``range_3bar``. A name that cleared the old 1.5 gate is unaffected in every
+    output — same ``k``, same trigger, same span — so this loosening adds names
+    and moves none.
+
+    ``cluster_low`` is base geometry for the chart, never a stop.
     """
     if adr_abs <= 0:
+        return None
+    range_3bar = range_3bar_adr(high, low, as_of, adr_abs)
+    if range_3bar is None or range_3bar > OUTLIER_MULT:
         return None
     for k in range(K_MAX, K_MIN - 1, -1):
         lo = as_of - k + 1
@@ -250,8 +322,15 @@ def _find_cluster(high: list[float], low: list[float], as_of: int, adr_abs: floa
         cl = min(low[lo:as_of + 1])
         range_adr = (ch - cl) / adr_abs
         if range_adr <= TIGHT_MULT:
-            return k, ch, cl, range_adr
-    return None
+            return ClusterWindow(k, ch, cl, range_adr, range_3bar)
+    lo = as_of - K_MIN + 1
+    return ClusterWindow(
+        K_MIN,
+        max(high[lo:as_of + 1]),
+        min(low[lo:as_of + 1]),
+        range_3bar,
+        range_3bar,
+    )
 
 
 def range_3bar_adr(
@@ -273,16 +352,22 @@ def range_3bar_adr(
     a measurement (it was also confirmed empirically over all 649 replayable
     entries in findings §3b, identical to the last decimal).
 
-    Two things follow. A ``no_cluster`` rejection (``_find_cluster`` returned
-    ``None``) can be quantified *against* the condition's window — a value just
-    over ``TIGHT_MULT`` is a marginal miss, a large one a name genuinely in
-    motion. And a name clears the cluster gate iff this number clears
-    ``TIGHT_MULT``; ``K_MAX`` decides only which ``cluster_k`` gets reported.
+    That identity is why this number, and not ``cluster_range_adr``, is the one the
+    guard tests and the rubric grades. ``cluster_range_adr`` is *gated* — it is the
+    span of whichever window cleared ``TIGHT_MULT``, so a very quiet name earns a
+    longer window and reports a *wider* span than a less quiet one, which makes it
+    non-monotone in the thing being measured. This number is the ungated ruler, and
+    it is what findings §3b's outcome table is denominated in.
+
+    So a name is a detection iff this number sits inside ``OUTLIER_MULT``, and how
+    far inside is what the rubric's ×2 dimension grades (#154). ``K_MAX`` decides
+    only which ``cluster_k`` gets reported, and ``cluster_k`` no longer scores.
 
     Returns ``None`` only when ``adr_abs`` is non-positive or the window runs off
     the front of the series (``as_of`` is under ``K_MIN - 1``, so there are not
-    ``K_MIN`` bars ending at it); it changes no detection verdict. Used by the A1
-    study to characterise the ``cluster`` misses (issue #132), not by the detector.
+    ``K_MIN`` bars ending at it). Read by :func:`_find_cluster`, persisted on every
+    detection, and used by the A1 study to characterise the ``cluster`` misses
+    (issue #132).
     """
     if adr_abs <= 0:
         return None
@@ -397,7 +482,8 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
 
     Returns ``None`` when the per-name gates fail: too little history (< 80 bars)
     or non-positive ADR, no prior move, a base shorter than 3 bars, price not yet
-    caught up to the 10/20, or no cluster inside ``TIGHT_MULT × ADR``. The
+    caught up to the 10/20, or a trailing 3-bar range past ``OUTLIER_MULT × ADR``
+    — the far-outlier guard, the only base-tightness rejection left. The
     **decile** gate is not applied here — it is cross-sectional and lives in the
     pipeline; a caller detecting a single name in isolation has already decided it
     is eligible.
@@ -440,17 +526,16 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
     cluster = _find_cluster(high, low, idx, adr_abs)
     if cluster is None:
         return None
-    k, cluster_high, cluster_low, range_adr = cluster
 
-    anchor = _argmax(high, idx - k + 1, idx)
+    anchor = _argmax(high, idx - cluster.k + 1, idx)
     slope, line_ok, zones, over_max, line_end = _fit_envelope(
-        high, adr_abs, anchor, base_start, idx, k
+        high, adr_abs, anchor, base_start, idx, cluster.k
     )
 
-    trigger = cluster_high  # by identity — never max(line, high); the clamp is dead
+    trigger = cluster.high  # by identity — never max(line, high); the clamp is dead
     # The proposed stop is the trader's convention (issue #127): a fixed
     # STOP_CONVENTION_ADR multiple of the night's ADR below the trigger, in price
-    # units. Note what is *not* read here — ``cluster_low``, ``range_adr``, nor any
+    # units. Note what is *not* read here — the cluster's low, its span, nor any
     # other base-tightness quantity. By construction ``stopw_adr`` equals the
     # convention — the a·trigger in ``stop`` cancels — so every proposed stop sits
     # at 0.345 ADR, not the ~1.28 ADR the cluster-low distance used to yield.
@@ -474,10 +559,11 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
         move_gain=move_gain,
         adr=a,
         close=close[idx],
-        cluster_k=k,
-        cluster_high=cluster_high,
-        cluster_low=cluster_low,
-        cluster_range_adr=range_adr,
+        cluster_k=cluster.k,
+        cluster_high=cluster.high,
+        cluster_low=cluster.low,
+        cluster_range_adr=cluster.range_adr,
+        range_3bar_adr=cluster.range_3bar,
         line_ok=line_ok,
         touch_zones=zones,
         overshoot_adr=over_max,

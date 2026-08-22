@@ -78,6 +78,10 @@ the one-sided number the original rule was written to prevent.
 - The first change this licenses is not made here. ADR 0003 applies the four conditions to the
   decile gate and reaches `proposed`, not `accepted`, because condition 2 is only 46%
   measured pending #131.
+- The rule is stated in terms of *kinds* of gate, and so says nothing about a change that
+  alters a gate's **shape** rather than its position. ADR 0004 is the companion covering that
+  case — a threshold replaced by a graded rubric input plus an outlier guard — and it is a
+  companion rather than a correction: nothing in it says this rule is wrong.
 - The rule is stated in terms of *kinds* of gate, so the liquidity floor — also
   cross-sectional through its hysteresis band — falls under the same four conditions if it is
   ever argued about. It currently costs 9% and nobody is arguing.

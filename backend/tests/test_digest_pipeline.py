@@ -31,7 +31,7 @@ def _det(symbol, *, session=YESTERDAY, trigger=100.0):
         symbol=symbol, session=session, detector_version=DETECTOR_VERSION,
         trigger=trigger, stop=3.0, stopw_adr=0.5, base_len=10, move_gain=103.0,
         adr=0.06, close=98.0, cluster_k=5, cluster_high=trigger, cluster_low=97.0,
-        cluster_range_adr=0.99, line_ok=True, touch_zones=2, overshoot_adr=0.0,
+        cluster_range_adr=0.99, range_3bar_adr=0.99, line_ok=True, touch_zones=2, overshoot_adr=0.0,
         slope=-0.001, line_end=trigger - 0.1, base_low=97.0,
         churn_l=0.45, sma20_rising=True, dryup=0.90,
     )

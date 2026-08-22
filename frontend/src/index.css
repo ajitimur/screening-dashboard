@@ -1357,3 +1357,13 @@
 .member-decile {
   white-space: nowrap;
 }
+
+/* The value a *graded* score dimension was graded on (rubric v3, #154). Secondary
+   to the dimension's name and set in the mono face, because it is a measurement
+   the reader checks the points against rather than a label. */
+.graded-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}

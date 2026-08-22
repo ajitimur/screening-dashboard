@@ -224,7 +224,7 @@ detects must land *before* the denominator is built, or the run is stale on arri
 | Ticket | Relation | Land by |
 | --- | --- | --- |
 | **#139** — match a trade's bars to the listing that existed at its entry | **Landed.** The recycled-ticker rule this plan requires; it re-pinned the figures cited below: blind-spot 91 → **92** tickers, 170 → **172** trades, 18.15% → **18.0%** of R, replayable 658 → **656** | Phase 2 |
-| **#145** — Tightness as a graded rubric input (**decided**, implementation outstanding) | Changes what passes the funnel, so it changes the denominator *and* the detected-count anchor. File the implementation ticket if none exists. | Phase 3 |
+| **#145** — Tightness as a graded rubric input | **Landed as #154.** The hard 1.5×ADR cluster cut is now a far-outlier guard at 3.0 and the rubric grades base tightness (rubric v3, detector v2). It re-pinned the detected-count anchor 104 → **159 of 656** and more than doubled the field (90.3 → **201.6** detections per session). The guard's 3.0 is **provisional on n = 10** — firming it up is a result this run is expected to produce, not an input it needs. | Phase 3 |
 | **#149** — `DETECTION_LOOKBACKS` 3 → 5 | Same class: adopt or reject on evidence, then freeze. A rejection recorded is as good as an adoption; an open question is not. | Phase 3 |
 | **#146**, **#147** — naming and the domain model | The run persists full `Detection` records and the write-up uses this vocabulary. Cheap now, a dead language later. | Phase 3 |
 | **#141** — price the marginal cluster widen | **Downstream, not blocking.** It falls back to field inflation because no false-positive rate exists; this backtest is what supplies one. | After |
@@ -233,7 +233,9 @@ detects must land *before* the denominator is built, or the run is stale on arri
 precision is unmeasurable (findings §7, §9) — the gap this run closes. Running the backtest
 first makes those tickets answerable against outcomes; running them first only makes the
 backtest stale. Land the correctness and naming work, settle #145 and #149 either way, freeze,
-then run.
+then run. **#145 is now settled** (as #154) and its own guard is provisional on the thinnest
+bucket in the study — so it joins #141 and #149 in the set of questions this run is expected to
+answer, rather than one it was waiting on.
 
 ---
 
@@ -366,7 +368,7 @@ before reading any new figure:
 | Median trailing 5-bar range at his entries | **1.86 ADR** | Findings §3b, §3c |
 | Median 20-day ADR at entry eve | **6.08%** | Findings §3c |
 | Blind-spot tickers / trades, 2019–2022 | **92 / 172** (of 312 / 828) | Findings §2 |
-| Trades detected by the funnel | **104 of 656 replayable** (§4 measured 104 of 658; #139 removed `FUSE`'s 2 trades, neither of which was detected) | Findings §4 |
+| Trades detected by the funnel | **159 of 656 replayable** (re-pinned by #154's far-outlier guard, measured 2026-08-22; the superseded pins were 104 of 658, then 104 of 656 after #139) | Findings §4 |
 
 These are the same reference set through a differently-built pipeline. Matching them says the
 new pipeline computes what the old one computed; a mismatch is a bug in the new store or the
@@ -375,8 +377,8 @@ new chain, and every downstream number inherits it.
 **Two kinds of anchor, and only one of them is stable.** The first three are geometry measured
 from his bars: they hold whatever the detector does, so they anchor the *store and the
 indicators*. The last two depend on coverage and on the gates themselves — #139 re-pins them
-to 92 / 172 / 656, and the #145 restructure moves the detected count again. Re-pin those two
-from the run that lands last, then anchor. An anchor quoted from a superseded pin fails for a
+to 92 / 172 / 656, and the #145 restructure moved the detected count again — both are now
+re-pinned above and the restructure has landed, so these are the pins to anchor against. An anchor quoted from a superseded pin fails for a
 reason that has nothing to do with the pipeline it is testing.
 
 Anchor against **arms B and C**, whose exits match the reference set's two simulated ones.

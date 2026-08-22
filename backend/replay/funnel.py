@@ -106,13 +106,16 @@ COND_ADR = "adr"                  # non-positive ADR
 COND_PRIOR_MOVE = "prior_move"    # no qualifying low->high prior move
 COND_BASE_LENGTH = "base_length"  # base shorter than MIN_BASE_LEN
 COND_CATCH_UP = "catch_up"        # price not back at the 10/20 MA
-COND_CLUSTER = "cluster"          # no tight 3-7 bar cluster (size or tightness)
+COND_CLUSTER = "cluster"          # 3-bar range past the far-outlier guard
 
-# A `cluster` miss whose trailing 3-bar range sits within this multiple of ADR
-# is *marginal* — a modest widening of the detector's TIGHT_MULT (1.5) would recover
-# it; beyond it the name is genuinely in motion and no plausible widening reaches a
-# base. This is the boundary the #132 characterisation reads the misses against; it
-# is *reported*, never applied, and no detection constant is changed by it.
+# A `cluster` miss whose trailing 3-bar range sits within this multiple of ADR is
+# *marginal*. It was written when the detector gated at TIGHT_MULT = 1.5, to ask how
+# many misses a modest widening would recover; #145/#154 answered that question by
+# making the widening, so the partition it drives is now **history rather than a
+# live lead** — under the far-outlier guard every surviving `cluster` miss sits past
+# OUTLIER_MULT = 3.0 and the marginal count is zero by construction. It is kept, at
+# its original value, so the #132 characterisation in findings §3a still reproduces
+# against the numbers that section quotes. Reported, never applied.
 MARGINAL_TIGHT_MULT = 2.0
 
 
@@ -264,9 +267,10 @@ class ClusterDecomposition:
       distance to the nearest prior entry across the continuation misses.
     - **how they distribute against the condition's window** — ``marginal`` counts
       the misses whose trailing 3-bar range sits within
-      :data:`MARGINAL_TIGHT_MULT` × ADR (a modest widening of the detector's
-      ``TIGHT_MULT`` would recover them), ``far`` the ones beyond it (a name
-      genuinely in motion no plausible widening reaches).
+      :data:`MARGINAL_TIGHT_MULT` × ADR, ``far`` the ones beyond it. Since
+      #145/#154 made the widening this partition was measuring, ``marginal`` is
+      zero on a current run: every surviving miss is past ``OUTLIER_MULT``. The
+      split is kept so §3a's committed figures still reproduce.
       ``range_distribution`` summarises the 3-bar range in ADR across all the
       misses.
 
@@ -557,7 +561,7 @@ def _funnel_row(
     detection_pass = detection is not None
     failed_condition = None if detection_pass else diagnose_detection(bars, eval_session)
     # The margin of a `cluster` miss (#132): how far the trailing 3-bar range —
-    # the tightest window there is — sat over the condition's TIGHT_MULT window.
+    # the tightest window there is — sat over the far-outlier guard.
     # Set only on a cluster miss — the other conditions have their own margins and
     # a pass has no miss to characterise.
     range_3bar = (

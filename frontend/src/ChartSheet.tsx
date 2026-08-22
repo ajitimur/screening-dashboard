@@ -238,8 +238,23 @@ function FactsBlock({ facts }: { facts: ChartFacts }) {
  * per-dimension hits, because a sort key you cannot audit is one you will not
  * trust.
  */
+/**
+ * What one dimension's "Scored" cell says. Three cases, and the middle one only
+ * exists because rubric v3 grades a dimension (#154): a row can earn *part* of its
+ * weight, and a tick would overstate it while a dash would deny it.
+ */
+function scoredMark(d: ScoreRow): string {
+  if (d.points === 0) return "—"; // missed, or a ×0 dimension that can earn nothing
+  if (d.points === d.weight) return "✓"; // earned everything it could
+  return `+${d.points}`; // graded: part of the weight
+}
+
 function Breakdown({ breakdown, score }: { breakdown: ScoreRow[]; score: number | null }) {
-  const points = breakdown.reduce((sum, d) => sum + (d.hit ? d.weight : 0), 0);
+  // Points come off the row, not from `hit × weight`. Since rubric v3 one
+  // dimension is *graded* — it earns part of its weight on a banded value — so
+  // re-deriving the total here would need a copy of the server's band table and
+  // would silently disagree with the star the row was sorted by (#154).
+  const points = breakdown.reduce((sum, d) => sum + d.points, 0);
   // The ceiling is the sum of the weights, read off the breakdown itself rather
   // than hard-coded — so the ×0 Base length row (PRD #138) drops it to 9 without
   // a second place to keep in sync.
@@ -255,10 +270,17 @@ function Breakdown({ breakdown, score }: { breakdown: ScoreRow[]; score: number 
       </thead>
       <tbody>
         {breakdown.map((d) => (
-          <tr key={d.dimension} className={d.hit ? "hit" : "miss"}>
-            <td>{d.dimension}</td>
+          <tr key={d.dimension} className={d.points > 0 ? "hit" : "miss"}>
+            <td>
+              {d.dimension}
+              {/* A graded dimension shows the value it was graded on, so a
+                  partial score reads as a measurement rather than a mystery. */}
+              {d.value !== null && d.value !== undefined && (
+                <span className="graded-value"> {d.value.toFixed(2)} ADR</span>
+              )}
+            </td>
             <td>×{d.weight}</td>
-            <td>{d.hit ? "✓" : "—"}</td>
+            <td>{scoredMark(d)}</td>
           </tr>
         ))}
       </tbody>

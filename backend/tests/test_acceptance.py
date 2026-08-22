@@ -32,7 +32,7 @@ def _det(symbol, *, stopw_adr=1.28, cluster_k=5, adr=0.06, base_len=10):
         trigger=100.0, stop=stopw_adr * adr * 98.0, stopw_adr=stopw_adr,
         base_len=base_len, move_gain=103.0, adr=adr, close=98.0,
         cluster_k=cluster_k, cluster_high=100.0, cluster_low=97.0,
-        cluster_range_adr=0.99, line_ok=True, touch_zones=2, overshoot_adr=0.0,
+        cluster_range_adr=0.99, range_3bar_adr=0.99, line_ok=True, touch_zones=2, overshoot_adr=0.0,
         slope=-0.001, line_end=99.9, base_low=97.0,
         churn_l=0.45, sma20_rising=True, dryup=0.90,
     )

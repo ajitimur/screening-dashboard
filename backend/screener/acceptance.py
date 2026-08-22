@@ -53,6 +53,15 @@ ADR_SPOT_CHECK: tuple[str, ...] = (
 # for that market (B4/B9 were measured on the US sample only; IDX has no published
 # detections-per-night level). Shares are fractions of the universe/list; counts are
 # absolute. These are the numbers ticket 45 replaces once measured on a real run.
+# **Two of these are expected to deviate after #154, and are deliberately not
+# retuned here.** The base-tightness restructure replaced the hard 1.5×ADR cut
+# with a far-outlier guard, which more than doubles the field (measured +123%, 90.3
+# → 201.6 detections per session over 505 replayed sessions) and makes the 3-bar
+# window the reported cluster whenever nothing tighter clears — so **B4**
+# (detections per night) and **B8** (share of clusters at k=3) both move by
+# construction. Editing the expectation to match would turn the regression test
+# into a rubber stamp: the deviation flag firing is the pass working. Ticket 45
+# owns replacing these with figures measured on a real run.
 _EXPECTED: dict[str, dict[str, float | None]] = {
     "US": {
         "B1": 1966, "B2": 0.285, "B3": 112, "B4": 30, "B5": 9.6,

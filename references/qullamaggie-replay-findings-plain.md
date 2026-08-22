@@ -177,13 +177,21 @@ blended number can hide a disaster at one stage:
 
 | Filter | Would have kept | Excluding repeat entries |
 |---|---|---|
-| Liquid enough? | **598/658 (90.9%)** | 523/578 (90.5%) |
-| Strong enough performer? | **395/658 (60.0%)** | 340/578 (58.8%) |
-| Valid-looking setup? | **380/658 (57.8%)** | 341/578 (59.0%) |
+| Liquid enough? | **598/656 (91.2%)** | 523/577 (90.6%) |
+| Strong enough performer? | **395/656 (60.2%)** | 340/577 (58.9%) |
+| Valid-looking setup? | **549/656 (83.7%)** | 487/577 (84.4%) |
 
-**The "strongest performers" filter is the expensive one.** It discards **40% of
-his real trades on its own**, before the setup detector even looks — nearly five
-times what the liquidity check costs.
+> **The last row was re-measured in August 2026.** The "quiet enough beforehand"
+> cutoff described in Test 1b was replaced by a much looser safety net, and
+> quietness became a graded score instead. That took this row from **380/658
+> (57.8%)** to 549/656 — 169 more of his real trades the app would have shown him.
+> The first two rows are unaffected by that change and reproduced exactly. The
+> price is in Test 1b: the nightly list **more than doubled**.
+
+**The "strongest performers" filter is now the expensive one by a wide margin.** It
+discards **40% of his real trades on its own**, before the setup detector even
+looks — nearly five times what the liquidity check costs, and more than twice what
+the detector now costs.
 
 > **This filter is a third tighter than every document said.** There are two
 > versions of "strongest performers" in the code, and they were being conflated.
@@ -194,9 +202,11 @@ times what the liquidity check costs.
 > them separately.
 
 **One oddity worth noting:** the setup detector is the only stage that scores
-*better* once repeat entries are removed (59.0% vs 57.8%). His add-on buys are
-harder for it to see than his first entries — which makes sense, since an add-on
-isn't a fresh setup and the detector was never designed to catch one.
+*better* once repeat entries are removed (84.4% vs 83.7%). His add-on buys are
+still slightly harder for it to see than his first entries — which makes sense,
+since an add-on isn't a fresh setup and the detector was never designed to catch
+one. The gap used to be 1.2 points and is now 0.7: the quietness cutoff was what
+made add-ons hard to see, and it is gone.
 
 ### Why the 40% figure shouldn't be acted on directly
 
@@ -348,6 +358,45 @@ right number" but "should this be a pass/fail gate at all, rather than a graded
 score with a much looser safety net" — and that still can't be settled without the
 false-positive rate we don't have.
 
+### What was built on this, in August 2026
+
+That last question was decided in favour of the graded score, and built. Three
+things changed together:
+
+- **The pass/fail cutoff at 1.5 is gone.** In its place is a **safety net at 3.0** —
+  far enough out that it only rejects a stock genuinely still moving, with no quiet
+  stretch at all.
+- **Quietness became a graded score** instead of a yes/no box: full marks under 1.0
+  ADR, half marks up to 2.0, none beyond. It is still worth double, as before.
+- **The score sheet now records the measurement, not the verdict.** The row stores
+  how quiet the stock actually was, so a score from an older version of the rubric
+  can still be reproduced exactly from a new row. Without that, no two versions of
+  the scoring could ever be compared again.
+
+**Both sides of the ledger, measured:**
+
+| | Old hard cutoff | New safety net |
+|---|---|---|
+| His trades the detector would have found | 380 of 658 | **549 of 656** |
+| Rejections for "not quiet enough" | 171 | **2** |
+| Names on the nightly list, per night | 90 | **202** |
+
+**The second number is the cost, and it is a big one.** The list more than doubles:
+about 111 extra names a night, or roughly **two thirds of an extra name per night
+for each real trade recovered**. Nothing measures how many of those extras are
+junk — that number does not exist for this project, which is exactly why the cost is
+quoted as a population count instead. What absorbs it is the graded score: the newly
+admitted names are the ones it scores *low*, so they arrive at the bottom of the
+list rather than beside his own setups. The work moved from the gate to the sort.
+
+**The safety net at 3.0 is provisional, and here is why.** It sits where the results
+table above first turns negative — the "3.0+" row — and that row is **ten trades**.
+Ten is far too few to place a line on. What makes 3.0 the right ballpark rather than
+a guess is the other figure: widening to 3.0 keeps 98.5% of his trades and 100.4% of
+his total profit, more than 100% because the slice being cut loses money on average.
+On his own record the net turns away **two** trades. Firming it up needs more
+losing-tail data, which is precisely what the out-of-sample backtest is for.
+
 ### A useful contrast with the "extended" study
 
 Test 5 below sets a hard cutoff for a *different* quality, and its reasoning is
@@ -364,10 +413,11 @@ point:
 | Quietness (Test 1b) | A **smooth slope** — no special point anywhere | A graded score |
 
 These two qualities genuinely differ in kind, so they shouldn't be built the same
-way. And note that the current 1.5 cutoff satisfies *neither* test: it isn't a
-percentile anyone deliberately chose (it was inherited, and merely happens to land
-at his 64th), and it isn't placed at a feature in the results, because there is no
-feature there to place it at.
+way. And note that the old 1.5 cutoff satisfied *neither* test: it wasn't a
+percentile anyone deliberately chose (it was inherited, and merely happened to land
+at his 64th), and it wasn't placed at a feature in the results, because there is no
+feature there to place it at. That is the argument the rebuild rests on — not that
+quietness stopped mattering, but that a hard line was the wrong shape for it.
 
 ---
 
@@ -532,6 +582,13 @@ idea.
 
 Only **104 of 658** trades (15.8%) appeared in the app's field at all, and only
 **41** landed in the top 30 by score.
+
+> **Re-measured after the quietness rebuild (August 2026):** **159 of 656** now
+> appear in the field, and **45** land in the top 30. Half again as many of his
+> trades are visible somewhere; the same number reach a board. The rest of this
+> section is left as it was measured — it is the record of what the ten-point
+> scoring did to the field as it stood then, and re-running it on a list twice the
+> size would answer a different question.
 
 **The headline result was negative, and it's the study's most consequential
 finding.** Under the scoring system live at the time, his hand-picked entries

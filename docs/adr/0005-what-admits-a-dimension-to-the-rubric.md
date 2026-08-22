@@ -4,8 +4,9 @@ status: proposed
 
 # What admits a dimension to the rubric, and what retires one
 
-ADR 0001 settled what the rubric *encodes* — the method's revealed selection — and ADR 0002
-settled what licenses *loosening* a gate, in two limbs. Neither says what admits a **new**
+ADR 0001 settled what the rubric *encodes* — the method's revealed selection — ADR 0002 settled
+what licenses *loosening* a gate, in two limbs, and ADR 0004 settled what licenses replacing a
+threshold with a **graded input**. None of the three says what admits a **new**
 dimension to the rubric, or what removes one. That gap is not theoretical: it is how
 `Prior move` came to occupy a point of a nine-point rubric across two versions while measuring
 **pooled spread 0.000** — 100.0% in the taken group and 100.0% in the not-taken group (§5b) —
@@ -39,6 +40,18 @@ discriminates" — is documentation bought at the price of a point.
 The line the exemptions draw: **zero pooled spread means the dimension can never discriminate;
 a wrong-way or zero-weighted dimension is one that discriminates against us, which is a
 finding.** `Prior move` fails the first. `Base length` survives on the second.
+
+## A dimension is admitted as a boolean; grading comes later
+
+ADR 0004 permits a threshold to be replaced by a graded input, and its **first condition is
+demonstrated signal** — "a null dimension should be weighted down or dropped, never
+elaborated." A candidate dimension has no signal yet, by definition; that is what admission
+measures. So grading is not available at admission, and a new dimension enters as a boolean
+over a persisted quantity like the seven that preceded it. Once admitted and measured, ADR
+0004's four conditions govern whether it may be graded, on its own evidence.
+
+This composes rather than conflicts: 0004 asks what to do with a dimension that has signal,
+this ADR asks whether a dimension has any.
 
 ## Pre-registration
 
@@ -95,9 +108,9 @@ about a number on the record rather than a number nobody wrote down.
   the rubric." That constraint governs the replay rather than the live app, whose ranks have no
   such hole — but the margin is thin enough that the lookback's *name* is the honest thing to
   publish and the percentile is declined.
-- **A new dimension forces a rubric version.** `RS line` ships as `RUBRIC_VERSION = 3`, joining
-  the `RUBRIC_WEIGHTS` table so the paired re-run (#136) can score one field under v2 and v3 and
-  separate a rubric change from a field change. Digests written under v2 are not recomputed.
+- **A new dimension forces a rubric version.** `RS line` ships as `RUBRIC_VERSION = 4`, joining
+  the `RUBRIC_WEIGHTS` table so the paired re-run (#136) can score one field under v3 and v4 and
+  separate a rubric change from a field change. Digests written under v3 are not recomputed.
 - **The new dimension is measured on US only and ships to IDX unmeasured.** The replay field is
   US-only, so `RS line` is contrasted against `^IXIC` and never against `^JKSE`. §8 permits a
   weight *ordering* travelling to IDX as shape rather than magnitude, and `Tightness` and `ADR`
@@ -109,6 +122,14 @@ about a number on the record rather than a number nobody wrote down.
   `^GSPC` was considered and declined: a second reference instrument per market means the
   scorer and `regime.py` disagree about what the market is, for reasons nobody will recall.
   Revisit only if the dimension is found to fire on sector lines.
+- **The contrast this rule reads must be re-run under `DETECTOR_VERSION = 2`.** §5b's published
+  table — 69 taken against 14,354 not-taken — was measured under detector v1. #154's graded
+  tightness grew the detector's population by **+111.3 detections per session (+123%)**, and
+  while §3's detection row and §4's `in_field` anchor were re-pinned (104 → 159 of 656), §5b
+  was not. An ordinal position assigned against the v1 table would rank a v2-measured dimension
+  among v1-measured ones, which is the field-change-versus-rubric-change confound in a new
+  costume. The admission rule therefore requires the contrast to be **measured under the
+  detector the dimension will ship against**.
 - **The study's field carries a known, measured contamination.** `^IXIC` was synthesized as a
   rankable candidate in `replay.duckdb` (#162), inflating each session's ranked population by
   one name in ~1,000. It reaches neither the detections nor the not-taken group — 0 detection

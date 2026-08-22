@@ -4,6 +4,18 @@ Distilled from ~360 Kristjan Kullamägi (Qullamaggie) stream/video transcripts (
 Everything below is what he actually says in the transcripts. Parameters that he never states numerically
 have been **resolved by Aji** and are marked `[SET BY AJI]` — those are house rules, not his words.
 
+> **Two things he calls "tight."** This document uses the word for both, and they are *not* the same
+> quantity — the replay measured them **3.8× apart** on the same 649 entries (findings §3b, issue #147):
+>
+> - **Base tightness** — the setup's geometry, how quiet the stock was *before* the break. §3.1's range
+>   contraction, §3.2's cluster, §3.5's ×2 dimension. Median **1.310 ADR**.
+> - **Stop width** — his risk, how much of the entry he will lose. §7's stop, §6's trigger choice, §8's
+>   sizing input. Median **0.345 ADR**.
+>
+> He does **not** stop under the consolidation low; his stop is the **low of the entry day** (§7).
+> Reading "the stop sits below the tight zone" off this document would place it near 1.3 ADR and
+> nearly quadruple risk per trade. Definitions live in [`CONTEXT.md`](../CONTEXT.md).
+
 ---
 
 ## 0. Operating philosophy
@@ -11,7 +23,7 @@ have been **resolved by Aji** and are marked `[SET BY AJI]` — those are house 
 - Three setups only: **Breakout/Continuation**, **Episodic Pivot (EP)**, **Parabolic Short**. Nothing else.
 - He is a **home-run trader**: most trades scratch or lose small; roughly 10–15% of trades produce
 nearly all of the P&L. The method is engineered so the winners are allowed to run.
-- Edge comes from **stock selection + tight stops**, not prediction. Price action dictates; no macro calls.
+- Edge comes from **stock selection + narrow stop width**, not prediction. Price action dictates; no macro calls.
 - He invented none of it — ADR, the EP, the breakout, the parabolic short are all borrowed (Minervini,
 Dan Zanger, Stockbee lineage). Pattern recognition on the *strongest* stocks is the skill.
 - Repeated hard filter: **do not trade slow or choppy stocks.** No momentum, no ADR, no trade.
@@ -108,7 +120,8 @@ rising 10/20/65 EMA on the 60-min = *frontside*. Those same EMAs flipping to res
 
 1. **A big prior move.** `[SET BY AJI]` The stock must sit in the **top decile of 1–6 month returns** within its
   universe (IDX or US). This is the gate that separates a real flag from a random consolidation.
-2. **Consolidation after the move**: sideways, **higher lows**, **range contraction** — it gets *tight*.
+2. **Consolidation after the move**: sideways, **higher lows**, **range contraction** — it gets *tight*
+  (**base tightness**; nothing here is about where the stop goes).
 3. **Minimum consolidation length** `[SET BY AJI]`: **3–5 days sideways, minimum, for every variant**
   (flag, HTF, triangle, base). Shorter than that and there is no range to break.
 4. **The 10-day and 20-day catch up** to price during the consolidation. He repeatedly refuses setups with
@@ -219,8 +232,9 @@ His live language maps almost 1:1 onto a grading scale. Learn it, because it *is
 ### 3.5 Setup quality score (1–5 stars) `[SET BY AJI]`
 
 He grades every setup 1–5 stars on stream but never publishes the rubric. From how he actually talks, the
-score is driven overwhelmingly by **tightness and orderliness of the range and pullback** — not by
-pattern taxonomy. Formalized:
+score is driven overwhelmingly by **base tightness and orderliness of the range and pullback** — not by
+pattern taxonomy. (Base tightness throughout this section: the range's own geometry. The stop never
+enters the score — see the note at the top.) Formalized:
 
 
 | Dimension                                                        | Weight | 1 point if…                                                      |
@@ -306,7 +320,7 @@ hugging the rising 10/20/50-day (affordable stop); the swing-high break happens 
 
 | Trigger        | Character                                                                                                  |
 | -------------- | ---------------------------------------------------------------------------------------------------------- |
-| **1-min ORH**  | Earliest, tightest stop, **highest failure rate**. His most-used on high-conviction names.                 |
+| **1-min ORH**  | Earliest, **narrowest stop width**, **highest failure rate**. His most-used on high-conviction names.      |
 | **5-min ORH**  | Middle ground. The "second chance" if the 1-min fails or you missed it.                                    |
 | **60-min ORH** | Lowest failure rate, but often **way too wide** — the stock has already run and the stop becomes unusable. |
 
@@ -330,7 +344,7 @@ breakout day. On a gap-*down* open below the prior day's low, he uses the **red-
 - **Max stop width** `[SET BY AJI]`**: 1 × ADR.** If the required stop is wider than one ADR, **no trade** — pass and
 wait for a re-set. (Consistent with him rejecting ~8% stops and approving one that was "less than half the ATR,
 well within the criteria.")
-- **Tight stops are the entire game.** They are also what makes the sizing in §8 arithmetic work.
+- **Narrow stop width is the entire game.** They are also what makes the sizing in §8 arithmetic work.
 - Stops only move **up**, never wider. After the first partial → **stop to breakeven**.
 - Intraday defence: if the breakout **falls back into its range** or takes out the LOD, cut or halve.
 *"The best breakouts go straight up and never make you second-guess."*

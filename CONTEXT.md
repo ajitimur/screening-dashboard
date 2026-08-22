@@ -102,19 +102,31 @@ Prior-move peak through today, capped at 45 bars. Always ends today — there is
 thing as a base that ended last week.
 
 **Cluster**:
-The largest trailing 3–7 bar window spanning at most 1.5 × ADR. The tight end of the base.
-Whether a name *has* a cluster is settled entirely by its 3-bar range: range is monotone in
-the window length, so the 3-bar window is the tightest one there is. The 7 is a scoring
-bound, not a gate.
+The largest trailing 3–7 bar window spanning at most 1.5 × ADR. The quiet end of the base,
+and where **base tightness** is measured — never a stop level. Whether a name *has* a cluster
+is settled entirely by its **3-bar range**: range is monotone in the window length, so the
+3-bar window is the tightest one there is. The 7 is a scoring bound, not a gate.
 
 **Cluster length `k`**:
-Bars in the cluster. The double-weighted tightness dimension of the star score, and the only
-thing the upper bound of 7 can move.
+Bars in the cluster. The double-weighted **base tightness** dimension of the star score, and
+the only thing the upper bound of 7 can move.
 
 **3-bar range**:
 A name's trailing 3-bar high-to-low span, in ADR. The tightest window the cluster scan can
 find, and so the number the cluster gate actually tests. Reported as `range_3bar_adr` on a
 cluster miss, to say by how much it missed.
+
+**Base tightness**:
+How quiet the stock was *before* the break — the span of a trailing 3–7 bar window in ADR.
+Setup geometry: it is what `TIGHT_MULT` gates on and what the rubric's ×2 `Tightness`
+dimension scores. Measured two ways, and the difference matters: the **3-bar range**
+(`range_3bar_adr`) is the **ungated** measure, which is what findings §3b puts at a median of
+**1.310 ADR** over his 649 replayable entries; `cluster_range_adr` is the **gated** span of
+the window that cleared the cut, and so sits at or under `TIGHT_MULT` by construction. Never
+a stop level — **stop width** is 3.8× narrower on the same trades (see below), and reading a
+stop off this quantity is the mistake issue #127 removed.
+_Avoid_: tightness or tight, unqualified, in prose (the `TIGHT_*` constants and the published
+`Tightness` rubric label keep their names); tight zone; tight stop.
 
 **Envelope**:
 The upper trendline — anchored at the cluster's max high, fitted backwards over the base's
@@ -127,6 +139,19 @@ silent tiebreak.
 **Trigger**:
 `cluster_high`, by identity — the envelope is anchored at the cluster's max high and can
 never exceed it.
+
+**Stop width**:
+How much of the entry he is willing to lose — trigger to stop, in ADR (`stopw_adr`). Position
+sizing, not setup geometry: a detector output and a card claim, fixed at
+`STOP_CONVENTION_ADR = 0.345`, the median of his 649 executed stops (findings §6 Finding 1,
+issue #127; reproduced quantile-for-quantile by §3b). It is **not** the consolidation low and
+never was — he risks the **entry bar** (`references/qullamaggie-entry-ma-distance.md`).
+Why it is a separate term from **base tightness**: findings §3b measured both on the same 649
+entries at the same evaluation sessions — base 1.310 ADR against stop width 0.345 ADR, a
+**ratio of medians of 3.80×** (median per-trade ratio 3.77×). Reasoning that "the stop sits
+below the tight zone" places it near 1.3 ADR and nearly quadruples risk per trade. The two
+are independently tunable and independently evidenced.
+_Avoid_: risk_adr, tight stop, cluster-low stop, risk.
 
 **Detection**:
 A name with a valid base, cluster and MA catch-up, inside the detection gate, on a session.

@@ -138,9 +138,10 @@ export interface components {
          *     ``score`` is the star score (0.5–4.5, PRD #138) and the sort key of the list; ``breakdown``
          *     carries its eight-row rubric so the row (or the chart panel) can reconstruct
          *     the arithmetic (spec §4.7). ``dist_adr`` is the distance to the trigger in ADR
-         *     (``(trigger − close) / adr_abs``); ``stopw_adr`` is the stop width in ADR —
-         *     now the trader's calibrated convention (0.345 ADR, issue #127), not the old
-         *     cluster-low distance. The stop column **never filters** — instead the
+         *     (``(trigger − close) / adr_abs``); ``stopw_adr`` is the **stop width** in ADR —
+         *     the trader's calibrated convention (0.345 ADR, issue #127), never the cluster-low
+         *     distance and never the base tightness the ``Tightness`` dimension scores, which
+         *     runs 3.8× wider (issue #147). The stop column **never filters** — instead the
          *     affordable sub-1×ADR minority is flagged (``affordable``); with the calibrated
          *     stop that minority is now the whole list.
          *     ``industry`` is the theme layer (``None`` if the label was never fetched);
@@ -554,8 +555,11 @@ export interface components {
          *
          *     Eight of these reconstruct the score arithmetically next to the chart — the
          *     dimension's name, its weight (2 for Tightness and ADR, 0 for Base length, 1 for
-         *     the rest — recalibrated by PRD #138) and whether it hit. ``n/9 → stars`` is
-         *     ``sum(weight where hit) ÷ 2``; the ceiling is nine points, not ten.
+         *     the rest — recalibrated by PRD #138) and whether it hit. ``Tightness`` is **base
+         *     tightness** — the setup's geometry, not the stop width the row also carries
+         *     (issue #147); the label is published, so it is qualified here rather than
+         *     renamed. ``n/9 → stars`` is ``sum(weight where hit) ÷ 2``; the ceiling is nine
+         *     points, not ten.
          */
         ScoreRow: {
             /** Dimension */
@@ -697,8 +701,9 @@ export interface components {
          *     chart as *evidence for the score*, not merely a price chart.
          *
          *     - ``base_start`` / ``cluster_start`` are the first sessions of the base and of
-         *       the tight trailing cluster inside it; the frontend shades each region from
-         *       its start to the last candle (the base always ends today, §4.5).
+         *       the trailing cluster inside it (the base-tightness window); the frontend
+         *       shades each region from its start to the last candle (the base always ends
+         *       today, §4.5).
          *     - ``trigger`` (cluster high) and ``stop`` (the proposed convention stop line,
          *       issue #127) are the two horizontal rules §7's affordability test is read off
          *       geometrically.

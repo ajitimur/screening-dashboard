@@ -590,6 +590,32 @@ Only **104 of 658** trades (15.8%) appeared in the app's field at all, and only
 > scoring did to the field as it stood then, and re-running it on a list twice the
 > size would answer a different question.
 
+> **Corrected again (August 2026), after a bug was found in how the list was
+> built:** the real figures are **349 of 656** in the field and **109** in the top
+> 30. The 159/45 above was measured on a list that was **completely empty on 316
+> of the 821 days** — the strength rankings it needed had already been thrown
+> away by the time the setups were looked for, so those days silently found
+> nothing. Two thirds of the days were missing from the measurement.
+>
+> This flips the sentence above it. "The same number reach a board" was the whole
+> point of that note — the rebuild bought visibility but not board places. With
+> every day counted it's **109, not 45**: the rebuild does put substantially more
+> of his trades on the list he reads. The 104/41 figures at the top of this
+> section were measured the same broken way and are understated too; they're left
+> as the historical record of what was believed at the time.
+>
+> **The scoring conclusion below is also in question, and hasn't been re-settled
+> here.** It compares his picks against the field on the same days, so both sides
+> were truncated together and the comparison isn't obviously broken — but the
+> percentages quoted were computed on the missing-two-thirds field. Recomputed on
+> the whole field with today's setup-finder, his picks score 3.5+ **14.6%** of the
+> time against the field's **12.6%** — a small edge *in his favour*, where the
+> published figures show him fractionally behind. Don't read that as a flip: two
+> things changed at once (the setup-finder rebuild and this fix), and untangling
+> them needs a deliberate re-run rather than the one number above. The point is
+> only that "the scoring can't tell his picks apart from anything else" now needs
+> re-checking rather than assuming.
+
 **The headline result was negative, and it's the study's most consequential
 finding.** Under the scoring system live at the time, his hand-picked entries
 scored 3.5 stars or better **17.3%** of the time. The general population of

@@ -226,7 +226,9 @@ def _entries_by_session(trades: Iterable[ExecutedTrade]) -> dict[date, set[str]]
     return out
 
 
-def _session_detections(store: Store, market: str, session: date) -> list[Detection]:
+def _session_detections(
+    store: Store, market: str, sf: SessionField
+) -> list[Detection]:
     """A session's detections, reused from the store if already persisted (#126).
 
     :func:`screener.pipeline.rebuild_detections` appends through the write-once
@@ -238,14 +240,24 @@ def _session_detections(store: Store, market: str, session: date) -> list[Detect
     A session that produced *no* detections leaves no rows, so it is recomputed —
     ``rebuild_detections`` re-runs the detector over that night's gated members
     and appends nothing (an empty append is a write-once no-op). It reproduces the
-    empty result deterministically: the two-year rank retention that may have
-    emptied that session's decile gate is the same on every pass, so a night that
-    detected nothing the first time detects nothing again.
+    empty result deterministically: the rank table the decile gate reads is the
+    chain's own, which :func:`replay.chain._replay_session` recomputes identically
+    on every pass, so a night that detected nothing the first time detects nothing
+    again.
+
+    **The gate reads the chain's ranks, not the store's.** ``Store.append_ranks``
+    prunes rows outside :data:`screener.store.RANK_RETENTION_YEARS` as the chain
+    advances, and the whole chain is built before this stage runs — so every
+    measured session outside the retained window would gate against an *empty*
+    rank table and yield no detections at all. The chain already carries the ranks
+    it computed for each session, recomputed in memory on reuse for exactly this
+    reason, and the A1 funnel already reads its decile verdicts from there; handing
+    the same table here puts the two analyses on one rank table instead of two.
     """
-    persisted = store.detections(market, session)
+    persisted = store.detections(market, sf.session)
     if persisted:
         return persisted
-    return rebuild_detections(store, market, session)
+    return rebuild_detections(store, market, sf.session, ranks=sf.ranks)
 
 
 def build_field_sessions(
@@ -274,7 +286,7 @@ def build_field_sessions(
     total = len(chain)
     fields: list[FieldSession] = []
     for i, sf in enumerate(chain, start=1):
-        detections = _session_detections(store, market, sf.session)
+        detections = _session_detections(store, market, sf)
         entered = entries.get(sf.session, set())
         candidates = build_field(
             detections, sf.ranks, entered=entered, any_entry=bool(entered)

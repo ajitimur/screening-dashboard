@@ -37,28 +37,152 @@ Everything below serves these. A run that breaks one produces a number that cann
 
 ---
 
-## Phase 0 — Write the run contract
+# Phase 0 — The run contract
 
-Fix every parameter **before** any code runs, so no threshold is chosen after seeing its
-result. Fill this table in and commit it; treat a later change as a new run with a new
-contract, recorded beside the old one.
+Fixed **before** any code runs, so no threshold is chosen after seeing its result. A later
+change is a new run with a new contract, recorded beside this one.
 
-| Parameter | Value | Why this value |
+## Scope
+
+| Parameter | Value | Why |
 | --- | --- | --- |
-| Markets | US, IDX — **reported separately** | Findings §8: shapes travel, magnitudes do not. Pooling them destroys both. |
-| Window | 2012-01-01 → latest complete session | |
-| Burn-in | 126 sessions before the window (`replay.chain.BURN_IN_SESSIONS`) | Universe hysteresis is path-dependent and needs to settle |
-| Setup | Long breakout, EOD only | The reference set's scope; the detector's scope |
-| Entry | The detection's own trigger, filled next session | |
-| Stop | The detection's own stop | Findings §6 measured this as ~4× the trader's; the backtest prices that gap |
-| Exits | 10-day-SMA **and** 20-day-SMA trailing, both reported | Matches the reference set's two simulated exits, so results compare directly |
-| Position risk | Fixed fraction of equity per trade | |
-| Costs | Per-market commission + slippage | IDX carries real fees and spread; US is near-zero. Assume, state, and sweep. |
-| Primary metric | Expectancy in R, after costs, per market per year | One pre-registered metric. Everything else is secondary. |
+| Markets | US, IDX — **reported separately** | Findings §8: shapes travel, magnitudes do not |
+| Measured window | 2012-01-01 → latest complete session | |
+| Store window | **2009-01-01** → latest | The regime burn-in below binds, not the detector's. Working back from a 2012 start: 3 years of percentile burn-in, plus `detection.MIN_HISTORY` (80 bars) and the SMA50/ADR20 warm-up. |
+| Setup | Long breakout, EOD only | The reference set's scope, and the detector's |
+| Study level | **Signal-level primary; portfolio-level deferred** | [Below](#study-level) |
+
+## Screening universe
+
+Three gates, plus one market-specific trim. **All measured through t−1**, so a signal on
+session *t* uses only what was knowable the night before.
+
+| Gate | US | IDX |
+| --- | --- | --- |
+| Trend | close > SMA50 | close > SMA50 |
+| Liquidity (ADTV) | ≥ **$10M** | ≥ **Rp 10B** |
+| Volatility | ADR20 ≥ **3.5%** | ADR20 ≥ **3.5%** |
+| Data-validity trim | — | nominal price ≥ **Rp 100**, split-corrected |
+
+**The Rp 100 trim is data validity, not cost control.** Below it, IDX quotes hit the tick
+grid hard enough that ADR and range geometry stop meaning what they mean elsewhere. State it
+that way in the write-up so nobody reads it as a penny-stock filter with an implied cost
+story. Apply it on the same split-corrected series every other figure uses, and hold that
+choice consistent — Yahoo's unlabelled rights-issue rescaling (see
+[Traps](#traps)) makes "nominal price" ambiguous otherwise.
+
+**ADTV is the 20-day median of unadjusted close × volume**, reusing
+`universe.median_dollar_volume`, so one block trade cannot lift an illiquid name over the
+floor. Flip it to a mean only deliberately — it changes which spiky small caps qualify.
+
+Three consequences, each of which will otherwise get misread later:
+
+- **This universe is stateless, and the app's is not.** `universe.py` carries a hysteresis
+  band (`HYSTERESIS_EXIT`) so members leave at a lower floor than they enter. A hard daily
+  threshold reintroduces boundary churn: a name oscillating around $10M enters and leaves
+  day by day. **At signal level this is nearly free** — each signal is evaluated on its own
+  session and churn costs nothing. It becomes real at portfolio level, so record it as a
+  known difference rather than fixing it now.
+- **ADR20 ≥ 3.5% sits deliberately below the rubric's `score.ADR_MIN` of 5%.** That gap is
+  the point: findings §6 Finding 2 measured the 5% floor silently withholding a score point
+  from 31% of his real entries, so a universe cut at 5% would leave the ADR dimension with no
+  spread left to test. Keep the looser floor and let the scorer's floor be measured.
+- **The 50MA gate overlaps the detector's own trend logic.** Detection counts will fall
+  against an unfiltered run. That is the gate working, not the detector becoming more
+  selective — say so when reporting counts, or the two effects get conflated.
+
+## Regime
+
+**Two axes, a conditioning variable, never a filter.** Nothing is excluded by regime; every
+result is *reported* by regime cell.
+
+| | Definition |
+| --- | --- |
+| Axis 1 — breadth | Share of the universe with close > SMA50 |
+| Axis 2 — volatility | Median ADR20 across the universe |
+| Measured over | The **liquidity-only** universe — ADTV and the data-validity trim, without the 50MA or ADR20 gates |
+| Scale | Per-market **expanding percentile**, 3-year burn-in |
+| Buckets | Fixed terciles, 3 × 3 = 9 cells |
+| Index (QQQ / IHSG) | Descriptive cross-tab only |
+
+**Why liquidity-only.** Breadth measured over a universe already gated on the 50MA would sit
+pinned near 1.0 by construction, and median ADR20 over a universe gated at 3.5% would be
+censored from below. The regime axes need the unfiltered population to move at all.
+
+**Why expanding percentiles.** They are point-in-time by construction: session *t*'s
+percentile uses only history through *t*, so no regime label encodes the future. A fixed
+percentile fitted over the whole window would leak 2021 into 2013's label.
+
+Two things to watch. The 3-year burn-in is what pushes the store back to 2009 — a burn-in
+starting at 2012 would mean no measured session before 2015. And with 9 cells across two
+markets, some will be thin; **report n per cell** and let a sparse cell read as sparse rather
+than as a finding.
+
+**This is not `screener.regime`.** That module reads SMA10/20 posture on the index, and its
+`breadth()` is share above *rising SMA10/SMA20*. Both differ from the definitions above. Use
+these, and name the divergence in the write-up. Note also that the app's US index is `^IXIC`
+while the cross-tab here is QQQ; that is fine for a descriptive column, and worth one line.
+
+## Entry, stop, exits
+
+| | Value |
+| --- | --- |
+| Entry | The detection's own trigger, filled next session |
+| Stop | The detection's own stop |
+| Exits | **Three arms**, identical entry and stop |
+
+| Arm | Rule |
+| --- | --- |
+| **A** | 50% off at day 5, remainder on a 10MA trail |
+| **B** | Pure 10MA trail |
+| **C** | Pure 20MA trail |
+
+Because the arms share an entry and a stop, any difference between them is attributable to
+the exit alone — which is the only reason to run three.
+
+- **Arm A is the trader's documented behaviour**, and it is the one with no counterpart in
+  the reference set. **Arms B and C are directly comparable** to the reference set's two
+  simulated exits (findings §1), which is what keeps [Phase 6](#phase-6--anchor-before-believing)'s
+  anchors usable.
+- **Arm A's R is two-legged**: position-weight each leg and sum. Half a position exiting at
+  +2R contributes 1R.
+- **Specify the mechanics as contract, not as code comments**: "day 5" is the close of the
+  fifth session after entry; a trail signals on a close through the MA and fills at the next
+  open. Both choices are point-in-time and both are arbitrary — record them so a later run
+  can vary them deliberately.
+
+## Study level
+
+**Signal-level is primary.** Every qualifying signal is taken independently, equal-weighted,
+denominated in R. No capital constraint, no concurrency cap, no position limit. This measures
+**the signal**, which is the open question.
+
+**Portfolio-level is specified now and deferred**: capital, a concurrency cap, sizing,
+correlation clustering, and the drawdown path. Specified now so the signal-level work records
+what it will need.
+
+Two consequences to carry:
+
+- **Signal-level cannot speak to capacity, concurrency, drawdown path, or correlated
+  clustering.** In a momentum method the winners arrive together, so the portfolio question is
+  not a detail — it is deferred, not dismissed.
+- **Overlapping signals in one name are not independent observations.** A stock throwing three
+  signals in a fortnight contributes three correlated rows. When testing significance, bootstrap
+  **clustered by symbol** rather than by row; otherwise the effective sample is smaller than the
+  row count and every p-value is flattering.
+
+## Costs, metric, and the kill line
+
+| Parameter | Value | Why |
+| --- | --- | --- |
+| Costs | Per-market commission + slippage, swept | IDX carries real fees and spread; US is near-zero |
+| Primary metric | Expectancy in R, after costs, per market per year, **arm B** | One pre-registered metric. Arm B is the reference set's primary exit, so the headline stays comparable. |
 | Kill criterion | | State in advance what result would make you abandon the method |
 
-**Done when** every row has a value and a one-line justification, committed. An empty cell
-at the end of Phase 0 is a threshold that will get chosen to flatter the result.
+**Done when** every cell above has a value and a one-line justification, committed. The kill
+criterion is the one still blank, and it is the one that matters most: fill it before Phase 1.
+
+---
 
 ## Phase 1 — Build the bar store
 
@@ -107,24 +231,32 @@ figure *and* its pessimistic twin together.
 ## Phase 3 — Replay the field, point-in-time
 
 Reuse [`backend/replay/chain.py`](../backend/replay/chain.py) rather than writing a second
-replay. It already replays sessions forward with burn-in, rejects a gapped sequence
-(`GapError`), and rebuilds universe → ranks → detections per session through the same modules
-the nightly run uses. The work is generalising it past its `REPLAY_MARKET = "US"` and its
-2019–2022 window.
+replay. It already replays sessions forward with burn-in and rebuilds universe → ranks →
+detections per session through the same modules the nightly run uses. The work is generalising
+it past its `REPLAY_MARKET = "US"` and its 2019–2022 window, and swapping the app's universe
+for the contract's.
 
-Persist, per session: universe membership, the rank table, and every detection with its full
-`Detection` record and `star_score` breakdown. **These rows are the denominator** — the object
-this whole exercise exists to produce, and the input to every metric in Phase 5.
+Persist, per session: universe membership (both the screening and the liquidity-only
+populations), both regime axes with their expanding percentiles and tercile labels, the rank
+table, and every detection with its full `Detection` record and `star_score` breakdown.
+**These rows are the denominator** — the object this whole exercise exists to produce, and the
+input to every metric in Phase 5.
+
+The contract's universe is stateless, so sessions no longer depend on each other through
+membership. Keep running them in an unbroken forward sequence anyway: the expanding
+percentiles are cumulative by definition, and a gapped sequence silently changes every regime
+label after the gap.
 
 **Done when** both markets replay end to end with no gap and no session recomputed, burn-in
-sessions are persisted but excluded from measurement, and the detection count per session is
-plotted across the window. A count that collapses in a given year is a data hole, and reads
-as a quiet market until you look.
+sessions are persisted but excluded from measurement, and detections per session are plotted
+across the window. A count that collapses in a given year is a data hole, and reads as a quiet
+market until you look.
 
 ## Phase 4 — Simulate the trades
 
-One position per symbol at a time. Every price — trigger, fill, stop, trailing exit — derives
-from bars at or before the session that decides it.
+Every price — trigger, fill, stop, trail, day-5 scale-out — derives from bars at or before the
+session that decides it. All three exit arms run off one entry and one stop, so a trade
+appears once per arm and the arms stay comparable.
 
 Two disciplines carry most of the risk here:
 
@@ -134,28 +266,35 @@ Two disciplines carry most of the risk here:
 - **Keep the two price scales apart.** Yahoo's adjusted bars carry an *unlabelled* retroactive
   rescale for rights issues (measured on BBRI: pre-2021-09-08 OHLC scaled by exactly 10/11,
   with no split or dividend row to explain it). Geometry in ADR units is immune, because both
-  terms rescale together; absolute prices are not. `prototype-tightness` hit this and carries
-  a `price_scale_ok` flag for it — do the same, and report how many trades the flag drops.
+  terms rescale together; absolute prices are not — including the Rp 100 trim.
+  `prototype-tightness` hit this and carries a `price_scale_ok` flag for it; do the same, and
+  report how many trades the flag drops.
 
-**Done when** every simulated trade carries its entry, stop and exit with the session each was
-decided on, the shifted-bar test passes, and the trades from the trader's own tickers in the
-2019–2022 overlap can be listed beside his real ones.
+**Done when** every simulated trade carries its entry, stop and per-arm exit with the session
+each was decided on, the shifted-bar test passes, and the trades from the trader's own tickers
+in the 2019–2022 overlap can be listed beside his real ones.
 
 ## Phase 5 — Measure
 
-Report per market, **per year**, and never pooled only. The window contains a crash and a
-mania; a pooled fourteen-year number describes neither.
+Report per market, **per year**, and by regime cell — never pooled only. The window contains a
+crash and a mania; a pooled fourteen-year number describes neither.
 
 - **The denominator figures** that no prior study could produce: detections per session, the
   share that trigger, and the share that reach a favourable outcome — precision, at last.
-- **Expectancy in R** after costs, with the win-rate and R-distribution behind it. The
-  reference set's own shape is the comparison: 22.7% of his trades made money, and the mean R
-  was positive anyway (§3c). A method with a 20% win rate is not broken; a method with a 20%
-  win rate and a small right tail is.
+- **Expectancy in R** after costs, with the win rate and R-distribution behind it, for each of
+  the three arms. The reference set's own shape is the comparison: 22.7% of his trades made
+  money and the mean R was positive anyway (§3c). A method with a 20% win rate is not broken;
+  a method with a 20% win rate and a small right tail is.
+- **What the third arm buys.** Arm A trades tail for hit rate by construction. Report whether
+  it raises expectancy or merely smooths it — those are different results and only one of them
+  is a reason to adopt it.
 - **Does the rubric rank?** Bucket outcomes by `star_score` decile. §4a found a gap that was
   in-sample by construction (the v2 weights were fitted to that separation) and marginal at
   p = 0.055. This is the out-of-sample test that claim has never had.
-- **Does the regime gate pay?** Split by `screener.regime` posture at entry.
+- **Does regime condition the edge?** Expectancy per 3 × 3 cell, per market, with n shown.
+  This is the payoff of treating regime as a conditioning variable: if the edge lives in two
+  of nine cells, that is a finding a filter would have hidden by never letting the other seven
+  trade.
 
 Sweep thresholds only after the pre-registered metric is computed and recorded, and report the
 count of variants tried beside any swept result. Every threshold tried is a test, and enough
@@ -177,6 +316,9 @@ before reading any new figure:
 These are the same reference set through a differently-built pipeline. Matching them says the
 new pipeline computes what the old one computed; a mismatch is a bug in the new store or the
 new chain, and every downstream number inherits it.
+
+Anchor against **arms B and C**, whose exits match the reference set's two simulated ones.
+Arm A has no counterpart there and is measured, never anchored.
 
 **Done when** each anchor matches its committed value or its divergence is written up with a
 cause.
@@ -203,25 +345,30 @@ Each has already cost this repo time, or is guaranteed to.
 Phase 4 is the cheapest insurance in this plan.
 
 **Rights-issue rescaling** (Phase 4) silently breaks any comparison between a recorded price
-and an adjusted bar. Keep geometry in ADR units wherever possible.
-
-**Path dependence.** Universe membership moves through stickiness and a hysteretic liquidity
-floor, so sessions must run in an unbroken forward sequence. `replay.chain` enforces this
-already — keep using it rather than sampling sessions.
-
-**Phantom bars.** Zero-volume rows are removed at ingest, never zero-filled (see `CONTEXT.md`).
-A backtest that reintroduces them will trade on days the stock did not trade.
+and an adjusted bar, and makes IDX's Rp 100 trim ambiguous. Keep geometry in ADR units
+wherever possible.
 
 **Recycled tickers** (Phase 2) pass every absence check and still poison a trade: the symbol
 resolves, the bars are real, and they belong to a different company. Gate on whether the bar
 history covers the session being replayed, which is what findings §2 had to switch to.
+
+**Phantom bars.** Zero-volume rows are removed at ingest, never zero-filled (see `CONTEXT.md`).
+A backtest that reintroduces them will trade on days the stock did not trade.
+
+**Expanding-percentile drift.** The early years are scored against a short history, so the
+first measured sessions carry the noisiest regime labels. Report the burn-in boundary, and
+check whether a finding survives dropping the first measured year.
+
+**Row-counting the significance.** Overlapping signals in one name are correlated; bootstrap
+clustered by symbol.
 
 **Pooling the markets.** IDX magnitudes are not US magnitudes (findings §8). Report separately
 throughout, including in the summary.
 
 **Multiple testing.** Pre-register one primary metric in Phase 0, report the variant count
 beside any swept figure, and let the pre-registered number stand as the headline even when a
-swept one looks better.
+swept one looks better. Three exit arms and nine regime cells is 27 views of one dataset
+before any threshold is swept.
 
 **The 2020–21 tape.** It rewarded momentum nearly everywhere. Report every year separately,
 and report the result with 2020–21 excluded beside the full-window figure.
@@ -229,7 +376,8 @@ and report the result with 2020–21 excluded beside the full-window figure.
 ## What this still cannot say
 
 Even run perfectly, this measures **the detector as encoded**, on **free adjusted EOD data**,
-over **one fourteen-year sample of two markets**. It cannot say what he would have traded, it
-cannot recover intraday behaviour, and it cannot make the delisted names reappear — it can
-only bound their absence. Findings §9 remains the model for stating this: a limitation named
-in advance is a caveat; one discovered afterwards is a retraction.
+over **one fourteen-year sample of two markets**, at **signal level**. It cannot say what he
+would have traded, it cannot recover intraday behaviour, it cannot speak to capacity or
+drawdown until the portfolio level is built, and it cannot make the delisted names reappear —
+it can only bound their absence. Findings §9 remains the model for stating this: a limitation
+named in advance is a caveat; one discovered afterwards is a retraction.

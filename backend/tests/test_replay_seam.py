@@ -27,6 +27,7 @@ import pytest
 from replay.funnel import (
     COND_BASE_LENGTH,
     COND_CLUSTER,
+    COND_HISTORY,
     FUNNEL_STAGES,
     MARGINAL_TIGHT_MULT,
     STAGE_DECILE,
@@ -36,7 +37,6 @@ from replay.funnel import (
     FunnelReport,
     characterise_cluster_misses,
     diagnose_detection,
-    evaluation_session,
     run_funnel,
 )
 from replay.reference import (
@@ -48,6 +48,7 @@ from replay.reference import (
     assert_matches_reference,
     build_report,
     classify,
+    evaluation_session,
     load_trades,
     parse_trades,
     write_blind_spot_list,
@@ -416,7 +417,7 @@ def test_load_trades_unwraps_the_envelope_on_synthetic_rows(tmp_path):
 
 
 def test_trade_with_bars_is_replayable_without_bars_is_blind_spot(store: Store):
-    store.append_bars("US", "AAA", [_bar(date(2020, 5, 1))])
+    store.append_bars("US", "AAA", [_bar(date(2020, 4, 30)), _bar(date(2020, 5, 1))])
     trades = parse_trades(
         [_trade_record("AAA", "2020-05-01"), _trade_record("ZZZ", "2020-05-01")]
     )
@@ -426,12 +427,52 @@ def test_trade_with_bars_is_replayable_without_bars_is_blind_spot(store: Store):
     assert classified == {"AAA": True, "ZZZ": False}
 
 
+def test_replayable_asks_whether_bars_cover_the_evaluation_session(store: Store):
+    """Replayability is "can this trade be evaluated?", not "does the store hold
+    this symbol?" — a recycled symbol whose listing begins after the entry, and a
+    name whose bars end before it, are both blind spots however many bars they
+    carry under the ticker (#139)."""
+    store.append_bars("US", "OLD", [_bar(d) for d in _daily(date(2020, 5, 4), 5)])
+    store.append_bars("US", "RECY", [_bar(d) for d in _daily(date(2020, 6, 1), 5)])
+    trades = parse_trades(
+        [
+            _trade_record("OLD", "2020-05-08"),   # bars span the eval session
+            _trade_record("RECY", "2020-05-08"),  # listing begins a month later
+            _trade_record("OLD", "2020-06-04"),   # bars ended before the entry
+            _trade_record("ZZZ", "2020-05-08"),   # no bars at all
+        ]
+    )
+
+    classified = [(c.trade.ticker, c.trade.entry_date, c.replayable)
+                  for c in classify(trades, store)]
+
+    assert classified == [
+        ("OLD", date(2020, 5, 8), True),
+        ("RECY", date(2020, 5, 8), False),
+        ("OLD", date(2020, 6, 4), False),
+        ("ZZZ", date(2020, 5, 8), False),
+    ]
+
+
+def test_trade_before_the_first_session_has_no_night_to_evaluate(store: Store):
+    """No session precedes the entry, so there is no night the app could have
+    named the stock on: a blind spot, not a stage failure (#139)."""
+    store.append_bars("US", "AAA", [_bar(d) for d in _daily(date(2020, 5, 1), 3)])
+
+    (classified,) = classify(parse_trades([_trade_record("AAA", "2020-05-01")]), store)
+
+    assert classified.replayable is False
+
+
 # -- the count report ------------------------------------------------------
 
 
 def test_report_counts_and_blind_spot_r_share(store: Store):
-    store.append_bars("US", "AAA", [_bar(date(2020, 5, 1))])
-    store.append_bars("US", "BBB", [_bar(date(2020, 5, 1))])
+    store.append_bars(
+        "US", "AAA",
+        [_bar(date(2020, 4, 30)), _bar(date(2020, 5, 1)), _bar(date(2020, 6, 1))],
+    )
+    store.append_bars("US", "BBB", [_bar(date(2020, 4, 30)), _bar(date(2020, 5, 4))])
     # AAA/BBB have bars (replayable); ZZZ does not (blind spot). One outcome-less row.
     trades = parse_trades(
         [
@@ -456,7 +497,7 @@ def test_report_counts_and_blind_spot_r_share(store: Store):
 
 
 def test_write_blind_spot_list_is_sorted_and_committed(tmp_path, store: Store):
-    store.append_bars("US", "AAA", [_bar(date(2020, 5, 1))])
+    store.append_bars("US", "AAA", [_bar(date(2020, 4, 30)), _bar(date(2020, 5, 1))])
     trades = parse_trades(
         [
             _trade_record("ZZZ", "2020-05-01"),
@@ -476,7 +517,7 @@ def test_write_blind_spot_list_is_sorted_and_committed(tmp_path, store: Store):
 
 
 def test_drift_detection_fails_loudly_on_mismatch(store: Store):
-    store.append_bars("US", "AAA", [_bar(date(2020, 5, 1))])
+    store.append_bars("US", "AAA", [_bar(date(2020, 4, 30)), _bar(date(2020, 5, 1))])
     report = build_report(parse_trades([_trade_record("AAA", "2020-05-01")]), store)
 
     # A three-row fixture cannot match the 828-row reference figures.
@@ -737,6 +778,27 @@ def test_blind_spot_trade_gets_no_funnel_row(store: Store):
     report = run_funnel(trades, store)
 
     assert [r.ticker for r in report.rows] == ["RAMP"]  # ZZZ is not a stage failure
+
+
+def test_recycled_symbol_is_a_blind_spot_not_a_history_stage_failure(store: Store):
+    """A ticker whose bars begin after the entry it is paired with is a *different
+    listing* under the same symbol. It must be recorded as a blind spot, never
+    charged to the detector as a ``history`` miss (#139 — the live ``FUSE`` case)."""
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "RAMP", _bars_from_hlc(dates, _ramp_hlc(90)))
+    later = _daily(dates[89] + timedelta(days=10), 90)
+    store.append_bars("US", "RECY", _bars_from_hlc(later, _ramp_hlc(90)))
+    trades = parse_trades(
+        [
+            _funnel_record("RAMP", dates[89] + timedelta(days=1)),
+            _funnel_record("RECY", dates[50]),  # entry predates RECY's listing
+        ]
+    )
+
+    report = run_funnel(trades, store)
+
+    assert [r.ticker for r in report.rows] == ["RAMP"]
+    assert COND_HISTORY not in report.condition_counts
 
 
 # -- continuation entries stay in every denominator ------------------------

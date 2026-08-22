@@ -43,13 +43,17 @@ headline recall over all replayable trades **and** the ex-continuation recall
 together, and no code path emits the ex-continuation figure on its own (user
 story 6).
 
-Blind-spot trades (ticker with no bars) get no funnel row — they are recorded as
-a blind spot by :mod:`replay.reference`, not as a stage failure (PRD "A1 funnel").
+Blind-spot trades get no funnel row — they are recorded as a blind spot by
+:mod:`replay.reference`, not as a stage failure (PRD "A1 funnel"). That holds for
+a ticker the store has no bars for *and* for one whose bars do not cover the
+evaluation session: a symbol recycled onto a later listing would otherwise arrive
+here and fail the detector's :data:`COND_HISTORY` gate, charging a coverage hole
+to the detector (#139).
 """
 
 from __future__ import annotations
 
-from bisect import bisect_left, bisect_right
+from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import date
 from typing import TYPE_CHECKING, Callable, Iterable, Sequence
@@ -76,7 +80,7 @@ from screener.store import Store
 from screener.universe import LIQUIDITY_FLOOR, median_dollar_volume
 
 from .chain import BURN_IN_SESSIONS, REPLAY_MARKET, SessionField, replay_chain
-from .reference import ClassifiedTrade, ExecutedTrade, classify
+from .reference import ClassifiedTrade, ExecutedTrade, classify, evaluation_session
 
 if TYPE_CHECKING:
     from .regression import Distribution
@@ -356,16 +360,10 @@ class FunnelReport:
 # -- evaluation session -------------------------------------------------------
 
 
-def evaluation_session(calendar: list[date], entry_date: date) -> date | None:
-    """The last session in ``calendar`` strictly before ``entry_date``.
-
-    ``calendar`` is the market's observed session dates, oldest first (the union of
-    bar dates — :meth:`screener.store.Store.sessions`), so the "session before"
-    lands correctly across weekends and market holidays with no holiday table: a
-    gap simply has no session in it. ``None`` when nothing precedes the entry.
-    """
-    idx = bisect_left(calendar, entry_date) - 1
-    return calendar[idx] if idx >= 0 else None
+# ``evaluation_session`` lives in :mod:`replay.reference`: replayability is now
+# defined in terms of it (#139), and that module cannot import this one. It is
+# imported above rather than re-exported — every caller reads it from
+# :mod:`replay.reference`.
 
 
 def _session_index(calendar: list[date], when: date) -> int:
@@ -687,8 +685,9 @@ def run_funnel(
     the report as the coverage figure every decile-dependent output must carry
     (PRD user story 22).
 
-    Blind-spot trades (ticker with no bars) get no row — they are a blind spot, not
-    a stage failure. Continuation entries are tagged and kept in every denominator.
+    Blind-spot trades get no row — a ticker whose bars do not cover the trade's
+    evaluation session is a blind spot, not a stage failure. Continuation entries
+    are tagged and kept in every denominator.
     """
     classified = classify(trades, store, market=market)
     calendar = store.sessions(market)

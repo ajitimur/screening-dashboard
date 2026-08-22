@@ -88,9 +88,9 @@ is missing in the least convenient possible way.
 | | |
 |---|---|
 | Total trades in the record | 828 |
-| Stocks affected by the hole | **91** |
-| Trades lost to it | **170** |
-| Share of his total profit in those lost trades | **18.1%** |
+| Stocks affected by the hole | **92** |
+| Trades lost to it | **172** |
+| Share of his total profit in those lost trades | **18.0%** |
 
 **The hole is bigger than first thought, for an interesting reason.** The first
 count asked "does this ticker symbol exist today?" But the study needs a stricter
@@ -102,6 +102,18 @@ wouldn't just overstate coverage — it would test one company's trade against a
 different company's price history. So survivorship here means delisting *plus*
 symbol recycling, and the recycled ones are dangerous precisely because they look
 fine.
+
+**And an eleventh was hiding in plain sight.** Asking "does this symbol have any
+price history in the replay years?" still isn't strict enough — the right question
+is "does it have history covering *the night we'd have had to spot the trade*?"
+`FUSE` was traded in January 2021, but the price history the store holds under
+that symbol starts in March 2022: a different company. The first ten escaped only
+because their replacement listings begin after the replay window ends, so the
+looser test happened to give the right answer. `FUSE` is where that luck ran out —
+its two trades were being counted as replayable and then blamed on the app for
+"not enough history". Fixing the question moved the count from 91 / 170 / 18.15%
+to the 92 / 172 / 18.0% in the table above. The hole didn't grow; it was measured
+properly.
 
 **This hole is now permanent.** Buying the missing history was investigated and
 closed: every provider that carries it charges money, retail plans start around
@@ -156,7 +168,9 @@ the method that work best.
 ## Test 1 — Which filter throws away his trades?
 
 **658 of the 828 trades could be replayed** (the other 170 are the coverage
-hole). 80 of those are repeat entries.
+hole). 80 of those are repeat entries. Those counts are the ones this run measured;
+the stricter coverage question described above puts them at 656 and 172, which
+moves nothing in the percentages below.
 
 Each of the three filters was tested *independently* on every trade, so no single
 blended number can hide a disaster at one stage:

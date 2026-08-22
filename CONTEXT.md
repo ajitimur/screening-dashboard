@@ -179,13 +179,27 @@ counterfactual. Never blur it with the executed trade's entry.
 _Avoid_: exit, result.
 
 **Replayable trade**:
-An executed trade whose ticker still has bars in the store. 686 of 827.
+An executed trade whose ticker has bars in the store **covering the session the trade is
+evaluated at** — not merely bars somewhere under that symbol, which a **recycled symbol**
+also has. 656 of 828. The test is "can this trade be evaluated?", so the same ticker can be
+replayable at one entry and a blind spot at another.
 
 **Blind-spot ticker**:
-A ticker in the reference set with no bars in the store, because the provider returns
-nothing for delisted, acquired or renamed names. 81 of 312 tickers, 141 trades, 11.7% of
-total R. The measured size of the store's survivorship hole.
+A ticker in the reference set whose bars cannot cover a trade it is paired with, because
+the provider returns nothing for delisted, acquired or renamed names, or because the symbol
+was recycled onto a later listing. 92 of 312 tickers, 172 trades, 18.0% of total R,
+measured in the replay window (`2019-04..2022-12`). The measured size of the store's
+survivorship hole. Superseded measurements: 81 / 141 / 11.7% over all history, and
+91 / 170 / 18.15% under the has-any-bars test #139 replaced.
 _Avoid_: missing ticker, delisted.
+
+**Recycled symbol**:
+A ticker reassigned to an unrelated listing, so the bars the store holds under it belong to
+a different company than the one traded. Its bar history begins *after* the entry it is
+paired with (`FUSE`: entry 2021-01-04, bars from 2022-03-07). It is a **blind spot**, and
+the dangerous kind — absent from no list, it arrives looking replayable and, uncaught, is
+charged to the detector as a `history` stage failure.
+_Avoid_: reused ticker, symbol collision.
 
 **Coverage gap**:
 A ticker that has bars in the store but was not a universe member at the evaluation

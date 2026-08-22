@@ -223,7 +223,7 @@ detects must land *before* the denominator is built, or the run is stale on arri
 
 | Ticket | Relation | Land by |
 | --- | --- | --- |
-| **#139** — match a trade's bars to the listing that existed at its entry | The recycled-ticker rule this plan already requires, and it **re-pins figures cited below**: blind-spot 91 → **92** tickers, 170 → **172** trades, 18.15% → **18.02%** of R, replayable 658 → **656** | Phase 2 |
+| **#139** — match a trade's bars to the listing that existed at its entry | **Landed.** The recycled-ticker rule this plan requires; it re-pinned the figures cited below: blind-spot 91 → **92** tickers, 170 → **172** trades, 18.15% → **18.0%** of R, replayable 658 → **656** | Phase 2 |
 | **#145** — Tightness as a graded rubric input (**decided**, implementation outstanding) | Changes what passes the funnel, so it changes the denominator *and* the detected-count anchor. File the implementation ticket if none exists. | Phase 3 |
 | **#149** — `DETECTION_LOOKBACKS` 3 → 5 | Same class: adopt or reject on evidence, then freeze. A rejection recorded is as good as an adoption; an open question is not. | Phase 3 |
 | **#146**, **#147** — naming and the domain model | The run persists full `Detection` records and the write-up uses this vocabulary. Cheap now, a dead language later. | Phase 3 |
@@ -255,16 +255,18 @@ silently absent is survivorship bias entering through the back door.
 
 Treat this as a measurement with its own deliverable, ahead of any performance number.
 
-**The floor is already known.** Findings §2 measured it over a four-year window: **91 of 312
-tickers (29.2%)** and **170 of 828 trades (20.5%)** absent from the store, carrying **18.1% of
+**The floor is already known.** Findings §2 measured it over a four-year window: **92 of 312
+tickers (29.5%)** and **172 of 828 trades (20.8%)** the store cannot cover, carrying **18.0% of
 the trader's realised R** — names delisted, acquired or renamed inside four years. A 2012 start
 reaches further back, so expect worse. For IDX the research note measured the same hole from
 the other side: the Yahoo screener enumerates ~840 names against IDX's ~963 listed, and the
 missing ones are the suspended and delisted.
 
-**And the hole has a silent half.** §2's correction is the part to carry: ten of those tickers
-*resolve today* but their bar history begins years after the entry they are paired with,
-because the symbol was recycled onto an unrelated listing. Survivorship here is delisting
+**And the hole has a silent half.** §2's correction is the part to carry: eleven of those
+tickers *resolve today* but their bar history begins years after the entry they are paired
+with, because the symbol was recycled onto an unrelated listing. Ten of them fall outside the
+window and were excluded by the build; the eleventh, `FUSE`, has bars *inside* it and was
+caught only once #139 made replayability mean "bars cover the evaluated session". Survivorship here is delisting
 **plus ticker recycling**, and recycled names are absent from no list — they arrive as
 plausible bars for the wrong company.
 
@@ -363,8 +365,8 @@ before reading any new figure:
 | Median trailing 3-bar range at his entries | **1.31 ADR** | Findings §3b |
 | Median trailing 5-bar range at his entries | **1.86 ADR** | Findings §3b, §3c |
 | Median 20-day ADR at entry eve | **6.08%** | Findings §3c |
-| Blind-spot tickers / trades, 2019–2022 | **91 / 170** (of 312 / 828) | Findings §2 |
-| Trades detected by the funnel | **104 of 658 replayable** | Findings §4 |
+| Blind-spot tickers / trades, 2019–2022 | **92 / 172** (of 312 / 828) | Findings §2 |
+| Trades detected by the funnel | **104 of 656 replayable** (§4 measured 104 of 658; #139 removed `FUSE`'s 2 trades, neither of which was detected) | Findings §4 |
 
 These are the same reference set through a differently-built pipeline. Matching them says the
 new pipeline computes what the old one computed; a mismatch is a bug in the new store or the

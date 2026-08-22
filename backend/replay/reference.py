@@ -7,30 +7,36 @@ entries, all US, each an *observed* entry paired with two *simulated* exits
 and the study must not blur them (PRD "Further Notes").
 
 This module reads the JSON into typed :class:`ExecutedTrade` rows, classifies
-each as **replayable** (its ticker has bars in the replay store) or a
-**blind-spot ticker** (it does not — a delisted, acquired or renamed name the
-provider returns nothing for), and reports the counts. The blind-spot ticker
-list is written to ``references/`` so the size of the store's survivorship hole
-is a fixed, citable fact rather than a vague worry (user story 23).
+each as **replayable** (the store's bars for its ticker cover the session the
+trade is evaluated at) or a **blind spot** (they do not — a delisted, acquired or
+renamed name the provider returns nothing for, or a symbol recycled onto a
+listing that did not exist at the entry), and reports the counts. The blind-spot
+ticker list is written to ``references/`` so the size of the store's survivorship
+hole is a fixed, citable fact rather than a vague worry (user story 23).
 
 The counts are computed, never hard-coded. :data:`REFERENCE_FIGURES` records the
 figures measured in #114 so a later change to the reference set or the store is
 caught as drift (:func:`assert_matches_reference`), not silently absorbed.
 
 **Blind spot is measured in the replay window, not over all history.** The
-classification asks whether the ticker has bars *in the replay store*, which
-:mod:`replay.store` populates only for ``2019-04..2022-12``. That is the
-operationally true test — it is exactly the condition under which the funnel and
-the field can say anything about a trade — and it is stricter than asking whether
-the provider returns the symbol at all today. The two differ by 10 tickers / 29
+classification asks whether the ticker has bars *in the replay store* covering the
+trade's evaluation session, and the store holds only ``2019-04..2022-12``
+(:mod:`replay.store`). That is the operationally true test — it is exactly the
+condition under which the funnel and the field can say anything about a trade —
+and it is stricter than asking whether the provider returns the symbol at all
+today. The two differ by 11 tickers / 31
 trades, every one of them a **symbol-reuse** case: the ticker resolves today, but
 its bar history begins years after the entry it is paired with, because the
-symbol was recycled onto an unrelated listing (APXT, BNKU, EYES, FNGU, LAC, LAZR,
-NRGU, SI, SPWR, USLV). Counting those replayable would not merely understate the
+symbol was recycled onto an unrelated listing (APXT, BNKU, EYES, FNGU, FUSE, LAC,
+LAZR, NRGU, SI, SPWR, USLV). Counting those replayable would not merely understate the
 hole; at any window overlap it would replay one company's trade against another
-company's bars. The #114 figures were first measured over all history
-(81 / 141 / 11.7%); the pins below are the window-measured figures the study
-actually runs on.
+company's bars — which is exactly what a has-any-bars test did to ``FUSE`` until
+#139 (its entry is 2021-01-04; its bars run 2022-03-07..2022-12-22, so the ten
+above escaped only because their replacement listings happen to begin after the
+window ends). The #114 figures were first measured over all history
+(81 / 141 / 11.7%), then in the window under a has-any-bars test
+(91 / 170 / 18.15%, 658 replayable); the pins below are the window-measured
+figures under the covers-the-entry test the study actually runs on.
 
 **Schema note.** The reference tool emits one exit block per simulated exit,
 named in the row keys — ``gain10smaPct`` / ``mfe10smaPct`` / ``r10sma`` for the
@@ -46,6 +52,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from bisect import bisect_left
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -62,18 +69,20 @@ PRIMARY_EXIT = "10sma"
 # and ``r<exit>`` carry that exit's max-favourable-excursion and realised R.
 _GAIN_KEY = re.compile(r"^gain(?P<exit>.+)Pct$")
 
-# The figures measured over the committed reference set in #114. Recomputed by
-# the report every run; these exist only to detect drift and are never the source
-# of a reported number. The blind-spot figures are measured in the replay window
-# (see the module docstring); the all-history figures they replace were
-# 81 / 141 / 11.7%.
+# The figures measured over the committed reference set in #114, re-pinned in
+# #139. Recomputed by the report every run; these exist only to detect drift and
+# are never the source of a reported number. The blind-spot figures are measured
+# in the replay window, against bars covering each trade's evaluation session (see
+# the module docstring). The superseded measurements: 81 / 141 / 11.7% over all
+# history (#114), and 91 / 170 / 18.15% in the window under the has-any-bars test
+# #139 replaced.
 REFERENCE_FIGURES: dict[str, float] = {
     "total_rows": 828,
     "rows_with_outcomes": 827,
     "distinct_tickers": 312,
-    "blind_spot_tickers": 91,
-    "blind_spot_trades": 170,
-    "blind_spot_r_share": 0.181,
+    "blind_spot_tickers": 92,
+    "blind_spot_trades": 172,
+    "blind_spot_r_share": 0.180,
 }
 
 # The blind-spot R share is a float; a change below this tolerance is rounding,
@@ -223,20 +232,77 @@ class ClassifiedTrade:
     replayable: bool
 
 
+@dataclass(frozen=True)
+class BarSpan:
+    """The sessions a ticker's bars run between, oldest to newest, inclusive.
+
+    The store answers "what bars are under this symbol?"; replayability asks the
+    narrower "was this symbol quoted on that night?" — so the span, not the bar
+    list, is what :func:`classify` keeps, one per ticker rather than one per trade.
+    A gap inside the span (a halt, a missing session) still counts as covered: the
+    listing existed, which is the question being asked.
+    """
+
+    first: date
+    last: date
+
+    @classmethod
+    def of(cls, bars: list) -> "BarSpan | None":
+        """The span of ``bars``, or ``None`` when the store holds none."""
+        return cls(first=bars[0].session, last=bars[-1].session) if bars else None
+
+    def covers(self, session: date) -> bool:
+        """True when ``session`` falls inside the span."""
+        return self.first <= session <= self.last
+
+
+def evaluation_session(calendar: list[date], entry_date: date) -> date | None:
+    """The last session in ``calendar`` strictly before ``entry_date``.
+
+    ``calendar`` is the market's observed session dates, oldest first (the union of
+    bar dates — :meth:`screener.store.Store.sessions`), so the "session before"
+    lands correctly across weekends and market holidays with no holiday table: a
+    gap simply has no session in it. ``None`` when nothing precedes the entry.
+
+    This is the session every replay study evaluates a trade at — the night the
+    app would have had to name the stock while the entry was still ahead of the
+    trader — so it also defines what :func:`classify` asks the store to cover.
+    Re-exported by :mod:`replay.funnel`, which is where it was first defined.
+    """
+    idx = bisect_left(calendar, entry_date) - 1
+    return calendar[idx] if idx >= 0 else None
+
+
 def classify(
     trades: list[ExecutedTrade], store: Store, *, market: str = "US"
 ) -> list[ClassifiedTrade]:
-    """Tag each trade replayable iff its ticker has bars in the replay store.
+    """Tag each trade replayable iff the store's bars for its ticker **cover the
+    session the trade is evaluated at** (#139).
 
-    A ticker is looked up once and cached, so a name traded several times costs
-    one store read rather than one per entry.
+    Not "does this symbol exist in the store?" but "can this trade be evaluated?".
+    The two answers diverge on a **recycled symbol**: a ticker reassigned to an
+    unrelated listing carries bars that begin years after the entry it is paired
+    with. A has-any-bars test calls that replayable, and the trade then enters the
+    funnel denominator and fails the detector's ``history`` gate — charged to the
+    detector as a stage failure when it is a coverage hole (``FUSE``, entry
+    2021-01-04, bars from 2022-03). Bars that *end* before the evaluation session
+    fail the same test for the same reason.
+
+    The verdict is therefore per *trade*, not per ticker: the same name can be
+    replayable at one entry and a blind spot at another. Each ticker's bar span is
+    read once and cached, so a name traded several times still costs one store
+    read.
     """
-    has_bars: dict[str, bool] = {}
+    spans: dict[str, BarSpan | None] = {}
+    calendar = store.sessions(market)
     classified: list[ClassifiedTrade] = []
     for trade in trades:
-        if trade.ticker not in has_bars:
-            has_bars[trade.ticker] = bool(store.bars(market, trade.ticker))
-        classified.append(ClassifiedTrade(trade=trade, replayable=has_bars[trade.ticker]))
+        if trade.ticker not in spans:
+            spans[trade.ticker] = BarSpan.of(store.bars(market, trade.ticker))
+        span = spans[trade.ticker]
+        session = evaluation_session(calendar, trade.entry_date)
+        replayable = span is not None and session is not None and span.covers(session)
+        classified.append(ClassifiedTrade(trade=trade, replayable=replayable))
     return classified
 
 

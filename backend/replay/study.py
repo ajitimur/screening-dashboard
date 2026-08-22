@@ -23,7 +23,7 @@ four (issue #131).
 killed at 60 minutes precisely because it had printed nothing — a silent long run
 is indistinguishable from a hung one. So the chain and the detection pass both call
 back per session, and the CLI prints a throttled line with a running count and an
-ETA (:func:`_progress_printer`). A failure surfaces as an exception rather than a
+ETA (:func:`progress_printer`). A failure surfaces as an exception rather than a
 hang.
 
 **Two outputs.** The human-readable reports (:func:`format_study`) are the four
@@ -447,7 +447,7 @@ def _fmt_eta(seconds: float) -> str:
     return f"{m}m{s:02d}s"
 
 
-def _progress_printer(stream: TextIO, *, every_seconds: float = 5.0) -> Progress:
+def progress_printer(stream: TextIO, *, every_seconds: float = 5.0) -> Progress:
     """A throttled progress callback that prints a count and an ETA to ``stream``.
 
     Prints at most once every ``every_seconds`` per phase (and always the final
@@ -519,7 +519,7 @@ def main(argv: list[str] | None = None) -> int:
             args.market,
             trades=trades,
             burn_in=args.burn_in,
-            progress=_progress_printer(sys.stderr),
+            progress=progress_printer(sys.stderr),
         )
     finally:
         store.close()

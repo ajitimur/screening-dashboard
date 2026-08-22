@@ -135,13 +135,16 @@ class FunnelRow:
     but ranked outside the decile — both fail the decile stage, but only the
     second is a ranking verdict (PRD "A1 funnel").
 
-    ``decile_pass`` is the app's *three-union* gate (:func:`detection_gate`, over
-    1m/3m/6m); ``decile_pass_five`` is the app's *five-union* gate
-    (:func:`screener.ranks.decile_gate`, adding 1w and 12m), so a miss recovered by
-    widening the gate 3→5 is recoverable without a second rebuild (#133). Both come
-    straight from the app's own gate functions — never a hand-rolled percentile
-    test, the trap #133 calls out. ``eval_percentiles`` and ``decile_verdicts``
-    carry the *margin* of a decile miss: the ticker's percentile per detection
+    ``decile_pass`` is the app's own detection gate (:func:`detection_gate`);
+    ``decile_pass_five`` is the app's *five-union* gate
+    (:func:`screener.ranks.decile_gate`), so a miss recovered by widening the gate to
+    the full five lookbacks is recoverable without a second rebuild (#133). The
+    detection gate unioned three lookbacks (1m/3m/6m) when #133 landed and unions
+    four since #149 admitted 12m, so the gap between the two verdicts is now what
+    ``1w`` alone would add. Both come straight from the app's own gate functions, at
+    whatever width they currently run — never a hand-rolled percentile test, the trap
+    #133 calls out. ``eval_percentiles`` and ``decile_verdicts``
+    carry the *margin* of a decile miss: the ticker's percentile per
     lookback at the eval session, and the per-lookback top-decile verdict, so a miss
     clustered at the 11th percentile is distinguishable from one scattered across
     the distribution, and the lookback he was strong in is recoverable. Both are
@@ -153,7 +156,7 @@ class FunnelRow:
     eval_session: date | None
     liquidity_pass: bool
     decile_present: bool              # the ticker was a member of the field at all
-    decile_pass: bool                 # top decile on the *three-union* detection gate
+    decile_pass: bool                 # top decile on the app's detection gate
     decile_pass_five: bool            # top decile on the *five-union* gate (1w..12m)
     eval_percentiles: dict[str, float]  # per-lookback percentile at the eval session
     decile_verdicts: dict[str, bool]    # per-lookback top-decile verdict (#133)
@@ -199,15 +202,15 @@ class StageRecall:
 class DecileDecomposition:
     """The decile miss, decomposed into three exclusive, exhaustive buckets (#133).
 
-    Every replayable trade that fails the three-union decile gate lands in exactly
+    Every replayable trade that fails the detection gate lands in exactly
     one bucket, so the buckets sum to :attr:`total_misses`:
 
     - ``coverage_gap`` — the ticker was absent from the replayed field entirely
       (``decile_present`` ``False``): a survivorship hole, not a ranking verdict.
-    - ``recovered_by_five`` — present and outside the three-union gate, but inside
-      the *five-union* gate (top decile in 1w or 12m): the loss widening 3→5 would
-      recover. A preliminary #114 read put this near a third of the decile loss;
-      the full run confirms or kills it.
+    - ``recovered_by_five`` — present and outside the detection gate, but inside
+      the *five-union* gate: the loss widening the gate to all five lookbacks would
+      recover. Measured at 75 of 658 when the gate unioned three (#133); since #149
+      moved the gate to four, this bucket is what ``1w`` alone would add.
     - ``outside_any_union`` — present and outside even the five-union gate: a
       genuine ranking miss no gate widening reaches.
     """
@@ -219,9 +222,9 @@ class DecileDecomposition:
 
 
 def decompose_decile_misses(rows: Iterable[FunnelRow]) -> DecileDecomposition:
-    """Decompose every three-union decile miss across ``rows`` (#133).
+    """Decompose every decile miss across ``rows`` (#133).
 
-    A miss is any row that fails the three-union gate (``decile_pass`` ``False``);
+    A miss is any row that fails the detection gate (``decile_pass`` ``False``);
     each is attributed to exactly one bucket, so the three counts partition the
     misses. The verdicts read here (``decile_present``, ``decile_pass``,
     ``decile_pass_five``) are the ones the row carried straight off the app's gate
@@ -546,7 +549,7 @@ def _funnel_row(
     # eval session. Absent from the field (not a member) is a coverage gap kept
     # apart from present-but-outside-the-decile; both fail the decile stage. The
     # pass/fail verdicts come straight from the app's gate functions
-    # (detection_gate -> three-union, decile_gate -> five-union); the per-lookback
+    # (detection_gate -> the live gate, decile_gate -> five-union); the per-lookback
     # percentiles carry the *margin* of a miss but never re-decide the verdict.
     members = members_by_session.get(eval_session, set())
     decile_present = trade.ticker in members
@@ -710,9 +713,17 @@ def run_funnel(
     )
 
 
-def _stage_recall(
-    stage: str, rows: list[FunnelRow], predicate: Callable[[FunnelRow], bool]
+def stage_recall(
+    stage: str, rows: Sequence[FunnelRow], predicate: Callable[[FunnelRow], bool]
 ) -> StageRecall:
+    """One stage's recall over ``rows``, headline and ex-continuation together.
+
+    Both figures come off the same object and neither is ever emitted on its own
+    (PRD user story 6). Public because the gate-width sweep reports the same pair
+    for a stage the app does not currently run (:mod:`replay.gate_sweep`, #149), and
+    a second copy of this would be free to compute the ex-continuation split
+    differently.
+    """
     ex = [r for r in rows if not r.continuation]
     return StageRecall(
         stage=stage,
@@ -733,9 +744,9 @@ def _build_report(rows: list[FunnelRow], blind_spot_count: int) -> FunnelReport:
     return FunnelReport(
         rows=rows,
         stages=FUNNEL_STAGES,
-        liquidity=_stage_recall(STAGE_LIQUIDITY, rows, lambda r: r.liquidity_pass),
-        decile=_stage_recall(STAGE_DECILE, rows, lambda r: r.decile_pass),
-        detection=_stage_recall(STAGE_DETECTION, rows, lambda r: r.detection_pass),
+        liquidity=stage_recall(STAGE_LIQUIDITY, rows, lambda r: r.liquidity_pass),
+        decile=stage_recall(STAGE_DECILE, rows, lambda r: r.decile_pass),
+        detection=stage_recall(STAGE_DETECTION, rows, lambda r: r.detection_pass),
         condition_counts=condition_counts,
         continuation_count=sum(1 for r in rows if r.continuation),
         blind_spot_count=blind_spot_count,

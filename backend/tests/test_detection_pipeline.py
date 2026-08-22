@@ -2,7 +2,7 @@
 
 ``rebuild_detections`` reads the session's published universe, the rank table and
 each member's clean bars off the store, applies the decile gate (top decile in
-any of 1m/3m/6m), detects each gated member, and appends the detection rows.
+any of 1m/3m/6m/12m), detects each gated member, and appends the detection rows.
 
 Detection runs against **every universe member every night**, not only recent
 movers: the gate decides eligibility, and a gated member that is not sitting in a
@@ -85,7 +85,7 @@ def test_rebuild_detections_emits_only_gated_members_with_a_base(store: Store):
 
 
 def test_an_ungated_universe_detects_nothing(store: Store):
-    # Every member sits in a base, but none is top decile in 1m/3m/6m — so the
+    # Every member sits in a base, but none is top decile in any gated window — so the
     # decile gate, read off the rank table, admits nobody and nothing is emitted.
     store.append_bars("IDX", "AAA", _bars(_base_series()))
     store.append_bars("IDX", "BBB", _bars(_base_series()))

@@ -100,7 +100,8 @@ from replay.contrast import (
 from replay.caching_store import CachingStore
 from replay.store import WINDOW_END, WINDOW_START, build_replay_store
 from screener.bars import Bar
-from screener.detection import Detection, detect
+from screener.detection import Detection, detect, detection_gate
+from screener.ranks import Rank
 from screener.store import Store
 
 
@@ -936,11 +937,11 @@ def test_funnel_decile_output_carries_blind_spot_coverage(store: Store):
 # -- #133: the funnel row carries the per-lookback decile detail ------------
 #
 # `FunnelRow` used to throw away the margin of a decile miss: the row knew only
-# the flattened three-union verdict, so whether he ranked 11th percentile or 40th,
+# the flattened gate verdict, so whether he ranked 11th percentile or 40th,
 # and which lookback he was strong in, were both discarded at the gate. #133 needs
 # those, so the row now carries the per-lookback eval-session percentiles and the
 # per-lookback top-decile verdicts, plus the five-union verdict — the second gate
-# the three-union is compared against. The verdicts still go through the app's own
+# the detection gate is compared against. The verdicts still go through the app's own
 # gate functions (`detection_gate`, `decile_gate`), never a second hand-rolled path.
 
 
@@ -969,7 +970,7 @@ def test_funnel_row_carries_per_lookback_percentiles_and_verdicts(store: Store):
     assert set(lag.decile_verdicts) == set(lag.eval_percentiles)
     assert all(0.0 <= p <= 1.0 for p in lag.eval_percentiles.values())
     # LAG is dead across every lookback -> no lookback is a top-decile verdict, and
-    # it fails both the three-union and the five-union gate.
+    # it fails both the detection gate and the five-union gate.
     assert not any(lag.decile_verdicts.values())
     assert lag.decile_pass is False
     assert lag.decile_pass_five is False
@@ -982,10 +983,10 @@ def test_funnel_row_carries_per_lookback_percentiles_and_verdicts(store: Store):
 
 
 def test_funnel_decile_verdicts_go_through_the_app_gate_functions(store: Store):
-    """The row's three-union verdict is the app's ``detection_gate`` and its
-    five-union verdict is the app's ``decile_gate`` — never a second hand-rolled
-    path (the trap #133 calls out). A five-union pass is a superset of the
-    three-union pass, so a three-union pass implies a five-union pass."""
+    """The row's gate verdict is the app's ``detection_gate`` and its five-union
+    verdict is the app's ``decile_gate`` — never a second hand-rolled path (the trap
+    #133 calls out). The five-union gate is a superset of the detection gate at any
+    width, so a detection-gate pass implies a five-union pass."""
     dates = _daily(date(2020, 1, 1), 40)
     store.append_bars("US", "HI", _bars_from_hlc(dates, _rising_hlc(40)))
     store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
@@ -1003,7 +1004,7 @@ def test_funnel_decile_verdicts_go_through_the_app_gate_functions(store: Store):
 def test_funnel_report_decomposes_the_decile_miss(store: Store):
     """The report decomposes every replayable trade's decile miss into three
     mutually exclusive, exhaustive buckets — coverage gap (absent from the field),
-    recovered-by-5 (fails the three-union gate but clears the five-union one), and
+    recovered-by-5 (fails the detection gate but clears the five-union one), and
     outside-any-union (fails even the five-union) — across all replayable trades
     (#133)."""
     from replay.funnel import DecileDecomposition, decompose_decile_misses
@@ -2241,3 +2242,417 @@ def test_field_detects_on_a_session_whose_stored_ranks_were_pruned(store: Store)
     (field,) = build_field_sessions(store, "US", chain)
 
     assert [d.symbol for d in field.detections] == ["BASE"]
+
+# -- #149: pricing the detection gate's width --------------------------------
+#
+# ADR 0003 leaves `DETECTION_LOOKBACKS = ("1m", "3m", "6m")` -> the five-lookback
+# set as its leading candidate and explicitly does not authorise the edit. The
+# widening re-admits the two lookbacks `detection_gate` excludes on purpose — `1w`
+# (a momentum burst) and `12m` (stale) — so what decides it is not the headline 75
+# but *which* lookback admits each of them. These tests pin the decomposition, the
+# volume price, and the two properties that keep the measurement honest: every gate
+# goes through the app's own `detection_gate`, and the live constant is never
+# mutated to measure an alternative to it.
+
+
+def _with_outcome(record: dict, *, r: float, mfe: float) -> dict:
+    """``record`` with its primary exit's R and MFE set — the two figures the
+    outcome-quality group averages."""
+    return {**record, "rr10sma": r, "mfe10smaPct": mfe}
+
+
+def _funnel_row(
+    ticker: str,
+    *,
+    session: date,
+    present: bool = True,
+    pass3: bool = False,
+    pass5: bool = True,
+    detection: bool = True,
+    continuation: bool = False,
+    entry: date | None = None,
+):
+    from replay.funnel import FunnelRow
+
+    return FunnelRow(
+        ticker=ticker,
+        entry_date=entry or (session + timedelta(days=1)),
+        eval_session=session,
+        liquidity_pass=True,
+        decile_present=present,
+        decile_pass=pass3,
+        decile_pass_five=pass5,
+        eval_percentiles={},
+        decile_verdicts={},
+        detection_pass=detection,
+        failed_condition=None,
+        first_failing_stage=None if pass3 and detection else STAGE_DECILE,
+        entry_session_break=False,
+        continuation=continuation,
+        median_dollar_volume=50_000_000.0,
+        range_3bar_adr=None,
+        sessions_since_prior_entry=None,
+    )
+
+
+def test_a_variants_gate_is_the_apps_gate_under_that_width():
+    """A variant's gate is the union of its lookbacks' top deciles, and that union
+    is *exactly* what the app's own `detection_gate` returns for the same width —
+    asserted rather than assumed, so the sweep can never drift into a second
+    definition of "top decile" (#149)."""
+    from replay.gate_sweep import GATE_VARIANTS, gate_membership, variant_gate
+
+    rows = [
+        Rank("BURST", "1w", percentile=0.99, raw_return=0.5),
+        Rank("STALE", "12m", percentile=0.97, raw_return=2.0),
+        Rank("NOW", "3m", percentile=0.95, raw_return=0.8),
+        Rank("MID", "6m", percentile=0.40, raw_return=0.1),
+    ]
+    membership = gate_membership(rows)
+
+    for variant in GATE_VARIANTS:
+        assert variant_gate(membership, variant) == detection_gate(
+            rows, lookbacks=variant.lookbacks
+        )
+    # …and the widths are what they claim: the live one admits neither excluded name.
+    assert variant_gate(membership, GATE_VARIANTS[0]) == {"NOW"}
+    assert variant_gate(membership, GATE_VARIANTS[-1]) == {"NOW", "BURST", "STALE"}
+
+
+def test_recovered_misses_are_split_by_which_lookback_admits_them():
+    """The ticket's headline: the trades a 3->5 widening recovers, decomposed into
+    `12m`-only (the stale qualifier the §4.5 exclusion exists to prevent), `1w`-only
+    (the momentum burst), both, and also-admitted-by-a-gated-lookback (#149)."""
+    from replay.gate_sweep import decompose_recovered
+
+    session = date(2021, 3, 1)
+    rows = [
+        _funnel_row("STALE", session=session),
+        _funnel_row("STALE2", session=session, continuation=True),
+        _funnel_row("BURST", session=session),
+        _funnel_row("BOTH", session=session),
+        # Not recovered: already clears the live gate, so not a miss at all.
+        _funnel_row("PASSER", session=session, pass3=True),
+        # Not recovered: absent from the field (a coverage gap), and outside every union.
+        _funnel_row("GONE", session=session, present=False, pass5=False),
+        _funnel_row("MISS", session=session, pass5=False),
+    ]
+    membership = {
+        session: {
+            "1m": set(), "3m": set(), "6m": {"PASSER"},
+            "1w": {"BURST", "BOTH"},
+            "12m": {"STALE", "STALE2", "BOTH"},
+        }
+    }
+
+    comp = decompose_recovered(rows, membership)
+
+    assert comp.total == 4
+    assert comp.stale_only == 2
+    assert comp.burst_only == 1
+    assert comp.both_excluded == 1
+    assert comp.also_gated == 0
+    assert comp.continuation == 1
+    # The four buckets partition the recovered trades, and none of them is reached
+    # through a lookback the gate already unions.
+    assert (
+        comp.stale_only + comp.burst_only + comp.both_excluded + comp.also_gated
+        == comp.total
+    )
+    assert comp.excluded_only == comp.total
+
+
+def test_a_trade_the_gate_already_admits_is_not_a_recovered_trade():
+    """`also_existing` is zero *by construction*: a name top-decile in a lookback the
+    gate already unions clears the gate, so it was never a miss for a widening to
+    recover. The bucket is carried and reported anyway, so "every recovered trade
+    arrives through an excluded lookback" is visible in the output rather than
+    assumed by the reader (#149)."""
+    from replay.gate_sweep import decompose_recovered, recovered_rows
+
+    session = date(2021, 3, 1)
+    rows = [_funnel_row("ODD", session=session)]
+    membership = {session: {"3m": {"ODD"}, "12m": {"ODD"}}}
+
+    assert recovered_rows(rows, membership) == []
+    comp = decompose_recovered(rows, membership)
+    assert comp.total == 0
+    assert comp.also_gated == 0
+
+
+def test_outcome_quality_reports_the_recovered_groups_realised_r():
+    """A recall gain is reported against the *quality* of what it recovers: mean and
+    median R and the win rate, over the trades behind the rows. A row whose trade
+    carries no outcome stays in ``n`` and out of the averages, so the group is never
+    quietly shrunk to the rows that happen to have a result (#149)."""
+    from replay.gate_sweep import outcome_quality
+
+    session = date(2021, 3, 1)
+    rows = [
+        _funnel_row("WIN", session=session, entry=date(2021, 3, 2)),
+        _funnel_row("LOSS", session=session, entry=date(2021, 3, 2)),
+        _funnel_row("NOOUT", session=session, entry=date(2021, 3, 2)),
+    ]
+    trades = {
+        (t.ticker, t.entry_date): t
+        for t in parse_trades(
+            [
+                _with_outcome(_trade_record("WIN", "2021-03-02"), r=4.0, mfe=30.0),
+                _with_outcome(_trade_record("LOSS", "2021-03-02"), r=-1.0, mfe=2.0),
+            ]
+        )
+    }
+
+    quality = outcome_quality("recovered", rows, trades)
+
+    assert quality.n == 3          # every row in the group
+    assert quality.n_with_r == 2   # only the two carrying an outcome
+    assert quality.mean_r == 1.5
+    assert quality.median_r == 1.5
+    assert quality.win_rate == 0.5
+    assert quality.mean_mfe == 16.0
+    # R is fat-tailed, so the mean is carried beside figures that survive one
+    # outlier: the top 5% (here, one of two) is trimmed off before re-meaning, the
+    # 3R tail is counted, and the best trade's share of the group's R is stated.
+    assert quality.trimmed_mean_r == -1.0
+    assert quality.big_win_rate == 0.5
+    assert quality.top_trade_r_share == pytest.approx(4.0 / 3.0)
+
+
+def _sweep_session(session: date, ranks: list[Rank], symbols: list[str]):
+    """One prepared sweep session: a hand-authored rank table and one detection per
+    name in ``symbols``, all identical so star order falls back to the ticker."""
+    from replay.gate_sweep import SweepSession, gate_membership
+
+    return SweepSession(
+        session=session,
+        members=sorted({r.symbol for r in ranks}),
+        ranks=ranks,
+        membership=gate_membership(ranks),
+        detections=[
+            dataclasses.replace(_det(symbol, cluster_k=5), session=session)
+            for symbol in symbols
+        ],
+    )
+
+
+def _widening_pass():
+    """Two sessions where each excluded lookback admits exactly one extra name:
+    NOW clears the live gate, STALE is top-decile only in 12m, BURST only in 1w,
+    and DEAD is top-decile nowhere. All but DEAD sit in a base."""
+    sessions = [date(2021, 3, 1), date(2021, 3, 2)]
+    out = []
+    for session in sessions:
+        ranks = [
+            Rank("NOW", "3m", percentile=0.95, raw_return=0.8),
+            Rank("STALE", "12m", percentile=0.97, raw_return=2.0),
+            Rank("BURST", "1w", percentile=0.99, raw_return=0.5),
+            Rank("DEAD", "3m", percentile=0.10, raw_return=0.0),
+        ]
+        out.append(_sweep_session(session, ranks, ["NOW", "STALE", "BURST"]))
+    return out
+
+
+def test_the_widened_gate_is_priced_in_added_detections_per_recovered_entry():
+    """#141's basis, mirrored for the decile gate: the widening's price is the extra
+    field volume it emits per real entry it recovers. Precision is unmeasurable, so
+    this is a *volume* ratio and never a false-positive rate (#149)."""
+    from replay.gate_sweep import GATE_VARIANTS, sweep_gates
+
+    swept = _widening_pass()
+    rows = [
+        _funnel_row("NOW", session=swept[0].session, pass3=True),
+        _funnel_row("STALE", session=swept[0].session),
+    ]
+
+    sweep = sweep_gates(swept, rows, {}, board_size=2)
+
+    base, five = sweep.variants[0], sweep.variants[-1]
+    # The live gate admits one name a session; the five-lookback union admits three.
+    assert base.field_detections == 2
+    assert five.field_detections == 6
+    # It recovers exactly the one trade admitted by 12m…
+    assert base.decile_recall.passed == 1
+    assert five.decile_recall.passed == 2
+    # …so the price is four extra detections for one recovered entry.
+    inflation = sweep.inflation[five.variant.name]
+    assert inflation.added_detections == 4
+    assert inflation.recovered_entries == 1
+    assert inflation.per_recovered_entry == 4.0
+    # The narrower widenings are priced separately, each on its own evidence.
+    assert {v.variant.name for v in sweep.variants} == {
+        v.name for v in GATE_VARIANTS
+    }
+    assert sweep.inflation["+12m (stale)"].recovered_entries == 1
+    assert sweep.inflation["+1w (burst)"].recovered_entries == 0
+
+
+def test_the_widened_gate_displaces_names_from_the_board():
+    """Board displacement: with a two-name board, the names a wider gate admits take
+    places the live gate's names held. Counted over every measured session (#149)."""
+    from replay.gate_sweep import sweep_gates
+
+    swept = _widening_pass()
+    sweep = sweep_gates(swept, [], {}, board_size=2)
+
+    base, five = sweep.variants[0], sweep.variants[-1]
+    # The live gate can only fill one of the two board places (one name is gated).
+    assert base.board_displacement == 0
+    # Under the five-union gate the board fills to two, and BURST — admitted only by
+    # 1w — takes the second place on both sessions.
+    assert five.board_displacement == 2
+
+
+def test_his_picks_in_field_and_top_thirty_counts_move_with_the_gate():
+    """What the widening does to his own entries' placement: a pick admitted only by
+    an excluded lookback appears in the field, and can reach the board (#149)."""
+    from replay.gate_sweep import sweep_gates
+
+    swept = _widening_pass()
+    rows = [_funnel_row("STALE", session=swept[0].session)]
+
+    sweep = sweep_gates(swept, rows, {}, board_size=3)
+
+    base, five = sweep.variants[0], sweep.variants[-1]
+    assert (base.picks_in_field, base.picks_on_board) == (0, 0)
+    assert (five.picks_in_field, five.picks_on_board) == (1, 1)
+
+
+def test_the_sweep_never_mutates_the_live_gate_width(store: Store):
+    """The measurement's first acceptance criterion: the gate's lookbacks are handed
+    in as a parameter, never assigned. Running the whole sweep leaves the live
+    constant exactly where it was (#149)."""
+    from screener import detection as detection_module
+    from replay.gate_sweep import sweep_gates
+
+    before = detection_module.DETECTION_LOOKBACKS
+    sweep_gates(_widening_pass(), [], {}, board_size=2)
+    assert detection_module.DETECTION_LOOKBACKS == before
+
+
+def test_the_sweep_baselines_against_the_width_it_measured_not_the_live_one():
+    """The sweep is the evidence that decided the live width, so its baseline is
+    pinned to the width the gate ran at when the question was asked. A baseline that
+    tracked `DETECTION_LOOKBACKS` would change the moment the verdict was adopted,
+    and the report could no longer be re-run to audit itself (#149)."""
+    from replay.gate_sweep import BASELINE_VARIANT, GATE_AS_MEASURED, GATE_VARIANTS
+
+    assert GATE_AS_MEASURED == ("1m", "3m", "6m")
+    assert BASELINE_VARIANT.lookbacks == GATE_AS_MEASURED
+    # Every swept width is the as-measured gate plus something, so `added` names
+    # exactly what that width re-admits.
+    for variant in GATE_VARIANTS:
+        assert set(GATE_AS_MEASURED) <= set(variant.lookbacks)
+        assert set(variant.added) == set(variant.lookbacks) - set(GATE_AS_MEASURED)
+
+
+def test_the_sweep_pass_reads_the_store_without_writing_to_it(store: Store):
+    """The pass reconstructs the forward chain from the universe rows the replay
+    store already holds and recomputes the ranks in memory — the chain's own reuse
+    path, with nothing written back. A measurement must not leave the store it
+    measured in a different state (#149)."""
+    from replay.gate_sweep import build_sweep_sessions
+
+    dates = _daily(date(2020, 1, 1), 40)
+    store.append_bars("US", "HI", _bars_from_hlc(dates, _rising_hlc(40)))
+    store.append_bars("US", "LAG", _bars_from_hlc(dates, _flat_hlc(40)))
+    chain = replay_chain(store, "US", burn_in=0)
+    sessions = [sf.session for sf in chain[-3:]]
+    counts_before = _row_counts(store)
+
+    swept = build_sweep_sessions(
+        store, "US", sessions, lookbacks=("1m", "3m", "6m", "1w", "12m")
+    )
+
+    assert [s.session for s in swept] == sessions
+    # The reconstructed pass is the chain's: the same members and the same ranks.
+    for prepared, sf in zip(swept, chain[-3:]):
+        assert prepared.members == sf.members
+        assert prepared.ranks == sf.ranks
+    assert _row_counts(store) == counts_before
+
+
+def _row_counts(store: Store) -> dict[str, int]:
+    """Row counts for every derived table — the store's state, before and after."""
+    tables = ("runs", "universe", "ranks", "detections")
+    return {
+        t: store._con.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
+        for t in tables
+    }
+
+
+def test_the_recovered_groups_are_profiled_against_the_gates_own_lookbacks():
+    """"Admitted by 12m" is not the same claim as "topped out months ago and has
+    done nothing since" — and only the second is what the §4.5 exclusion was written
+    against. Each admitting-lookback group therefore carries where its trades sat on
+    the lookbacks the gate already unions: below the field median on all three (the
+    stale qualifier, counted) against within reach of the cut (#149)."""
+    from replay.gate_sweep import FIELD_MEDIAN, NEAR_DECILE, profile_recovered
+
+    session = date(2021, 3, 1)
+
+    def _with_percentiles(ticker, pcts):
+        return dataclasses.replace(
+            _funnel_row(ticker, session=session), eval_percentiles=pcts
+        )
+
+    rows = [
+        # Genuinely stale: top-decile on 12m, mid-pack or worse on every gated one.
+        _with_percentiles("STALE", {"1m": 0.20, "3m": 0.30, "6m": 0.45, "12m": 0.96}),
+        # Admitted by 12m, but 6m had it just under the cut — not a stale qualifier.
+        _with_percentiles("NEAR", {"1m": 0.50, "3m": 0.70, "6m": 0.88, "12m": 0.95}),
+        _with_percentiles("BURST", {"1w": 0.97, "1m": 0.10, "3m": 0.05, "6m": 0.10}),
+    ]
+    membership = {
+        session: {"12m": {"STALE", "NEAR"}, "1w": {"BURST"}}
+    }
+
+    groups = {g.label: g for g in profile_recovered(rows, membership)}
+
+    stale, burst = groups["12m only"], groups["1w only"]
+    assert (stale.n, stale.dead_on_gated, stale.within_reach) == (2, 1, 1)
+    assert (burst.n, burst.dead_on_gated, burst.within_reach) == (1, 1, 0)
+    # The medians are the group's own, per lookback, off the margins #133 recorded.
+    assert stale.median_percentiles["6m"] == 0.665
+    # The two cuts are what they say they are.
+    assert FIELD_MEDIAN == 0.50 and NEAR_DECILE == 0.80
+
+
+def test_the_added_field_is_measured_for_staleness_not_only_his_trades():
+    """§4.5's worry is about what the gate *admits*, not only about which of his
+    trades a widening recovers — a widening can leave the recovered entries looking
+    healthy while flooding the list with names that topped out long ago. So each
+    width reports the share of the detections it adds that sit below the field median
+    on every lookback the live gate unions (#149)."""
+    from replay.gate_sweep import GateVariant, sweep_gates
+
+    session = date(2021, 3, 1)
+    ranks = [
+        Rank("NOW", "3m", percentile=0.95, raw_return=0.8),
+        # Admitted by 12m and genuinely dead on the gated lookbacks.
+        Rank("STALE", "12m", percentile=0.97, raw_return=2.0),
+        Rank("STALE", "3m", percentile=0.20, raw_return=0.0),
+        # Admitted by 12m but still near the cut on 6m — not stale.
+        Rank("NEAR", "12m", percentile=0.96, raw_return=1.5),
+        Rank("NEAR", "6m", percentile=0.88, raw_return=0.9),
+    ]
+    swept = [_sweep_session(session, ranks, ["NOW", "STALE", "NEAR"])]
+
+    sweep = sweep_gates(
+        swept, [], {},
+        variants=(
+            GateVariant("live", ("1m", "3m", "6m")),
+            GateVariant("+12m", ("1m", "3m", "6m", "12m")),
+        ),
+        board_size=30,
+    )
+
+    base, wider = sweep.variants
+    # The baseline adds nothing to itself, so it has no added-field share to report.
+    assert base.added_detections_total == 0 and base.added_stale_share is None
+    # The wider gate adds two names, one of which is stale on the gate's own terms.
+    assert wider.added_detections_total == 2
+    assert wider.added_detections_stale == 1
+    assert wider.added_stale_share == 0.5
+    # The going rate: with no surfaced entries there is nothing to divide by.
+    assert base.detections_per_surfaced_entry is None

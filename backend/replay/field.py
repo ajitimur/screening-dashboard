@@ -39,7 +39,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Callable, Iterable, Sequence
 
-from screener.detection import Detection, detection_gate
+from screener.detection import DETECTION_LOOKBACKS, Detection, detection_gate
 from screener.pipeline import rebuild_detections
 from screener.ranks import Rank
 from screener.score import DIMENSIONS, Dimension, star_score
@@ -179,6 +179,7 @@ def build_field(
     *,
     entered: Iterable[str] = (),
     any_entry: bool = False,
+    lookbacks: Sequence[str] = DETECTION_LOOKBACKS,
 ) -> list[ScoredDetection]:
     """Score each detection and sort into star order — the replayed candidate list.
 
@@ -193,9 +194,15 @@ def build_field(
     a *not-taken detection* when a trade was entered this session but not in its
     name (PRD user story 25), and a *taken detection* when its own name was the one
     entered — the two groups A3's selection contrast compares (issue #122).
+
+    ``lookbacks`` is the gate's lookback set, defaulting to the live
+    :data:`~screener.detection.DETECTION_LOOKBACKS`. It is a parameter only so the
+    gate-width sweep (:mod:`replay.gate_sweep`, #149) can score a field under the
+    width that admitted it — a name admitted by a widened gate holds the prior-move
+    point under that gate, and scoring it against the live gate would understate it.
     """
     entered = set(entered)
-    gated = detection_gate(ranks)
+    gated = detection_gate(ranks, lookbacks=lookbacks)
     scored = [
         (det, seven_dimension_score(det, prior_move=det.symbol in gated))
         for det in detections

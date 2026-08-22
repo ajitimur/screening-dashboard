@@ -19,6 +19,7 @@ from datetime import date, timedelta
 
 from screener.bars import Bar
 from screener.detection import (
+    DETECTION_LOOKBACKS,
     DETECTOR_VERSION,
     K_MAX,
     K_MIN,
@@ -305,17 +306,21 @@ def test_dryup_is_base_volume_over_the_preceding_fifty_bars():
     assert abs(_dryup(vol, 50, 59) - 0.4) < 1e-9
 
 
-# -- the decile gate reads only 1m / 3m / 6m ----------------------------------
+# -- the decile gate excludes 1w, and only 1w ---------------------------------
+#
+# `12m` sat in the exclusion too until #149 measured what it actually admits and
+# found the staleness the exclusion assumed did not occur; `1w` measured as the
+# genuine momentum-burst window and stayed out (ADR 0003, amendment).
 
 
-def test_detection_gate_reads_only_1m_3m_6m():
+def test_detection_gate_excludes_1w_and_nothing_else():
     rows = [
         Rank("BURST", "1w", percentile=0.99, raw_return=0.5),   # 1w excluded
-        Rank("STALE", "12m", percentile=0.99, raw_return=2.0),  # 12m excluded
+        Rank("LONG", "12m", percentile=0.99, raw_return=2.0),   # 12m counts (#149)
         Rank("REAL", "3m", percentile=0.95, raw_return=0.8),    # counts
         Rank("MID", "3m", percentile=0.50, raw_return=0.1),
     ]
-    assert detection_gate(rows) == {"REAL"}
+    assert detection_gate(rows) == {"REAL", "LONG"}
 
 
 def test_detection_gate_is_inclusive_at_the_threshold():
@@ -324,3 +329,41 @@ def test_detection_gate_is_inclusive_at_the_threshold():
         Rank("BELOW", "6m", percentile=TOP_DECILE - 1e-9, raw_return=0.2),
     ]
     assert detection_gate(rows) == {"AT"}
+
+
+# -- the gate's lookback set is injectable for measurement (#149) --------------
+#
+# Widening the gate 3->5 has to be *priced* before it is adopted, and pricing it
+# means running the whole replay under a lookback set the live app does not use.
+# The set is therefore a defaulted argument rather than a read of the module
+# constant, so a sweep never has to mutate the live value to measure an
+# alternative to it (#149).
+
+
+def test_detection_gate_defaults_to_the_module_lookbacks():
+    """Called with no lookbacks, the gate is exactly DETECTION_LOOKBACKS — the
+    live behaviour, unchanged."""
+    rows = [
+        Rank("BURST", "1w", percentile=0.99, raw_return=0.5),
+        Rank("REAL", "3m", percentile=0.95, raw_return=0.8),
+    ]
+    assert detection_gate(rows) == detection_gate(rows, lookbacks=DETECTION_LOOKBACKS)
+    assert detection_gate(rows) == {"REAL"}
+    assert "1w" not in DETECTION_LOOKBACKS
+
+
+def test_detection_gate_takes_an_injected_lookback_set():
+    """A caller measuring an alternative gate hands the lookbacks in; the live
+    constant is untouched by the call."""
+    rows = [
+        Rank("BURST", "1w", percentile=0.99, raw_return=0.5),
+        Rank("STALE", "12m", percentile=0.99, raw_return=2.0),
+        Rank("REAL", "3m", percentile=0.95, raw_return=0.8),
+    ]
+    widened = ("1m", "3m", "6m", "1w", "12m")
+    assert detection_gate(rows, lookbacks=widened) == {"BURST", "STALE", "REAL"}
+    assert detection_gate(rows, lookbacks=("12m",)) == {"STALE"}
+    # Narrower than the live gate, too — the sweep baselines against the width the
+    # gate ran at before #149 moved it.
+    assert detection_gate(rows, lookbacks=("1m", "3m", "6m")) == {"REAL"}
+    assert DETECTION_LOOKBACKS == ("1m", "3m", "6m", "12m")

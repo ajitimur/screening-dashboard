@@ -58,14 +58,24 @@ there is exactly one definition of "strong".
 
 **Decile**:
 Top 10% of a lookback's own population. The union of all five lookbacks' deciles is the
-breadth substrate — 27.2% of the universe, not 10%. It is not the gate the detector runs;
+breadth substrate — **26.5%** of the universe, not 10%. It is not the gate the detector runs;
 see **Detection gate**.
 
 **Detection gate**:
-The union of the top deciles of the *three* detection lookbacks (`1m`, `3m`, `6m`) — 19.4%
-of the universe. The cut a name must clear before the detector is consulted. Distinct from
-the five-lookback union, and materially tighter; conflating the two misattributes the
-gate's cost.
+The union of the top deciles of the *four* detection lookbacks (`1m`, `3m`, `6m`, `12m`) —
+**21.9%** of the universe. The cut a name must clear before the detector is consulted.
+Still distinct from the five-lookback union (26.5%), which adds `1w`: a name top-decile in
+the last week alone is a momentum burst, not a prior move, and it is the one window measured
+to be worth excluding. It unioned only three lookbacks, at 19.3%, until #149 measured what
+`12m` admits and found the staleness the exclusion assumed did not occur — 1 of the 49
+entries it recovers is dead on the other three windows (ADR 0003, amendment).
+
+Three widths now exist in this codebase's history — **19.3%, 21.9% and 26.5%** — and quoting
+one against a result measured under another misattributes the gate's cost. All three are from
+`references/detection_gate_sweep.txt`, over the replay's 821 measured sessions
+(2019-09-30 to 2022-12-30). ADR 0003 and findings §3 quote **19.4%** and **27.2%** for the
+outer two: the same gates over the 505 sessions the store still held ranks for. The gates are
+identical; the windows are not.
 
 **Board / leaderboard**:
 Top 30 names by raw return for one market and lookback. Five boards per market.

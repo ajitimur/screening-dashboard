@@ -32,9 +32,11 @@ Gates (a name is a detection iff all hold):
   that is *graded* by the rubric, and only a name genuinely in motion is rejected
   here (ADR 0004).
 - **Catch-up** — price is back at the 10/20 MA (step 2).
-- **Decile** — top decile in **any of 1m/3m/6m**, off the rank table
-  (:func:`detection_gate`). 1w is a momentum burst, not §3.1's big prior move;
-  12m is stale enough that a name that topped out months ago still carries it.
+- **Decile** — top decile in **any of 1m/3m/6m/12m**, off the rank table
+  (:func:`detection_gate`). Only ``1w`` is excluded: a name top-decile in the last
+  week alone is a momentum burst, not §3.1's big prior move. ``12m`` was excluded
+  on a staleness argument until #149 measured it and found the staleness did not
+  occur (ADR 0003, amendment).
 
 ``line_ok`` is **not** a gate — it becomes a sort tiebreak downstream. A name
 failing it is still emitted as a detection (spec §4.5).
@@ -57,6 +59,7 @@ from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import date
 from statistics import median
+from typing import Sequence
 
 from .bars import Bar
 from .indicators import adr as _adr
@@ -154,8 +157,20 @@ DRYUP_LOOKBACK = 50
 SMA_SUPPORT = 20
 RISING_LAG = 5
 
-# The decile gate reads only 3 of the 5 ranking windows (spec §4.5 gates).
-DETECTION_LOOKBACKS = ("1m", "3m", "6m")
+# The decile gate reads 4 of the 5 ranking windows (spec §4.5 gates, ADR 0003 as
+# amended by #149). `1w` is the one exclusion that survived measurement: a name
+# top-decile only in `1w` is a momentum burst, not §3.1's big prior move, and the
+# sweep found 35.0% of the field it adds sits below the field median on every other
+# gated window — the highest stale share of any width, bought at 4.63x the funnel's
+# own cost per entry surfaced, for 22 of Kullamägi's entries that won 4.5% of the
+# time and never once reached 3R.
+#
+# `12m` was excluded on the same reasoning and did not survive it. It was assumed to
+# admit names that topped out months ago and have done nothing since; measured, 1 of
+# the 49 entries it recovers is dead on 1m/3m/6m and the group's median 6m percentile
+# is 0.798 — names sitting just under the cut, not stale ones. See
+# `docs/adr/0003-the-decile-gate.md` (amendment) and `replay.gate_sweep`.
+DETECTION_LOOKBACKS = ("1m", "3m", "6m", "12m")
 
 # Stamped on every detection row; bump when the detector's output changes so
 # rows from different logic are never silently compared (spec §7.2 / A1).
@@ -164,7 +179,16 @@ DETECTION_LOOKBACKS = ("1m", "3m", "6m")
 # v1 session's — the funnel's denominators, the detected-count anchor and every
 # field-derived share move with it. That is exactly the comparison this stamp
 # exists to stop happening silently.
-DETECTOR_VERSION = 2
+# v3 (#149): DETECTION_LOOKBACKS admitted `12m`, so a v3 session's rows are again
+# drawn from a different population — a wider one. Every *row* is byte-identical to
+# what v2 would have emitted for the same name: the gate is applied by
+# :func:`screener.pipeline.rebuild_detections`, outside :func:`detect`, and no
+# geometry moved. But the stamp is a claim about the **population**, not about one
+# row's fields — that is the reasoning v2's own note above sets down — and this
+# change moves the population by 2.6 points of universe. Comparing a v2 session's
+# field size, or any share derived from it, against a v3 session's is the silent
+# error this exists to prevent.
+DETECTOR_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -576,14 +600,32 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
     )
 
 
-def detection_gate(rows: list[Rank]) -> set[str]:
-    """Names top-decile in **any of 1m/3m/6m** — the detection precondition.
+def detection_gate(
+    rows: list[Rank], *, lookbacks: Sequence[str] = DETECTION_LOOKBACKS
+) -> set[str]:
+    """Names top-decile in **any of 1m/3m/6m/12m** — the detection precondition.
 
-    A subset of the general union gate: 1w (a momentum burst) and 12m (stale) are
-    excluded, so a name that topped out months ago no longer qualifies on staleness
-    alone (spec §4.5 gates)."""
+    A subset of the general union gate: ``1w`` is excluded, so a name that has only
+    run for a week does not qualify on a momentum burst alone (spec §4.5 gates).
+
+    ``12m`` sat in that exclusion too, on the reasoning that a name topping out
+    months ago would qualify on staleness alone. #149 measured that population
+    rather than assuming it: of the 49 executed trades ``12m`` recovers, **one** is
+    below the field median on every other gated window, and the group's median 6m
+    percentile is 0.798 — a name still near the cut, which is what a base looks
+    like. Only 14.1% of the field ``12m`` adds is stale by the same test, against
+    35.0% for ``1w``. The window that reads as stale in prose was the less stale of
+    the two in measurement, so it was admitted and ``1w`` was not
+    (``docs/adr/0003-the-decile-gate.md``, amendment; :mod:`replay.gate_sweep`).
+
+    ``lookbacks`` defaults to :data:`DETECTION_LOOKBACKS` — the live gate, and the
+    only set the app ever runs. It is a parameter so a study can *price* an
+    alternative width (:mod:`replay.gate_sweep`, #149) by handing one in, rather
+    than mutating the module constant for the length of a measurement. Nothing in
+    :mod:`screener` passes it."""
+    wanted = set(lookbacks)
     return {
         r.symbol
         for r in rows
-        if r.lookback in DETECTION_LOOKBACKS and r.percentile >= TOP_DECILE
+        if r.lookback in wanted and r.percentile >= TOP_DECILE
     }

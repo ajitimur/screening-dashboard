@@ -7,6 +7,15 @@ This is the **walking skeleton** (ticket 27): the DuckDB store, the run record,
 the read API and the two market tabs — the disciplines every later ticket
 depends on, in place.
 
+## Evidence and plans
+
+Measured studies live in [`references/`](references/) and accepted decisions in
+[`docs/adr/`](docs/adr/). Read
+[`docs/out-of-sample-backtest-plan.md`](docs/out-of-sample-backtest-plan.md) before running,
+extending or interpreting the 2012-onward US/IDX backtest — it fixes the run contract, the
+point-in-time rules, the survivorship bound and the anchors a run reproduces before its
+figures are read.
+
 ## Layout
 
 ```

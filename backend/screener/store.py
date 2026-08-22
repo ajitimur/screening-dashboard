@@ -33,10 +33,12 @@ from .regime import FollowThrough
 # v7 the run_failures table — the per-symbol record of why a pull fell short (#91);
 # v8 the refusals table — the persisted per-symbol refusal verdict (spec §3.6, #100);
 # v9 the label_history table — the forward sector/industry record so the rubric's
-# eighth dimension is replayable going forward (issue #130, PRD #114).
+# eighth dimension is replayable going forward (issue #130, PRD #114); v10 extends
+# detections with range_3bar_adr, the ungated base tightness the graded Tightness
+# dimension reads (#154).
 # Recorded in the database on open (``schema_meta``) and reconciled against it by
 # :meth:`Store._migrate`, so an older file is upgraded rather than crashed into.
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 _SCHEMA = """
 -- The schema this database has been reconciled to. Written on every open, so
@@ -167,6 +169,10 @@ CREATE TABLE IF NOT EXISTS detections (
     cluster_high       DOUBLE  NOT NULL,
     cluster_low        DOUBLE  NOT NULL,
     cluster_range_adr  DOUBLE  NOT NULL,
+    -- Base tightness, ungated: the trailing 3-bar range in ADR. Persisted because
+    -- the rubric grades it (#154) — a breakdown must carry the value, not one
+    -- version's verdict about it. NULL on rows written before v10.
+    range_3bar_adr     DOUBLE  NOT NULL,
     line_ok            BOOLEAN NOT NULL,
     touch_zones        INTEGER NOT NULL,
     overshoot_adr      DOUBLE  NOT NULL,
@@ -680,11 +686,12 @@ class Store:
             return 0
         self._cursor().executemany(
             "INSERT INTO detections VALUES "
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 [market, session, d.symbol, d.detector_version, d.trigger, d.stop,
                  d.stopw_adr, d.base_len, d.move_gain, d.adr, d.close, d.cluster_k,
-                 d.cluster_high, d.cluster_low, d.cluster_range_adr, d.line_ok,
+                 d.cluster_high, d.cluster_low, d.cluster_range_adr,
+                 d.range_3bar_adr, d.line_ok,
                  d.touch_zones, d.overshoot_adr, d.slope, d.line_end, d.base_low,
                  d.churn_l, d.sma20_rising, d.dryup]
                 for d in rows
@@ -791,7 +798,8 @@ class Store:
         rows = self._cursor().execute(
             "SELECT symbol, detector_version, trigger, stop, stopw_adr, base_len, "
             "move_gain, adr, close, cluster_k, cluster_high, cluster_low, "
-            "cluster_range_adr, line_ok, touch_zones, overshoot_adr, slope, "
+            "cluster_range_adr, range_3bar_adr, line_ok, touch_zones, "
+            "overshoot_adr, slope, "
             "line_end, base_low, churn_l, sma20_rising, dryup FROM detections "
             "WHERE market = ? AND session = ? ORDER BY symbol",
             [market, session],
@@ -801,9 +809,10 @@ class Store:
                 symbol=r[0], session=session, detector_version=r[1], trigger=r[2],
                 stop=r[3], stopw_adr=r[4], base_len=r[5], move_gain=r[6], adr=r[7],
                 close=r[8], cluster_k=r[9], cluster_high=r[10], cluster_low=r[11],
-                cluster_range_adr=r[12], line_ok=r[13], touch_zones=r[14],
-                overshoot_adr=r[15], slope=r[16], line_end=r[17], base_low=r[18],
-                churn_l=r[19], sma20_rising=r[20], dryup=r[21],
+                cluster_range_adr=r[12], range_3bar_adr=r[13], line_ok=r[14],
+                touch_zones=r[15],
+                overshoot_adr=r[16], slope=r[17], line_end=r[18], base_low=r[19],
+                churn_l=r[20], sma20_rising=r[21], dryup=r[22],
             )
             for r in rows
         ]

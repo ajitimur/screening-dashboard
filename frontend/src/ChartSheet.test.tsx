@@ -35,16 +35,19 @@ afterEach(() => {
 });
 
 // The recalibrated rubric (PRD #138): ADR ×2, Orderliness ×1, Base length ×0,
-// nine-point ceiling. Hits here sum to 2(T)+1(O)+1(P)+1(MA) = 5 → 2.5★.
+// nine-point ceiling. Points here sum to 1(T, graded)+1(O)+1(P)+1(MA) = 4 → 2.0★.
 const BREAKDOWN = [
-  scoreRow({ dimension: "Tightness", weight: 2, hit: true }),
-  scoreRow({ dimension: "Orderliness", weight: 1, hit: true }),
-  scoreRow({ dimension: "Prior move", weight: 1, hit: true }),
-  scoreRow({ dimension: "Base length", weight: 0, hit: false }),
-  scoreRow({ dimension: "MA support", weight: 1, hit: true }),
-  scoreRow({ dimension: "Volume", weight: 1, hit: false }),
-  scoreRow({ dimension: "Sector", weight: 1, hit: false }),
-  scoreRow({ dimension: "ADR", weight: 2, hit: false }),
+  // Tightness is the graded dimension (rubric v3, #154): it carries the value it
+  // was graded on and earns part of its weight, so `points` is what totals — not
+  // `hit ? weight : 0`.
+  scoreRow({ dimension: "Tightness", weight: 2, hit: true, value: 1.31, points: 1 }),
+  scoreRow({ dimension: "Orderliness", weight: 1, hit: true, points: 1 }),
+  scoreRow({ dimension: "Prior move", weight: 1, hit: true, points: 1 }),
+  scoreRow({ dimension: "Base length", weight: 0, hit: false, points: 0 }),
+  scoreRow({ dimension: "MA support", weight: 1, hit: true, points: 1 }),
+  scoreRow({ dimension: "Volume", weight: 1, hit: false, points: 0 }),
+  scoreRow({ dimension: "Sector", weight: 1, hit: false, points: 0 }),
+  scoreRow({ dimension: "ADR", weight: 2, hit: false, points: 0 }),
 ];
 
 function target(over: Partial<SheetTarget> = {}): SheetTarget {
@@ -55,7 +58,7 @@ function target(over: Partial<SheetTarget> = {}): SheetTarget {
     sector: "Technology",
     facts: chartFacts(),
     breakdown: BREAKDOWN,
-    score: 2.5,
+    score: 2.0,
     ...over,
   };
 }
@@ -111,11 +114,28 @@ describe("the chart sheet", () => {
     for (const dim of ["Tightness", "Orderliness", "Base length", "ADR"]) {
       expect(within(breakdown).getByText(dim)).toBeInTheDocument();
     }
-    expect(breakdown.textContent).toMatch(/5\s*\/\s*9/); // 2+1+1+1 hits, nine-point ceiling
+    expect(breakdown.textContent).toMatch(/4\s*\/\s*9/); // 1+1+1+1 points, nine-point ceiling
     expect(screen.queryByTestId("chart-canvas")).not.toBeInTheDocument();
 
     release();
     await screen.findByTestId("chart-canvas");
+  });
+
+  it("totals the breakdown from points, and shows a graded row's value", async () => {
+    // Rubric v3 grades Tightness on a real value (#154), so `hit ? weight : 0` no
+    // longer totals the breakdown: a row that hit under the old boolean can still
+    // earn part of its weight. The table must add up to the star it sits beside,
+    // and show the number the partial score was read off.
+    stubChart(chartResponse());
+    render(<ChartSheet target={target()} onClose={() => {}} />);
+
+    const breakdown = screen.getByLabelText("score breakdown");
+    // Tightness is `hit: true` at weight ×2 but earned only 1 point ...
+    expect(within(breakdown).getByText("1.31 ADR")).toBeInTheDocument();
+    expect(within(breakdown).getByText("+1")).toBeInTheDocument();
+    // ... so the total is 4, not the 5 the booleans would have given.
+    expect(breakdown.textContent).toMatch(/4\s*\/\s*9\s*points/);
+    expect(breakdown.textContent).toMatch(/2★/);
   });
 
   it("asks for the 60-bar window so a mini already on screen shares the read", async () => {

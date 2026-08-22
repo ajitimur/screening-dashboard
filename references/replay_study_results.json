@@ -6,9 +6,9 @@
     "total_rows": 828,
     "rows_with_outcomes": 827,
     "distinct_tickers": 312,
-    "blind_spot_tickers": 91,
-    "blind_spot_trades": 170,
-    "blind_spot_r_share": 0.18146235009109657,
+    "blind_spot_tickers": 92,
+    "blind_spot_trades": 172,
+    "blind_spot_r_share": 0.1801709812401145,
     "blind_spot_ticker_list": [
       "ACST",
       "AGRX",
@@ -37,6 +37,7 @@
       "FMCI",
       "FNGU",
       "FSR",
+      "FUSE",
       "FUV",
       "GAN",
       "GBT",
@@ -109,64 +110,56 @@
       "decile",
       "detection"
     ],
-    "blind_spot_count": 91,
-    "continuation_count": 80,
+    "blind_spot_count": 92,
+    "continuation_count": 79,
     "condition_counts": {
       "base_length": 37,
       "catch_up": 47,
-      "cluster": 171,
-      "history": 23
+      "history": 21,
+      "cluster": 2
     },
     "recall": {
       "liquidity": {
         "passed": 598,
-        "total": 658,
+        "total": 656,
         "passed_ex_continuation": 523,
-        "total_ex_continuation": 578
+        "total_ex_continuation": 577
       },
       "decile": {
         "passed": 395,
-        "total": 658,
+        "total": 656,
         "passed_ex_continuation": 340,
-        "total_ex_continuation": 578
+        "total_ex_continuation": 577
       },
       "detection": {
-        "passed": 380,
-        "total": 658,
-        "passed_ex_continuation": 341,
-        "total_ex_continuation": 578
+        "passed": 549,
+        "total": 656,
+        "passed_ex_continuation": 487,
+        "total_ex_continuation": 577
       }
     },
     "decile_decomposition": {
-      "total_misses": 263,
-      "coverage_gap": 64,
+      "total_misses": 261,
+      "coverage_gap": 62,
       "recovered_by_five": 75,
       "outside_any_union": 124
     },
     "cluster_characterisation": {
-      "total_misses": 171,
-      "continuation": 23,
-      "fresh": 148,
-      "marginal": 113,
-      "far": 58,
+      "total_misses": 2,
+      "continuation": 0,
+      "fresh": 2,
+      "marginal": 0,
+      "far": 2,
       "range_distribution": {
-        "n": 171,
-        "min": 1.5005211162855177,
-        "p25": 1.6774024501426439,
-        "median": 1.8463568887735862,
-        "p75": 2.1311034652874445,
+        "n": 2,
+        "min": 3.1760761746286734,
+        "p25": 3.237975396862097,
+        "median": 3.2998746190955206,
+        "p75": 3.3617738413289437,
         "max": 3.4236730635623673,
-        "mean": 1.9287130434823787
+        "mean": 3.2998746190955206
       },
-      "prior_distance_distribution": {
-        "n": 23,
-        "min": 2.0,
-        "p25": 2.0,
-        "median": 4.0,
-        "p75": 5.0,
-        "max": 5.0,
-        "mean": 3.5652173913043477
-      }
+      "prior_distance_distribution": null
     },
     "rows": [
       {
@@ -563,13 +556,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 611454604.8660278,
-        "range_3bar_adr": 1.9587627488253347,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -675,13 +668,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 79252000.27713776,
-        "range_3bar_adr": 2.897516755992205,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -737,13 +730,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 9800056691.139221,
-        "range_3bar_adr": 1.686945316315257,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 36
       },
       {
@@ -802,7 +795,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 456272713.1187439,
         "range_3bar_adr": null,
@@ -830,13 +823,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 70026006.8894515,
-        "range_3bar_adr": 2.229686935572363,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 10
       },
       {
@@ -861,13 +854,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 335001861.68518066,
-        "range_3bar_adr": 1.7057044579797342,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -923,13 +916,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 1345779639.7636414,
-        "range_3bar_adr": 1.540386171426201,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 5
       },
       {
@@ -954,13 +947,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 143630072.34592438,
-        "range_3bar_adr": 2.441926846438304,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 180
       },
       {
@@ -992,13 +985,13 @@
         "decile_pass_five": false,
         "eval_percentiles": {},
         "decile_verdicts": {},
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "liquidity",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 5942330.0,
-        "range_3bar_adr": 1.7912054260176922,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -1054,13 +1047,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 226779744.19927597,
-        "range_3bar_adr": 1.7895624302526467,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -1207,13 +1200,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 647993179.814107,
-        "range_3bar_adr": 2.2719974001012204,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 79
       },
       {
@@ -1238,13 +1231,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 21559970.617842674,
-        "range_3bar_adr": 2.1133611975423965,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -1269,13 +1262,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 349522601.72777176,
-        "range_3bar_adr": 1.694826084253021,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 46
       },
       {
@@ -1331,13 +1324,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 70000226.87988281,
-        "range_3bar_adr": 2.070156988408644,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -1610,13 +1603,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1140808375.9490967,
-        "range_3bar_adr": 1.7637848851465416,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 98
       },
       {
@@ -1641,13 +1634,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 115875285.1701994,
-        "range_3bar_adr": 1.5521175126007583,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -1848,13 +1841,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 115022318.82751465,
-        "range_3bar_adr": 2.0960513936987373,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 84
       },
       {
@@ -1910,13 +1903,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 918960763.9808655,
-        "range_3bar_adr": 1.8623305160093482,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -1932,7 +1925,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "liquidity",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 9431878.951015472,
         "range_3bar_adr": null,
@@ -1960,13 +1953,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 326326086.1579895,
-        "range_3bar_adr": 1.5621764691711297,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -2052,7 +2045,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 44365778.65486145,
         "range_3bar_adr": null,
@@ -2264,13 +2257,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 261445578.57484818,
-        "range_3bar_adr": 1.6951207252456688,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -2295,13 +2288,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 22344449.0295887,
-        "range_3bar_adr": 1.9495426887742981,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -2503,7 +2496,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 896629641.1212921,
         "range_3bar_adr": null,
@@ -2565,7 +2558,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 650970946.8429565,
         "range_3bar_adr": null,
@@ -2736,13 +2729,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 168261508.4049225,
-        "range_3bar_adr": 2.42487652704151,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 291
       },
       {
@@ -2908,13 +2901,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 489615679.2907715,
-        "range_3bar_adr": 1.676154719717951,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 100
       },
       {
@@ -3018,13 +3011,13 @@
           "3m": false,
           "6m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 25035714.332504272,
-        "range_3bar_adr": 1.7072662303504875,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -3081,7 +3074,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1154369041.9448853,
         "range_3bar_adr": null,
@@ -3221,13 +3214,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 605970307.1372986,
-        "range_3bar_adr": 1.7329374782109446,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -3250,13 +3243,13 @@
           "3m": true,
           "6m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 386696371.79374695,
-        "range_3bar_adr": 1.535010402678797,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 33
       },
       {
@@ -3480,13 +3473,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 345299831.6078186,
-        "range_3bar_adr": 1.7090395800485292,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -3571,13 +3564,13 @@
           "3m": true,
           "6m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 49628236.06438446,
-        "range_3bar_adr": 2.070333290554004,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 29
       },
       {
@@ -3602,13 +3595,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 84284160.58120728,
-        "range_3bar_adr": 1.705022137067258,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -3736,7 +3729,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 220947017.53234863,
         "range_3bar_adr": null,
@@ -3795,13 +3788,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 119765187.40844727,
-        "range_3bar_adr": 2.0336966748602343,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 29
       },
       {
@@ -3911,13 +3904,13 @@
           "1m": false,
           "3m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 29066940.130329132,
-        "range_3bar_adr": 1.6575167691259562,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -4097,13 +4090,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 673029282.611618,
-        "range_3bar_adr": 2.4000530423590627,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 24
       },
       {
@@ -4128,13 +4121,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 406011141.1628723,
-        "range_3bar_adr": 1.6659308338686272,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 126
       },
       {
@@ -4159,13 +4152,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 149816005.12161255,
-        "range_3bar_adr": 2.5953080640877406,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 15
       },
       {
@@ -4193,7 +4186,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 420001621.17233276,
         "range_3bar_adr": null,
@@ -4284,7 +4277,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 387786575.70610046,
         "range_3bar_adr": null,
@@ -4406,7 +4399,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 212291740.21148682,
         "range_3bar_adr": null,
@@ -4558,13 +4551,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 673783525.1858711,
-        "range_3bar_adr": 1.5157500721579225,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -4707,13 +4700,13 @@
           "3m": true,
           "6m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 2061947527.7755737,
-        "range_3bar_adr": 1.6363867882521852,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -4738,13 +4731,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 215936942.33589172,
-        "range_3bar_adr": 1.5009251582531586,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -4769,13 +4762,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 35181954.34188843,
-        "range_3bar_adr": 2.891016540497,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -4803,7 +4796,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 465558358.2763672,
         "range_3bar_adr": null,
@@ -4855,7 +4848,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 54710941.791381836,
         "range_3bar_adr": null,
@@ -4917,7 +4910,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 493873034.88702774,
         "range_3bar_adr": null,
@@ -4976,13 +4969,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1367755290.737152,
-        "range_3bar_adr": 1.6407318457379738,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -5007,33 +5000,14 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 219530122.22604752,
-        "range_3bar_adr": 1.9744089356451626,
-        "sessions_since_prior_entry": 13
-      },
-      {
-        "ticker": "FUSE",
-        "entry_date": "2021-01-07",
-        "eval_session": "2021-01-06",
-        "liquidity_pass": false,
-        "decile_present": false,
-        "decile_pass": false,
-        "decile_pass_five": false,
-        "eval_percentiles": {},
-        "decile_verdicts": {},
-        "detection_pass": false,
-        "failed_condition": "history",
-        "first_failing_stage": "liquidity",
-        "entry_session_break": false,
-        "continuation": true,
-        "median_dollar_volume": 0.0,
         "range_3bar_adr": null,
-        "sessions_since_prior_entry": 3
+        "sessions_since_prior_entry": 13
       },
       {
         "ticker": "Z",
@@ -5088,13 +5062,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 37641779.15496826,
-        "range_3bar_adr": 1.549635148205623,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -5119,13 +5093,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 116606962.43171692,
-        "range_3bar_adr": 1.5005211162855177,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 50
       },
       {
@@ -5150,13 +5124,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 38744559.283447266,
-        "range_3bar_adr": 2.371444143799495,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 7
       },
       {
@@ -5575,7 +5549,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 428396111.4692688,
         "range_3bar_adr": null,
@@ -5591,13 +5565,13 @@
         "decile_pass_five": false,
         "eval_percentiles": {},
         "decile_verdicts": {},
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "liquidity",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 13500012.119293213,
-        "range_3bar_adr": 1.6983510058126614,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -5682,13 +5656,13 @@
           "3m": false,
           "6m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 20266344.168395996,
-        "range_3bar_adr": 2.148845733032492,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 5
       },
       {
@@ -5775,13 +5749,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 657073226.791954,
-        "range_3bar_adr": 1.779747869619248,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 50
       },
       {
@@ -5837,13 +5811,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 30438425.98876953,
-        "range_3bar_adr": 1.7762545897214652,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 8
       },
       {
@@ -5902,7 +5876,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 60209601.38320923,
         "range_3bar_adr": null,
@@ -5930,13 +5904,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1400720739.163971,
-        "range_3bar_adr": 1.6243248609721344,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 37
       },
       {
@@ -6023,13 +5997,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 681138910.0650787,
-        "range_3bar_adr": 1.7493824738593045,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -6178,13 +6152,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 354236136.3178253,
-        "range_3bar_adr": 2.205039020418428,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 60
       },
       {
@@ -6243,7 +6217,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 330127534.17282104,
         "range_3bar_adr": null,
@@ -6333,13 +6307,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 799178138.6112213,
-        "range_3bar_adr": 1.968065154476879,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -6364,13 +6338,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 34742799566.79382,
-        "range_3bar_adr": 1.8469444022790023,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 15
       },
       {
@@ -6455,13 +6429,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 240981423.097229,
-        "range_3bar_adr": 1.9681587197977028,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -6486,13 +6460,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 4400042379.627991,
-        "range_3bar_adr": 1.75527546772622,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -6548,13 +6522,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 239370369.2346573,
-        "range_3bar_adr": 1.6415478750060233,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 9
       },
       {
@@ -6610,13 +6584,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 33349061.134783745,
-        "range_3bar_adr": 1.9548105193904672,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 30
       },
       {
@@ -6730,13 +6704,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 4774774708.453369,
-        "range_3bar_adr": 1.7824046620760374,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 7
       },
       {
@@ -6790,13 +6764,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 99886161.9146347,
-        "range_3bar_adr": 2.1830437319269307,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 464
       },
       {
@@ -6821,13 +6795,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 739621341.0491943,
-        "range_3bar_adr": 1.8267441889958373,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -6855,7 +6829,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 49449590.333366394,
         "range_3bar_adr": null,
@@ -6883,13 +6857,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 280490549.5063782,
-        "range_3bar_adr": 1.8463568887735862,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 102
       },
       {
@@ -6977,7 +6951,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 218999374.86495972,
         "range_3bar_adr": null,
@@ -7034,13 +7008,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 533122492.12646484,
-        "range_3bar_adr": 2.31000887697007,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7065,13 +7039,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 533177349.51782227,
-        "range_3bar_adr": 2.152611341098387,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 12
       },
       {
@@ -7189,13 +7163,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 25758650564.190674,
-        "range_3bar_adr": 1.706615527917372,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 31
       },
       {
@@ -7220,13 +7194,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 355034179.4075012,
-        "range_3bar_adr": 1.6822811425686348,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 38
       },
       {
@@ -7249,13 +7223,13 @@
           "3m": true,
           "6m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 182814663.33332062,
-        "range_3bar_adr": 1.7365648678801109,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7280,13 +7254,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1117746978.1082153,
-        "range_3bar_adr": 1.9250460849204971,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 9
       },
       {
@@ -7312,7 +7286,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1829680497.9499817,
         "range_3bar_adr": null,
@@ -7459,7 +7433,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 810810152.5054932,
         "range_3bar_adr": null,
@@ -7549,13 +7523,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1327032006.952858,
-        "range_3bar_adr": 2.523307034056742,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 188
       },
       {
@@ -7702,13 +7676,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1061729514.617157,
-        "range_3bar_adr": 1.5686492980688551,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7764,13 +7738,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 640503509.3799591,
-        "range_3bar_adr": 1.8207341611541634,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 8
       },
       {
@@ -7795,13 +7769,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 117063646.9116211,
-        "range_3bar_adr": 2.435427322663399,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7829,7 +7803,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 783768048.9233017,
         "range_3bar_adr": null,
@@ -7857,13 +7831,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 70737153.47366333,
-        "range_3bar_adr": 2.149713874691997,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 207
       },
       {
@@ -8062,13 +8036,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 681138910.0650787,
-        "range_3bar_adr": 1.7206687837480672,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 5
       },
       {
@@ -8096,7 +8070,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 13931725491.645813,
         "range_3bar_adr": null,
@@ -8186,13 +8160,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1766039968.4448242,
-        "range_3bar_adr": 2.2447147985890377,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -8217,13 +8191,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 782485812.8181458,
-        "range_3bar_adr": 1.8816974901696728,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 24
       },
       {
@@ -8279,13 +8253,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 233286248.2788086,
-        "range_3bar_adr": 1.5338928857001626,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 30
       },
       {
@@ -8344,7 +8318,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 26395669.073867798,
         "range_3bar_adr": null,
@@ -8375,7 +8349,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 735467092.3843384,
         "range_3bar_adr": null,
@@ -8403,13 +8377,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 69514344.54345703,
-        "range_3bar_adr": 2.1732831446739524,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 5
       },
       {
@@ -8465,13 +8439,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 539063630.0041199,
-        "range_3bar_adr": 2.3166497428678947,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -8527,13 +8501,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 188828629.49127674,
-        "range_3bar_adr": 1.5841599254662733,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 90
       },
       {
@@ -8561,7 +8535,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 151090892.49664307,
         "range_3bar_adr": null,
@@ -8589,13 +8563,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 209884102.4963379,
-        "range_3bar_adr": 1.9561818426577966,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 284
       },
       {
@@ -8651,13 +8625,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 27093136547.47467,
-        "range_3bar_adr": 1.8815927451280723,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -8685,7 +8659,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 503464658.2710266,
         "range_3bar_adr": null,
@@ -8744,13 +8718,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 394226167.6742554,
-        "range_3bar_adr": 1.5704200534348276,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 20
       },
       {
@@ -8837,13 +8811,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 341771586.9846344,
-        "range_3bar_adr": 2.1911719310848947,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 5
       },
       {
@@ -8871,7 +8845,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1542924724.9679565,
         "range_3bar_adr": null,
@@ -8902,7 +8876,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1253181785.974121,
         "range_3bar_adr": null,
@@ -8931,7 +8905,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 55181969.03514862,
         "range_3bar_adr": null,
@@ -8962,7 +8936,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 142015781.17141724,
         "range_3bar_adr": null,
@@ -8993,7 +8967,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 721969135.461998,
         "range_3bar_adr": null,
@@ -9174,13 +9148,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 211720624.4874153,
-        "range_3bar_adr": 1.5393277958315748,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 118
       },
       {
@@ -9330,7 +9304,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 213609588.39263916,
         "range_3bar_adr": null,
@@ -9419,7 +9393,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 100245491.1037445,
         "range_3bar_adr": null,
@@ -9507,13 +9481,13 @@
           "3m": true,
           "6m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 395519478.35731506,
-        "range_3bar_adr": 2.0530517361592584,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 119
       },
       {
@@ -9538,13 +9512,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 625036241.0903931,
-        "range_3bar_adr": 2.0008925318934216,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -9597,7 +9571,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 557782527.1476746,
         "range_3bar_adr": null,
@@ -9659,7 +9633,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 232754383.01296234,
         "range_3bar_adr": null,
@@ -9740,7 +9714,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 181378004.45518494,
         "range_3bar_adr": null,
@@ -9771,7 +9745,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 861103095.7004547,
         "range_3bar_adr": null,
@@ -9830,13 +9804,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 178327818.35784912,
-        "range_3bar_adr": 1.9593656786761882,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -9861,13 +9835,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 646491620.4051971,
-        "range_3bar_adr": 2.0407245413428354,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 27
       },
       {
@@ -9895,7 +9869,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 832241157.4047089,
         "range_3bar_adr": null,
@@ -9985,13 +9959,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 232921472.48535156,
-        "range_3bar_adr": 2.0888342654479377,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -10047,13 +10021,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 9333418632.803726,
-        "range_3bar_adr": 1.8125244140385905,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 297
       },
       {
@@ -10078,13 +10052,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 152817187.61634827,
-        "range_3bar_adr": 1.8694549365107582,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -10107,13 +10081,13 @@
           "3m": false,
           "6m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 183337952.444458,
-        "range_3bar_adr": 1.7302212177152776,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -10169,13 +10143,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1054989450.7527351,
-        "range_3bar_adr": 1.6786501805673368,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -10234,7 +10208,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1586520295.1202393,
         "range_3bar_adr": null,
@@ -10312,13 +10286,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 939135046.7132568,
-        "range_3bar_adr": 1.8020499086435777,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 31
       },
       {
@@ -10439,7 +10413,7 @@
         "detection_pass": false,
         "failed_condition": "cluster",
         "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 426197359.8083496,
         "range_3bar_adr": 3.1760761746286734,
@@ -10467,13 +10441,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 86511651.63536072,
-        "range_3bar_adr": 2.038504882136336,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -10501,7 +10475,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 112455536.54642105,
         "range_3bar_adr": null,
@@ -10684,13 +10658,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 402874360.20851135,
-        "range_3bar_adr": 2.100900869380394,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -10746,13 +10720,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 455726173.2154846,
-        "range_3bar_adr": 1.8296427077115094,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -10836,7 +10810,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1269338812.7301025,
         "range_3bar_adr": null,
@@ -10893,13 +10867,13 @@
           "3m": false,
           "6m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 159975706.92100525,
-        "range_3bar_adr": 1.762280597065675,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -11015,13 +10989,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 806011017.1348572,
-        "range_3bar_adr": 1.6686663684292775,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -11046,13 +11020,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 394150799.1897583,
-        "range_3bar_adr": 1.8760616819330336,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -11080,7 +11054,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 258926417.17071533,
         "range_3bar_adr": null,
@@ -11142,7 +11116,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1950161898.4294891,
         "range_3bar_adr": null,
@@ -11173,7 +11147,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1269687769.7486877,
         "range_3bar_adr": null,
@@ -11189,13 +11163,13 @@
         "decile_pass_five": false,
         "eval_percentiles": {},
         "decile_verdicts": {},
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "liquidity",
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 18876338.605880737,
-        "range_3bar_adr": 1.64856350684852,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 399
       },
       {
@@ -11278,13 +11252,13 @@
           "3m": true,
           "6m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 70240206.61621094,
-        "range_3bar_adr": 2.714881144167653,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -11309,13 +11283,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 994098371.5763092,
-        "range_3bar_adr": 2.2671495317458072,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -11390,13 +11364,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 2958806587.703705,
-        "range_3bar_adr": 2.4769365488930037,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 26
       },
       {
@@ -11653,13 +11627,13 @@
           "3m": false,
           "6m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 57309918.8123703,
-        "range_3bar_adr": 2.156205863967897,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -11684,13 +11658,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 150032554.11186218,
-        "range_3bar_adr": 2.0604056171684904,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -11746,13 +11720,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 363695032.5562744,
-        "range_3bar_adr": 1.6461314080463239,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 19
       },
       {
@@ -11859,7 +11833,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 54295551.62780285,
         "range_3bar_adr": null,
@@ -11949,13 +11923,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 870874189.3493652,
-        "range_3bar_adr": 2.161282344408914,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -11980,13 +11954,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 403030651.66778564,
-        "range_3bar_adr": 1.5946933154113194,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 22
       },
       {
@@ -12040,13 +12014,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 359418732.30514526,
-        "range_3bar_adr": 1.6934731423193117,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 91
       },
       {
@@ -12105,7 +12079,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 234842396.4668274,
         "range_3bar_adr": null,
@@ -12133,13 +12107,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 408710001.98604584,
-        "range_3bar_adr": 2.466671605646029,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -12198,7 +12172,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 5827553348.057556,
         "range_3bar_adr": null,
@@ -12257,13 +12231,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 56904045.52838802,
-        "range_3bar_adr": 1.5641428779728859,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -12477,7 +12451,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 54570804.26559448,
         "range_3bar_adr": null,
@@ -12537,7 +12511,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 182787046.29592896,
         "range_3bar_adr": null,
@@ -12565,13 +12539,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 562520150.1903534,
-        "range_3bar_adr": 1.6868368174393762,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 26
       },
       {
@@ -12594,13 +12568,13 @@
           "3m": false,
           "6m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 20579681.033706665,
-        "range_3bar_adr": 1.6325335325642252,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 12
       },
       {
@@ -12686,7 +12660,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 299223555.0945282,
         "range_3bar_adr": null,
@@ -12717,7 +12691,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 199090497.8942871,
         "range_3bar_adr": null,
@@ -12841,7 +12815,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 251984776.9809723,
         "range_3bar_adr": null,
@@ -12965,7 +12939,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 430873260.3178024,
         "range_3bar_adr": null,
@@ -12993,13 +12967,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 564280651.5701294,
-        "range_3bar_adr": 2.4270945080278934,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 10
       },
       {
@@ -13055,13 +13029,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1290957716.8075562,
-        "range_3bar_adr": 1.89900244881799,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 90
       },
       {
@@ -13177,13 +13151,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 559186313.571167,
-        "range_3bar_adr": 1.7124909557585701,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 77
       },
       {
@@ -13304,7 +13278,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 606131654.7805786,
         "range_3bar_adr": null,
@@ -13361,13 +13335,13 @@
           "3m": true,
           "6m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 351599771.47865295,
-        "range_3bar_adr": 2.284157410386644,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 47
       },
       {
@@ -13392,13 +13366,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 757078494.1532135,
-        "range_3bar_adr": 2.2234329574931024,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 30
       },
       {
@@ -13516,13 +13490,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 263144593.0229187,
-        "range_3bar_adr": 1.77243027701507,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -13579,7 +13553,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 160150974.2904663,
         "range_3bar_adr": null,
@@ -13732,7 +13706,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 125075137.71514893,
         "range_3bar_adr": null,
@@ -13792,7 +13766,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 151416574.1672516,
         "range_3bar_adr": null,
@@ -13882,13 +13856,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 241229453.56537056,
-        "range_3bar_adr": 1.8998567235102362,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 27
       },
       {
@@ -13938,13 +13912,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 648400354.0878296,
-        "range_3bar_adr": 1.643815058566333,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 110
       },
       {
@@ -13969,13 +13943,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1334350783.121109,
-        "range_3bar_adr": 2.0233503187198334,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 73
       },
       {
@@ -14096,7 +14070,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 568093685.9736443,
         "range_3bar_adr": null,
@@ -14127,7 +14101,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 2869848081.192398,
         "range_3bar_adr": null,
@@ -14217,13 +14191,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 265871899.6887207,
-        "range_3bar_adr": 2.171919391907321,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -14248,13 +14222,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 328359613.36502075,
-        "range_3bar_adr": 1.7227168566883935,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 9
       },
       {
@@ -14313,7 +14287,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 238201986.5715027,
         "range_3bar_adr": null,
@@ -14391,13 +14365,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 41361520.5242157,
-        "range_3bar_adr": 1.5525373740879183,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -14422,13 +14396,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 58896824.39804077,
-        "range_3bar_adr": 2.184630234735632,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -14453,13 +14427,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 603715868.3898926,
-        "range_3bar_adr": 1.593013769166573,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -14549,7 +14523,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 261969128.42407227,
         "range_3bar_adr": null,
@@ -14577,13 +14551,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 505215350.3528595,
-        "range_3bar_adr": 1.7702665904811545,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 71
       },
       {
@@ -14728,13 +14702,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 884604520.9510803,
-        "range_3bar_adr": 1.973516632073895,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 187
       },
       {
@@ -14759,13 +14733,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 409317475.3015518,
-        "range_3bar_adr": 2.490681386689015,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 9
       },
       {
@@ -14788,13 +14762,13 @@
           "3m": false,
           "6m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 298921630.0,
-        "range_3bar_adr": 1.6492202696562759,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -14838,13 +14812,13 @@
         "decile_pass_five": false,
         "eval_percentiles": {},
         "decile_verdicts": {},
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "liquidity",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 6190896.9886779785,
-        "range_3bar_adr": 2.6984021174314825,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -14900,13 +14874,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 755517127.7927399,
-        "range_3bar_adr": 2.7296617146208715,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 22
       },
       {
@@ -14934,7 +14908,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 563093671.0090637,
         "range_3bar_adr": null,
@@ -15085,7 +15059,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 102984916.65434837,
         "range_3bar_adr": null,
@@ -15113,13 +15087,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 37673618.52769852,
-        "range_3bar_adr": 1.555905732312668,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 10
       },
       {
@@ -15175,13 +15149,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 32890232.208251953,
-        "range_3bar_adr": 2.2492538195875507,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 59
       },
       {
@@ -15207,7 +15181,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 54095493.56272888,
         "range_3bar_adr": null,
@@ -15378,13 +15352,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 549203832.5939178,
-        "range_3bar_adr": 1.9208057067606292,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 76
       },
       {
@@ -15469,25 +15443,6 @@
         "sessions_since_prior_entry": null
       },
       {
-        "ticker": "FUSE",
-        "entry_date": "2021-01-04",
-        "eval_session": "2020-12-31",
-        "liquidity_pass": false,
-        "decile_present": false,
-        "decile_pass": false,
-        "decile_pass_five": false,
-        "eval_percentiles": {},
-        "decile_verdicts": {},
-        "detection_pass": false,
-        "failed_condition": "history",
-        "first_failing_stage": "liquidity",
-        "entry_session_break": false,
-        "continuation": false,
-        "median_dollar_volume": 0.0,
-        "range_3bar_adr": null,
-        "sessions_since_prior_entry": null
-      },
-      {
         "ticker": "FUTU",
         "entry_date": "2021-03-16",
         "eval_session": "2021-03-15",
@@ -15512,7 +15467,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1966726581.4117432,
         "range_3bar_adr": null,
@@ -15752,7 +15707,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 250658145.47157288,
         "range_3bar_adr": null,
@@ -15780,13 +15735,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 107123525.09689331,
-        "range_3bar_adr": 2.4957177955842185,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15923,13 +15878,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 431115386.3937378,
-        "range_3bar_adr": 1.519390810367637,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 91
       },
       {
@@ -15942,13 +15897,13 @@
         "decile_pass_five": false,
         "eval_percentiles": {},
         "decile_verdicts": {},
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "liquidity",
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 294185.98980903625,
-        "range_3bar_adr": 1.9800527917850324,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -16035,13 +15990,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 302759825.61893463,
-        "range_3bar_adr": 1.6872881830599367,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -16181,7 +16136,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 278677478.70788574,
         "range_3bar_adr": null,
@@ -16209,13 +16164,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 33786726457.24182,
-        "range_3bar_adr": 1.8548593906698618,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 5
       },
       {
@@ -16336,7 +16291,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 646672421.6972351,
         "range_3bar_adr": null,
@@ -16364,13 +16319,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 61776499.34310913,
-        "range_3bar_adr": 2.1799605802205275,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -16383,13 +16338,13 @@
         "decile_pass_five": false,
         "eval_percentiles": {},
         "decile_verdicts": {},
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "liquidity",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 3648408.9710235596,
-        "range_3bar_adr": 2.073367494788934,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -16445,13 +16400,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1142989040.638733,
-        "range_3bar_adr": 1.7987223873889335,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 66
       },
       {
@@ -16505,13 +16460,13 @@
           "3m": true,
           "6m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 288600923.20098877,
-        "range_3bar_adr": 1.6514522705405943,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 7
       },
       {
@@ -16534,13 +16489,13 @@
           "3m": false,
           "6m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 46815433.97426605,
-        "range_3bar_adr": 1.7332702872448464,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -16646,13 +16601,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 547610625.704956,
-        "range_3bar_adr": 1.9228595029181579,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 432
       },
       {
@@ -16768,13 +16723,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 211272709.88826752,
-        "range_3bar_adr": 1.6121068609688294,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -16799,13 +16754,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 433225925.4764557,
-        "range_3bar_adr": 1.616324590093261,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 13
       },
       {
@@ -17002,13 +16957,13 @@
         "decile_pass_five": false,
         "eval_percentiles": {},
         "decile_verdicts": {},
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "liquidity",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 9149115.893936157,
-        "range_3bar_adr": 2.2871198612425734,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -17067,7 +17022,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 71053193.42422485,
         "range_3bar_adr": null,
@@ -17083,13 +17038,13 @@
         "decile_pass_five": false,
         "eval_percentiles": {},
         "decile_verdicts": {},
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "liquidity",
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 14921594.76829052,
-        "range_3bar_adr": 1.6693827712444853,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 9
       },
       {
@@ -17114,13 +17069,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 350134125.6767273,
-        "range_3bar_adr": 1.6445846979600511,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -17148,7 +17103,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 72353514.48822021,
         "range_3bar_adr": null,
@@ -17236,13 +17191,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 851038562.7319336,
-        "range_3bar_adr": 2.079824869089526,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 62
       },
       {
@@ -17267,13 +17222,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 346381920.5505371,
-        "range_3bar_adr": 1.6662457526613292,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 86
       },
       {
@@ -17469,7 +17424,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 44424495.2221632,
         "range_3bar_adr": null,
@@ -17531,7 +17486,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 82408511.18564606,
         "range_3bar_adr": null,
@@ -17562,7 +17517,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 103485719.67811584,
         "range_3bar_adr": null,
@@ -17590,13 +17545,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "decile",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 513931582.78656006,
-        "range_3bar_adr": 1.9167443805974453,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 121
       },
       {
@@ -17649,7 +17604,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": null,
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 37590277.93159485,
         "range_3bar_adr": null,
@@ -17797,13 +17752,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 433747757.0640564,
-        "range_3bar_adr": 1.732346169291726,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 130
       },
       {
@@ -17890,13 +17845,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 488415051.7738342,
-        "range_3bar_adr": 1.6124083943766316,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18191,13 +18146,13 @@
           "6m": false,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 212312692.85125732,
-        "range_3bar_adr": 1.8632642254528433,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 144
       },
       {
@@ -18423,13 +18378,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 28910449.16419983,
-        "range_3bar_adr": 1.7685434767345012,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -18503,7 +18458,7 @@
         "detection_pass": true,
         "failed_condition": null,
         "first_failing_stage": "liquidity",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 18111610.0,
         "range_3bar_adr": null,
@@ -18548,13 +18503,13 @@
         "decile_pass_five": false,
         "eval_percentiles": {},
         "decile_verdicts": {},
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "liquidity",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 14919048.374772072,
-        "range_3bar_adr": 1.8037106097531106,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 9
       },
       {
@@ -18648,13 +18603,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 812808417.7631378,
-        "range_3bar_adr": 2.203253523002488,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -18696,13 +18651,13 @@
           "3m": true,
           "6m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 90912243.82572174,
-        "range_3bar_adr": 2.193412484345611,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18758,13 +18713,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 120628685.81643105,
-        "range_3bar_adr": 1.9178765372565159,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18789,13 +18744,13 @@
           "6m": true,
           "12m": false
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 28052267.162275314,
-        "range_3bar_adr": 1.5473981914330113,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18942,7 +18897,7 @@
         "detection_pass": false,
         "failed_condition": "base_length",
         "first_failing_stage": "liquidity",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 12136086.31927967,
         "range_3bar_adr": null,
@@ -18970,13 +18925,13 @@
           "6m": false,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 105022284.73235607,
-        "range_3bar_adr": 1.9646170219864627,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 183
       },
       {
@@ -19001,13 +18956,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 38756283.17292929,
-        "range_3bar_adr": 1.8892056888012305,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19033,7 +18988,7 @@
         "detection_pass": false,
         "failed_condition": "base_length",
         "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 25775558.0,
         "range_3bar_adr": null,
@@ -19109,13 +19064,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
-        "entry_session_break": false,
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 636427760.4358673,
-        "range_3bar_adr": 1.6710947083366972,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 10
       },
       {
@@ -19197,13 +19152,13 @@
         "decile_pass_five": false,
         "eval_percentiles": {},
         "decile_verdicts": {},
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "liquidity",
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 49579.50061559677,
-        "range_3bar_adr": 1.6023395267090115,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19366,13 +19321,13 @@
         "decile_pass_five": false,
         "eval_percentiles": {},
         "decile_verdicts": {},
-        "detection_pass": false,
-        "failed_condition": "cluster",
+        "detection_pass": true,
+        "failed_condition": null,
         "first_failing_stage": "liquidity",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 929879.1655960083,
-        "range_3bar_adr": 1.563707684981835,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19495,13 +19450,13 @@
           "6m": true,
           "12m": true
         },
-        "detection_pass": false,
-        "failed_condition": "cluster",
-        "first_failing_stage": "detection",
+        "detection_pass": true,
+        "failed_condition": null,
+        "first_failing_stage": null,
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 28329912.497663498,
-        "range_3bar_adr": 1.7306853638581172,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 5
       },
       {
@@ -19517,7 +19472,7 @@
         "detection_pass": false,
         "failed_condition": "catch_up",
         "first_failing_stage": "liquidity",
-        "entry_session_break": false,
+        "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 287160.0,
         "range_3bar_adr": null,
@@ -19577,98 +19532,126 @@
   },
   "placement": {
     "board_size": 30,
-    "blind_spot_count": 91,
+    "blind_spot_count": 92,
     "scope": "US 2019\u20132022",
-    "in_field_count": 104,
-    "top_thirty_count": 45,
+    "in_field_count": 159,
+    "top_thirty_count": 43,
     "picks": {
-      "total": 104,
+      "total": 159,
       "counts": {
         "4.0": 4,
-        "3.5": 11,
-        "3.0": 22,
-        "2.5": 36,
-        "2.0": 15,
-        "1.5": 9,
-        "1.0": 4,
-        "0.5": 3
+        "3.5": 14,
+        "3.0": 54,
+        "2.5": 43,
+        "2.0": 29,
+        "1.5": 12,
+        "1.0": 3
       }
     },
     "field": {
-      "total": 14239,
+      "total": 29096,
       "counts": {
-        "4.0": 342,
-        "3.5": 916,
-        "3.0": 2531,
-        "2.5": 3014,
-        "2.0": 3259,
-        "1.5": 2649,
-        "1.0": 1132,
-        "0.5": 396
+        "4.0": 197,
+        "3.5": 1767,
+        "3.0": 4750,
+        "2.5": 7858,
+        "2.0": 7554,
+        "1.5": 4675,
+        "1.0": 1892,
+        "0.5": 403
       }
     },
     "by_rubric": [
       {
-        "rubric_version": 2,
+        "rubric_version": 3,
         "picks": {
-          "total": 104,
+          "total": 159,
           "counts": {
             "4.0": 4,
-            "3.5": 11,
-            "3.0": 22,
-            "2.5": 36,
-            "2.0": 15,
-            "1.5": 9,
-            "1.0": 4,
-            "0.5": 3
+            "3.5": 14,
+            "3.0": 54,
+            "2.5": 43,
+            "2.0": 29,
+            "1.5": 12,
+            "1.0": 3
           }
         },
         "field": {
-          "total": 14239,
+          "total": 29096,
           "counts": {
-            "4.0": 342,
-            "3.5": 916,
-            "3.0": 2531,
-            "2.5": 3014,
-            "2.0": 3259,
-            "1.5": 2649,
-            "1.0": 1132,
-            "0.5": 396
+            "4.0": 197,
+            "3.5": 1767,
+            "3.0": 4750,
+            "2.5": 7858,
+            "2.0": 7554,
+            "1.5": 4675,
+            "1.0": 1892,
+            "0.5": 403
           }
         },
         "top_thirty": 45
       },
       {
-        "rubric_version": 1,
+        "rubric_version": 2,
         "picks": {
-          "total": 104,
+          "total": 159,
           "counts": {
-            "4.5": 4,
-            "4.0": 5,
-            "3.5": 9,
-            "3.0": 20,
-            "2.5": 25,
-            "2.0": 22,
-            "1.5": 10,
+            "4.0": 4,
+            "3.5": 11,
+            "3.0": 25,
+            "2.5": 56,
+            "2.0": 31,
+            "1.5": 22,
             "1.0": 6,
-            "0.5": 3
+            "0.5": 4
           }
         },
         "field": {
-          "total": 14239,
+          "total": 29096,
+          "counts": {
+            "4.0": 342,
+            "3.5": 916,
+            "3.0": 3247,
+            "2.5": 5451,
+            "2.0": 7381,
+            "1.5": 7178,
+            "1.0": 3319,
+            "0.5": 1262
+          }
+        },
+        "top_thirty": 43
+      },
+      {
+        "rubric_version": 1,
+        "picks": {
+          "total": 159,
+          "counts": {
+            "4.5": 4,
+            "4.0": 5,
+            "3.5": 12,
+            "3.0": 35,
+            "2.5": 32,
+            "2.0": 35,
+            "1.5": 20,
+            "1.0": 12,
+            "0.5": 4
+          }
+        },
+        "field": {
+          "total": 29096,
           "counts": {
             "4.5": 324,
             "4.0": 1049,
-            "3.5": 1165,
-            "3.0": 2822,
-            "2.5": 2533,
-            "2.0": 2394,
-            "1.5": 2129,
-            "1.0": 1511,
-            "0.5": 312
+            "3.5": 1846,
+            "3.0": 5883,
+            "2.5": 5223,
+            "2.0": 4344,
+            "1.5": 5503,
+            "1.0": 3946,
+            "0.5": 978
           }
         },
-        "top_thirty": 41
+        "top_thirty": 31
       }
     ],
     "placements": [
@@ -19677,7 +19660,7 @@
         "entry_date": "2021-02-24",
         "eval_session": "2021-02-23",
         "in_field": true,
-        "top_thirty": true,
+        "top_thirty": false,
         "stars": 2.5
       },
       {
@@ -19788,9 +19771,9 @@
         "ticker": "MSTR",
         "entry_date": "2021-01-28",
         "eval_session": "2021-01-27",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "GBTC",
@@ -19805,7 +19788,7 @@
         "entry_date": "2021-01-12",
         "eval_session": "2021-01-11",
         "in_field": true,
-        "top_thirty": true,
+        "top_thirty": false,
         "stars": 2.5
       },
       {
@@ -19860,9 +19843,9 @@
         "ticker": "ETHE",
         "entry_date": "2021-03-29",
         "eval_session": "2021-03-26",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "W",
@@ -19964,9 +19947,9 @@
         "ticker": "GBTC",
         "entry_date": "2021-02-02",
         "eval_session": "2021-02-01",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "CAN",
@@ -19980,9 +19963,9 @@
         "ticker": "CAN",
         "entry_date": "2021-03-09",
         "eval_session": "2021-03-08",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "APT",
@@ -20076,9 +20059,9 @@
         "ticker": "ETHE",
         "entry_date": "2021-02-02",
         "eval_session": "2021-02-01",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "OKTA",
@@ -20244,17 +20227,17 @@
         "ticker": "CLF",
         "entry_date": "2021-03-26",
         "eval_session": "2021-03-25",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "WWR",
         "entry_date": "2021-01-19",
         "eval_session": "2021-01-15",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "XOP",
@@ -20285,7 +20268,7 @@
         "entry_date": "2022-02-28",
         "eval_session": "2022-02-25",
         "in_field": true,
-        "top_thirty": true,
+        "top_thirty": false,
         "stars": 2.5
       },
       {
@@ -20372,9 +20355,9 @@
         "ticker": "NUGT",
         "entry_date": "2022-03-01",
         "eval_session": "2022-02-28",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "LABU",
@@ -20580,9 +20563,9 @@
         "ticker": "MSTR",
         "entry_date": "2021-11-02",
         "eval_session": "2021-11-01",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "ZM",
@@ -20612,9 +20595,9 @@
         "ticker": "NTLA",
         "entry_date": "2021-03-30",
         "eval_session": "2021-03-29",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "COPX",
@@ -20748,9 +20731,9 @@
         "ticker": "GBTC",
         "entry_date": "2021-03-09",
         "eval_session": "2021-03-08",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "IGV",
@@ -20861,7 +20844,7 @@
         "entry_date": "2021-01-29",
         "eval_session": "2021-01-28",
         "in_field": true,
-        "top_thirty": true,
+        "top_thirty": false,
         "stars": 2.0
       },
       {
@@ -20908,25 +20891,25 @@
         "ticker": "COIN",
         "entry_date": "2021-11-15",
         "eval_session": "2021-11-12",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "GUSH",
         "entry_date": "2021-11-08",
         "eval_session": "2021-11-05",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "PBW",
         "entry_date": "2021-11-11",
         "eval_session": "2021-11-10",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "DXCM",
@@ -20993,14 +20976,6 @@
         "stars": null
       },
       {
-        "ticker": "FUSE",
-        "entry_date": "2021-01-07",
-        "eval_session": "2021-01-06",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
-      },
-      {
         "ticker": "Z",
         "entry_date": "2020-07-30",
         "eval_session": "2020-07-29",
@@ -21012,9 +20987,9 @@
         "ticker": "QCLN",
         "entry_date": "2021-11-22",
         "eval_session": "2021-11-19",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "JNUG",
@@ -21212,9 +21187,9 @@
         "ticker": "AGQ",
         "entry_date": "2021-05-03",
         "eval_session": "2021-04-30",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "LMT",
@@ -21300,9 +21275,9 @@
         "ticker": "ERX",
         "entry_date": "2022-03-30",
         "eval_session": "2022-03-29",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "UBER",
@@ -21348,9 +21323,9 @@
         "ticker": "TSLA",
         "entry_date": "2021-11-19",
         "eval_session": "2021-11-18",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "SHOP",
@@ -21460,9 +21435,9 @@
         "ticker": "ERX",
         "entry_date": "2021-12-07",
         "eval_session": "2021-12-06",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "JD",
@@ -21484,9 +21459,9 @@
         "ticker": "NET",
         "entry_date": "2021-09-16",
         "eval_session": "2021-09-15",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "BABA",
@@ -21564,9 +21539,9 @@
         "ticker": "TSLA",
         "entry_date": "2022-01-12",
         "eval_session": "2022-01-11",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "DDOG",
@@ -21716,17 +21691,17 @@
         "ticker": "NEM",
         "entry_date": "2022-03-31",
         "eval_session": "2022-03-30",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.0
       },
       {
         "ticker": "UCO",
         "entry_date": "2022-04-21",
         "eval_session": "2022-04-20",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "SNAP",
@@ -21740,9 +21715,9 @@
         "ticker": "JNUG",
         "entry_date": "2022-03-21",
         "eval_session": "2022-03-18",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "EWZ",
@@ -21828,9 +21803,9 @@
         "ticker": "F",
         "entry_date": "2021-12-16",
         "eval_session": "2021-12-15",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "JD",
@@ -21884,9 +21859,9 @@
         "ticker": "JNUG",
         "entry_date": "2022-03-30",
         "eval_session": "2022-03-29",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "UAL",
@@ -21932,9 +21907,9 @@
         "ticker": "LI",
         "entry_date": "2021-11-26",
         "eval_session": "2021-11-24",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 0.5
       },
       {
         "ticker": "OKTA",
@@ -21948,9 +21923,9 @@
         "ticker": "TSLA",
         "entry_date": "2021-02-02",
         "eval_session": "2021-02-01",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "KRE",
@@ -22084,9 +22059,9 @@
         "ticker": "ETHE",
         "entry_date": "2021-09-15",
         "eval_session": "2021-09-14",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "FCX",
@@ -22180,9 +22155,9 @@
         "ticker": "TNA",
         "entry_date": "2021-05-24",
         "eval_session": "2021-05-21",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "PTON",
@@ -22268,9 +22243,9 @@
         "ticker": "PINS",
         "entry_date": "2021-01-20",
         "eval_session": "2021-01-19",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "JD",
@@ -22324,9 +22299,9 @@
         "ticker": "TAN",
         "entry_date": "2021-11-11",
         "eval_session": "2021-11-10",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "VEEV",
@@ -22348,9 +22323,9 @@
         "ticker": "AAL",
         "entry_date": "2021-03-30",
         "eval_session": "2021-03-29",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "PLUG",
@@ -22437,7 +22412,7 @@
         "entry_date": "2022-01-12",
         "eval_session": "2022-01-11",
         "in_field": true,
-        "top_thirty": true,
+        "top_thirty": false,
         "stars": 1.5
       },
       {
@@ -22484,16 +22459,16 @@
         "ticker": "DVN",
         "entry_date": "2021-12-07",
         "eval_session": "2021-12-06",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.0
       },
       {
         "ticker": "UAL",
         "entry_date": "2021-03-11",
         "eval_session": "2021-03-10",
         "in_field": true,
-        "top_thirty": true,
+        "top_thirty": false,
         "stars": 2.5
       },
       {
@@ -22525,7 +22500,7 @@
         "entry_date": "2021-11-15",
         "eval_session": "2021-11-12",
         "in_field": true,
-        "top_thirty": true,
+        "top_thirty": false,
         "stars": 2.5
       },
       {
@@ -22652,9 +22627,9 @@
         "ticker": "SOXL",
         "entry_date": "2021-12-07",
         "eval_session": "2021-12-06",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "MDB",
@@ -22772,9 +22747,9 @@
         "ticker": "GBTC",
         "entry_date": "2021-05-07",
         "eval_session": "2021-05-06",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "OIH",
@@ -22852,9 +22827,9 @@
         "ticker": "XPEV",
         "entry_date": "2021-11-04",
         "eval_session": "2021-11-03",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "NIO",
@@ -22876,9 +22851,9 @@
         "ticker": "GBTC",
         "entry_date": "2021-04-09",
         "eval_session": "2021-04-08",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "ALB",
@@ -23116,9 +23091,9 @@
         "ticker": "AMC",
         "entry_date": "2021-11-03",
         "eval_session": "2021-11-02",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "ACAD",
@@ -23148,9 +23123,9 @@
         "ticker": "GME",
         "entry_date": "2021-09-13",
         "eval_session": "2021-09-10",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "SPOT",
@@ -23204,9 +23179,9 @@
         "ticker": "CCL",
         "entry_date": "2021-04-26",
         "eval_session": "2021-04-23",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "MDB",
@@ -23332,9 +23307,9 @@
         "ticker": "ETHE",
         "entry_date": "2021-11-29",
         "eval_session": "2021-11-26",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "RBLX",
@@ -23564,9 +23539,9 @@
         "ticker": "XPEV",
         "entry_date": "2022-01-12",
         "eval_session": "2022-01-11",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "NUGT",
@@ -23761,14 +23736,6 @@
         "stars": null
       },
       {
-        "ticker": "FUSE",
-        "entry_date": "2021-01-04",
-        "eval_session": "2020-12-31",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
-      },
-      {
         "ticker": "FUTU",
         "entry_date": "2021-03-16",
         "eval_session": "2021-03-15",
@@ -23844,9 +23811,9 @@
         "ticker": "BBBY",
         "entry_date": "2021-11-11",
         "eval_session": "2021-11-10",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "BE",
@@ -23884,9 +23851,9 @@
         "ticker": "PENN",
         "entry_date": "2021-03-01",
         "eval_session": "2021-02-26",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "KODK",
@@ -23964,9 +23931,9 @@
         "ticker": "TSLA",
         "entry_date": "2021-11-29",
         "eval_session": "2021-11-26",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "SEDG",
@@ -24004,9 +23971,9 @@
         "ticker": "DPST",
         "entry_date": "2021-05-21",
         "eval_session": "2021-05-20",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "INSG",
@@ -24116,17 +24083,17 @@
         "ticker": "CLNE",
         "entry_date": "2021-06-18",
         "eval_session": "2021-06-17",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "XPEV",
         "entry_date": "2021-11-23",
         "eval_session": "2021-11-22",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "RBLX",
@@ -24309,7 +24276,7 @@
         "entry_date": "2021-01-22",
         "eval_session": "2021-01-21",
         "in_field": true,
-        "top_thirty": true,
+        "top_thirty": false,
         "stars": 3.0
       },
       {
@@ -24373,7 +24340,7 @@
         "entry_date": "2021-10-19",
         "eval_session": "2021-10-18",
         "in_field": true,
-        "top_thirty": true,
+        "top_thirty": false,
         "stars": 2.5
       },
       {
@@ -24420,9 +24387,9 @@
         "ticker": "BLNK",
         "entry_date": "2021-02-03",
         "eval_session": "2021-02-02",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "BBBY",
@@ -24644,9 +24611,9 @@
         "ticker": "TNA",
         "entry_date": "2021-04-23",
         "eval_session": "2021-04-22",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "WKHS",
@@ -24676,9 +24643,9 @@
         "ticker": "SIGA",
         "entry_date": "2022-06-07",
         "eval_session": "2022-06-06",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "BCRX",
@@ -24740,9 +24707,9 @@
         "ticker": "ETHE",
         "entry_date": "2021-01-28",
         "eval_session": "2021-01-27",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "RIOT",
@@ -24780,9 +24747,9 @@
         "ticker": "TNA",
         "entry_date": "2021-05-07",
         "eval_session": "2021-05-06",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "OCGN",
@@ -24908,9 +24875,9 @@
         "ticker": "ZKIN",
         "entry_date": "2021-03-30",
         "eval_session": "2021-03-29",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "UAVS",
@@ -24940,32 +24907,32 @@
   },
   "regression": {
     "exit_label": "10sma",
-    "n_replayable": 658,
-    "n_detected": 104,
-    "blind_spot_count": 91,
+    "n_replayable": 656,
+    "n_detected": 159,
+    "blind_spot_count": 92,
     "dimension_stats": [
       {
         "dimension": "Tightness",
         "weight": 2,
-        "n": 103,
-        "hit_rate": 0.44660194174757284,
-        "spread": 0.4971404704657129,
-        "correlation": 0.07638922655962738,
+        "n": 158,
+        "hit_rate": 0.2911392405063291,
+        "spread": 0.45428755556775596,
+        "correlation": 0.09973884395195816,
         "untestable": false
       },
       {
         "dimension": "Orderliness",
         "weight": 1,
-        "n": 103,
-        "hit_rate": 0.30097087378640774,
-        "spread": 0.4586800703307851,
-        "correlation": -0.06008334816839063,
+        "n": 158,
+        "hit_rate": 0.35443037974683544,
+        "spread": 0.47834034500484013,
+        "correlation": -0.05519586000209199,
         "untestable": false
       },
       {
         "dimension": "Prior move",
         "weight": 1,
-        "n": 103,
+        "n": 158,
         "hit_rate": 1.0,
         "spread": 0.0,
         "correlation": null,
@@ -24974,57 +24941,57 @@
       {
         "dimension": "Base length",
         "weight": 0,
-        "n": 103,
-        "hit_rate": 0.4854368932038835,
-        "spread": 0.499787870921699,
-        "correlation": -0.08312228163102753,
+        "n": 158,
+        "hit_rate": 0.5126582278481012,
+        "spread": 0.4998397435856272,
+        "correlation": -0.07778000337374383,
         "untestable": false
       },
       {
         "dimension": "MA support",
         "weight": 1,
-        "n": 103,
-        "hit_rate": 0.7669902912621359,
-        "spread": 0.4227483700403348,
-        "correlation": -0.15822133843285885,
+        "n": 158,
+        "hit_rate": 0.7721518987341772,
+        "spread": 0.4194440892602757,
+        "correlation": -0.12693810221465202,
         "untestable": false
       },
       {
         "dimension": "Volume",
         "weight": 1,
-        "n": 103,
-        "hit_rate": 0.36893203883495146,
-        "spread": 0.4825154811568612,
-        "correlation": -0.124624233788689,
+        "n": 158,
+        "hit_rate": 0.37341772151898733,
+        "spread": 0.483711615298367,
+        "correlation": -0.10808150512343133,
         "untestable": false
       },
       {
         "dimension": "ADR",
         "weight": 2,
-        "n": 103,
-        "hit_rate": 0.8155339805825242,
-        "spread": 0.3878637738920035,
-        "correlation": 0.09244439850188962,
+        "n": 158,
+        "hit_rate": 0.7911392405063291,
+        "spread": 0.40649470185649145,
+        "correlation": 0.10657532739162139,
         "untestable": false
       }
     ],
     "mfe_distribution": {
-      "n": 657,
+      "n": 655,
       "min": -0.25,
-      "p25": 1.75,
+      "p25": 1.76,
       "median": 4.47,
-      "p75": 12.68,
+      "p75": 12.7,
       "max": 656.18,
-      "mean": 18.299741248097412
+      "mean": 18.344290076335877
     },
     "r_distribution": {
-      "n": 657,
+      "n": 655,
       "min": -1.0,
       "p25": -1.0,
       "median": -1.0,
-      "p75": -0.49,
+      "p75": -0.505,
       "max": 104.02,
-      "mean": 1.2445509893455098
+      "mean": 1.250320610687023
     },
     "stop_width_adr_distribution": {
       "n": 649,
@@ -25227,8 +25194,16 @@
         "ticker": "MSTR",
         "entry_date": "2021-01-28",
         "eval_session": "2021-01-27",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.0882669109255946,
         "stop_width_adr": 0.2639131985479106,
         "mfe": 132.07,
@@ -25350,8 +25325,16 @@
         "ticker": "ETHE",
         "entry_date": "2021-03-29",
         "eval_session": "2021-03-26",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.08232935626071086,
         "stop_width_adr": 0.24573803227451715,
         "mfe": 57.45,
@@ -25493,8 +25476,16 @@
         "ticker": "GBTC",
         "entry_date": "2021-02-02",
         "eval_session": "2021-02-01",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.09814048990968187,
         "stop_width_adr": 0.3539427115462601,
         "mfe": 61.72,
@@ -25515,8 +25506,16 @@
         "ticker": "CAN",
         "entry_date": "2021-03-09",
         "eval_session": "2021-03-08",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.242571763556527,
         "stop_width_adr": 0.22782189107455134,
         "mfe": 71.49,
@@ -25655,8 +25654,16 @@
         "ticker": "ETHE",
         "entry_date": "2021-02-02",
         "eval_session": "2021-02-01",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.12322083745133842,
         "stop_width_adr": 0.3940536751078926,
         "mfe": 30.3,
@@ -25926,8 +25933,16 @@
         "ticker": "CLF",
         "entry_date": "2021-03-26",
         "eval_session": "2021-03-25",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07272024999444894,
         "stop_width_adr": 0.3973373628943057,
         "mfe": 31.09,
@@ -25937,8 +25952,16 @@
         "ticker": "WWR",
         "entry_date": "2021-01-19",
         "eval_session": "2021-01-15",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.09848463885143614,
         "stop_width_adr": 0.6769245178147342,
         "mfe": 60.53,
@@ -26150,8 +26173,16 @@
         "ticker": "NUGT",
         "entry_date": "2022-03-01",
         "eval_session": "2022-02-28",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06385335125727329,
         "stop_width_adr": 0.29790437280795945,
         "mfe": 30.7,
@@ -26468,8 +26499,16 @@
         "ticker": "MSTR",
         "entry_date": "2021-11-02",
         "eval_session": "2021-11-01",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.044997942701320646,
         "stop_width_adr": 0.32310610960506536,
         "mfe": 17.82,
@@ -26512,8 +26551,16 @@
         "ticker": "NTLA",
         "entry_date": "2021-03-30",
         "eval_session": "2021-03-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.11387003229255928,
         "stop_width_adr": 0.7412992075826272,
         "mfe": 26.32,
@@ -26707,8 +26754,16 @@
         "ticker": "GBTC",
         "entry_date": "2021-03-09",
         "eval_session": "2021-03-08",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08479987542221305,
         "stop_width_adr": 0.42530220228418514,
         "mfe": 10.66,
@@ -26967,8 +27022,16 @@
         "ticker": "COIN",
         "entry_date": "2021-11-15",
         "eval_session": "2021-11-12",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05163495125748981,
         "stop_width_adr": 0.05148958269305481,
         "mfe": 1.54,
@@ -26978,8 +27041,16 @@
         "ticker": "GUSH",
         "entry_date": "2021-11-08",
         "eval_session": "2021-11-05",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.06049121368905548,
         "stop_width_adr": 0.04669478265531093,
         "mfe": 3.02,
@@ -26989,8 +27060,16 @@
         "ticker": "PBW",
         "entry_date": "2021-11-11",
         "eval_session": "2021-11-10",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.03042098087895284,
         "stop_width_adr": 0.7456463683911245,
         "mfe": 3.15,
@@ -27085,17 +27164,6 @@
         "r": -0.28
       },
       {
-        "ticker": "FUSE",
-        "entry_date": "2021-01-07",
-        "eval_session": "2021-01-06",
-        "detected": false,
-        "dimension_hits": {},
-        "adr_at_entry": null,
-        "stop_width_adr": null,
-        "mfe": 6.99,
-        "r": -0.29
-      },
-      {
         "ticker": "Z",
         "entry_date": "2020-07-30",
         "eval_session": "2020-07-29",
@@ -27110,8 +27178,16 @@
         "ticker": "QCLN",
         "entry_date": "2021-11-22",
         "eval_session": "2021-11-19",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.028418029231861663,
         "stop_width_adr": 0.17888344212613283,
         "mfe": 1.32,
@@ -27393,8 +27469,16 @@
         "ticker": "AGQ",
         "entry_date": "2021-05-03",
         "eval_session": "2021-04-30",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.027171663555365842,
         "stop_width_adr": 0.27408143929734985,
         "mfe": 4.43,
@@ -27522,8 +27606,16 @@
         "ticker": "ERX",
         "entry_date": "2022-03-30",
         "eval_session": "2022-03-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05592516048757999,
         "stop_width_adr": 0.1495539105776671,
         "mfe": 0.73,
@@ -27604,8 +27696,16 @@
         "ticker": "TSLA",
         "entry_date": "2021-11-19",
         "eval_session": "2021-11-18",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05800626941255897,
         "stop_width_adr": 0.1543141673500314,
         "mfe": 7.59,
@@ -27766,8 +27866,16 @@
         "ticker": "ERX",
         "entry_date": "2021-12-07",
         "eval_session": "2021-12-06",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.0510515611635539,
         "stop_width_adr": 0.19670528881098392,
         "mfe": 2.75,
@@ -27799,8 +27907,16 @@
         "ticker": "NET",
         "entry_date": "2021-09-16",
         "eval_session": "2021-09-15",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.03408478686228361,
         "stop_width_adr": 0.29789965226632525,
         "mfe": 3.04,
@@ -27909,8 +28025,16 @@
         "ticker": "TSLA",
         "entry_date": "2022-01-12",
         "eval_session": "2022-01-11",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.055562250649040926,
         "stop_width_adr": 0.19533425810499597,
         "mfe": 2.35,
@@ -28134,8 +28258,16 @@
         "ticker": "NEM",
         "entry_date": "2022-03-31",
         "eval_session": "2022-03-30",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.03482479848726069,
         "stop_width_adr": 0.3445820369754518,
         "mfe": 3.77,
@@ -28145,8 +28277,16 @@
         "ticker": "UCO",
         "entry_date": "2022-04-21",
         "eval_session": "2022-04-20",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06138498388468213,
         "stop_width_adr": 0.19635302665591736,
         "mfe": 1.17,
@@ -28175,8 +28315,16 @@
         "ticker": "JNUG",
         "entry_date": "2022-03-21",
         "eval_session": "2022-03-18",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.0734428798010288,
         "stop_width_adr": 0.16695162552263165,
         "mfe": 4.22,
@@ -28296,8 +28444,16 @@
         "ticker": "F",
         "entry_date": "2021-12-16",
         "eval_session": "2021-12-15",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.042364662000573663,
         "stop_width_adr": 0.3053778754139456,
         "mfe": 1.1,
@@ -28381,8 +28537,16 @@
         "ticker": "JNUG",
         "entry_date": "2022-03-30",
         "eval_session": "2022-03-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.06482012586482899,
         "stop_width_adr": 0.20368667737585072,
         "mfe": 1.95,
@@ -28455,8 +28619,16 @@
         "ticker": "LI",
         "entry_date": "2021-11-26",
         "eval_session": "2021-11-24",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.049208077467358405,
         "stop_width_adr": 0.27289364103848773,
         "mfe": 3.6,
@@ -28477,8 +28649,16 @@
         "ticker": "TSLA",
         "entry_date": "2021-02-02",
         "eval_session": "2021-02-01",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.042969771986338834,
         "stop_width_adr": 0.317719077858871,
         "mfe": 3.01,
@@ -28688,8 +28868,16 @@
         "ticker": "ETHE",
         "entry_date": "2021-09-15",
         "eval_session": "2021-09-14",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.0645561518449393,
         "stop_width_adr": 0.22539100494711917,
         "mfe": 5.26,
@@ -28844,8 +29032,16 @@
         "ticker": "TNA",
         "entry_date": "2021-05-24",
         "eval_session": "2021-05-21",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05564600286219403,
         "stop_width_adr": 0.2786474711566853,
         "mfe": 0.76,
@@ -28981,8 +29177,16 @@
         "ticker": "PINS",
         "entry_date": "2021-01-20",
         "eval_session": "2021-01-19",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05058248601954005,
         "stop_width_adr": 0.32032316474586536,
         "mfe": 1.12,
@@ -29074,8 +29278,16 @@
         "ticker": "TAN",
         "entry_date": "2021-11-11",
         "eval_session": "2021-11-10",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.029044682817495303,
         "stop_width_adr": 0.5671111421008678,
         "mfe": 3.4,
@@ -29107,8 +29319,16 @@
         "ticker": "AAL",
         "entry_date": "2021-03-30",
         "eval_session": "2021-03-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05902563350926723,
         "stop_width_adr": 0.28152104146214374,
         "mfe": 5.88,
@@ -29318,8 +29538,16 @@
         "ticker": "DVN",
         "entry_date": "2021-12-07",
         "eval_session": "2021-12-06",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": false,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.04674463749999297,
         "stop_width_adr": 0.3786341276954062,
         "mfe": 3.36,
@@ -29589,8 +29817,16 @@
         "ticker": "SOXL",
         "entry_date": "2021-12-07",
         "eval_session": "2021-12-06",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07870432778829829,
         "stop_width_adr": 0.23832650132461733,
         "mfe": 6.27,
@@ -29770,8 +30006,16 @@
         "ticker": "GBTC",
         "entry_date": "2021-05-07",
         "eval_session": "2021-05-06",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05603831221274068,
         "stop_width_adr": 0.35310189156722,
         "mfe": 2.81,
@@ -29880,8 +30124,16 @@
         "ticker": "XPEV",
         "entry_date": "2021-11-04",
         "eval_session": "2021-11-03",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.04912414399861782,
         "stop_width_adr": 0.41765672567767576,
         "mfe": 0.21,
@@ -29913,8 +30165,16 @@
         "ticker": "GBTC",
         "entry_date": "2021-04-09",
         "eval_session": "2021-04-08",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05331007212154756,
         "stop_width_adr": 0.39326883343201813,
         "mfe": 10.3,
@@ -30299,8 +30559,16 @@
         "ticker": "AMC",
         "entry_date": "2021-11-03",
         "eval_session": "2021-11-02",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05796725052916231,
         "stop_width_adr": 0.3916999830571411,
         "mfe": 4.56,
@@ -30343,8 +30611,16 @@
         "ticker": "GME",
         "entry_date": "2021-09-13",
         "eval_session": "2021-09-10",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08856848468716952,
         "stop_width_adr": 0.2590021056903179,
         "mfe": 3.71,
@@ -30428,8 +30704,16 @@
         "ticker": "CCL",
         "entry_date": "2021-04-26",
         "eval_session": "2021-04-23",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.0437055537733884,
         "stop_width_adr": 0.5395937884331018,
         "mfe": 0.32,
@@ -30652,8 +30936,16 @@
         "ticker": "ETHE",
         "entry_date": "2021-11-29",
         "eval_session": "2021-11-26",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.046790058601085836,
         "stop_width_adr": 0.5210429385755022,
         "mfe": 8.98,
@@ -30995,8 +31287,16 @@
         "ticker": "XPEV",
         "entry_date": "2022-01-12",
         "eval_session": "2022-01-11",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.0664364730115008,
         "stop_width_adr": 0.40765760290503217,
         "mfe": 1.0,
@@ -31291,17 +31591,6 @@
         "r": -1.0
       },
       {
-        "ticker": "FUSE",
-        "entry_date": "2021-01-04",
-        "eval_session": "2020-12-31",
-        "detected": false,
-        "dimension_hits": {},
-        "adr_at_entry": null,
-        "stop_width_adr": null,
-        "mfe": 0.43,
-        "r": -1.0
-      },
-      {
         "ticker": "FUTU",
         "entry_date": "2021-03-16",
         "eval_session": "2021-03-15",
@@ -31420,8 +31709,16 @@
         "ticker": "BBBY",
         "entry_date": "2021-11-11",
         "eval_session": "2021-11-10",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05983439091147923,
         "stop_width_adr": 0.5193035241490918,
         "mfe": 4.68,
@@ -31475,8 +31772,16 @@
         "ticker": "PENN",
         "entry_date": "2021-03-01",
         "eval_session": "2021-02-26",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06775996182982144,
         "stop_width_adr": 0.5450630871057828,
         "mfe": 6.1,
@@ -31617,8 +31922,16 @@
         "ticker": "TSLA",
         "entry_date": "2021-11-29",
         "eval_session": "2021-11-26",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.059048951503814354,
         "stop_width_adr": 0.5481249039836315,
         "mfe": 2.43,
@@ -31680,8 +31993,16 @@
         "ticker": "DPST",
         "entry_date": "2021-05-21",
         "eval_session": "2021-05-20",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.07408060511726129,
         "stop_width_adr": 0.4471665635076919,
         "mfe": 2.15,
@@ -31850,8 +32171,16 @@
         "ticker": "CLNE",
         "entry_date": "2021-06-18",
         "eval_session": "2021-06-17",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.10487193146191731,
         "stop_width_adr": 0.33335277710786726,
         "mfe": 2.85,
@@ -31861,8 +32190,16 @@
         "ticker": "XPEV",
         "entry_date": "2021-11-23",
         "eval_session": "2021-11-22",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.053787557105786955,
         "stop_width_adr": 0.661053416181548,
         "mfe": 8.48,
@@ -32324,8 +32661,16 @@
         "ticker": "BLNK",
         "entry_date": "2021-02-03",
         "eval_session": "2021-02-02",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.15126592591113228,
         "stop_width_adr": 0.2933932621698713,
         "mfe": 2.29,
@@ -32680,8 +33025,16 @@
         "ticker": "TNA",
         "entry_date": "2021-04-23",
         "eval_session": "2021-04-22",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.060691587256528456,
         "stop_width_adr": 0.9354450826845994,
         "mfe": 7.28,
@@ -32724,8 +33077,16 @@
         "ticker": "SIGA",
         "entry_date": "2022-06-07",
         "eval_session": "2022-06-06",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.16432019481236132,
         "stop_width_adr": 0.5963233081527405,
         "mfe": 4.04,
@@ -32812,8 +33173,16 @@
         "ticker": "ETHE",
         "entry_date": "2021-01-28",
         "eval_session": "2021-01-27",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.13144828067876999,
         "stop_width_adr": 0.49374804377685866,
         "mfe": 8.57,
@@ -32875,8 +33244,16 @@
         "ticker": "TNA",
         "entry_date": "2021-05-07",
         "eval_session": "2021-05-06",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05051428669847228,
         "stop_width_adr": 1.432033459651543,
         "mfe": 1.43,
@@ -33067,8 +33444,16 @@
         "ticker": "ZKIN",
         "entry_date": "2021-03-30",
         "eval_session": "2021-03-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.2566746257559392,
         "stop_width_adr": 0.42371060266812177,
         "mfe": 0.0,
@@ -33118,22 +33503,22 @@
     ]
   },
   "contrast": {
-    "n_executed": 69,
-    "n_not_taken": 14354,
-    "blind_spot_count": 91,
+    "n_executed": 124,
+    "n_not_taken": 28672,
+    "blind_spot_count": 92,
     "comparison_group_note": "The not-taken detections are a comparison group: field members present on nights he traded, in names he did not enter and may never have seen. Their absence from his trade record carries no verdict on them.",
     "precision_note": "Precision is not measurable: the reference set records only the trades he entered, never a setup he passed over, so there is no control group and no false-positive rate is claimed. This comparison group is the nearest honest substitute, and no precision is asserted.",
     "dimension_contrasts": [
       {
         "dimension": "Tightness",
         "weight": 2,
-        "taken_n": 69,
-        "taken_hit_rate": 0.5942028985507246,
-        "taken_spread": 0.49104563322021494,
-        "not_taken_n": 14354,
-        "not_taken_hit_rate": 0.38574613348195624,
-        "not_taken_spread": 0.48677104883679867,
-        "combined_spread": 0.48700404684397547,
+        "taken_n": 124,
+        "taken_hit_rate": 0.33064516129032256,
+        "taken_spread": 0.4704454682592013,
+        "not_taken_n": 28672,
+        "not_taken_hit_rate": 0.193115234375,
+        "not_taken_spread": 0.39474262580482594,
+        "combined_spread": 0.395202327364131,
         "untestable_within_executed": false,
         "testable_in_contrast": true,
         "testability_restored": false
@@ -33141,13 +33526,13 @@
       {
         "dimension": "Orderliness",
         "weight": 1,
-        "taken_n": 69,
-        "taken_hit_rate": 0.2753623188405797,
-        "taken_spread": 0.44669666688180987,
-        "not_taken_n": 14354,
-        "not_taken_hit_rate": 0.36623937578375365,
-        "not_taken_spread": 0.48177598052339654,
-        "combined_spread": 0.4816550626217143,
+        "taken_n": 124,
+        "taken_hit_rate": 0.31451612903225806,
+        "taken_spread": 0.46432287646725107,
+        "not_taken_n": 28672,
+        "not_taken_hit_rate": 0.39292689732142855,
+        "not_taken_spread": 0.4884008094616389,
+        "combined_spread": 0.4883266636828799,
         "untestable_within_executed": false,
         "testable_in_contrast": true,
         "testability_restored": false
@@ -33155,10 +33540,10 @@
       {
         "dimension": "Prior move",
         "weight": 1,
-        "taken_n": 69,
+        "taken_n": 124,
         "taken_hit_rate": 1.0,
         "taken_spread": 0.0,
-        "not_taken_n": 14354,
+        "not_taken_n": 28672,
         "not_taken_hit_rate": 1.0,
         "not_taken_spread": 0.0,
         "combined_spread": 0.0,
@@ -33169,13 +33554,13 @@
       {
         "dimension": "Base length",
         "weight": 0,
-        "taken_n": 69,
-        "taken_hit_rate": 0.4492753623188406,
-        "taken_spread": 0.497420356571899,
-        "not_taken_n": 14354,
-        "not_taken_hit_rate": 0.5828340532255817,
-        "not_taken_spread": 0.49309078233751386,
-        "combined_spread": 0.493197693331357,
+        "taken_n": 124,
+        "taken_hit_rate": 0.4838709677419355,
+        "taken_spread": 0.49973978660740864,
+        "not_taken_n": 28672,
+        "not_taken_hit_rate": 0.6011090959821429,
+        "not_taken_spread": 0.4896702469107898,
+        "combined_spread": 0.48977421814868133,
         "untestable_within_executed": false,
         "testable_in_contrast": true,
         "testability_restored": false
@@ -33183,13 +33568,13 @@
       {
         "dimension": "MA support",
         "weight": 1,
-        "taken_n": 69,
-        "taken_hit_rate": 0.7681159420289855,
-        "taken_spread": 0.4220353559003199,
-        "not_taken_n": 14354,
-        "not_taken_hit_rate": 0.7253727184060192,
-        "not_taken_spread": 0.44632626832652494,
-        "combined_spread": 0.4462229548682126,
+        "taken_n": 124,
+        "taken_hit_rate": 0.7741935483870968,
+        "taken_spread": 0.4181123031230877,
+        "not_taken_n": 28672,
+        "not_taken_hit_rate": 0.7195870535714286,
+        "not_taken_spread": 0.44920098608954384,
+        "combined_spread": 0.44908596223241,
         "untestable_within_executed": false,
         "testable_in_contrast": true,
         "testability_restored": false
@@ -33197,13 +33582,13 @@
       {
         "dimension": "Volume",
         "weight": 1,
-        "taken_n": 69,
-        "taken_hit_rate": 0.36231884057971014,
-        "taken_spread": 0.48067025947179703,
-        "not_taken_n": 14354,
-        "not_taken_hit_rate": 0.40100320468162187,
-        "not_taken_spread": 0.49010165732905975,
-        "combined_spread": 0.4900642388402321,
+        "taken_n": 124,
+        "taken_hit_rate": 0.3870967741935484,
+        "taken_spread": 0.48708609259811286,
+        "not_taken_n": 28672,
+        "not_taken_hit_rate": 0.38636997767857145,
+        "not_taken_spread": 0.4869170545660027,
+        "combined_spread": 0.486917784921253,
         "untestable_within_executed": false,
         "testable_in_contrast": true,
         "testability_restored": false
@@ -33211,13 +33596,13 @@
       {
         "dimension": "ADR",
         "weight": 2,
-        "taken_n": 69,
-        "taken_hit_rate": 0.8695652173913043,
-        "taken_spread": 0.33678116053977536,
-        "not_taken_n": 14354,
-        "not_taken_hit_rate": 0.5764943569736659,
-        "not_taken_spread": 0.494113967978224,
-        "combined_spread": 0.4938948759203955,
+        "taken_n": 124,
+        "taken_hit_rate": 0.8145161290322581,
+        "taken_spread": 0.3886895992672868,
+        "not_taken_n": 28672,
+        "not_taken_hit_rate": 0.5339006696428571,
+        "not_taken_spread": 0.4988494207651903,
+        "combined_spread": 0.4987658319342425,
         "untestable_within_executed": false,
         "testable_in_contrast": true,
         "testability_restored": false

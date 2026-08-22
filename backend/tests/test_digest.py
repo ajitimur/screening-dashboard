@@ -21,8 +21,8 @@ TODAY = date(2026, 8, 5)
 
 
 def _det(symbol, *, trigger=100.0, adr=0.06, close=98.0, cluster_low=97.0,
-         cluster_k=5, base_len=10, churn_l=0.45, sma20_rising=True, dryup=0.90,
-         line_ok=True):
+         cluster_k=5, range_3bar_adr=0.99, base_len=10, churn_l=0.45,
+         sma20_rising=True, dryup=0.90, line_ok=True):
     """Yesterday's detection: the setup whose trigger the break tests against."""
     stop = trigger - cluster_low
     return Detection(
@@ -30,7 +30,7 @@ def _det(symbol, *, trigger=100.0, adr=0.06, close=98.0, cluster_low=97.0,
         trigger=trigger, stop=stop, stopw_adr=stop / trigger / adr,
         base_len=base_len, move_gain=103.0, adr=adr, close=close,
         cluster_k=cluster_k, cluster_high=trigger, cluster_low=cluster_low,
-        cluster_range_adr=0.99, line_ok=line_ok, touch_zones=2, overshoot_adr=0.0,
+        cluster_range_adr=0.99, range_3bar_adr=range_3bar_adr, line_ok=line_ok, touch_zones=2, overshoot_adr=0.0,
         slope=-0.001, line_end=trigger - 0.1, base_low=cluster_low,
         churn_l=churn_l, sma20_rising=sma20_rising, dryup=dryup,
     )

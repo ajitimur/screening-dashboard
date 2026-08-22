@@ -102,29 +102,46 @@ Prior-move peak through today, capped at 45 bars. Always ends today — there is
 thing as a base that ended last week.
 
 **Cluster**:
-The largest trailing 3–7 bar window spanning at most 1.5 × ADR. The quiet end of the base,
-and where **base tightness** is measured — never a stop level. Whether a name *has* a cluster
-is settled entirely by its **3-bar range**: range is monotone in the window length, so the
-3-bar window is the tightest one there is. The 7 is a scoring bound, not a gate.
+The largest trailing 3–7 bar window spanning at most 1.5 × ADR, falling back to the 3-bar
+window when none does. The quiet end of the base, and where **base tightness** is measured —
+never a stop level. Since #154 the 1.5 shapes the window and does not gate: whether a name is
+a detection at all is settled by the **far-outlier guard**, and the 7 is only a reporting
+bound.
 
 **Cluster length `k`**:
-Bars in the cluster. The double-weighted **base tightness** dimension of the star score, and
-the only thing the upper bound of 7 can move.
+Bars in the cluster, and the only thing the upper bound of 7 can move. It is what the star
+score's `Tightness` dimension read *until rubric v3*, which grades the **3-bar range**
+instead; `k` is still persisted, still what the chart draws, and still what a v2 re-score
+reads.
 
 **3-bar range**:
-A name's trailing 3-bar high-to-low span, in ADR. The tightest window the cluster scan can
-find, and so the number the cluster gate actually tests. Reported as `range_3bar_adr` on a
-cluster miss, to say by how much it missed.
+A name's trailing 3-bar high-to-low span, in ADR (`range_3bar_adr`). The tightest window the
+cluster scan can find — range is monotone in the window length — and so the **ungated**
+measure of **base tightness**. Two jobs since #154: the number the far-outlier guard tests,
+and the number the rubric's ×2 `Tightness` dimension is graded on. Persisted on every
+detection, and reported on a cluster miss to say by how much it missed.
+_Avoid_: cluster_min_range_adr (the pre-#146 name).
+
+**Far-outlier guard**:
+The cluster gate as it now stands: a detection requires a **3-bar range** inside
+`OUTLIER_MULT = 3.0 × ADR`. It replaced the hard 1.5 cut in #154, and does a different job —
+it rejects a name genuinely in motion, rather than ranking how quiet a base is, which the
+rubric now grades. **Provisional**, and sited on the one feature findings §3b's outcome table
+offers: mean R is positive in every 3-bar-range bucket up to 2.0–3.0 and turns negative only
+in the 3.0+ bucket, on **n = 10**. Not a percentile of his habits (ADR 0002 / #143).
+_Avoid_: cluster gate, tightness gate, TIGHT_MULT (which no longer gates).
 
 **Base tightness**:
 How quiet the stock was *before* the break — the span of a trailing 3–7 bar window in ADR.
-Setup geometry: it is what `TIGHT_MULT` gates on and what the rubric's ×2 `Tightness`
-dimension scores. Measured two ways, and the difference matters: the **3-bar range**
-(`range_3bar_adr`) is the **ungated** measure, which is what findings §3b puts at a median of
-**1.310 ADR** over his 649 replayable entries; `cluster_range_adr` is the **gated** span of
-the window that cleared the cut, and so sits at or under `TIGHT_MULT` by construction. Never
-a stop level — **stop width** is 3.8× narrower on the same trades (see below), and reading a
-stop off this quantity is the mistake issue #127 removed.
+Setup geometry: it is what the **far-outlier guard** tests and what the rubric's ×2
+`Tightness` dimension grades. Measured two ways, and the difference matters: the **3-bar
+range** (`range_3bar_adr`) is the **ungated** measure, which is what findings §3b puts at a
+median of **1.310 ADR** over his 649 replayable entries, and it is the one both the guard and
+the rubric read; `cluster_range_adr` is the **gated** span of the window that cleared
+`TIGHT_MULT`, so a *quieter* name can report a *wider* span by earning a longer window, which
+makes it non-monotone in the thing being measured and unfit to grade on. Never a stop level —
+**stop width** is 3.8× narrower on the same trades (see below), and reading a stop off this
+quantity is the mistake issue #127 removed.
 _Avoid_: tightness or tight, unqualified, in prose (the `TIGHT_*` constants and the published
 `Tightness` rubric label keep their names); tight zone; tight stop.
 
@@ -154,8 +171,8 @@ are independently tunable and independently evidenced.
 _Avoid_: risk_adr, tight stop, cluster-low stop, risk.
 
 **Detection**:
-A name with a valid base, cluster and MA catch-up, inside the detection gate, on a session.
-A dated row.
+A name with a valid base, a cluster inside the **far-outlier guard**, and MA catch-up, inside
+the detection gate, on a session. A dated row.
 
 **Break**:
 An event, not a state: today's close above yesterday's trigger. Equivalently, today's
@@ -164,8 +181,20 @@ close is above the last `k` sessions' high.
 **Star score**:
 The rubric — 8 dimensions, 9 weighted points, halved to stars. The sort key of the only list
 in the app. Its range is 0.5–4.5, never 0–5: one dimension always fires (`Prior move`) and one
-is weighted zero (`Base length`). Derived on read everywhere except a digest, which freezes the
-value it was written with. Recalibrated to the method's revealed selection by PRD #138:
+is weighted zero (`Base length`). Seven dimensions are booleans; `Tightness` is a **graded
+dimension**. Derived on read everywhere except a digest, which freezes the
+value it was written with.
+
+**Graded dimension**:
+A score dimension that maps a real-valued quantity to points in bands, rather than awarding
+its whole weight on a boolean. `Tightness` is the only one (rubric v3, #145/#154): 2 points
+at or under 1.0 ADR of **3-bar range**, 1 through 2.0, none beyond. Its shape is what findings
+§3b licenses — a smooth monotone decline in outcome with no feature to hang a threshold on,
+the opposite of the cliff #143 found in entry-to-MA distance. Two rules keep it replayable:
+the points stay **integral**, so the nine-point ceiling and the `÷ 2` arithmetic do not move;
+and the stored breakdown row carries the **value**, never one version's verdict about it, so
+any **rubric version** can re-score a stored row exactly.
+_Avoid_: continuous dimension, fractional score. Recalibrated to the method's revealed selection by PRD #138:
 `Tightness` and `ADR` weigh ×2 (the two sharpest §5b selectors), `Base length` ×0 (its largest
 wrong-way gap), everything else ×1. Weights come from the *ordering* of the measured selection
 gaps, never their magnitude. The three-weight ordinal swap inside that recalibration — `ADR`
@@ -188,9 +217,12 @@ and can never move the sort. `Prior move` is one, and is kept for what it docume
 what it discriminates.
 
 **Rubric version**:
-The stamp identifying which weights and thresholds produced a star score (`score.RUBRIC_VERSION`,
-currently 2 — the PRD #138 nine-point rubric; v1 was the ten-point one). Rides the API candidates
-payload and the digest header. A star figure quoted without one cannot be compared to another.
+The stamp identifying which weights and mappings produced a star score (`score.RUBRIC_VERSION`,
+currently 3 — v2's nine weights with `Tightness` graded, #154; v2 was the PRD #138 nine-point
+boolean rubric, v1 the ten-point one). Rides the API candidates payload and the digest header.
+A star figure quoted without one cannot be compared to another. Every superseded version stays
+live in `score.RUBRICS` so the paired A2 re-run can hold a field fixed and swap only the
+rubric; adding a version never edits an older one.
 
 **Regime**:
 `FRIENDLY`, `CHOPPY` or `HOSTILE` per market, from one index each. Advisory only — never

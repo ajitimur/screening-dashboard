@@ -829,7 +829,7 @@
         "type": "object"
       },
       "ScoreRow": {
-        "description": "One row of a candidate's star-score breakdown (spec \u00a74.7).\n\nEight of these reconstruct the score arithmetically next to the chart \u2014 the\ndimension's name, its weight (2 for Tightness and ADR, 0 for Base length, 1 for\nthe rest \u2014 recalibrated by PRD #138) and whether it hit. ``Tightness`` is **base\ntightness** \u2014 the setup's geometry, not the stop width the row also carries\n(issue #147); the label is published, so it is qualified here rather than\nrenamed. ``n/9 \u2192 stars`` is ``sum(weight where hit) \u00f7 2``; the ceiling is nine\npoints, not ten.",
+        "description": "One row of a candidate's star-score breakdown (spec \u00a74.7).\n\nEight of these reconstruct the score arithmetically next to the chart \u2014 the\ndimension's name, its weight (2 for Tightness and ADR, 0 for Base length, 1 for\nthe rest \u2014 recalibrated by PRD #138) and whether it hit. ``Tightness`` is **base\ntightness** \u2014 the setup's geometry, not the stop width the row also carries\n(issue #147); the label is published, so it is qualified here rather than\nrenamed. The ceiling is nine points, not ten, and stars are ``points \u00f7 2``.\n\n``value`` is the graded quantity, present only on a **graded** dimension \u2014 since\nrubric v3 that is ``Tightness`` alone, carrying its three-bar range in ADR\n(#154). On a graded row ``hit`` is *not* what scored: it is the boolean the\nsetup satisfies (Tightness keeps v1/v2's ``cluster_k >= 5``), kept so a stored\nbreakdown re-scores exactly under an older rubric.\n\n``points`` is what the row **actually earned**, under the rubric the payload's\n``rubric_version`` names. It is published because ``weight where hit`` no longer\ntotals a graded breakdown, and the client must not carry a second copy of the\nband table: a breakdown that does not add up to the star it sits beside is\nexactly the un-auditable sort key the rubric exists to avoid. ``points`` is a\nproperty of a *rubric applied to* the row, which is why it rides the API model\nand never the stored :class:`~screener.score.Dimension`.",
         "properties": {
           "dimension": {
             "title": "Dimension",
@@ -839,6 +839,21 @@
             "title": "Hit",
             "type": "boolean"
           },
+          "points": {
+            "title": "Points",
+            "type": "integer"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
           "weight": {
             "title": "Weight",
             "type": "integer"
@@ -847,7 +862,8 @@
         "required": [
           "dimension",
           "weight",
-          "hit"
+          "hit",
+          "points"
         ],
         "title": "ScoreRow",
         "type": "object"

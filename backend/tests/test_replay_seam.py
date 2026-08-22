@@ -1325,6 +1325,7 @@ def _det(symbol: str, cluster_k: int) -> Detection:
         cluster_high=100.0,
         cluster_low=95.0,
         cluster_range_adr=0.5,
+        range_3bar_adr=0.5,
         line_ok=True,
         touch_zones=2,
         overshoot_adr=0.0,
@@ -1593,7 +1594,7 @@ def test_placement_scores_one_field_under_both_rubrics_stamped_by_version():
     version stamp; the live pair equals the report's headline picks/field; and with
     the field fixed, only the weights move — Base length ×0→×1 lifts his pick by
     exactly half a star under the old rubric."""
-    from screener.score import RUBRIC_VERSION, RUBRIC_WEIGHTS, stars_under
+    from screener.score import RUBRICS, RUBRIC_VERSION, stars_under
 
     session = date(2020, 6, 1)
     det = _det("BASE", cluster_k=6)  # Base length, ADR, Orderliness all hit
@@ -1614,19 +1615,19 @@ def test_placement_scores_one_field_under_both_rubrics_stamped_by_version():
     report = build_placement_report([trade], calendar, [field], blind_spot_count=0)
 
     # Both rubric versions are reported over the SAME field, each stamped.
-    assert {r.rubric_version for r in report.by_rubric} == {1, RUBRIC_VERSION}
+    assert {r.rubric_version for r in report.by_rubric} == set(RUBRICS)
     live = next(r for r in report.by_rubric if r.rubric_version == RUBRIC_VERSION)
     old = next(r for r in report.by_rubric if r.rubric_version == 1)
     # The live-rubric pair *is* the report's headline picks/field — one source.
     assert live.picks.counts == report.picks.counts
     assert live.field.counts == report.field.counts
     # Field held fixed, only weights move: Base length ×0→×1 is +0.5 star under v1.
-    v2_star = stars_under(scored.score.breakdown, RUBRIC_WEIGHTS[RUBRIC_VERSION])
-    v1_star = stars_under(scored.score.breakdown, RUBRIC_WEIGHTS[1])
-    assert v1_star == v2_star + 0.5
-    assert live.picks.counts[v2_star] == 1
+    live_star = stars_under(scored.score.breakdown, RUBRICS[RUBRIC_VERSION])
+    v1_star = stars_under(scored.score.breakdown, RUBRICS[1])
+    assert v1_star == live_star + 0.5
+    assert live.picks.counts[live_star] == 1
     assert old.picks.counts[v1_star] == 1
-    assert live.field.counts[v2_star] == 1
+    assert live.field.counts[live_star] == 1
     assert old.field.counts[v1_star] == 1
 
 
@@ -2077,9 +2078,11 @@ def test_run_study_writes_human_and_machine_readable_outputs(tmp_path, store: St
     # change and no star figure is quoted without its stamp (#138).
     from screener.score import RUBRIC_VERSION
 
+    from screener.score import RUBRICS
+
     by_rubric = raw["placement"]["by_rubric"]
     stamps = {r["rubric_version"] for r in by_rubric}
-    assert stamps == {1, RUBRIC_VERSION}
+    assert stamps == set(RUBRICS)
     for r in by_rubric:
         assert "picks" in r and "field" in r and "total" in r["picks"]
         # The board figure is paired too — a rubric reorders the field around a

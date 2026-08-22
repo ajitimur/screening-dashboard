@@ -38,6 +38,9 @@ export const scoreRow = builder<Schemas["ScoreRow"]>(() => ({
   dimension: "tightness",
   weight: 2,
   hit: true,
+  // What the row earned under the live rubric. Not `hit ? weight : 0` — since v3
+  // one dimension is graded, so points is its own field (#154).
+  points: 2,
 }));
 
 export const candle = builder<Schemas["Candle"]>(() => ({

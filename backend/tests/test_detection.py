@@ -22,7 +22,9 @@ from screener.detection import (
     DETECTOR_VERSION,
     K_MAX,
     K_MIN,
+    OUTLIER_MULT,
     STOP_CONVENTION_ADR,
+    TIGHT_MULT,
     TOP_DECILE,
     Rank,
     _churn_l,
@@ -112,8 +114,8 @@ def test_proposed_stop_is_the_traders_convention_not_the_cluster_low():
 
 def test_stop_width_does_not_move_with_base_tightness():
     # The two quantities the domain model keeps apart (issue #147). Base tightness
-    # is setup geometry — the trailing window's span in ADR, what TIGHT_MULT gates
-    # and the rubric's ×2 dimension scores. Stop width is his risk — the trigger-to-
+    # is setup geometry — the trailing window's span in ADR, which the rubric's ×2
+    # dimension grades. Stop width is his risk — the trigger-to-
     # stop distance, fixed at the convention. Findings §3b measured them 3.8× apart
     # on the same 649 entries; here they are wired apart, so a future edit deriving
     # the stop from the base geometry again fails this test.
@@ -165,12 +167,68 @@ def test_a_name_not_caught_up_to_the_ma_is_not_a_detection():
     assert detect("AAA", _bars(hlc), CAL[102]) is None
 
 
-def test_a_name_with_no_tight_cluster_is_not_a_detection():
-    # A wide, ragged top: no trailing 3-7 bar window is tight enough.
+def test_a_name_genuinely_in_motion_is_not_a_detection():
+    # A wide, ragged top: the trailing 3-bar range is far past OUTLIER_MULT, so the
+    # far-outlier guard rejects it. This is the only tightness rejection left.
     hlc = [(50.5, 49.5, 50.0)] * 90
     for h in (60, 55, 62, 54, 63, 56, 61):  # last bars swing ~15% of price
         hlc.append((h + 0.5, h - 0.5, h))
     assert detect("AAA", _bars(hlc), CAL[96]) is None
+
+
+# -- the cluster gate is a far-outlier guard, not a tightness cut (#145/#154) --
+
+
+def test_a_base_past_the_old_hard_cut_now_detects():
+    # The 1.5×ADR hard rejection is gone. A top wandering wide enough that no 3-7
+    # bar window sits under TIGHT_MULT is still a detection, because how quiet the
+    # base is became a graded rubric input rather than a gate.
+    d = detect("AAA", _bars(_wandering_top_series(0.5)), CAL[104])
+    assert d is not None
+    assert d.range_3bar_adr > TIGHT_MULT       # the old gate would have rejected it
+    assert d.range_3bar_adr < OUTLIER_MULT     # and the guard admits it
+    # With no window under TIGHT_MULT the 3-bar window *is* the cluster — the
+    # tightest one there is — so k is K_MIN and the span is the 3-bar range itself.
+    assert d.cluster_k == K_MIN
+    assert d.cluster_range_adr == d.range_3bar_adr
+    assert d.trigger == d.cluster_high         # the identity is untouched
+
+
+def test_a_base_past_the_far_outlier_guard_is_still_rejected():
+    # Names with no base at all still fail. The guard is sited where findings §3b's
+    # outcome table turns negative (the 3.0+ bucket), not at a percentile of his
+    # habits (#143's rule).
+    d = detect("AAA", _bars(_wandering_top_series(1.6)), CAL[104])
+    assert d is None
+    # ... and it is the 3-bar range the guard tested, past OUTLIER_MULT.
+    bars = _bars(_wandering_top_series(1.6))
+    high = [b.high for b in bars]
+    low = [b.low for b in bars]
+    d_ok = detect("AAA", _bars(_wandering_top_series(0.5)), CAL[104])
+    adr_abs = d_ok.adr * bars[104].close
+    assert range_3bar_adr(high, low, 104, adr_abs) > OUTLIER_MULT
+
+
+def test_a_name_that_cleared_the_old_cut_is_unchanged_by_the_guard():
+    # The loosening adds names and moves none: a name already inside TIGHT_MULT
+    # reports the same window, the same span and the same trigger as before.
+    d = detect("AAA", _bars(_base_series()), CAL[104])
+    assert d.cluster_k == K_MAX                # still the largest tight window
+    assert d.cluster_range_adr <= TIGHT_MULT
+    assert d.trigger == 100.5
+    # Its ungated 3-bar range is the tighter, separate number the rubric grades.
+    assert d.range_3bar_adr <= d.cluster_range_adr
+
+
+def test_every_detection_persists_its_ungated_three_bar_range():
+    # The rubric grades the value, so the row has to carry it (#154) — and it must
+    # be the *ungated* measure, recomputable from the bars by the detector's own
+    # diagnostic.
+    bars = _bars(_base_series())
+    d = detect("AAA", bars, CAL[104])
+    high = [b.high for b in bars]
+    low = [b.low for b in bars]
+    assert d.range_3bar_adr == range_3bar_adr(high, low, 104, d.adr * d.close)
 
 
 def test_range_3bar_adr_reports_the_trailing_3_bar_range():

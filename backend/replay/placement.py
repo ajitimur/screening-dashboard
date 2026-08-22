@@ -41,7 +41,7 @@ from datetime import date
 from typing import Iterable, Mapping
 
 from screener.boards import BOARD_SIZE
-from screener.score import RUBRIC_VERSION, RUBRIC_WEIGHTS, Dimension, stars_under
+from screener.score import RUBRIC_VERSION, RUBRICS, Dimension, stars_under
 from screener.store import Store
 
 from .chain import BURN_IN_SESSIONS, REPLAY_MARKET
@@ -225,13 +225,13 @@ def _top_thirty_under(
     and the live version reproduces ``PlacementReport.top_thirty_count`` by
     construction.
     """
-    weights = RUBRIC_WEIGHTS[version]
+    rubric = RUBRICS[version]
     boards: dict[date, set[str]] = {}
     for session in {pick.session for pick in picks_in_field}:
         ranked = sorted(
             by_session[session].detections,
             key=lambda d: star_order_key(
-                stars_under(d.score.breakdown, weights), d.detection
+                stars_under(d.score.breakdown, rubric), d.detection
             ),
         )
         boards[session] = {d.symbol for d in ranked[:BOARD_SIZE]}
@@ -289,16 +289,16 @@ def build_placement_report(
     # The live version reproduces the detections' own stars exactly (they were
     # scored under it), so the live pair *is* the headline picks/field below.
     versions = [RUBRIC_VERSION] + sorted(
-        (v for v in RUBRIC_WEIGHTS if v != RUBRIC_VERSION), reverse=True
+        (v for v in RUBRICS if v != RUBRIC_VERSION), reverse=True
     )
     by_rubric = [
         RubricStarDistributions(
             rubric_version=version,
             picks=StarDistribution.from_stars(
-                stars_under(b, RUBRIC_WEIGHTS[version]) for b in pick_breakdowns
+                stars_under(b, RUBRICS[version]) for b in pick_breakdowns
             ),
             field=StarDistribution.from_stars(
-                stars_under(b, RUBRIC_WEIGHTS[version]) for b in field_breakdowns
+                stars_under(b, RUBRICS[version]) for b in field_breakdowns
             ),
             top_thirty=_top_thirty_under(picks_in_field, by_session, version),
         )

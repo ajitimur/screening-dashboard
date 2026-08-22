@@ -20,6 +20,7 @@ def _det(
     trigger=100.0,
     close=98.0,
     cluster_low=97.0,
+    range_3bar_adr=0.99,
     adr=0.06,
     cluster_k=5,
     base_len=10,
@@ -38,7 +39,7 @@ def _det(
         trigger=trigger, stop=stop, stopw_adr=stop / adr_abs,
         base_len=base_len, move_gain=103.0, adr=adr, close=close,
         cluster_k=cluster_k, cluster_high=trigger, cluster_low=cluster_low,
-        cluster_range_adr=0.99, line_ok=line_ok, touch_zones=2, overshoot_adr=0.0,
+        cluster_range_adr=0.99, range_3bar_adr=range_3bar_adr, line_ok=line_ok, touch_zones=2, overshoot_adr=0.0,
         slope=-0.001, line_end=trigger - 0.1, base_low=cluster_low,
         churn_l=churn_l, sma20_rising=sma20_rising, dryup=dryup,
     )
@@ -71,12 +72,12 @@ def test_the_score_is_the_star_rubric_and_its_eight_row_breakdown():
     assert c.score == 4.5
     assert len(c.breakdown) == 8
     assert all(row.hit for row in c.breakdown)
-    assert sum(row.weight for row in c.breakdown if row.hit) == 9
+    assert sum(row.points for row in c.breakdown) == 9
 
 
 def test_the_list_sorts_by_star_score_descending():
     strong = _det("LOW", adr=0.06)                       # 4.5★ ceiling
-    weak = _det("HIGH", adr=0.04, cluster_k=4)  # loses tightness (×2) and ADR (×2)
+    weak = _det("HIGH", adr=0.04, range_3bar_adr=2.5)  # loses tightness (×2) and ADR (×2)
     rows = build_candidates([weak, strong], _decile("LOW") + _decile("HIGH"), {}, {})
     # Sorted by score, not by ticker — the strong name leads the weaker one.
     assert [c.symbol for c in rows] == ["LOW", "HIGH"]
@@ -231,3 +232,23 @@ def test_dollar_volume_and_sector_degrade_to_none():
     assert c.sector is None
     assert c.decile_ranks == {}
     assert c.new_tonight is True  # empty prev set → every name is new
+
+
+def test_the_row_publishes_what_each_dimension_earned_and_what_it_was_graded_on():
+    # Since rubric v3 the Tightness dimension is graded (#154), so `hit × weight`
+    # no longer totals the breakdown. The payload carries the points each row
+    # earned and the value the graded one was read off, or a client reconstructing
+    # the star from the table would disagree with the star it sorted by.
+    ranks = _decile("AAA")
+    [c] = build_candidates([_det("AAA", range_3bar_adr=1.60)], ranks, {}, {})
+    tight = next(row for row in c.breakdown if row.dimension == "Tightness")
+    assert tight.value == 1.60
+    assert tight.weight == 2 and tight.points == 1     # graded, part of its weight
+    assert tight.hit is True                            # v2's cluster_k >= 5 verdict
+    # Every other row is boolean: points is weight when it hits, nothing when not.
+    for row in c.breakdown:
+        if row.dimension != "Tightness":
+            assert row.value is None
+            assert row.points == (row.weight if row.hit else 0)
+    # And the table still adds up to the star the row is sorted by.
+    assert sum(row.points for row in c.breakdown) / 2 == c.score

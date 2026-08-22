@@ -162,7 +162,7 @@ def _candidates_store() -> Store:
             trigger=100.0, stop=stop, stopw_adr=stop / adr_abs,
             base_len=30, move_gain=103.0, adr=adr, close=98.0,
             cluster_k=5, cluster_high=100.0, cluster_low=cluster_low,
-            cluster_range_adr=0.99, line_ok=True, touch_zones=2, overshoot_adr=0.0,
+            cluster_range_adr=0.99, range_3bar_adr=0.99, line_ok=True, touch_zones=2, overshoot_adr=0.0,
             slope=-0.001, line_end=99.9, base_low=cluster_low,
             churn_l=0.45, sma20_rising=True, dryup=0.90,
         )
@@ -245,7 +245,7 @@ def test_candidates_endpoint_folds_the_chart_facts_onto_the_row():
             symbol=symbol, session=sess, detector_version=DETECTOR_VERSION,
             trigger=100.0, stop=3.0, stopw_adr=3.0 / adr_abs,
             base_len=30, move_gain=103.0, adr=0.02, close=98.0,
-            cluster_k=5, cluster_high=100.0, cluster_low=97.0, cluster_range_adr=0.99,
+            cluster_k=5, cluster_high=100.0, cluster_low=97.0, cluster_range_adr=0.99, range_3bar_adr=0.99,
             line_ok=True, touch_zones=2, overshoot_adr=0.0, slope=-0.001,
             line_end=99.9, base_low=97.0, churn_l=0.45, sma20_rising=True, dryup=0.90,
         )
@@ -332,7 +332,7 @@ def _chart_store() -> Store:
         symbol="AAA", session=session, detector_version=DETECTOR_VERSION,
         trigger=100.0, stop=stop, stopw_adr=stop / (adr_val * 98.0),
         base_len=30, move_gain=103.0, adr=adr_val, close=98.0,
-        cluster_k=5, cluster_high=100.0, cluster_low=97.0, cluster_range_adr=0.99,
+        cluster_k=5, cluster_high=100.0, cluster_low=97.0, cluster_range_adr=0.99, range_3bar_adr=0.99,
         line_ok=True, touch_zones=2, overshoot_adr=0.0, slope=-0.001,
         line_end=99.9, base_low=97.0,
         churn_l=0.45, sma20_rising=True, dryup=0.90,

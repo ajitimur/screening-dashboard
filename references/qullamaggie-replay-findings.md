@@ -160,14 +160,21 @@ decile-dependent output carries `blind_spot_count`.
 
 ### Per-stage recall — report headline and ex-continuation together
 
-**658 replayable trades** (of 828; the other 170 are the blind spot), of which **80** are
+**656 replayable trades** (of 828; the other 172 are the blind spot), of which **79** are
 tagged `continuation`.
+
+> **Re-measured after #154.** The tightness restructure changed what the detector detects, so
+> the detection row below is a **re-run** figure and the `cluster` line in the condition table
+> collapses. Liquidity and decile are cross-sectional and untouched by that change — they
+> reproduced to the row. The superseded detector-v1 figures are kept in each cell so the two
+> are never quietly conflated: recall is only comparable within one `detector_version`.
+> #139's re-pin of the denominator (658 → 656) applies throughout.
 
 | Stage | Recall (headline) | Recall (ex-continuation) | Notes |
 | --- | --- | --- | --- |
-| Liquidity | **598/658 (90.9%)** | **523/578 (90.5%)** | The one stage where a rejected name never reaches any tab — a miss here is otherwise invisible (user story 7). Cheapest of the three. |
-| Decile | **395/658 (60.0%)** | **340/578 (58.8%)** | The most aggressive filter — cuts to **19.4%** of the universe before the detector looks. Depends on the replayed field → coverage attached. |
-| Detection | **380/658 (57.8%)** | **341/578 (59.0%)** | Failures broken down by geometric condition below (user stories 9, 10). |
+| Liquidity | **598/656 (91.2%)** | **523/577 (90.6%)** | The one stage where a rejected name never reaches any tab — a miss here is otherwise invisible (user story 7). Cheapest of the three. |
+| Decile | **395/656 (60.2%)** | **340/577 (58.9%)** | The most aggressive filter — cuts to **19.4%** of the universe before the detector looks. Depends on the replayed field → coverage attached. Now the **largest** loss in the funnel. |
+| Detection | **549/656 (83.7%)** | **487/577 (84.4%)** | Detector v2 (#154). Was 380/658 (57.8%) under the hard 1.5 cluster cut. Failures broken down by geometric condition below (user stories 9, 10). |
 
 > **The decile gate is the expensive one.** It discards **40% of his real entries on its
 > own**, before the detector is ever consulted — the largest single loss in the funnel, and
@@ -177,13 +184,16 @@ tagged `continuation`.
 > measures is `detection_gate`, which unions only `1m`/`3m`/`6m` and admits **19.4%**. The
 > gate is a third tighter than the parent spec describes. See
 > `docs/adr/0003-the-decile-gate.md`. Each stage is evaluated *unconditionally* on
-> every row, so these are not sequential survivors: decile (60.0%) and detection (57.8%)
-> are close because they are two independent measurements, not a funnel product.
+> every row, so these are not sequential survivors: they are three independent
+> measurements, not a funnel product. Under detector v1 decile (60.0%) and detection (57.8%)
+> were close enough to argue about which was worse; after #154 the question is settled —
+> **the decile gate is now the funnel's largest loss by 23 points**, and it is the one
+> governed by a rule (ADR 0002's second limb) that it can be argued under.
 >
-> Detection is also the **only** stage whose ex-continuation recall (59.0%) is *higher*
-> than its headline (57.8%). His repeat entries into a name are harder for the detector to
-> see than his first ones — consistent with the `cluster` condition below, which fires on
-> exactly that pattern.
+> Detection is also the **only** stage whose ex-continuation recall (84.4%) is *higher*
+> than its headline (83.7%). His repeat entries into a name are still marginally harder for
+> the detector to see than his first ones, but the gap has narrowed to 0.7pp from 1.2pp: the
+> `cluster` condition, which fired on exactly that pattern, is no longer doing the work.
 
 ### The decile miss decomposed (#133) — a third of it is the gate's width, not his names
 
@@ -210,19 +220,22 @@ unmeasurable (§7), so this is a lead to size, not a change licensed here.
 
 Detection-failure breakdown (`condition_counts`) — which geometric condition to change:
 
-| Failed condition | Count | Share of the 278 detection misses |
+| Failed condition | v1 count (of 278) | v2 count (of 107) |
 | --- | --- | --- |
-| `cluster` | **171** | 61.5% |
-| `catch_up` | 47 | 16.9% |
-| `base_length` | 37 | 13.3% |
-| `history` | 23 | 8.3% |
-| `adr` | 0 | — |
-| `prior_move` | 0 | — |
+| `cluster` | **171** (61.5%) | **2** (1.9%) |
+| `catch_up` | 47 (16.9%) | **47** (43.9%) |
+| `base_length` | 37 (13.3%) | **37** (34.6%) |
+| `history` | 23 (8.3%) | **21** (19.6%) |
+| `adr` | 0 | 0 |
+| `prior_move` | 0 | 0 |
 
-`cluster` alone costs more than the other three firing conditions combined. Neither `adr`
-nor `prior_move` rejected a single one of his entries: `prior_move` cannot (every detection
-clears the decile gate by construction), and the ADR *hard gate* never bound — which is
-distinct from the ADR *score point*, which is withheld on 30.7% of entries (§6, finding 2).
+Under v1, `cluster` alone cost more than the other three firing conditions combined; under v2
+it is the smallest, and `catch_up` — price not yet back at the 10/20 MA — is the largest
+remaining detection miss. The `history` row moves 23 → 21 for a different reason entirely:
+#139 stopped charging two recycled-symbol trades to the detector. Neither `adr` nor
+`prior_move` has ever rejected one of his entries: `prior_move` cannot (every detection clears
+the decile gate by construction), and the ADR *hard gate* never bound — which is distinct from
+the ADR *score point*, withheld on 30.7% of entries (§6, finding 2).
 
 Blind-spot trades (ticker with no bars) get **no** funnel row — they are recorded as a blind
 spot by `replay.reference`, never as a stage failure, so the replayable set and the blind
@@ -328,6 +341,23 @@ measurable — a control group of setups he *passed over* — so a recall gain c
 its false-positive cost; and an out-of-regime or IDX reference set, so the window is not tuned to a
 once-in-a-decade US momentum regime (§8). Absent those, the question is re-openable rather than
 settled by omission, and the machinery above is what a re-opening would read.
+
+> **Superseded by #145/#154 — and not by finding the missing precision measurement.** The
+> constants this section left standing are gone: `TIGHT_MULT = 1.5` no longer gates, and the
+> cluster condition is now a **far-outlier guard** at `OUTLIER_MULT = 3.0` with base tightness
+> graded by the rubric. It was re-opened on a different argument than the one this section
+> anticipated. This section asked "is 1.5 the right cutoff", and answered correctly that no
+> available evidence licenses moving it. §3b reframed the question as "should this be a cutoff
+> at all", which the calibration rule's score-dimension limb does not govern — that limb
+> governs *loosening a dimension away on a null*, and Tightness has signal on both axes. The
+> change is a **shape** change with the weight held at ×2, priced with its population cost;
+> the argument and the measurement are in §3b below. The 113 marginal misses this section left
+> as its open question are recovered by the guard, but that is the change's *consequence*, not
+> its licence — a recall number still licenses nothing on its own.
+>
+> The §3a figures above are **not restated** to the new detector: they characterise the 171
+> misses the 1.5 cut produced, which is the evidence the decision was taken on, and
+> `MARGINAL_TIGHT_MULT` is kept at 2.0 so they still reproduce.
 
 ---
 
@@ -499,6 +529,79 @@ but "should tightness be a cutoff at all, or a graded rubric input with a much l
 guard". That is a larger change than §3a considered, it is still unpriceable without a control group
 of setups he passed over (§7, §9), and it is filed rather than acted on. No constant is touched by
 this section.
+
+#### What was built on this — the restructure, and where it stands against the rule (#145/#154)
+
+The proposal above was decided in #145 and implemented in #154. `TIGHT_MULT = 1.5` **no longer
+gates**: it shapes the cluster window, the cluster falls back to the 3-bar window when nothing
+tighter clears, and the only tightness rejection left is a **far-outlier guard** at
+`OUTLIER_MULT = 3.0 × ADR` on the 3-bar range. The rubric's ×2 `Tightness` dimension is graded on
+that same ungated quantity — 2 points at or under 1.0 ADR, 1 through 2.0, none beyond — at rubric
+**v3**. The weight did not move.
+
+**The position on the calibration rule, stated rather than left implicit.** ADR 0002's
+score-dimension limb permits loosening a dimension "only when A3 shows that dimension has no
+signal *and* real spread", and §3a refused the loosening on exactly that ground. Two things about
+how this change sits against it:
+
+- **The precondition is not met and is not claimed to be.** Tightness has selection signal (§5b,
+  +20.8pp, second-strongest in the rubric) and outcome signal (the table above). It is the
+  best-evidenced dimension in the study. Nothing here argues it is null.
+- **The rule's limb governs *loosening a dimension away*; this is a change of *shape*.** The
+  instrument exists because a null on a range-restricted dimension is not evidence the dimension is
+  useless, and because recall alone would widen every gate. The claim here is the opposite of a
+  null: the dimension is well evidenced, *and* the evidence says its outcome relation is a smooth
+  monotone decline with no feature anywhere — so a threshold is the wrong encoding of a signal that
+  strong, in the same sense that #143's cliff made a threshold the right encoding there. The
+  dimension keeps its ×2 and now expresses more of what it measures, not less.
+
+That reading is a **judgement about the rule's scope, not a finding**, and it is recorded here so
+the precondition does not look bypassed. What it does not do is exempt the change from the rule's
+purpose: precision is still not measurable, so the cost side is priced explicitly below, the way
+#141 and #149 price theirs and the way ADR 0002's condition 4 requires of a cross-sectional cut.
+
+**Both halves of the ledger, measured** (`scripts/tightness_restructure.py`, over the same replay
+store; recall on the 828-trade reference set, field inflation over the 505 replayed sessions the
+store holds ranks for):
+
+| | Hard 1.5 cut | Far-outlier guard | Change |
+| --- | --- | --- | --- |
+| Detection-stage recall | 380/658 (57.8%) | **549/656 (83.7%)** | **+169 trades** |
+| — ex-continuation | 341/578 (59.0%) | **487/577 (84.4%)** | +146 |
+| `cluster` misses | 171 | **2** | −169 |
+| Detections per session | 90.3 | **201.6** | **+111.3 (+123.2%)** |
+
+**The population cost is the headline, not the recall.** The field more than doubles: 111 more
+names per session, or **0.66 additional names per session for each trade recovered**. That is a
+large number and it is the honest denominator — precision cannot be measured, so this ratio is what
+stands in for it (ADR 0002, condition 4). What absorbs it is the thing the change was made for: the
+names admitted are exactly the ones the graded dimension scores *low*, so they enter the list at the
+bottom of the sort rather than beside his own setups. The restructure moves work from the gate to
+the sort key, and that is only a good trade if the sort key is trusted — which is why the grade is
+banded and published on the breakdown rather than folded invisibly into a star.
+
+**The guard is provisional, and here is its n.** The 3.0 bound is sited on the only feature §3b's
+outcome table offers, and that feature is one bucket of **10 trades** at −0.36 mean R. Ten is far
+too thin to carry a threshold on its own; what makes 3.0 the right *order of magnitude* rather than
+a guess is the complementary figure — widening to ~3.0 keeps 98.5% of his trades and 100.4% of his
+summed R, the excess over 100% being the net-negative tail the guard cuts. On his own record the
+guard declines **2 trades**, at a 3-bar range of 3.18 and 3.42 ADR. What would firm it up is a
+larger denominator in the negative tail, which is exactly what the out-of-sample backtest builds
+(`docs/out-of-sample-backtest-plan.md`); until then the constant is not to be swept or tuned on an
+in-sample number.
+
+**What the recovered trades look like.** The 169 recovered entries sit at a 3-bar range of median
+1.83 ADR (p25 1.68, p75 2.10, max 2.90) — clustered just past the old 1.5 line, which is §3a's
+"marginal" population arriving as detections. Under the graded rubric almost all of them score 1 of
+the 2 available tightness points rather than 2.
+
+**The inflation was predictable from §3d, and it lands where §3d said it would.** That section
+measured the recent 3-bar span on his entries against an ordinary-day background: **64.3% of his
+entries sit inside 1.5 ADR against 34.4% of background days**. A gate at 1.5 was therefore cutting
+roughly two thirds of the background while keeping two thirds of his entries, and removing it lets
+that two thirds back in — which is the +123% almost exactly. It is the same number read from two
+directions, and it is worth stating plainly: **the 1.5 cut was doing most of the detector's
+filtering**, and the graded dimension now has to carry that load in the sort instead.
 
 ---
 
@@ -726,6 +829,27 @@ measurement that makes the comparison legitimately.
 whatever the weights say — so it is the one figure here that survives a rubric change
 unchanged. `top_thirty` does not: the board is a re-ranking (§4a).
 
+> **The `in_field` anchor is re-pinned by #154: 104 → 159 of 656 (24.2%).** `in_field`
+> survives a *rubric* change and not a *detector* one — it is exactly the figure the
+> far-outlier guard moves, because the guard decides who is in the field at all. The rest of
+> this section is **left at its v1 measurement and is not restated**: it is the record of what
+> the ten-point rubric did to the field as it stood, and re-running it against a doubled field
+> would answer a different question than the one §4 asked. Two figures from the re-run belong
+> here because downstream work anchors on them:
+>
+> | | Detector v1 | Detector v2 (#154) |
+> | --- | --- | --- |
+> | His trades in the field (`in_field`) | 104/658 (15.8%) | **159/656 (24.2%)** |
+> | The field itself, same sessions | 14,239 detections | **29,096** (+104%) |
+> | Inside the top 30 (`top_thirty`, live rubric) | 45/104 (43.3%) | **45/159 (28.3%)** |
+>
+> Read the last row carefully, because it is the change's cost and benefit in one line: the
+> **same 45 of his trades reach a board**, out of half again as many that are now detected at
+> all. The 55 newly-visible picks land below the top 30 — which is the graded rubric doing
+> what it was built to do, sorting the wider bases downward rather than gating them out, but
+> it is also a plain statement that the board did not get better at surfacing his entries. The
+> gain is that 55 more of them exist somewhere on the list instead of nowhere.
+
 Star distribution of his picks against the replayed field, on the same sessions:
 
 | Stars | His picks | Share | The field | Share |
@@ -809,6 +933,29 @@ Before reading the v2 column, note that the v1 column is a **cell-for-cell repro
 §4 above — 17.31% / 17.82%, 41/658 inside the board, and every one of the nine histogram rows.
 That is the control: the field is demonstrably the same field §4 measured, so any v2 difference
 is the rubric and nothing else.
+
+> **The pairing survived a graded dimension (#154).** v3 grades `Tightness` on a real value
+> instead of a boolean, which would have broken this measurement outright had the *grade* been
+> stored on the breakdown row: a v2 re-score of a v3 row would then be impossible, and the
+> comparison below would be silently comparing two fields while claiming to compare two
+> rubrics. The row stores the **value** and the rubric owns the mapping, so a stored breakdown
+> still re-scores exactly under every version — v2's `cluster_k >= 5` boolean is on the row
+> too, unchanged and unread by v3.
+>
+> The block below is **left as measured**, on the detector-v1 field. On the re-run field
+> (detector v2, all three rubrics over one field, `in_field` 159):
+>
+> | Result | v1 | v2 | v3 (live) |
+> | --- | --- | --- | --- |
+> | Inside the top 30 | 31/159 | 43/159 | **45/159** |
+> | His picks at ≥3.5★ | 13.21% | 9.43% | **11.32%** |
+> | The field at ≥3.5★ | 11.06% | 4.32% | **6.75%** |
+> | Gap (picks − field) | +2.14pp | **+5.11pp** | **+4.57pp** |
+>
+> On a field twice the size, v3 keeps most of v2's discrimination (+4.57pp against +5.11pp)
+> and puts two more of his trades on a board. The gap being *slightly* narrower than v2's is
+> not a defect to tune away: v3 is separating his picks from a population that now includes
+> every wider base v2 never had to rank at all.
 
 ### Reported — same field, both rubrics
 
@@ -1428,8 +1575,11 @@ or more.
 _Provenance: PRD #114; A1 funnel #116/#119; A2 chain/field/placement #117/#118/#120; A3
 outcome regression #121; A3 selection contrast #122; this write-up #123. Analysis code:
 `backend/replay/`. Row-level seam: `backend/tests/test_replay_seam.py`. Decile decomposition
-#133; cluster characterisation #132; recalibration #138; paired A2 re-run #136. Study last run
-2026-08-19; the survivorship hole closed won't-do as #129._
+#133; cluster characterisation #132; recalibration #138; paired A2 re-run #136; the tightness
+restructure #145/#154. Study last run **2026-08-22**, on detector v2 and rubric v3 — the run that
+re-pinned §3's detection row, §3's condition table and §4's `in_field` anchor. The
+recall-and-inflation ledger in §3b is a side-car, `scripts/tightness_restructure.py`, run against
+the same store and outside `replay.study`. The survivorship hole closed won't-do as #129._
 
 _Side-car prototypes, outside §10 and outside `replay.study` — each rebuilt by running the
 scripts in its own directory, each carrying its own `FINDINGS.md`: §3b

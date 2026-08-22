@@ -31,7 +31,7 @@ from .detection import Detection
 from .indicators import ema_series, median_dollar_volume, sma_series
 from .models import Candle, ChartFacts, ChartResponse, MaPoint, ScoreRow, SetupOverlay
 from .ranks import Rank
-from .score import star_score
+from .score import live_points, star_score
 
 # The 65 EMA is the daily chart's one exponential (spec §2 / §4.2).
 EMA_WINDOW = 65
@@ -100,7 +100,7 @@ def _setup(
         stop=detection.stop_price,     # the proposed convention stop line (issue #127)
         envelope=envelope,
         score=stars,
-        breakdown=[ScoreRow(**vars(d)) for d in breakdown],
+        breakdown=[ScoreRow(**vars(d), points=live_points(d)) for d in breakdown],
     )
 
 

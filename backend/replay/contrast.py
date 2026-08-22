@@ -48,7 +48,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from datetime import date
-from typing import Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
 from screener.score import Dimension
 from screener.store import Store
@@ -146,16 +146,25 @@ class SelectionContrast:
 # place while the question of whether it belongs is still open.
 #
 # ``RS line`` (#160) is the one candidate: whether the name held its ratio to the
-# benchmark across its own base. It is being measured for the slot ``Prior move``
+# benchmark across its own base. It was measured for the slot ``Prior move``
 # cannot earn — a **constant dimension**, 100.0% in both groups, pooled spread
-# 0.000. Its weight is reported as 0 because it has none; the four pre-registered
-# ship criteria in #160 decide whether it ever gets one, and no result here
-# changes :mod:`screener.score`.
-CANDIDATE_DIMENSIONS: tuple[tuple[str, int], ...] = (("RS line", 0),)
+# 0.000 — and **rejected** on criterion 4, a wrong-way gap (findings §5d). It
+# stays a column because retiring the evidence with the candidate would leave
+# §5d unreproducible; its weight is 0 because it has none, and nothing here
+# touches :mod:`screener.score`.
+#
+# **One entry per candidate, name and reader together.** Keeping the reader in a
+# second dict keyed by the same string let a typo fall through to the rubric
+# lookup and report 0.0% instead of failing, which is the one way a contrast can
+# be wrong and look fine.
+CANDIDATES: tuple[tuple[str, int, Callable[[ScoredDetection], bool]], ...] = (
+    ("RS line", 0, lambda d: d.rs_line),
+)
 
-# How each candidate dimension is read off a field member. Keyed by the same name
-# the report prints, so adding a candidate is one entry here and one above.
-_CANDIDATE_READERS = {"RS line": lambda d: d.rs_line}
+CANDIDATE_DIMENSIONS: tuple[tuple[str, int], ...] = tuple(
+    (name, weight) for name, weight, _reader in CANDIDATES
+)
+_CANDIDATE_READERS = {name: reader for name, _weight, reader in CANDIDATES}
 
 # Every column of the contrast: the rubric's own seven, then the candidates.
 CONTRAST_DIMENSIONS: tuple[tuple[str, int], ...] = (
@@ -199,9 +208,10 @@ def contrast_dimensions(
     ``taken`` are his executed-trade detections, ``not_taken`` the comparison
     group. For every dimension (the app's eight less the dropped sector dimension,
     in published order, then the :data:`CANDIDATE_DIMENSIONS` under measurement)
-    the hit rate and spread are reported for each group and for the pooled sample, and a dimension untestable within his trades alone but with
-    spread across the pooled sample is flagged as testability-restored (PRD user
-    story 19). No outcome is read — this measures selection, not prediction.
+    the hit rate and spread are reported for each group and for the pooled
+    sample, and a dimension untestable within his trades alone but with spread
+    across the pooled sample is flagged as testability-restored (PRD user story
+    19). No outcome is read — this measures selection, not prediction.
     """
     taken = list(taken)
     not_taken = list(not_taken)

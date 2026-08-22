@@ -65,7 +65,6 @@ def _setup(
     *,
     prior_move: bool,
     sector_share: float,
-    rs_line: bool = False,
 ) -> SetupOverlay | None:
     """The setup overlay for the chart (spec §5.1 / ticket 41), or ``None`` when the
     name has no detection tonight.
@@ -92,8 +91,7 @@ def _setup(
         for t in range(base_i, n)
     ]
     stars, breakdown = star_score(
-        detection, prior_move=prior_move, sector_share=sector_share,
-        rs_line=rs_line,
+        detection, prior_move=prior_move, sector_share=sector_share
     )
     return SetupOverlay(
         base_start=bars[base_i].session,
@@ -139,7 +137,6 @@ def build_chart(
     *,
     prior_move: bool = False,
     sector_share: float = 0.0,
-    rs_line: bool = False,
     window: int | None = None,
 ) -> ChartResponse:
     """One symbol's evidence bundle (spec §5.1). ``bars`` is the name's clean,
@@ -149,9 +146,6 @@ def build_chart(
     cross-sectional inputs to the star score (the decile gate and the leave-one-out
     1m sector share), supplied by the caller off the same session — they feed the
     setup overlay's breakdown, mirroring how :mod:`.candidates` scores the list.
-    ``rs_line`` is the third such input and the one **under measurement** (#160) —
-    computed by the caller against the market index, passed through, and scored by
-    nothing; the overlay is byte-identical whether it is supplied or not.
 
     ``window`` is how many trailing bars to draw; ``None`` falls back to the
     :data:`CHART_BARS` default. A thumbnail passes a small ``window`` (e.g. 60) so
@@ -187,8 +181,7 @@ def build_chart(
         sma50=_ma_points(sessions, sma50[lo:]),
         ema65=_ma_points(sessions, ema65[lo:]),
         setup=_setup(
-            detection, bars, prior_move=prior_move, sector_share=sector_share,
-            rs_line=rs_line,
+            detection, bars, prior_move=prior_move, sector_share=sector_share
         ),
         facts=_facts(detection, bars, ranks_for_symbol, sector),
     )

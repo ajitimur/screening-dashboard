@@ -119,14 +119,18 @@ class ScoredDetection:
     against which the not-taken detections are contrasted (A3 selection contrast,
     issue #122). A quiet session (no entry) leaves both false.
 
-    ``rs_line`` is the **candidate dimension under measurement** (#160): whether
-    the name held its ratio to the benchmark across its own base
+    ``rs_line`` is the **candidate dimension** (#160): whether the name held its
+    ratio to the benchmark across its own base
     (:func:`screener.relative_strength.rs_line_for`). It sits beside the score
     rather than inside it, because it is *not scored* — :data:`SevenDimScore`
-    stays exactly the seven dimensions the rubric weighs, so nothing here can
-    quietly move a star or a ``star_rank`` while a dimension is still being
-    measured. A3's selection contrast reads it as a candidate column; the rubric
-    reads it only if #160's verdict admits it.
+    stays exactly the seven dimensions the rubric weighs, so a dimension under
+    measurement can never quietly move a star or a ``star_rank`` while the
+    question of whether it belongs is open. A3's selection contrast reads it as
+    a candidate column.
+
+    It was measured and **not admitted** (findings §5d): a wrong-way gap, so
+    criterion 4 refused it and the rubric never read it. The field still computes
+    it, because that is what makes §5d reproducible rather than quotable.
     """
 
     symbol: str
@@ -214,7 +218,7 @@ def build_field(
     width that admitted it — a name admitted by a widened gate holds the prior-move
     point under that gate, and scoring it against the live gate would understate it.
 
-    ``rs_line_of`` maps symbol → the candidate dimension under measurement (#160),
+    ``rs_line_of`` maps symbol → the candidate dimension (#160),
     computed by the caller because it needs a second symbol's bars. It rides on
     each :class:`ScoredDetection` and is **never scored**: a symbol absent from it
     is ``False``, and the star order is identical whether it is supplied or not.

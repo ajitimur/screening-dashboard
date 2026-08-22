@@ -227,20 +227,19 @@ restated anywhere else.
 **Constant dimension**:
 A score dimension true for every detection by construction, so it shifts every score equally
 and can never move the sort. `Prior move` is one, and is kept for what it documents, not for
-what it discriminates — a defence ADR 0005 now rejects, which makes it the standing candidate
-for **retirement**.
+what it discriminates — a defence ADR 0005 (`proposed`) argues against, which would make it
+the first candidate for **retirement** if that ADR is accepted.
 
 **Candidate dimension**:
-A dimension **under measurement**, not in the rubric: computed on every detection, carried
-beside the star score, reported as a column of the **selection contrast**, and weighted by
-nothing. It is how ADR 0005's admission rule is exercised — a dimension earns a rubric slot on
-a measured non-zero gap with non-zero pooled spread, and until that measurement exists it must
-be unable to move a star, a sort or a board place. So it lives on the field member
-(`replay.field.ScoredDetection.rs_line`), never inside `SevenDimScore`, and the input
-`score.star_score` accepts for it is read by nothing. **Pre-registered as one variant, pass or
-fail** — trying several and keeping the largest gap is magnitude-fitting (#128 Q2).
-`RS line` is the first and so far only one, and it was **rejected** (findings §5d, #160): Δ
-−2.1pp, a wrong-way gap, on 11.2% disagreement with the break test it nearly restates.
+A dimension **under measurement**, not in the rubric: computed on every detection in the
+replay, carried beside the star score, reported as a column of the **selection contrast**, and
+weighted by nothing. It is how ADR 0005's admission rule is exercised — a dimension earns a
+rubric slot on a measured non-zero gap with non-zero pooled spread, and until that measurement
+exists it must be unable to move a star, a sort or a board place. So it lives on the field
+member (`replay.field.ScoredDetection.rs_line`), never inside `SevenDimScore`, and nothing in
+`screener` scores it. **Pre-registered as one variant, pass or fail** — trying several and
+keeping the largest gap is magnitude-fitting (#128 Q2). A candidate that fails leaves its
+measurement behind and takes its wiring with it.
 _Avoid_: experimental dimension, provisional dimension (a **graded dimension** is live; this
 is not).
 
@@ -248,10 +247,12 @@ is not).
 `adj_close(name) / adj_close(index)`, hit when today's ratio is at or above the ratio at the
 detection's own `base_start` — non-decayed, **not** a new high, so merely matching the index
 passes. The benchmark is `MARKET_INDEX`; both legs read `adj_close`, and a missing bar on
-either scores `False` and is never carried forward. Computed in the caller
-(`screener.relative_strength`), never in `score.py`, because it needs a second symbol's bars.
-Measured and **not admitted** — kept as the worked example of what a **candidate dimension**
-looks like end to end, and because the slot it was proposed for is still open.
+either scores `False` and is never carried forward. It needs a second symbol's bars, so it
+could only ever be computed in a caller (`screener.relative_strength`), never in `score.py`.
+The first **candidate dimension**, and **rejected** (findings §5d, #160): Δ −2.1pp, a wrong-way
+gap, on 11.2% disagreement with the break test it nearly restates. The live app does not
+compute it — only the replay and the study script do, so §5d stays reproducible. The slot it
+was proposed for is still open.
 
 **Rubric version**:
 The stamp identifying which weights and mappings produced a star score (`score.RUBRIC_VERSION`,

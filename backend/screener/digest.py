@@ -40,7 +40,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Mapping
 
 from .bars import Bar
 from .detection import Detection, detection_gate
@@ -79,7 +78,6 @@ def build_digest(
     industry_of: dict[str, str],
     sector_of: dict[str, str],
     last_reported: dict[str, date],
-    rs_line_of: Mapping[str, bool] | None = None,
 ) -> list[DigestBreak]:
     """Tonight's breaks, **ordered by star score descending** (spec §6).
 
@@ -89,10 +87,7 @@ def build_digest(
     for the score's prior-move gate and leave-one-out sector share — the score of
     the setup that broke, computed exactly as the list computed it. ``last_reported``
     maps symbol → the most recent prior session it was reported, for the repeat
-    marker; a symbol absent from it is a first-time break. ``rs_line_of`` maps
-    symbol → the **dimension under measurement** (#160), computed by the caller
-    against the market index; it reaches :func:`score.star_score` and is scored by
-    nothing, so no digest row's frozen star moves whether it is supplied or not.
+    marker; a symbol absent from it is a first-time break.
 
     A name is reported **iff** its today close exceeds its yesterday trigger — the
     score, the stop and ``line_ok`` are computed for the row but never gate
@@ -100,7 +95,6 @@ def build_digest(
     """
     prior_move = detection_gate(ranks_yesterday)
     sector_shares = leave_one_out_sector_shares(ranks_yesterday, sector_of)
-    rs_line_of = rs_line_of or {}
 
     rows = []
     for det in yesterday_detections:
@@ -111,7 +105,6 @@ def build_digest(
             det,
             prior_move=det.symbol in prior_move,
             sector_share=sector_shares.get(det.symbol, 0.0),
-            rs_line=rs_line_of.get(det.symbol, False),
         )
         # §7's real default stop: entry − breakout_day_low, normalised to one ADR
         # the same way the detection normalises its cluster-low stop.

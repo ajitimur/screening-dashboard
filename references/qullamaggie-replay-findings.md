@@ -1536,17 +1536,33 @@ universe and the same recomputed ranks, so the detector is the only thing that d
    the ratio against 12.1% of the field he passed over.
 
 **No rubric change follows.** `RUBRIC_VERSION` stays 3, `DIMENSIONS` is untouched, and the
-follow-up (#161) has nothing to admit. The wiring landed under this issue is inert by
-construction and tested to be so; if it is not wanted as scaffolding it comes out with the
-verdict.
+follow-up (#161) has nothing to admit.
+
+**And the scoring wiring came out with the verdict.** #160 asked for the dimension to be wired
+through the four scoring callers, computed but not yet scored — scaffolding for a #161 that is
+now moot. Carrying an inert parameter through `score.py`, `candidates.py`, `digest.py`,
+`chart.py`, `app.py` and `pipeline.py` for a rejected dimension is documentation bought at the
+price of six modules, which is the trade ADR 0005 refuses in the `Prior move` case. What stays
+is what carries the evidence: `screener/relative_strength.py` (the pure helper), the replay's
+**candidate dimension** column, and the study script. The live app does not compute the RS
+line, and §5d is reproducible without it. If #161 is ever revived the wiring is one commit
+back in history, and it was a keystroke either way — the measurement was always the hard part.
 
 #### Why the gap is negative, and why it is small
 
-The mechanism is in the definition, and it was not visible until the numbers were. `base_start`
-is the **prior-move peak** — the highest point of the run-up — so the dimension asks a name to
-hold its ratio to the index measured *from a local maximum*. Almost nothing does: the hit rate
-is 10–13% across the whole field, in **both** groups. `RS line` is therefore near-constant in
-the low direction, the mirror image of the `Prior move` dimension it was proposed to replace.
+The mechanism is in the definition, and it was not visible until the numbers were.
+**`base_start` is a local high under both of the detector's branches.** On an uncapped base it
+is the prior-move peak — the highest point of the run-up. On a base past the 45-bar cap it is
+re-anchored to `_argmax(high, …)`, the highest high inside that window
+(`detection.py:437-441`) — a *different* bar, but a local maximum just the same. Capped bases
+are **1.9%** of the measured field (861 of 45,600 persisted detections at `base_len >= 45`;
+median base length 12), so the uncapped branch dominates, and the property the dimension trips
+over holds either way.
+
+So the rule asks a name to hold its ratio to the index measured *from a local maximum*. Almost
+nothing does: the hit rate is 10–13% across the whole field, in **both** groups. `RS line` is
+therefore near-constant in the low direction, the mirror image of the `Prior move` dimension it
+was proposed to replace.
 It has real pooled spread where `Prior move` has none, so it is not the same defect — but a
 dimension that fires on one detection in ten discriminates over a thin slice of the field, and
 the −2.1pp gap is measured across that slice.

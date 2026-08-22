@@ -38,8 +38,6 @@ takes neither, so no amount of wiring here can leak them in (spec §4.6 / §4.9)
 
 from __future__ import annotations
 
-from typing import Mapping
-
 from .detection import Detection, detection_gate
 from .models import Candidate, ScoreRow
 from .ranks import Rank, breadth_counts
@@ -58,7 +56,6 @@ def build_candidates(
     sector_of: dict[str, str],
     dollar_volume_of: dict[str, float | None] | None = None,
     prev_detected: set[str] | frozenset[str] = frozenset(),
-    rs_line_of: Mapping[str, bool] | None = None,
 ) -> list[Candidate]:
     """The candidate rows for a session, **sorted by star score** (spec §4.7/§5.1).
 
@@ -77,14 +74,6 @@ def build_candidates(
     the chart does. ``prev_detected`` is last session's detected symbol set —
     ``new_tonight`` is absence from it, so on the first session every name is new.
 
-    ``rs_line_of`` maps symbol → the **dimension under measurement** (#160): whether
-    the name held its ratio to the market index across its own base. Like
-    ``dollar_volume_of`` it is a caller-supplied input rather than a fact on the
-    detection row, because it needs a *second* symbol's bars. It reaches
-    :func:`score.star_score` and is scored by nothing — no star, no order and no
-    row field moves whether it is supplied or not. A symbol absent from it is
-    ``False``.
-
     The score is derived here from the detection's own signal vector plus two
     cross-sectional inputs off the same session: the prior-move decile gate and
     the leave-one-out 1m sector share. The list then sorts by score descending
@@ -92,7 +81,6 @@ def build_candidates(
     tiebreak, ticker breaking any remaining tie for a stable order.
     """
     dollar_volume_of = dollar_volume_of or {}
-    rs_line_of = rs_line_of or {}
     breadth = breadth_counts(ranks)
     # The five decile ranks per name, grouped off the same rank table the chart
     # facts read (spec §4.3); a lookback the name is not ranked in is simply absent.
@@ -111,7 +99,6 @@ def build_candidates(
             det,
             prior_move=det.symbol in prior_move,
             sector_share=sector_shares.get(det.symbol, 0.0),
-            rs_line=rs_line_of.get(det.symbol, False),
         )
         rows.append(
             (

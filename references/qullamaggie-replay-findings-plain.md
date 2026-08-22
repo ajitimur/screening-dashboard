@@ -835,12 +835,16 @@ Nothing in the app changed. The scoring is exactly what it was.
 ### Why it came out this way
 
 The reason is in the definition, and it only became obvious once the numbers were
-in. The base starts at the **peak** of the prior run-up — the highest point. So
-the test asks a stock to hold its ratio against the index *measured from its own
-high-water mark*. Almost nothing manages that: only about one setup in ten passes,
-in **both** groups. It's a near-constant, just stuck at the bottom instead of the
-top — a different flavour of the same problem as the quality it was meant to
-replace.
+in. **The base starts at a high point** — normally the peak of the prior run-up,
+and on the small number of very long bases (1.9% of them, where a 45-day cap
+kicks in) the highest point within the last 45 days instead. Different bar, same
+character: a local high either way.
+
+So the test asks a stock to hold its ratio against the index *measured from its
+own high-water mark*. Almost nothing manages that: only about one setup in ten
+passes, in **both** groups. It's a near-constant, just stuck at the bottom instead
+of the top — a different flavour of the same problem as the quality it was meant
+to replace.
 
 There's a second problem. The candidate was also checked against a much simpler
 test: **is the stock's price itself at a new high over its base?** The two agree

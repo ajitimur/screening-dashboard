@@ -277,11 +277,7 @@ def live_points(row: Dimension) -> int:
 
 
 def star_score(
-    det: Detection,
-    *,
-    prior_move: bool,
-    sector_share: float,
-    rs_line: bool = False,
+    det: Detection, *, prior_move: bool, sector_share: float
 ) -> tuple[float, list[Dimension]]:
     """The star score (0.5–4.5) and its eight-row breakdown for one detection (§4.7).
 
@@ -292,25 +288,11 @@ def star_score(
     rank table and labels. The other six dimensions read the detection's own
     signal vector — never the stop, never the regime.
 
-    ``rs_line`` is the third caller-supplied cross-sectional input and the one
-    dimension **under measurement**: whether the name held its ratio to the market
-    index across its own base (:mod:`screener.relative_strength`, #160). It is
-    accepted here and **deliberately not scored** — no :data:`DIMENSIONS` row, no
-    weight, no effect on the returned stars or breakdown. The wiring lands ahead of
-    the evidence so that #161 can admit the dimension by editing the rubric alone,
-    and so that the four ship criteria pre-registered in ADR 0005 decide the
-    question rather than the convenience of the code. If the study returns
-    *do not ship*, this parameter comes out with it.
-
     Returns ``(stars, breakdown)`` where ``stars`` is ``points ÷ 2`` and
     ``breakdown`` is the eight :class:`Dimension` rows in published order. The
     totalling is :func:`stars_under` under the live weights — one site owns the
     ``÷ 2``, so the live rubric cannot drift from the version table it is keyed in.
     """
-    # Named, documented, and read by nothing: the rubric is unchanged until #160's
-    # verdict lands. Referenced here so the staging is explicit rather than looking
-    # like an argument that was forgotten.
-    del rs_line
     # ``Tightness`` is the one graded dimension (#154): its row carries the
     # *value* — the ungated three-bar range — and the live rubric bands it, while
     # ``hit`` keeps v1/v2's ``cluster_k >= TIGHT_K`` so those versions still

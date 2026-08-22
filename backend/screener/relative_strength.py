@@ -1,17 +1,28 @@
-"""The RS line: an index-relative candidate dimension, **under measurement**
-(issue #160).
+"""The RS line: an index-relative **candidate dimension**, measured and **not
+admitted** (issue #160, findings §5d).
 
 ``RS = adj_close(name) / adj_close(index)``, hit when ``RS_today >=
-RS_at_base_start``. It is a candidate for the rubric slot ``Prior move`` cannot
+RS_at_base_start``. It was proposed for the rubric slot ``Prior move`` cannot
 earn — that dimension measures pooled spread 0.000 in findings §5b, 100.0% in
 both the taken and the not-taken group, so it occupies a point of a nine-point
 rubric and cannot move the sort under any field (a **constant dimension**).
 
-**Nothing here is scored.** The dimension is computed and carried so #160's
-pre-registered study can measure it against the four ship criteria fixed before
-the numbers were visible; :mod:`screener.score` is untouched and
-:data:`screener.score.RUBRIC_VERSION` does not move. Admission is governed by
-``docs/adr/0005-what-admits-a-dimension-to-the-rubric.md``.
+**The verdict was do not ship**, on criterion 4 of the four pre-registered in
+``docs/adr/0005-what-admits-a-dimension-to-the-rubric.md``: the gap is *negative*
+on both measured fields — −5.8pp under detector v1, −2.1pp under the live
+detector — so he selects names whose strength against the index decayed through
+the base. Criterion 2 would have refused it regardless, at 11.2% disagreement
+with price-at-a-new-high-over-base against a pre-registered ~15% floor.
+
+**So nothing here is scored, and nothing in the app calls it.** :mod:`screener.score`
+is untouched, :data:`screener.score.RUBRIC_VERSION` stays 3, and the live
+candidate list, digest and chart never compute it — the wiring that would have
+carried it to the scorer came out with the verdict, as it said it would. The
+module survives because the *evidence* has to stay reproducible: it is what
+:func:`replay.field.session_rs_lines` and ``scripts/rs_line_contrast.py`` read,
+and re-running the study is how anyone checks §5d rather than trusting it.
+
+Read it as the worked example of a candidate dimension, not as live scoring code.
 
 Four properties are load-bearing, and each rules out a variant that looks
 equivalent:
@@ -24,7 +35,11 @@ equivalent:
 - **The window is the detection's own base**, anchored at the detector's actual
   ``base_start`` — which re-anchors to the highest high within
   :data:`~screener.detection.MAX_BASE_LEN` bars when the base is capped, and is
-  therefore *not* the prior-move peak on a capped base.
+  therefore *not* the prior-move peak on a capped base. Either way it is a
+  **local high**, which is what makes the dimension hard to hit and is the
+  mechanism behind its null (findings §5d). Capped bases are 1.9% of the
+  measured field, so the two branches are not equally common — but the property
+  that matters holds under both.
 - **Both legs read ``adj_close``.** A ratio on unadjusted closes jumps on every
   split.
 - **A missing bar scores ``False``, never carried forward.** Phantom bars are
@@ -37,10 +52,10 @@ equivalent:
 
 **Computed in the caller, never in :mod:`screener.score`.** The score module is
 pure and does no I/O, and that guarantee is worth keeping; the RS line needs a
-second symbol's bars, so it joins ``prior_move`` and ``sector_share`` as a
-caller-supplied cross-sectional input. The benchmark is
-:data:`~screener.source.MARKET_INDEX` as it stands — ``^IXIC`` (US), ``^JKSE``
-(IDX).
+*second symbol's* bars, which is why it could only ever have been a
+caller-supplied cross-sectional input like ``prior_move`` and ``sector_share``.
+The benchmark is :data:`~screener.source.MARKET_INDEX` as it stands — ``^IXIC``
+(US), ``^JKSE`` (IDX).
 
 **No schema change.** :class:`~screener.detection.Detection` persists ``base_len``
 and ``session``, and the bars table has no retention cap, so ``base_start`` — and

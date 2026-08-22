@@ -163,7 +163,7 @@ decile-dependent output carries `blind_spot_count`.
 **656 replayable trades** (of 828; the other 172 are the blind spot), of which **79** are
 tagged `continuation`.
 
-> **Re-measured after #154.** The tightness restructure changed what the detector detects, so
+> **Re-measured after #154.** The base-tightness restructure changed what the detector detects, so
 > the detection row below is a **re-run** figure and the `cluster` line in the condition table
 > collapses. Liquidity and decile are cross-sectional and untouched by that change — they
 > reproduced to the row. The superseded detector-v1 figures are kept in each cell so the two
@@ -534,7 +534,7 @@ this section.
 
 The proposal above was decided in #145 and implemented in #154. `TIGHT_MULT = 1.5` **no longer
 gates**: it shapes the cluster window, the cluster falls back to the 3-bar window when nothing
-tighter clears, and the only tightness rejection left is a **far-outlier guard** at
+tighter clears, and the only base-tightness rejection left is a **far-outlier guard** at
 `OUTLIER_MULT = 3.0 × ADR` on the 3-bar range. The rubric's ×2 `Tightness` dimension is graded on
 that same ungated quantity — 2 points at or under 1.0 ADR, 1 through 2.0, none beyond — at rubric
 **v3**. The weight did not move.
@@ -555,12 +555,14 @@ how this change sits against it:
   strong, in the same sense that #143's cliff made a threshold the right encoding there. The
   dimension keeps its ×2 and now expresses more of what it measures, not less.
 
-That reading is a **judgement about the rule's scope, not a finding**, and it is recorded here so
-the precondition does not look bypassed. What it does not do is exempt the change from the rule's
+That reading is a **judgement about the rule's scope, not a finding**. It is not left as a note
+in a write-up either: it is recorded as a decision, with the four conditions that have to hold
+before the move can be reached for again, in
+[`docs/adr/0004-replacing-a-threshold-with-a-graded-input.md`](../docs/adr/0004-replacing-a-threshold-with-a-graded-input.md). What it does not do is exempt the change from the rule's
 purpose: precision is still not measurable, so the cost side is priced explicitly below, the way
 #141 and #149 price theirs and the way ADR 0002's condition 4 requires of a cross-sectional cut.
 
-**Both halves of the ledger, measured** (`scripts/tightness_restructure.py`, over the same replay
+**Both halves of the ledger, measured** (`scripts/base_tightness_restructure.py`, over the same replay
 store; recall on the 828-trade reference set, field inflation over the 505 replayed sessions the
 store holds ranks for):
 
@@ -1446,6 +1448,10 @@ governed differently:
 
 - the **stop convention** (§6, finding 1) is a detector output and a card claim, measured
   against his own risk rather than inferred from a null — outside the rule entirely; and
+- the **base-tightness restructure** (§3b, #145/#154) is neither a loosening argued from a null
+  nor a threshold move with the shape held fixed: it replaced a threshold with a graded rubric
+  input plus a far outlier guard. ADR 0002 does not govern that, and ADR 0004 records what does;
+  and
 - the **decile gate** (§3), which costs 40% of his entries, is a **cross-sectional cut** and
   falls under the rule's second limb: the loss must be measured directly by A1, shown not to
   be a coverage artefact, addressed structurally rather than by a threshold move, and quoted
@@ -1578,7 +1584,7 @@ outcome regression #121; A3 selection contrast #122; this write-up #123. Analysi
 #133; cluster characterisation #132; recalibration #138; paired A2 re-run #136; the tightness
 restructure #145/#154. Study last run **2026-08-22**, on detector v2 and rubric v3 — the run that
 re-pinned §3's detection row, §3's condition table and §4's `in_field` anchor. The
-recall-and-inflation ledger in §3b is a side-car, `scripts/tightness_restructure.py`, run against
+recall-and-inflation ledger in §3b is a side-car, `scripts/base_tightness_restructure.py`, run against
 the same store and outside `replay.study`. The survivorship hole closed won't-do as #129._
 
 _Side-car prototypes, outside §10 and outside `replay.study` — each rebuilt by running the

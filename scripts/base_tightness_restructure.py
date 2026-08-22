@@ -1,4 +1,4 @@
-"""Price the #145/#154 tightness restructure: recall recovered, field admitted.
+"""Price the #145/#154 base-tightness restructure: recall recovered, field admitted.
 
 The hard 1.5×ADR cluster cut became a far-outlier guard at ``OUTLIER_MULT``. A
 loosening is only reportable with **both** halves of the ledger (ADR 0002's
@@ -25,7 +25,7 @@ pass (§10) and writes nothing to the store it reads. It needs a replay store bu
 by `replay.store.build_replay_store`; give it a **copy** if another process holds
 the live one's lock.
 
-    python scripts/tightness_restructure.py --store data/replay.duckdb
+    python scripts/base_tightness_restructure.py --store data/replay.duckdb
 
 ``--sessions N`` samples N sessions evenly for part 2 instead of walking all of
 them; the sample size is reported with the result either way.
@@ -47,6 +47,8 @@ from replay.funnel import (  # noqa: E402
     COND_CLUSTER,
     diagnose_detection,
 )
+from replay.regression import distribution  # noqa: E402
+from replay.funnel import CONTINUATION_SESSIONS  # noqa: E402
 from replay.reference import (  # noqa: E402
     classify,
     evaluation_session,
@@ -78,12 +80,17 @@ REFERENCE = Path(__file__).resolve().parent.parent / "references" / (
 
 @dataclass
 class RecallResult:
+    """One walk of the funnel's detection stage, both sides of the ledger."""
+
     passed: int
     total: int
     passed_ex_continuation: int
     total_ex_continuation: int
     condition_counts: dict[str, int]
-    recovered_three_bar_ranges: list[float]
+    # Trades the old 1.5 cut declined and the guard admits, by three-bar range ...
+    recovered: list[float]
+    # ... and the ones the guard still declines, by the same ruler.
+    still_declined: list[float]
 
 
 def measure_recall(store: Store, market: str) -> RecallResult:
@@ -91,25 +98,28 @@ def measure_recall(store: Store, market: str) -> RecallResult:
 
     Reproduces :func:`replay.funnel._funnel_row`'s detection half exactly — the
     same evaluation session (the last session strictly before entry), the same
-    ``detect``, the same ``diagnose_detection`` attribution — without the chain
-    the decile stage would need.
+    ``detect``, the same ``diagnose_detection`` attribution — without the chain the
+    decile stage would need. One walk yields both the recall and the two three-bar
+    range samples the write-up quotes; walking twice would read every trade's bars
+    twice to answer halves of the same question.
     """
     trades = load_trades(REFERENCE)
     classified = classify(trades, store, market=market)
     calendar = store.sessions(market)
 
-    # Continuation tagging: an entry within 5 sessions of a prior entry in the
-    # same ticker. Recomputed here off the calendar, as the funnel does.
+    # Continuation tagging: an entry within CONTINUATION_SESSIONS of a prior entry
+    # in the same ticker. Recomputed here off the calendar, as the funnel does.
     index = {s: i for i, s in enumerate(calendar)}
-    by_ticker: dict[str, list[date]] = {}
+    entries_by_ticker: dict[str, list[date]] = {}
     for c in classified:
-        by_ticker.setdefault(c.trade.ticker, []).append(c.trade.entry_date)
-    for entries in by_ticker.values():
+        entries_by_ticker.setdefault(c.trade.ticker, []).append(c.trade.entry_date)
+    for entries in entries_by_ticker.values():
         entries.sort()
 
     passed = total = passed_ex = total_ex = 0
     conditions: dict[str, int] = {}
     recovered: list[float] = []
+    still_declined: list[float] = []
     bars_cache: dict[str, list] = {}
     for c in classified:
         if not c.replayable:
@@ -120,27 +130,33 @@ def measure_recall(store: Store, market: str) -> RecallResult:
         bars = bars_cache[ticker]
         eval_session = evaluation_session(calendar, c.trade.entry_date)
 
-        entries = by_ticker[ticker]
-        prior = [e for e in entries if e < c.trade.entry_date]
-        distance = None
-        if prior and prior[-1] in index and c.trade.entry_date in index:
-            distance = index[c.trade.entry_date] - index[prior[-1]]
-        continuation = distance is not None and distance <= 5
+        prior = [e for e in entries_by_ticker[ticker] if e < c.trade.entry_date]
+        distance = (
+            index[c.trade.entry_date] - index[prior[-1]]
+            if prior and prior[-1] in index and c.trade.entry_date in index
+            else None
+        )
+        continuation = distance is not None and distance <= CONTINUATION_SESSIONS
 
         total += 1
         if not continuation:
             total_ex += 1
+
         found = detect(ticker, bars, eval_session) if eval_session else None
         if found is not None:
             passed += 1
             if not continuation:
                 passed_ex += 1
-            # A trade the old 1.5 cut would have declined: recovered by the guard.
             if found.range_3bar_adr is not None and found.range_3bar_adr > TIGHT_MULT:
                 recovered.append(found.range_3bar_adr)
-        else:
-            cond = diagnose_detection(bars, eval_session) if eval_session else "history"
-            conditions[cond] = conditions.get(cond, 0) + 1
+            continue
+
+        cond = diagnose_detection(bars, eval_session) if eval_session else "history"
+        conditions[cond] = conditions.get(cond, 0) + 1
+        if cond == COND_CLUSTER:
+            r3 = _eval_three_bar_range(bars, eval_session)
+            if r3 is not None:
+                still_declined.append(r3)
 
     return RecallResult(
         passed=passed,
@@ -148,45 +164,22 @@ def measure_recall(store: Store, market: str) -> RecallResult:
         passed_ex_continuation=passed_ex,
         total_ex_continuation=total_ex,
         condition_counts=conditions,
-        recovered_three_bar_ranges=sorted(recovered),
+        recovered=recovered,
+        still_declined=still_declined,
     )
 
 
-def far_misses(store: Store, market: str) -> list[float]:
-    """The three-bar range of every trade the far-outlier guard still declines.
-
-    The guard's own cost, in his trades: what is left of the 171 `cluster` misses
-    once the graded range takes over. Reported so the guard's n is visible rather
-    than implied.
-    """
-    trades = load_trades(REFERENCE)
-    classified = classify(trades, store, market=market)
-    calendar = store.sessions(market)
-    out: list[float] = []
-    bars_cache: dict[str, list] = {}
-    for c in classified:
-        if not c.replayable:
-            continue
-        eval_session = evaluation_session(calendar, c.trade.entry_date)
-        if eval_session is None:
-            continue
-        ticker = c.trade.ticker
-        if ticker not in bars_cache:
-            bars_cache[ticker] = store.bars(market, ticker)
-        bars = bars_cache[ticker]
-        if diagnose_detection(bars, eval_session) != COND_CLUSTER:
-            continue
-        upto = [b for b in bars if b.session <= eval_session]
-        a = _adr(upto)
-        if a is None or a <= 0:
-            continue
-        r3 = range_3bar_adr(
-            [b.high for b in upto], [b.low for b in upto], len(upto) - 1,
-            a * upto[-1].close,
-        )
-        if r3 is not None:
-            out.append(r3)
-    return sorted(out)
+def _eval_three_bar_range(bars: list, as_of: date) -> float | None:
+    """The trailing three-bar range in ADR at ``as_of``, off the detector's own
+    diagnostic — the ruler the guard tested, recomputed for a trade it declined."""
+    upto = [b for b in bars if b.session <= as_of]
+    a = _adr(upto)
+    if a is None or a <= 0 or not upto:
+        return None
+    return range_3bar_adr(
+        [b.high for b in upto], [b.low for b in upto], len(upto) - 1,
+        a * upto[-1].close,
+    )
 
 
 @dataclass
@@ -243,17 +236,16 @@ def measure_field_inflation(
     return InflationResult(len(sessions), v1_total, v2_total, deltas)
 
 
-def _quantiles(values: list[float]) -> str:
-    if not values:
+def _summary(values: list[float]) -> str:
+    """A one-line five-number summary, from the study's own
+    :func:`replay.regression.distribution` rather than a second implementation of
+    the same quantiles."""
+    d = distribution(values)
+    if d is None:
         return "n=0"
-    n = len(values)
-
-    def q(p: float) -> float:
-        return values[min(n - 1, int(p * n))]
-
     return (
-        f"n={n}  p25 {q(0.25):.2f}  median {q(0.50):.2f}  p75 {q(0.75):.2f}  "
-        f"max {values[-1]:.2f}"
+        f"n={d.n}  p25 {d.p25:.2f}  median {d.median:.2f}  p75 {d.p75:.2f}  "
+        f"max {d.maximum:.2f}"
     )
 
 
@@ -272,8 +264,8 @@ def main(argv: list[str] | None = None) -> int:
         lines.append(line)
         print(line)
 
-    emit(f"Tightness restructure (#145/#154) — TIGHT_MULT {TIGHT_MULT} gate -> "
-         f"OUTLIER_MULT {OUTLIER_MULT} guard")
+    emit(f"Base-tightness restructure (#145/#154) — TIGHT_MULT {TIGHT_MULT} gate "
+         f"-> OUTLIER_MULT {OUTLIER_MULT} guard")
     emit("=" * 78)
     emit()
 
@@ -299,13 +291,10 @@ def main(argv: list[str] | None = None) -> int:
             emit(f"     {cond:<22} {v1:>5}  {v2:>5}")
     emit()
     emit("   Three-bar range of the recovered trades (all past the old 1.5 cut):")
-    emit(f"     {_quantiles(r.recovered_three_bar_ranges)}")
+    emit(f"     {_summary(r.recovered)}")
     emit()
-
-    print("measuring the guard's residual misses ...", file=sys.stderr)
-    far = far_misses(store, args.market)
-    emit(f"   Trades the guard still declines: {len(far)}")
-    emit(f"     three-bar range: {_quantiles(far)}")
+    emit(f"   Trades the guard still declines: {len(r.still_declined)}")
+    emit(f"     three-bar range: {_summary(r.still_declined)}")
     emit()
 
     print("measuring field inflation ...", file=sys.stderr)

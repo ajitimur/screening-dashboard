@@ -171,7 +171,9 @@ CREATE TABLE IF NOT EXISTS detections (
     cluster_range_adr  DOUBLE  NOT NULL,
     -- Base tightness, ungated: the trailing 3-bar range in ADR. Persisted because
     -- the rubric grades it (#154) — a breakdown must carry the value, not one
-    -- version's verdict about it. NULL on rows written before v10.
+    -- version's verdict about it. Declared NOT NULL for a database created from
+    -- this schema; on one migrated up to v10 the column arrives nullable, as
+    -- Store._migrate documents for every column it adds.
     range_3bar_adr     DOUBLE  NOT NULL,
     line_ok            BOOLEAN NOT NULL,
     touch_zones        INTEGER NOT NULL,

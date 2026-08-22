@@ -1,4 +1,4 @@
-Tightness restructure (#145/#154) — TIGHT_MULT 1.5 gate -> OUTLIER_MULT 3.0 guard
+Base-tightness restructure (#145/#154) — TIGHT_MULT 1.5 gate -> OUTLIER_MULT 3.0 guard
 ==============================================================================
 
 1. Detection-stage recall, 828-trade reference set
@@ -18,7 +18,7 @@ Tightness restructure (#145/#154) — TIGHT_MULT 1.5 gate -> OUTLIER_MULT 3.0 gu
      n=169  p25 1.68  median 1.83  p75 2.10  max 2.90
 
    Trades the guard still declines: 2
-     three-bar range: n=2  p25 3.18  median 3.42  p75 3.42  max 3.42
+     three-bar range: n=2  p25 3.24  median 3.30  p75 3.36  max 3.42
 
 2. Field inflation per session (same universe, same decile gate)
    sessions measured          : 505

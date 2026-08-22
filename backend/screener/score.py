@@ -57,10 +57,10 @@ because it rides the API payload and the digest.
 sense that #143's entry-to-MA cliff made a threshold the right shape there. v3 grades
 it in bands off :data:`Detection.range_3bar_adr` (see :data:`TIGHTNESS_BANDS`), and
 :class:`Rubric` — not the stored row — owns the mapping, so v2 still re-scores a v3
-row exactly. Note what this is *not*: the ADR 0002 score-dimension limb governs
-*loosening a dimension away on a null*, and Tightness is the study's best-evidenced
-dimension (§5b selection +20.8pp, §3b outcome). The dimension is not loosened here —
-its shape changes and its weight does not.
+row exactly. What licenses replacing a threshold with a grade, and why that is not
+the loosening ADR 0002 forbids, is
+``docs/adr/0004-replacing-a-threshold-with-a-graded-input.md`` — the argument is
+recorded there rather than made here.
 
 Three of the eight are read off the detection's own signal vector (base tightness,
 base length, ADR); orderliness, MA support and volume are the detector's derived
@@ -225,7 +225,22 @@ RUBRICS: Mapping[int, Rubric] = {
         "Sector": 1,
         "ADR": 1,
     }),
-    2: Rubric({name: weight for name, weight in DIMENSIONS}),
+    # Spelled out, not derived from DIMENSIONS. A superseded version must record
+    # what *shipped*, and a table computed from the live one silently follows any
+    # future weight edit — which would corrupt the paired re-run in the one way it
+    # cannot detect, by moving the "before" as well as the "after".
+    2: Rubric({
+        "Tightness": 2,
+        "Orderliness": 1,
+        "Prior move": 1,
+        "Base length": 0,
+        "MA support": 1,
+        "Volume": 1,
+        "Sector": 1,
+        "ADR": 2,
+    }),
+    # The live one *is* derived from DIMENSIONS: there is one live weight table and
+    # this must not be a second copy of it.
     RUBRIC_VERSION: Rubric(
         {name: weight for name, weight in DIMENSIONS},
         bands={"Tightness": TIGHTNESS_BANDS},

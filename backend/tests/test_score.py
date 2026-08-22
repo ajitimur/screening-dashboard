@@ -1,11 +1,12 @@
-"""The star score: eight boolean dimensions, nine weighted points (spec §4.7,
-PRD #138).
+"""The star score: eight dimensions — seven boolean, one banded — nine weighted
+points (spec §4.7, PRD #138, Tightness graded by #154).
 
 `points ÷ 2` = stars, real range **0.5–4.5** (not 0–5): `Prior move` fires for
 every detection by construction so half a star is a permanent floor, and
-`Base length` is weighted zero so the ninth point can never be earned. Booleans,
-not continuous, because the score is the default sort of the only list in the app
-and a sort key you cannot audit is one you will not trust. The score knows nothing
+`Base length` is weighted zero so the ninth point can never be earned. Auditable
+rather than continuous — the one graded dimension is banded to integral points —
+because the score is the default sort of the only list in the app and a sort key
+you cannot audit is one you will not trust. The score knows nothing
 about the stop and nothing about the regime — every input below is a base signal,
 a rank percentile or a sector share.
 
@@ -279,8 +280,14 @@ def test_the_rubric_table_retains_the_boolean_v2_unedited():
 
     assert RUBRIC_VERSION == 3
     # v2 is retained live for the paired comparison, and is still the nine-point
-    # boolean table — bumping the version must not edit it.
-    assert RUBRICS[2].weights == {name: weight for name, weight in DIMENSIONS}
+    # boolean table PRD #138 shipped. Spelled out rather than compared against
+    # DIMENSIONS: a superseded version records what shipped, so this assertion has
+    # to fail if a future weight edit drags v2 along with the live table.
+    assert RUBRICS[2].weights == {
+        "Tightness": 2, "Orderliness": 1, "Prior move": 1, "Base length": 0,
+        "MA support": 1, "Volume": 1, "Sector": 1, "ADR": 2,
+    }
+    assert sum(RUBRICS[2].weights.values()) == 9
     assert RUBRICS[2].bands == {}
     # Only v3 grades, and only Tightness.
     assert set(RUBRICS[RUBRIC_VERSION].bands) == {"Tightness"}

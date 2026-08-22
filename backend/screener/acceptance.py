@@ -54,7 +54,7 @@ ADR_SPOT_CHECK: tuple[str, ...] = (
 # detections-per-night level). Shares are fractions of the universe/list; counts are
 # absolute. These are the numbers ticket 45 replaces once measured on a real run.
 # **Two of these are expected to deviate after #154, and are deliberately not
-# retuned here.** The tightness restructure replaced the hard 1.5×ADR cluster cut
+# retuned here.** The base-tightness restructure replaced the hard 1.5×ADR cut
 # with a far-outlier guard, which more than doubles the field (measured +123%, 90.3
 # → 201.6 detections per session over 505 replayed sessions) and makes the 3-bar
 # window the reported cluster whenever nothing tighter clears — so **B4**

@@ -169,14 +169,14 @@ def test_a_name_not_caught_up_to_the_ma_is_not_a_detection():
 
 def test_a_name_genuinely_in_motion_is_not_a_detection():
     # A wide, ragged top: the trailing 3-bar range is far past OUTLIER_MULT, so the
-    # far-outlier guard rejects it. This is the only tightness rejection left.
+    # far-outlier guard rejects it. The only base-tightness rejection left.
     hlc = [(50.5, 49.5, 50.0)] * 90
     for h in (60, 55, 62, 54, 63, 56, 61):  # last bars swing ~15% of price
         hlc.append((h + 0.5, h - 0.5, h))
     assert detect("AAA", _bars(hlc), CAL[96]) is None
 
 
-# -- the cluster gate is a far-outlier guard, not a tightness cut (#145/#154) --
+# -- the cluster condition is a far-outlier guard, not a base-tightness cut ----
 
 
 def test_a_base_past_the_old_hard_cut_now_detects():

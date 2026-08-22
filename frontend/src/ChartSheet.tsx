@@ -238,6 +238,17 @@ function FactsBlock({ facts }: { facts: ChartFacts }) {
  * per-dimension hits, because a sort key you cannot audit is one you will not
  * trust.
  */
+/**
+ * What one dimension's "Scored" cell says. Three cases, and the middle one only
+ * exists because rubric v3 grades a dimension (#154): a row can earn *part* of its
+ * weight, and a tick would overstate it while a dash would deny it.
+ */
+function scoredMark(d: ScoreRow): string {
+  if (d.points === 0) return "—"; // missed, or a ×0 dimension that can earn nothing
+  if (d.points === d.weight) return "✓"; // earned everything it could
+  return `+${d.points}`; // graded: part of the weight
+}
+
 function Breakdown({ breakdown, score }: { breakdown: ScoreRow[]; score: number | null }) {
   // Points come off the row, not from `hit × weight`. Since rubric v3 one
   // dimension is *graded* — it earns part of its weight on a banded value — so
@@ -269,7 +280,7 @@ function Breakdown({ breakdown, score }: { breakdown: ScoreRow[]; score: number 
               )}
             </td>
             <td>×{d.weight}</td>
-            <td>{d.points === d.weight ? (d.weight === 0 ? "—" : "✓") : d.points > 0 ? `+${d.points}` : "—"}</td>
+            <td>{scoredMark(d)}</td>
           </tr>
         ))}
       </tbody>

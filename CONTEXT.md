@@ -123,13 +123,16 @@ detection, and reported on a cluster miss to say by how much it missed.
 _Avoid_: cluster_min_range_adr (the pre-#146 name).
 
 **Far-outlier guard**:
-The cluster gate as it now stands: a detection requires a **3-bar range** inside
-`OUTLIER_MULT = 3.0 × ADR`. It replaced the hard 1.5 cut in #154, and does a different job —
-it rejects a name genuinely in motion, rather than ranking how quiet a base is, which the
-rubric now grades. **Provisional**, and sited on the one feature findings §3b's outcome table
-offers: mean R is positive in every 3-bar-range bucket up to 2.0–3.0 and turns negative only
-in the 3.0+ bucket, on **n = 10**. Not a percentile of his habits (ADR 0002 / #143).
-_Avoid_: cluster gate, tightness gate, TIGHT_MULT (which no longer gates).
+What the detector's `cluster` condition tests since #154: a detection requires a **3-bar
+range** inside `OUTLIER_MULT = 3.0 × ADR`. It replaced the hard 1.5 cut, and does a different
+job — it rejects a name genuinely in motion, rather than ranking how quiet a base is, which
+the rubric now grades. **Provisional**, and sited on the one feature findings §3b's outcome
+table offers: mean R is positive in every 3-bar-range bucket up to 2.0–3.0 and turns negative
+only in the 3.0+ bucket, on **n = 10**. Not a percentile of his habits (#143). The evidence
+that licenses it, and the sense in which ADR 0002 does not, is
+`docs/adr/0004-replacing-a-threshold-with-a-graded-input.md`.
+_Avoid_: tightness gate; `TIGHT_MULT`, which no longer gates. (`cluster` stays the name of the
+detector's condition and of the funnel's `failed_condition` value — it is persisted.)
 
 **Base tightness**:
 How quiet the stock was *before* the break — the span of a trailing 3–7 bar window in ADR.
@@ -183,7 +186,11 @@ The rubric — 8 dimensions, 9 weighted points, halved to stars. The sort key of
 in the app. Its range is 0.5–4.5, never 0–5: one dimension always fires (`Prior move`) and one
 is weighted zero (`Base length`). Seven dimensions are booleans; `Tightness` is a **graded
 dimension**. Derived on read everywhere except a digest, which freezes the
-value it was written with.
+value it was written with. Recalibrated to the method's revealed selection by PRD #138:
+`Tightness` and `ADR` weigh ×2 (the two sharpest §5b selectors), `Base length` ×0 (its largest
+wrong-way gap), everything else ×1. Weights come from the *ordering* of the measured selection
+gaps, never their magnitude. The three-weight ordinal swap inside that recalibration — `ADR`
+×1→×2, `Orderliness` ×2→×1, `Base length` ×1→×0 — is ticketed as #135.
 
 **Graded dimension**:
 A score dimension that maps a real-valued quantity to points in bands, rather than awarding
@@ -194,11 +201,7 @@ the opposite of the cliff #143 found in entry-to-MA distance. Two rules keep it 
 the points stay **integral**, so the nine-point ceiling and the `÷ 2` arithmetic do not move;
 and the stored breakdown row carries the **value**, never one version's verdict about it, so
 any **rubric version** can re-score a stored row exactly.
-_Avoid_: continuous dimension, fractional score. Recalibrated to the method's revealed selection by PRD #138:
-`Tightness` and `ADR` weigh ×2 (the two sharpest §5b selectors), `Base length` ×0 (its largest
-wrong-way gap), everything else ×1. Weights come from the *ordering* of the measured selection
-gaps, never their magnitude. The three-weight ordinal swap inside that recalibration — `ADR`
-×1→×2, `Orderliness` ×2→×1, `Base length` ×1→×0 — is ticketed as #135.
+_Avoid_: continuous dimension, fractional score.
 
 **Calibration target**:
 What the rubric is fitted to encode — the method's revealed selection, evidenced by the

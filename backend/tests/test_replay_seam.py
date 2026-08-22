@@ -1788,9 +1788,13 @@ def test_distribution_percentiles_are_linear_interpolated():
 # trades may vary once the not-taken detections restore the spread.
 
 
-def _scored_det(symbol: str, cluster_k: int, *, taken=False, not_taken=False):
+def _scored_det(
+    symbol: str, cluster_k: int, *, taken=False, not_taken=False, rs_line=False
+):
     """A field candidate carrying a real seven-dimension breakdown: ``cluster_k``
-    flips the Tightness dimension, every other dimension is hit by construction."""
+    flips the Tightness dimension, every other dimension is hit by construction.
+    ``rs_line`` is the candidate dimension under measurement (#160), which sits
+    beside the score rather than inside it."""
     det = _det(symbol, cluster_k)
     return ScoredDetection(
         symbol=symbol,
@@ -1799,6 +1803,7 @@ def _scored_det(symbol: str, cluster_k: int, *, taken=False, not_taken=False):
         star_rank=1,
         not_taken=not_taken,
         taken=taken,
+        rs_line=rs_line,
     )
 
 
@@ -1817,7 +1822,12 @@ def test_selection_contrast_over_a_fixture_field_with_known_members():
     """The contrast compares dimension hit rates between his picks (taken) and the
     not-taken detections over a fixture field of known members. Tightness, which he
     selects on here, is hit by every pick and by only half the field he passed
-    over; the sector dimension is absent, and coverage is carried."""
+    over; the sector dimension is absent, and coverage is carried.
+
+    The columns are the rubric's seven **plus** the candidate dimensions under
+    measurement (``RS line``, #160) — a candidate is reported so it can be judged
+    against ADR 0005's ship criteria, and weighted at nothing so it cannot move a
+    star while that judgement is open."""
     taken = [_scored_det("P1", 6, taken=True), _scored_det("P2", 6, taken=True)]
     not_taken = [
         _scored_det("N1", 3, not_taken=True),  # Tightness miss
@@ -1833,7 +1843,10 @@ def test_selection_contrast_over_a_fixture_field_with_known_members():
     assert set(by_dim) == {
         "Tightness", "Orderliness", "Prior move",
         "Base length", "MA support", "Volume", "ADR",
+        "RS line",
     }
+    # The candidate carries no weight: it is measured, not scored (ADR 0005).
+    assert by_dim["RS line"].weight == 0
     # He selects on Tightness: every pick hits it, half the passed-over field does.
     assert by_dim["Tightness"].taken_hit_rate == 1.0
     assert by_dim["Tightness"].not_taken_hit_rate == 0.5
@@ -2656,3 +2669,56 @@ def test_the_added_field_is_measured_for_staleness_not_only_his_trades():
     assert wider.added_stale_share == 0.5
     # The going rate: with no surfaced entries there is nothing to divide by.
     assert base.detections_per_surfaced_entry is None
+
+
+# -- the candidate dimension under measurement (#160) -------------------------
+
+
+def test_the_rs_line_column_is_read_off_the_field_member_not_the_score():
+    """``RS line`` is a **candidate** dimension: measured by the contrast, absent
+    from the score.
+
+    It cannot be read off the breakdown, because :func:`seven_dimension_score`
+    deliberately carries only the seven dimensions the rubric weighs — so a
+    dimension still being judged cannot move a star or a board place. The contrast
+    reads it off the field member instead, and this pins that wiring: two picks
+    that hit it against a passed-over field where one of two does.
+    """
+    taken = [
+        _scored_det("P1", 6, taken=True, rs_line=True),
+        _scored_det("P2", 6, taken=True, rs_line=True),
+    ]
+    not_taken = [
+        _scored_det("N1", 6, not_taken=True, rs_line=True),
+        _scored_det("N2", 6, not_taken=True, rs_line=False),
+    ]
+
+    by_dim = {c.dimension: c for c in contrast_dimensions(taken, not_taken)}
+    assert by_dim["RS line"].taken_hit_rate == 1.0
+    assert by_dim["RS line"].not_taken_hit_rate == 0.5
+    # Not in the score it sits beside — the seven the rubric weighs, and no more.
+    assert "RS line" not in {d.dimension for d in taken[0].score.breakdown}
+
+
+def test_the_rs_line_does_not_move_a_replayed_star():
+    """The invariant the whole staging rests on: the replayed score is identical
+    whether the candidate hits or misses, so the act of measuring the dimension
+    cannot contaminate the measurement."""
+    hit = _scored_det("AAA", 6, rs_line=True)
+    miss = _scored_det("AAA", 6, rs_line=False)
+    assert hit.score == miss.score
+
+
+def test_build_field_defaults_the_candidate_dimension_to_absent():
+    """A caller with no index bars to hand builds the same field as before, with
+    every candidate reading ``False`` rather than raising."""
+    dets = [_det("AAA", 6), _det("BBB", 3)]
+
+    without = build_field(dets, [])
+    with_rs = build_field(dets, [], rs_line_of={"AAA": True})
+
+    assert {d.symbol: d.rs_line for d in without} == {"AAA": False, "BBB": False}
+    assert {d.symbol: d.rs_line for d in with_rs} == {"AAA": True, "BBB": False}
+    # Supplying it changes neither the order nor the scores.
+    assert [d.symbol for d in without] == [d.symbol for d in with_rs]
+    assert [d.score for d in without] == [d.score for d in with_rs]

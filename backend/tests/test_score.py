@@ -300,3 +300,39 @@ def test_a_graded_rubric_falls_back_to_the_boolean_when_a_row_carries_no_value()
 
     valueless = [Dimension("Tightness", 2, True), Dimension("ADR", 2, True)]
     assert stars_under(valueless, RUBRICS[RUBRIC_VERSION]) == 2.0
+
+
+# -- the dimension under measurement is accepted and not scored (#160) --------
+
+
+def test_the_rs_line_input_does_not_move_the_star_or_the_breakdown():
+    """``RS line`` is wired to the scorer and read by nothing (#160).
+
+    The rubric is untouched until the study's verdict lands, so the star, the
+    breakdown rows and their weights must be **identical** whichever way the input
+    goes. This is the guard on "no rubric change lands here": if a later edit
+    starts scoring the dimension without moving :data:`RUBRIC_VERSION`, a frozen
+    digest and today's app would disagree about the same session with nothing
+    recording why.
+    """
+    base = dict(prior_move=True, sector_share=0.20)
+    hit_stars, hit_breakdown = star_score(_det(), rs_line=True, **base)
+    miss_stars, miss_breakdown = star_score(_det(), rs_line=False, **base)
+
+    assert hit_stars == miss_stars
+    assert hit_breakdown == miss_breakdown
+    # And it adds no row: the rubric is still the published eight.
+    assert len(hit_breakdown) == len(DIMENSIONS) == 8
+    assert "RS line" not in {d.dimension for d in hit_breakdown}
+
+
+def test_the_rs_line_input_defaults_to_absent_so_every_caller_need_not_supply_it():
+    """A caller that has no index bars to hand scores exactly as before."""
+    base = dict(prior_move=True, sector_share=0.20)
+    assert star_score(_det(), **base) == star_score(_det(), rs_line=False, **base)
+
+
+def test_the_rubric_version_did_not_move_for_a_dimension_under_measurement():
+    """ADR 0005 admits a dimension on evidence, not on wiring. The stamp moves in
+    #161 if the study says ship — never here."""
+    assert RUBRIC_VERSION == 3

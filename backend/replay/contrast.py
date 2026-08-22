@@ -138,6 +138,31 @@ class SelectionContrast:
     precision_note: str = PRECISION_NOTE
 
 
+# The **candidate dimensions**: measured in this contrast, weighted by nothing.
+# A candidate is read off the field member itself rather than off its score
+# breakdown, because it is not in the rubric — :mod:`replay.field` deliberately
+# keeps :class:`~replay.field.SevenDimScore` at exactly the seven dimensions the
+# rubric weighs, so a dimension under measurement cannot move a star or a board
+# place while the question of whether it belongs is still open.
+#
+# ``RS line`` (#160) is the one candidate: whether the name held its ratio to the
+# benchmark across its own base. It is being measured for the slot ``Prior move``
+# cannot earn — a **constant dimension**, 100.0% in both groups, pooled spread
+# 0.000. Its weight is reported as 0 because it has none; the four pre-registered
+# ship criteria in #160 decide whether it ever gets one, and no result here
+# changes :mod:`screener.score`.
+CANDIDATE_DIMENSIONS: tuple[tuple[str, int], ...] = (("RS line", 0),)
+
+# How each candidate dimension is read off a field member. Keyed by the same name
+# the report prints, so adding a candidate is one entry here and one above.
+_CANDIDATE_READERS = {"RS line": lambda d: d.rs_line}
+
+# Every column of the contrast: the rubric's own seven, then the candidates.
+CONTRAST_DIMENSIONS: tuple[tuple[str, int], ...] = (
+    REGRESSED_DIMENSIONS + CANDIDATE_DIMENSIONS
+)
+
+
 def _dim_hit(breakdown: Sequence[Dimension], name: str) -> bool:
     for d in breakdown:
         if d.dimension == name:
@@ -146,7 +171,15 @@ def _dim_hit(breakdown: Sequence[Dimension], name: str) -> bool:
 
 
 def _booleans(detections: Iterable[ScoredDetection], name: str) -> list[float]:
-    """The dimension's boolean (1.0 hit / 0.0 miss) across a group of detections."""
+    """The dimension's boolean (1.0 hit / 0.0 miss) across a group of detections.
+
+    A **candidate dimension** is read off the field member; a rubric dimension off
+    its score breakdown. The two are kept apart deliberately — see
+    :data:`CANDIDATE_DIMENSIONS`.
+    """
+    reader = _CANDIDATE_READERS.get(name)
+    if reader is not None:
+        return [1.0 if reader(d) else 0.0 for d in detections]
     return [1.0 if _dim_hit(d.score.breakdown, name) else 0.0 for d in detections]
 
 
@@ -159,14 +192,14 @@ def contrast_dimensions(
     taken: Iterable[ScoredDetection],
     not_taken: Iterable[ScoredDetection],
     *,
-    dimensions: tuple[tuple[str, int], ...] = REGRESSED_DIMENSIONS,
+    dimensions: tuple[tuple[str, int], ...] = CONTRAST_DIMENSIONS,
 ) -> list[DimensionContrast]:
     """Contrast each dimension's hit distribution between the two field groups.
 
     ``taken`` are his executed-trade detections, ``not_taken`` the comparison
     group. For every dimension (the app's eight less the dropped sector dimension,
-    in published order) the hit rate and spread are reported for each group and for
-    the pooled sample, and a dimension untestable within his trades alone but with
+    in published order, then the :data:`CANDIDATE_DIMENSIONS` under measurement)
+    the hit rate and spread are reported for each group and for the pooled sample, and a dimension untestable within his trades alone but with
     spread across the pooled sample is flagged as testability-restored (PRD user
     story 19). No outcome is read — this measures selection, not prediction.
     """

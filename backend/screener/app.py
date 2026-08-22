@@ -46,6 +46,7 @@ from .sectors import (
     sector_members,
     sector_strengths,
 )
+from .relative_strength import rs_line_for
 from .source import MARKET_INDEX
 from .store import Store
 
@@ -290,6 +291,20 @@ def create_app(
         prev_detected = {
             d.symbol for d in store.detections_before(market, session)
         }
+        # The RS line (#160), the one dimension under measurement: computed here
+        # rather than in the score because it reads a *second* symbol's bars — the
+        # market index — and :mod:`.score` is pure. Scored by nothing today; the
+        # list is identical with or without it.
+        index_bars = [
+            b for b in store.bars(market, MARKET_INDEX[market])
+            if b.session <= session
+        ]
+        rs_line_of = {
+            det.symbol: rs_line_for(
+                det, store.bars(market, det.symbol), index_bars
+            )
+            for det in detections
+        }
         candidates = build_candidates(
             detections,
             store.ranks(market, session),
@@ -297,6 +312,7 @@ def create_app(
             sector_of,
             dollar_volume_of=dollar_volume_of,
             prev_detected=prev_detected,
+            rs_line_of=rs_line_of,
         )
         # Sorted by star score descending, line_ok failures a silent tiebreak
         # below equal-scored accepted names (spec §4.7); the UI reads ordered_by.
@@ -337,6 +353,7 @@ def create_app(
         sector = None
         prior_move = False
         sector_share = 0.0
+        rs_line = False
         if latest is not None:
             # Scope to bars on or before the published session so a newer,
             # quarantined pull's bars never leak onto the chart (§4.9).
@@ -361,9 +378,21 @@ def create_app(
                 sector_share = leave_one_out_sector_shares(
                     session_ranks, sector_of
                 ).get(symbol, 0.0)
+                # The third caller-supplied input (#160), read against the market
+                # index over the detection's own base. Under measurement, scored
+                # by nothing — the overlay is unchanged either way.
+                rs_line = rs_line_for(
+                    detection,
+                    bars,
+                    [
+                        b for b in store.bars(market, MARKET_INDEX[market])
+                        if b.session <= session
+                    ],
+                )
         return build_chart(
             market, symbol, session, bars, detection, ranks_for_symbol, sector,
-            prior_move=prior_move, sector_share=sector_share, window=bars_window,
+            prior_move=prior_move, sector_share=sector_share, rs_line=rs_line,
+            window=bars_window,
         )
 
     @app.get("/api/regime/{market}", response_model=RegimeResponse)

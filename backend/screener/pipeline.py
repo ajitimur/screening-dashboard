@@ -26,6 +26,7 @@ from .labels import select_fetches
 from .models import SILENT_STATUSES, ResolutionFailure, RunRecord
 from .ranks import Rank, rank_table
 from .regime import index_broke_out
+from .relative_strength import rs_line_for
 from .source import (
     DEFAULT_RESOLVE_WORKERS,
     MARKET_INDEX,
@@ -291,8 +292,19 @@ def write_digest(
     sector_of = {sym: label.sector for sym, label in labels.items()}
     last_reported = store.digest_reports_before(market, session)
 
+    # The RS line (#160), the one dimension under measurement. Read against the
+    # market index over each setup's own base, at **yesterday's** session — the
+    # session the setup was detected on, which is the one its base ends at and the
+    # one the rest of its score is computed from. Scored by nothing today.
+    index_bars = store.bars(market, MARKET_INDEX[market])
+    rs_line_of = {
+        det.symbol: rs_line_for(det, store.bars(market, det.symbol), index_bars)
+        for det in yesterday
+    }
+
     breaks = build_digest(
-        yesterday, today_bars, ranks_yesterday, industry_of, sector_of, last_reported
+        yesterday, today_bars, ranks_yesterday, industry_of, sector_of,
+        last_reported, rs_line_of=rs_line_of,
     )
     store.append_digest_breaks(market, session, [b.symbol for b in breaks])
 

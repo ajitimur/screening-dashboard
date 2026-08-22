@@ -480,6 +480,202 @@ this section.
 
 ---
 
+### 3c. How the base forms — length, depth, and when the tightening starts (prototype, side-car)
+
+**Question.** §3b measured how *narrow* the final cluster was on the trades he took. It never
+asked how the cluster got there: how long the base had been forming, how deep it was, what it was
+resting on, or when the contraction began. The detector's cluster window sees a 3–7 bar snapshot;
+nothing in the study had characterised the structure behind it.
+
+**Method.** Same reference set, same conventions (§1's evaluation session; `adr_abs`), same n as
+§3b — **649 of 828 (78.4%)**. For each trade: base length two independent ways, the ADR and
+range-ratio curves over the 90 sessions before entry, the prior advance, and base depth. Nothing is
+gated at measurement time. Continuation entries are tagged and kept in every denominator; they do
+not move any figure below.
+
+Produced by a **throwaway prototype**, not by `replay.study`: `backend/replay/prototype-base-length/`
+on branch `worktree-prototype-base-length` (see that directory's `FINDINGS.md`). **Not** part of the
+reproducible study in §10 — the figures are checkable by re-running `measure_base.py`, not by
+`python -m replay.study`. Preliminary in the sense of §6.
+
+> **Machinery cross-check.** The 5-bar range-ratio at the evaluation session comes back at a median
+> of **1.86 ADR** — §3b's committed k=5 median, to the digit, computed by an independently written
+> path. The two prototypes agree where they overlap.
+
+#### There is no single base length, because it is not one measurement
+
+**D1, overhead-supply age** (sessions from the highest high in the trailing 120 to the evaluation
+session): median **24**, p25 11, p75 63. Broad and not unimodal — 12.0% break out of something ≤5
+sessions old, 42.4% from 6–30, 19.3% from 31–60, and **26.3% from something older than 60
+sessions**. 2.8% are censored at the lookback, so the right tail is a floor.
+
+**D2, containment length** (the largest n whose trailing n-bar range still fits inside T × ADR):
+
+| Threshold | p25 | median | p75 | p90 | max |
+| --- | --- | --- | --- | --- | --- |
+| within 1.5 ADR (`TIGHT_MULT`) | 2 | **3** | 5 | 7 | 13 |
+| within 2.0 ADR | 3 | **5** | 8 | 10 | 16 |
+| within 3.0 ADR | 7 | **11** | 14 | 17 | 41 |
+| within 4.0 ADR | 12 | **17** | 22 | 29 | 121 |
+
+Essentially uncensored (0.0–0.8%). **Read together:** the *tight* part of the base is short — a
+median 3 sessions inside 1.5 ADR — while the structure it sits in is much longer. A base is a
+multi-week formation whose final contraction is a handful of days, and the detector sees only the
+second of those.
+
+**This is a defence of `K_MIN, K_MAX = 3, 7` that §3a could not offer.** The window brackets the
+1.5-ADR containment distribution almost exactly (median 3, p90 7). It is also why the window cannot
+answer "is there a base": containment at 1.5 ADR runs out after a median of 3 sessions whether the
+structure behind it is 8 sessions or 80.
+
+#### ADR does not tighten into his entries at all
+
+Median 20-day ADR across the 90 sessions before entry:
+
+| Sessions before entry | 90 | 60 | 40 | 30 | 20 | 10 | 5 | 0 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Median ADR % | 5.77 | 5.90 | 5.90 | 6.01 | 5.98 | 6.13 | 6.19 | **6.08** |
+| Median ratio to entry eve | 0.94 | 0.98 | 1.00 | 0.97 | 1.01 | 1.03 | 1.03 | 1.00 |
+
+**Flat.** A per-trade "ADR now ÷ ADR at its 90-day peak" reads a median of 0.71 and looks like
+contraction, but that is a ratio to the *maximum* of a noisy series and is biased downward by
+construction. The flat median curve is the honest reading; the two are not in conflict.
+
+What contracts is **travel**. The trailing 5-bar range over ADR, re-read at each historical session:
+
+| Sessions before entry | 90 | 60 | 40 | 30 | 20 | 15 | 10 | 7 | 5 | 3 | 2 | 1 | 0 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Median 5-bar range / ADR | 2.38 | 2.39 | 2.37 | 2.29 | 2.44 | 2.43 | 2.38 | 2.24 | 2.26 | 2.18 | 2.07 | 1.99 | **1.86** |
+
+A flat baseline of ~2.4 ADR from three months out to roughly ten sessions before entry, then a
+monotone fall to 1.86. **The contraction is a late, ~7-to-10-session event, and it is a collapse in
+how far price travels — not a decline in how much it moves per day.** The stock keeps its ~6% daily
+range throughout; the days stop stacking and start overlapping.
+
+That distinction is operational: a screen that waits for *ADR* to fall will wait forever on his
+names, and one that ranks *by* falling ADR would rank his entries below quieter, worse ones.
+
+**And the quiet is young when he buys.** Sessions the 5-bar range has been continuously inside
+2 ADR: median **1**, p75 4, p90 8. 41.6% have a run of zero, and only 6.6% have been quiet for ten
+sessions or more. Median distance since the 5-bar range was last wider than 2.5 ADR: **4 sessions**.
+He is not buying the end of a long quiet stretch; he is buying a few days after the last expansion.
+
+#### What the base is resting on, and how deep it is
+
+| | p25 | median | p75 | censored |
+| --- | --- | --- | --- | --- |
+| Prior advance % (60-session cap) | 60 | **95** | 185 | 18.3% |
+| Prior advance % (120-session cap) | 83 | **166** | 369 | 11.1% |
+| Base depth from the pivot (%) | 18.1 | **30.6** | 48.6 | — |
+| Base depth (ADR) | 3.45 | **5.78** | 10.19 | — |
+
+Both length caps bind hard, so the advance reads as **"at least two to five months, at least a
+doubling"** rather than as a point estimate; the magnitude is the solid part. The bases are not
+shallow — a quarter give back half the pivot or more, which follows from the size of the move being
+digested.
+
+#### Outcome, and what it does and does not license
+
+MFE under the 10sma exit, per §5a's convention. Across all 649: median MFE 4.5%, mean R +1.26,
+R > 0 on 22.7%. Seeded 20,000-resample bootstrap on the median difference (MFE is heavily
+right-skewed, so a t-test on these tails would be meaningless):
+
+| Contrast | median MFE | p |
+| --- | --- | --- |
+| Quiet run ≥ 10 sessions vs rest (n=43) | 8.1 vs 4.2 | **0.006** |
+| Prior advance ≥ 200% vs rest (n=154) | 7.6 vs 3.9 | **<0.001** |
+| Base depth ≥ 50% vs rest (n=160) | 6.3 vs 4.0 | **0.001** |
+| Base length 16–30 vs rest (n=110) | 5.4 vs 4.3 | 0.111 |
+
+**Base *length* predicts nothing.** What carries signal is the size of the move being digested and
+the duration of the quiet, not how old the structure is.
+
+**No constant is touched, and none is licensed.** These are cuts on executed trades only, so none
+is a precision measurement and §7/§9 stand unchanged; the advance and depth cuts are partly
+tautological with his selection (he buys big movers, so "big prior advance" partly re-states "he
+took it"); the strongest cut rests on n=43; and the regime caveat (§8) applies. The two candidate
+dimensions this suggests — a quiet-run length and a prior-advance magnitude — would each need the
+control group the study does not have before they could be scored.
+
+---
+
+### 3d. The recent 3 bars against the prior 3 (prototype, side-car) — real, redundant, outcome-blind
+
+**Question.** §3b measured the *level* of the trailing 3-bar range and §3c the 90-session curve.
+Neither asked the local question a screen could cheaply gate on: at the evaluation session, are the
+**last 3 bars** quieter than the **3 immediately behind them**?
+
+**What is new here — a partial control group.** Every result above is conditioned entirely on
+trades he took, which is why §7/§9 keep repeating that precision is unmeasurable. This prototype
+gets a *partial* control for free: **the same tickers on random ordinary days**. For each trade, 10
+sessions of the same symbol are sampled within ±120 sessions, never within 5 sessions of any real
+entry, seeded — **6,450 background sessions against 645 entries** (645 not 649: 4 more trades lack
+the extra 3 bars of history this needs).
+
+**This is not a false-positive rate and must not be cited as one.** "This stock on an ordinary day"
+is not "a setup he passed over". It answers one narrower question exactly: *is a feature a property
+of the entry, or just of the kind of stock he trades?* Every "lift" below means entry pass-rate ÷
+background pass-rate on that question and nothing more. Produced by
+`backend/replay/prototype-adr3/` on branch `worktree-prototype-base-length`; not part of §10.
+
+> **Machinery cross-check.** The recent-3-bar span comes back at a median of **1.31 ADR** — §3b's
+> committed k=3 median, to the digit, from an independently written path.
+
+#### The contraction is real
+
+| Feature | Entry p25 / **median** / p75 | Background p25 / **median** / p75 |
+| --- | --- | --- |
+| `adr3_ratio` — recent 3-bar avg daily range ÷ prior 3-bar | 0.69 / **0.89** / 1.10 | 0.77 / **0.99** / 1.29 |
+| `span3_ratio` — recent 3-bar travel ÷ prior 3-bar | 0.57 / **0.78** / 1.08 | 0.70 / **0.99** / 1.43 |
+| `vol3_ratio` — recent 3-bar avg volume ÷ prior 3-bar | 0.68 / **0.87** / 1.13 | 0.76 / **0.98** / 1.29 |
+| Recent 3-bar span, in ADR | 1.00 / **1.31** / 1.73 | 1.34 / **1.74** / 2.32 |
+
+The background sits at ~1.0 on every ratio, which is the sanity check working: a random day has no
+reason to be quieter than the day before it. His entries sit below 1 on all three.
+
+| Cut | Entry | Background | Lift |
+| --- | --- | --- | --- |
+| `adr3_ratio` ≤ 0.7 | 26.0% | 18.1% | 1.44× |
+| `adr3_ratio` ≤ 0.9 | 51.8% | 39.3% | 1.32× |
+| `vol3_ratio` ≤ 0.7 | 28.5% | 18.8% | 1.51× |
+| **recent 3-bar span ≤ 1.5 ADR** (level, not ratio) | 64.3% | 34.4% | **1.87×** |
+| **recent 3-bar span ≤ 1.0 ADR** (level, not ratio) | 25.0% | 7.7% | **3.25×** |
+
+#### …and it adds nothing once the level is held fixed
+
+If "recent quieter than prior" carried its own information, it would still lift inside a band where
+the 3-bar span is roughly constant. Recomputed within span bands:
+
+| Band | n (entry / bg) | `adr3_ratio` ≤ 0.7 | `adr3_ratio` ≤ 0.9 | `vol3_ratio` ≤ 0.7 | `vol3_ratio` ≤ 0.9 |
+| --- | --- | --- | --- | --- | --- |
+| span < 1.0 ADR | 161 / 496 | **0.90×** | **0.95×** | 1.06× | 1.05× |
+| span 1.0–1.5 ADR | 254 / 1,723 | **0.94×** | **0.96×** | 1.04× | 1.02× |
+| span 1.5–2.5 ADR | 202 / 2,978 | **0.85×** | **0.91×** | 1.04× | 0.89× |
+
+**Every lift collapses to ~1.0, several below it.** The marginal 1.32–1.44× is the absolute
+tightness of the last 3 days re-expressed — which the level already measures, and measures better.
+Conditioned on the level, the change carries no extra information about whether he took the trade.
+
+And it is outcome-blind: the bootstrap of §3c's form returns **p = 0.518** for `adr3_ratio` < 0.85,
+**0.514** for `span3_ratio` < 0.8 and **0.527** for `vol3_ratio` < 0.7. Like §5a's dimensions, these
+describe *what he buys*, not *which of his buys work*.
+
+#### What this licenses
+
+**Do not add a recent-versus-prior dimension.** It is real, redundant with the 3-bar level the
+detector already gates on, and outcome-blind. This is a negative result recorded so the idea is not
+re-proposed. `TIGHT_MULT`, `K_MIN` and `K_MAX` are untouched, and §3a/§3b's recommendations stand.
+
+**What is worth carrying forward is the method, not the feature.** The same-name background sample
+is cheap, seeded and reusable, and it supplied a redundancy test the study could not otherwise run:
+*does this candidate still select his entries once the obvious correlate is held fixed?* Any future
+dimension can be put through it before it is weighted. It remains bounded — same-name matched by
+construction, so it says nothing about the wider universe; and its window straddles the entry, so
+post-breakout expansion sits in the control, which makes the lifts conservative rather than
+generous.
+
+---
+
 ## 4. A2 — the full replay: field placement
 
 **Question.** Would the trade have appeared on the part of the star-ranked list the trader
@@ -1108,7 +1304,14 @@ expectation; the reference set contains no IDX trade.
   fitted to this very taken-vs-not-taken separation (§5b), so the gap is in-sample, and it
   is marginal (p = 0.055) even so. Neither the v1 null nor the v2 gap may be read as
   ranking validation.
-- It cannot report a **precision** or **false-positive** rate. There is no control group.
+- It cannot report a **precision** or **false-positive** rate. There is no control group of
+  setups he passed over. **§3d adds a strictly weaker thing, and the distinction must be
+  kept:** a same-name background — the tickers he traded, sampled on random ordinary days —
+  which can say whether a feature belongs to the *entry* or merely to the *kind of stock*.
+  That supports a **redundancy** test (does a candidate dimension still select his entries
+  once the obvious correlate is held fixed?) and nothing more. A random day is not a rejected
+  setup, so no lift computed against that background is a precision figure, and none may be
+  cited as one. This limitation stands.
 - It cannot say anything about **`Prior move`**. The dimension is 100% in every group the
   study can construct, so its spread is zero everywhere and no correlation exists to
   measure. **A partial route around this has since been found:** the entry-to-MA study
@@ -1204,3 +1407,9 @@ outcome regression #121; A3 selection contrast #122; this write-up #123. Analysi
 `backend/replay/`. Row-level seam: `backend/tests/test_replay_seam.py`. Decile decomposition
 #133; cluster characterisation #132; recalibration #138; paired A2 re-run #136. Study last run
 2026-08-19; the survivorship hole closed won't-do as #129._
+
+_Side-car prototypes, outside §10 and outside `replay.study` — each rebuilt by running the
+scripts in its own directory, each carrying its own `FINDINGS.md`: §3b
+`backend/replay/prototype-tightness/` (branch `worktree-prototype-tightness`); §3c
+`backend/replay/prototype-base-length/` and §3d `backend/replay/prototype-adr3/` (both on
+branch `worktree-prototype-base-length`), run 2026-08-22._

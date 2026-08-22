@@ -357,6 +357,163 @@ feature there to place it at.
 
 ---
 
+## Test 1c — How long the base takes to build, and when it goes quiet
+
+*Another throwaway experiment — see `backend/replay/prototype-base-length/` on the
+`worktree-prototype-base-length` branch. Treat it as preliminary.*
+
+Test 1b asked how quiet the last few days were. It never asked how they *got*
+quiet. Same 649 trades, four questions: how long had the stock been going
+sideways, how far had it fallen while doing so, what had it done before that, and
+when did the calming actually start?
+
+### How long is the base? Two answers, because it's two questions
+
+**How long since the stock was last this high** — the overhang it's breaking
+through: typically **24 trading days**, about five weeks. But it varies enormously:
+one in eight breaks out of something less than a week old, and **one in four breaks
+out of something more than three months old**.
+
+**How long it's been trading in a narrow band** — the actual quiet stretch:
+
+| Width of the band | How long price stayed inside it |
+|---|---|
+| Very tight (1.5 ADR) | **3 days** |
+| Tight (2 ADR) | **5 days** |
+| Moderate (3 ADR) | **11 days** |
+| Loose (4 ADR) | **17 days** |
+
+So: a base is a **multi-week structure whose genuinely tight part is only a few
+days long**. Those are two different things, and the app only sees the second one.
+
+That's actually good news about one setting. The app looks at stretches of 3 to 7
+days — which brackets the tight part almost exactly. It's the right window. It just
+can't tell you whether there's a real base behind it, because the tight part runs
+out after ~3 days whether the structure behind it is two weeks or four months old.
+
+### The surprise: the daily swing never actually shrinks
+
+Everyone assumes a stock "goes quiet" before a breakout — that its daily movement
+shrinks. **It doesn't.** Measured across the three months before he buys:
+
+| Trading days before he buys | 90 | 60 | 30 | 20 | 10 | 5 | 0 |
+|---|---|---|---|---|---|---|---|
+| Typical daily swing | 5.8% | 5.9% | 6.0% | 6.0% | 6.1% | 6.2% | **6.1%** |
+
+Flat as a board. The stock is swinging about 6% a day the whole time.
+
+What *does* change is how much **ground it covers**. A stock can swing 6% every day
+and still end the week where it started, if the days cancel each other out. That's
+exactly what happens:
+
+| Trading days before he buys | 90 | 60 | 30 | 20 | 10 | 5 | 3 | 1 | 0 |
+|---|---|---|---|---|---|---|---|---|---|
+| Ground covered over 5 days (in daily swings) | 2.4 | 2.4 | 2.3 | 2.4 | 2.4 | 2.3 | 2.2 | 2.0 | **1.9** |
+
+Dead flat for three months, then it falls — **but only in the last week or two.**
+
+Two things follow, and both matter for how the app is built:
+
+1. **The tightening is late.** It starts about 7–10 days before he buys, not weeks
+   before. There's no long slow wind-up to detect.
+2. **Screening for a "calming" stock is the wrong instrument.** If you wait for the
+   daily swing to shrink, you'll wait forever on his kind of stock — it never
+   shrinks. Worse, if you *rank* stocks by how much they've calmed down, you'll rank
+   his trades below quieter, worse ones.
+
+And the quiet is young when he buys. The typical trade has been in a narrow band for
+just **one day**; four in ten aren't in one at all on the day before entry. He's
+buying a few days after the last burst of movement, not at the end of a long sleep.
+
+### What the base is sitting on
+
+The stock has usually **doubled** before the base even starts — typically **+95%** in
+the three months prior, and often far more. And the base isn't shallow: price
+typically gives back **31%** from the high while going sideways, with a quarter
+giving back half or more.
+
+### Does any of this tell you which trades made money?
+
+Partly — and not the part you'd guess.
+
+| | Effect on how far the trade ran | Real or noise? |
+|---|---|---|
+| Longer quiet stretch (10+ days) | Ran roughly **twice as far** | Real |
+| Bigger prior run (200%+) | Ran roughly **twice as far** | Real |
+| Deeper base (50%+) | Ran meaningfully further | Real |
+| **How old the base is** | **Nothing** | Noise |
+
+**Base age doesn't matter. The size of the move being digested does.** But two
+health warnings: the "bigger prior run" result is partly circular (he buys big
+movers, so of course his winners had big prior moves), and the strongest result
+rests on only 43 trades. Nothing in the app was changed on the strength of this.
+
+---
+
+## Test 1d — Are the last 3 days quieter than the 3 before? (Yes. It doesn't help.)
+
+*Throwaway experiment — see `backend/replay/prototype-adr3/` on the
+`worktree-prototype-base-length` branch.*
+
+A natural screening idea: compare the last 3 days against the 3 days before them.
+If they've calmed down, that's your setup. Is there anything in it?
+
+**This test introduced something the whole study had been missing: a comparison
+group.** Every other result here looks only at trades he took, which is why the
+study keeps admitting it can't measure false alarms. Here we can get halfway: take
+the *same stocks on 6,450 random ordinary days* — days he wasn't buying — and run
+the identical measurement. That doesn't tell us about false alarms (a random day
+isn't a setup he rejected), but it does answer one clean question: **is this a
+feature of his entries, or just of the kind of stock he likes?**
+
+### Step 1: yes, the calming is real
+
+| | On the day before he buys | On a random day |
+|---|---|---|
+| Daily swing, last 3 days vs the 3 before | **0.89×** (11% calmer) | 0.99× (no change) |
+| Ground covered, same comparison | **0.78×** | 0.99× |
+| Volume, same comparison | **0.87×** | 0.98× |
+
+The random days sit at 1.00, exactly as they should. His entries are genuinely
+calmer, cover less ground and trade less stock. So there *is* something there.
+
+### Step 2: but it's the same fact you already have
+
+"Calmer than last week" and "tight right now" are nearly the same statement. So
+group the trades by how tight they are *right now*, and ask again within each group
+whether the calming still picks out his entries:
+
+| Trades that are... | Does "calmer than before" still help? |
+|---|---|
+| Very tight right now | **No** — 0.90×, slightly *worse* than random |
+| Moderately tight | **No** — 0.94× |
+| Not tight | **No** — 0.85× |
+
+It vanishes. Meanwhile plain tightness — which the app already measures — picks his
+entries **1.9× more often than random days, and 3.3× when it's very tight**. The
+comparison idea is the tightness check wearing a disguise, and it's the weaker of
+the two.
+
+### Step 3: and it doesn't predict profit
+
+Sorting his trades by how much they calmed down, or how much volume dried up, makes
+no difference to how far the trade ran. The formal test comes back at a coin flip.
+Same pattern as everywhere else in this study: these qualities describe **what he
+buys**, not **which of his buys work**.
+
+### The verdict
+
+**Don't build it.** It's real, it's redundant, and it doesn't predict anything. Recorded
+here so nobody proposes it again.
+
+**But the trick behind it is worth keeping.** Comparing his entries against the same
+stocks on ordinary days is cheap, and it caught a redundant idea before it reached
+the code. Any future idea can be put through the same question: *does it still pick
+out his trades once you hold the obvious thing constant?* If not, it isn't a new
+idea.
+
+---
+
 ## Test 2 — Would his trades have appeared on the list he actually reads?
 
 Only **104 of 658** trades (15.8%) appeared in the app's field at all, and only
@@ -677,9 +834,14 @@ against it, writing both a readable report and a machine-readable results file �
 both committed next to this document, so every figure above is checkable against
 the run that produced it rather than quoted from memory.
 
-Two sets of figures sit outside that command:
+Several sets of figures sit outside that command:
 
 - **Test 1b** comes from a throwaway experiment — rebuild with
   `backend/replay/prototype-tightness/measure_tightness.py`.
+- **Test 1c** likewise — `backend/replay/prototype-base-length/measure_base.py`, then
+  `summarize.py` beside it.
+- **Test 1d** likewise — `backend/replay/prototype-adr3/measure_adr3.py`, then
+  `summarize.py`. `build_html.py` beside it writes a page you can open and drive:
+  move the threshold, then hold tightness fixed and watch the advantage disappear.
 - **Test 5** is its own study — rebuild with `scripts/entry_ma_distance.py`, which
   writes `references/qullamaggie-entry-ma-distance.csv` alongside its write-up.

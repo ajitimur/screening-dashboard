@@ -216,6 +216,27 @@ later: **the method stands, and that market is off** until a run explains why it
 
 ---
 
+# Dependencies
+
+The backtest measures **the detector as encoded**, so anything that changes what the detector
+detects must land *before* the denominator is built, or the run is stale on arrival.
+
+| Ticket | Relation | Land by |
+| --- | --- | --- |
+| **#139** — match a trade's bars to the listing that existed at its entry | The recycled-ticker rule this plan already requires, and it **re-pins figures cited below**: blind-spot 91 → **92** tickers, 170 → **172** trades, 18.15% → **18.02%** of R, replayable 658 → **656** | Phase 2 |
+| **#145** — Tightness as a graded rubric input (**decided**, implementation outstanding) | Changes what passes the funnel, so it changes the denominator *and* the detected-count anchor. File the implementation ticket if none exists. | Phase 3 |
+| **#149** — `DETECTION_LOOKBACKS` 3 → 5 | Same class: adopt or reject on evidence, then freeze. A rejection recorded is as good as an adoption; an open question is not. | Phase 3 |
+| **#146**, **#147** — naming and the domain model | The run persists full `Detection` records and the write-up uses this vocabulary. Cheap now, a dead language later. | Phase 3 |
+| **#141** — price the marginal cluster widen | **Downstream, not blocking.** It falls back to field inflation because no false-positive rate exists; this backtest is what supplies one. | After |
+
+**On the circularity.** #141 and #149 both reach for field-volume proxies precisely because
+precision is unmeasurable (findings §7, §9) — the gap this run closes. Running the backtest
+first makes those tickets answerable against outcomes; running them first only makes the
+backtest stale. Land the correctness and naming work, settle #145 and #149 either way, freeze,
+then run.
+
+---
+
 ## Phase 1 — Build the bar store
 
 Extend the pattern in [`backend/replay/store.py`](../backend/replay/store.py): a purpose-built
@@ -348,6 +369,13 @@ before reading any new figure:
 These are the same reference set through a differently-built pipeline. Matching them says the
 new pipeline computes what the old one computed; a mismatch is a bug in the new store or the
 new chain, and every downstream number inherits it.
+
+**Two kinds of anchor, and only one of them is stable.** The first three are geometry measured
+from his bars: they hold whatever the detector does, so they anchor the *store and the
+indicators*. The last two depend on coverage and on the gates themselves — #139 re-pins them
+to 92 / 172 / 656, and the #145 restructure moves the detected count again. Re-pin those two
+from the run that lands last, then anchor. An anchor quoted from a superseded pin fails for a
+reason that has nothing to do with the pipeline it is testing.
 
 Anchor against **arms B and C**, whose exits match the reference set's two simulated ones.
 Arm A has no counterpart there and is measured, never anchored.

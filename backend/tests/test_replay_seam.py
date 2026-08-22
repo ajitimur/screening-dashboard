@@ -157,7 +157,7 @@ def _make_funnel_row(
     decile_pass_five: bool = False,
     failed_condition=None,
     continuation: bool = False,
-    cluster_min_range_adr=None,
+    range_3bar_adr=None,
     sessions_since_prior_entry=None,
 ):
     """A ``FunnelRow`` with just the decile / cluster fields set — the assertion
@@ -181,7 +181,7 @@ def _make_funnel_row(
         entry_session_break=False,
         continuation=continuation,
         median_dollar_volume=0.0,
-        cluster_min_range_adr=cluster_min_range_adr,
+        range_3bar_adr=range_3bar_adr,
         sessions_since_prior_entry=sessions_since_prior_entry,
     )
 
@@ -634,12 +634,12 @@ def test_funnel_row_passes_liquidity_fails_detection_and_names_condition(store: 
     assert report.detection.passed == 0
     assert report.condition_counts == {COND_BASE_LENGTH: 1}
     # A non-cluster miss carries no cluster-window margin (#132).
-    assert row.cluster_min_range_adr is None
+    assert row.range_3bar_adr is None
 
 
 def test_funnel_cluster_miss_carries_its_window_margin(store: Store):
     """A re-entry into a running name fails detection at ``cluster`` and the row
-    carries how far the tightest trailing window sat over the condition's 1.5x
+    carries how far the trailing 3-bar range sat over the condition's 1.5x
     window — the margin the #132 characterisation reads (acceptance criterion 1)."""
     dates = _daily(date(2020, 1, 1), 90)
     store.append_bars("US", "RUN", _bars_from_hlc(dates, _wide_tail_hlc()))
@@ -653,8 +653,8 @@ def test_funnel_cluster_miss_carries_its_window_margin(store: Store):
     assert report.condition_counts == {COND_CLUSTER: 1}
     # The wide tail sits far over the cluster's 1.5x window — a name in motion, not
     # a base a modest widening reaches.
-    assert row.cluster_min_range_adr is not None
-    assert row.cluster_min_range_adr > MARGINAL_TIGHT_MULT
+    assert row.range_3bar_adr is not None
+    assert row.range_3bar_adr > MARGINAL_TIGHT_MULT
 
 
 def test_funnel_row_carries_distance_to_the_prior_entry(store: Store):
@@ -688,12 +688,12 @@ def test_funnel_report_characterises_the_cluster_misses(store: Store):
     """The report characterises every ``cluster`` detection miss two ways (#132):
     continuation-vs-fresh (how far from a prior entry) and marginal-vs-far (how far
     over the condition's window), each bucket-pair partitioning the misses, with the
-    tightest-range and prior-distance distributions carried alongside."""
+    3-bar-range and prior-distance distributions carried alongside."""
 
     def _miss(*, cont, rng, dist):
         return _make_funnel_row(
             failed_condition=COND_CLUSTER, continuation=cont,
-            cluster_min_range_adr=rng, sessions_since_prior_entry=dist,
+            range_3bar_adr=rng, sessions_since_prior_entry=dist,
         )
 
     rows = [

@@ -103,9 +103,18 @@ thing as a base that ended last week.
 
 **Cluster**:
 The largest trailing 3–7 bar window spanning at most 1.5 × ADR. The tight end of the base.
+Whether a name *has* a cluster is settled entirely by its 3-bar range: range is monotone in
+the window length, so the 3-bar window is the tightest one there is. The 7 is a scoring
+bound, not a gate.
 
 **Cluster length `k`**:
-Bars in the cluster. The double-weighted tightness dimension of the star score.
+Bars in the cluster. The double-weighted tightness dimension of the star score, and the only
+thing the upper bound of 7 can move.
+
+**3-bar range**:
+A name's trailing 3-bar high-to-low span, in ADR. The tightest window the cluster scan can
+find, and so the number the cluster gate actually tests. Reported as `range_3bar_adr` on a
+cluster miss, to say by how much it missed.
 
 **Envelope**:
 The upper trendline — anchored at the cluster's max high, fitted backwards over the base's

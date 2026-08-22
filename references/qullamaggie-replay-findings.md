@@ -274,15 +274,15 @@ Provenance for the decision — all three legs measured, none newly asserted:
   `TIGHT_MULT = 1.5`.
 
 **The characterisation machinery, so the verdict is checkable and re-openable.** The A1 funnel now
-records, on every replayable trade, the *margin* of a cluster miss: `cluster_min_range_adr` — the
-tightest trailing 3–7 bar range in ADR the detector could find, taken regardless of the 1.5×
-threshold (`screener.detection.cluster_min_range_adr`, a read-only diagnostic that changes no
-detection verdict) — and `sessions_since_prior_entry`, the market-session distance to the nearest
+records, on every replayable trade, the *margin* of a cluster miss: `range_3bar_adr` — the
+trailing 3-bar range in ADR, which is the tightest window the detector could find (§3b), taken
+regardless of the 1.5× threshold (`screener.detection.range_3bar_adr`, a read-only diagnostic that
+changes no detection verdict) — and `sessions_since_prior_entry`, the market-session distance to the nearest
 prior entry in the same ticker. `funnel.characterise_cluster_misses` (`ClusterDecomposition`)
 partitions the 171 misses two ways: **continuation vs fresh** (how far from a prior entry) and
 **marginal vs far** against a reported `MARGINAL_TIGHT_MULT = 2.0` boundary (how far over the 1.5×
 window — a marginal miss is one a modest widening would recover, a far miss a name genuinely in
-motion). Both counts, plus the tightest-range and prior-distance distributions, ride the report
+motion). Both counts, plus the 3-bar-range and prior-distance distributions, ride the report
 and the machine-readable `replay_study_results.json`, so the per-miss shape is recomputable
 without another rebuild.
 
@@ -299,7 +299,7 @@ committed in `replay_study_report.txt`):
 | **Marginal** (≤ 2.0× ADR — a modest widen recovers) | **113** | 66.1% |
 | Far (name genuinely in motion, no base) | 58 | 33.9% |
 
-Tightest-window range in ADR: median **1.85** (p25 1.68, p75 2.13, max 3.42) against the 1.5×
+3-bar range in ADR: median **1.85** (p25 1.68, p75 2.13, max 3.42) against the 1.5×
 threshold. Continuation misses sit a median of 4.0 sessions from the prior entry.
 
 **This is a real weakening of signal 1, and it is recorded rather than absorbed.** The
@@ -369,19 +369,22 @@ Note the last column against `TIGHT_K = 5`: only a third of his entries had a 5-
 1.5 ADR, so the rubric's ×2 tightness dimension is a genuinely selective test rather than a
 formality — consistent with §5b's +20.8pp.
 
-#### `cluster_min_range_adr` is the 3-bar range, and only `K_MIN` can gate
+#### The cluster diagnostic is the 3-bar range, and only `K_MIN` can gate
 
 Range is monotone in `k`: a longer trailing window can only contain more high and more low, never
 less. So the minimum over `k ∈ 3..7` is **always** `k = 3` — confirmed on all 649 rows, identical to
 the last decimal. Two consequences for how §3a's machinery should be read:
 
-- `screener.detection.cluster_min_range_adr` reports **the 3-bar range** under a more general name.
-  §3a's "tightest-window range in ADR: median 1.85" over the misses is a 3-bar median.
+- `screener.detection.range_3bar_adr` reports **the 3-bar range**. §3a's "3-bar range in ADR:
+  median 1.85" over the misses is therefore a 3-bar median. It was named `cluster_min_range_adr`
+  when this section was written — a general name for a number that is always the 3-bar one — and
+  #146 renamed the function, the `replay_study_results.json` row key and the report line it is
+  quoted from.
 - **`K_MAX` cannot affect pass/fail.** `_find_cluster` scans downward from `K_MAX` and returns the
   first window under the threshold, so widening or narrowing `K_MAX` changes only the *reported*
   `cluster_k` — which is what the rubric's ×2 dimension then scores. `K_MIN` alone decides whether a
-  name clears the gate. The two constants sit together in `detection.py` as if they were a matched
-  pair; they are doing unrelated jobs.
+  name clears the gate. The two constants sat together in `detection.py` as if they were a matched
+  pair; they are doing unrelated jobs, and #146 split the declaration to say so.
 
 #### The signal is graded, and the decline is smooth through 1.5
 

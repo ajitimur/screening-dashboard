@@ -852,6 +852,80 @@ unchanged. `top_thirty` does not: the board is a re-ranking (§4a).
 > it is also a plain statement that the board did not get better at surfacing his entries. The
 > gain is that 55 more of them exist somewhere on the list instead of nowhere.
 
+> **Corrected after the retention defect was found and fixed: `in_field` is 349 of 656, and
+> the top-thirty count is 109, not 45.** The block above is left standing as the record of what
+> was believed when #154 landed, but every figure in it was computed on a field that was
+> **empty on 316 of the 821 measured sessions**, so all three of its "Detector v2" numbers are
+> understated. See the subsection below for the defect. Re-run on the same store with the same
+> detector, the fix applied:
+>
+> | | Detector v2, truncated field | Detector v2, whole field |
+> | --- | --- | --- |
+> | Sessions contributing any detection | 505/821 | **821/821** |
+> | His trades in the field (`in_field`) | 159/656 (24.2%) | **349/656 (53.2%)** |
+> | The field itself, same sessions | 29,096 | **54,399** |
+> | Inside the top 30 (`top_thirty`, live rubric) | 45/159 | **109/349** |
+>
+> **This reverses the reading of the block above, which is why it is corrected rather than
+> footnoted.** That block's load-bearing sentence — "the **same 45 of his trades reach a
+> board**" — was the observation that #154 bought visibility without buying board places. On
+> the whole field it is **109**, not 45. The graded rubric does surface materially more of his
+> entries on the board the trader reads; the earlier conclusion was an artefact of two thirds
+> of the board-sessions being missing from the measurement. The cost side is unchanged in
+> direction — the field roughly doubles — and nothing here disturbs ADR 0004 or the A1 recall
+> figures, which never read the store's rank rows and reproduce to the digit.
+
+#### The defect: rank retention silently emptied the replayed field on 316 of 821 sessions
+
+**What happened.** The replay's detection pass gated on the **store's** rank rows
+(`screener.pipeline.rebuild_detections` → `Store.ranks`). `Store.append_ranks` keeps only
+`RANK_RETENTION_YEARS = 2` and prunes as the chain advances, and `replay.study` builds the
+*whole* 947-session chain before the detection pass runs. So by the time detection reached a
+measured session older than two years before the chain's end, that session's rank rows were
+already gone; `detection_gate` received an empty table, every member fell out, and the session
+contributed nothing to the field — while looking exactly like a night that legitimately found
+no setup.
+
+It was invisible for three reasons worth naming, because they are what a similar defect will
+hide behind next time. Nothing errored. The behaviour is deterministic, so re-runs agreed with
+each other and the result looked stable. And `_session_detections` had a docstring explicitly
+reasoning that an empty session reproduces deterministically — the retention interaction was
+noticed and read as harmless.
+
+**The fix.** `rebuild_detections` takes the session's rank table as an optional argument, and
+the replay hands it the **chain's own ranks** — which the chain already recomputes in memory
+per session for exactly this reason, and which the A1 funnel already reads its decile verdicts
+from. The nightly run passes nothing and is unaffected: it detects the session it just ranked,
+whose rows are always present. Pinned by
+`test_field_detects_on_a_session_whose_stored_ranks_were_pruned`.
+
+**How the diagnosis was confirmed.** Before the fix, gating on the store reproduced the
+committed figures *exactly* — 505/821 sessions, 14,239 field detections on his evaluation
+sessions, 104 `in_field`, 45 `top_thirty` under detector v1 — while gating on the chain's
+ranks over the same chain gave 821/821, 27,116, 242 and 112. An exact reproduction of the
+published numbers by the broken path is what establishes the cause, rather than a plausible
+story about one.
+
+**What this does and does not touch.** A1 is untouched in principle and in fact: the funnel
+reads the chain's ranks and always did, and every A1 figure in §3 reproduces to the digit
+across the fix. §4's historical rubric-stamped tables are left alone — they are the record of
+what each rubric did to the field as it then stood. What changes is any figure describing how
+much of the field existed, and every one of those is restated above.
+
+**One thing this leaves open, flagged rather than answered.** The discrimination result —
+"the rubric does not discriminate his picks from the field", **17.3% vs 17.8%** at ≥3.5★ — is
+computed over this same field, on his picks against the field *on the same sessions*. Both
+sides were truncated together, so the comparison is not obviously invalid, but its published
+rates were measured on the truncated field and are not restated by this ticket. One data
+point says re-deriving them is not a formality: recomputed under **rubric v1 on the whole
+field**, the run above gives picks **14.6%** against field **12.6%** — a +2.0pp edge where
+the published pair shows −0.5pp. That figure is **not** a correction of 17.3/17.8, because two
+changes are confounded in it: the detector moved v1 → v2 with #154, and the field truncation
+was fixed here. Separating them needs a deliberate paired re-run of the kind §4a already does
+for rubric changes. Until then, §4's and §5's discrimination figures should be read as
+pending re-derivation rather than as settled — and the same caution applies to §6's
+"real but modest against A2's 17.3% / 17.8% gap".
+
 Star distribution of his picks against the replayed field, on the same sessions:
 
 | Stars | His picks | Share | The field | Share |
@@ -1524,6 +1598,14 @@ two-year retention prunes an early session's rank rows before the pass ends — 
 write-once guarantee is untouched: nothing is ever rewritten, only skipped. A second run
 produces the same results as the first, and reusing the persisted chain avoids re-reading
 every candidate's full history for each analysis.
+
+**Two things about the committed store, before that command is run again.**
+`data/replay.duckdb` carries universe rows for 928 sessions but run records for only 19 — it
+predates the #126 reuse marker — so `replay_chain` calls `rebuild_universe` on an
+already-populated session and dies on `Store._guard_absent`. And its persisted detection rows
+are all `detector_version = 1`, which `_session_detections` reads back without checking the
+stamp, so a re-run on it would silently mix v1 rows into a v2 field. Rebuild the store from
+step 1 rather than reusing the committed one.
 
 **One command reproduces the whole study.** `replay.study` builds the field **once** and
 computes coverage plus all four analyses against it — the A1 funnel, A2 placement, and both

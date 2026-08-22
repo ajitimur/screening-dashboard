@@ -19534,124 +19534,124 @@
     "board_size": 30,
     "blind_spot_count": 92,
     "scope": "US 2019\u20132022",
-    "in_field_count": 159,
-    "top_thirty_count": 43,
+    "in_field_count": 349,
+    "top_thirty_count": 109,
     "picks": {
-      "total": 159,
+      "total": 349,
       "counts": {
-        "4.0": 4,
-        "3.5": 14,
-        "3.0": 54,
-        "2.5": 43,
-        "2.0": 29,
-        "1.5": 12,
-        "1.0": 3
+        "4.0": 8,
+        "3.5": 38,
+        "3.0": 116,
+        "2.5": 98,
+        "2.0": 64,
+        "1.5": 21,
+        "1.0": 4
       }
     },
     "field": {
-      "total": 29096,
+      "total": 54399,
       "counts": {
-        "4.0": 197,
-        "3.5": 1767,
-        "3.0": 4750,
-        "2.5": 7858,
-        "2.0": 7554,
-        "1.5": 4675,
-        "1.0": 1892,
-        "0.5": 403
+        "4.0": 516,
+        "3.5": 3856,
+        "3.0": 9338,
+        "2.5": 14710,
+        "2.0": 13322,
+        "1.5": 8450,
+        "1.0": 3468,
+        "0.5": 739
       }
     },
     "by_rubric": [
       {
         "rubric_version": 3,
         "picks": {
-          "total": 159,
+          "total": 349,
           "counts": {
-            "4.0": 4,
-            "3.5": 14,
-            "3.0": 54,
-            "2.5": 43,
-            "2.0": 29,
-            "1.5": 12,
-            "1.0": 3
+            "4.0": 8,
+            "3.5": 38,
+            "3.0": 116,
+            "2.5": 98,
+            "2.0": 64,
+            "1.5": 21,
+            "1.0": 4
           }
         },
         "field": {
-          "total": 29096,
+          "total": 54399,
           "counts": {
-            "4.0": 197,
-            "3.5": 1767,
-            "3.0": 4750,
-            "2.5": 7858,
-            "2.0": 7554,
-            "1.5": 4675,
-            "1.0": 1892,
-            "0.5": 403
+            "4.0": 516,
+            "3.5": 3856,
+            "3.0": 9338,
+            "2.5": 14710,
+            "2.0": 13322,
+            "1.5": 8450,
+            "1.0": 3468,
+            "0.5": 739
           }
         },
-        "top_thirty": 45
+        "top_thirty": 110
       },
       {
         "rubric_version": 2,
         "picks": {
-          "total": 159,
+          "total": 349,
           "counts": {
-            "4.0": 4,
-            "3.5": 11,
-            "3.0": 25,
-            "2.5": 56,
-            "2.0": 31,
-            "1.5": 22,
-            "1.0": 6,
-            "0.5": 4
+            "4.0": 8,
+            "3.5": 24,
+            "3.0": 73,
+            "2.5": 110,
+            "2.0": 72,
+            "1.5": 48,
+            "1.0": 9,
+            "0.5": 5
           }
         },
         "field": {
-          "total": 29096,
+          "total": 54399,
           "counts": {
-            "4.0": 342,
-            "3.5": 916,
-            "3.0": 3247,
-            "2.5": 5451,
-            "2.0": 7381,
-            "1.5": 7178,
-            "1.0": 3319,
-            "0.5": 1262
+            "4.0": 801,
+            "3.5": 1985,
+            "3.0": 6582,
+            "2.5": 10272,
+            "2.0": 13794,
+            "1.5": 12565,
+            "1.0": 6139,
+            "0.5": 2261
           }
         },
-        "top_thirty": 43
+        "top_thirty": 109
       },
       {
         "rubric_version": 1,
         "picks": {
-          "total": 159,
+          "total": 349,
           "counts": {
-            "4.5": 4,
-            "4.0": 5,
-            "3.5": 12,
-            "3.0": 35,
-            "2.5": 32,
-            "2.0": 35,
-            "1.5": 20,
-            "1.0": 12,
-            "0.5": 4
+            "4.5": 7,
+            "4.0": 14,
+            "3.5": 30,
+            "3.0": 79,
+            "2.5": 67,
+            "2.0": 73,
+            "1.5": 47,
+            "1.0": 27,
+            "0.5": 5
           }
         },
         "field": {
-          "total": 29096,
+          "total": 54399,
           "counts": {
-            "4.5": 324,
-            "4.0": 1049,
-            "3.5": 1846,
-            "3.0": 5883,
-            "2.5": 5223,
-            "2.0": 4344,
-            "1.5": 5503,
-            "1.0": 3946,
-            "0.5": 978
+            "4.5": 763,
+            "4.0": 2141,
+            "3.5": 3947,
+            "3.0": 11146,
+            "2.5": 9452,
+            "2.0": 8465,
+            "1.5": 9600,
+            "1.0": 7131,
+            "0.5": 1754
           }
         },
-        "top_thirty": 31
+        "top_thirty": 78
       }
     ],
     "placements": [
@@ -19675,9 +19675,9 @@
         "ticker": "NVAX",
         "entry_date": "2020-06-15",
         "eval_session": "2020-06-12",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "NBR",
@@ -19715,17 +19715,17 @@
         "ticker": "MARA",
         "entry_date": "2020-11-16",
         "eval_session": "2020-11-13",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "JMIA",
         "entry_date": "2020-07-20",
         "eval_session": "2020-07-17",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "LCID",
@@ -19755,9 +19755,9 @@
         "ticker": "SE",
         "entry_date": "2020-05-05",
         "eval_session": "2020-05-04",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "UAVS",
@@ -19803,9 +19803,9 @@
         "ticker": "GRWG",
         "entry_date": "2020-11-12",
         "eval_session": "2020-11-11",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "TLRY",
@@ -19819,9 +19819,9 @@
         "ticker": "TSLA",
         "entry_date": "2020-06-30",
         "eval_session": "2020-06-29",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "AMD",
@@ -19851,25 +19851,25 @@
         "ticker": "W",
         "entry_date": "2020-07-27",
         "eval_session": "2020-07-24",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "FUTU",
         "entry_date": "2020-11-05",
         "eval_session": "2020-11-04",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "NIO",
         "entry_date": "2020-09-29",
         "eval_session": "2020-09-28",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "QS",
@@ -19899,49 +19899,49 @@
         "ticker": "FCEL",
         "entry_date": "2020-12-15",
         "eval_session": "2020-12-14",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "SOXL",
         "entry_date": "2020-12-30",
         "eval_session": "2020-12-29",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "NVAX",
         "entry_date": "2020-04-03",
         "eval_session": "2020-04-02",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "FCEL",
         "entry_date": "2020-02-10",
         "eval_session": "2020-02-07",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "TSLA",
         "entry_date": "2020-12-24",
         "eval_session": "2020-12-23",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "BLDP",
         "entry_date": "2020-06-29",
         "eval_session": "2020-06-26",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.5
       },
       {
         "ticker": "GBTC",
@@ -19955,9 +19955,9 @@
         "ticker": "CAN",
         "entry_date": "2020-12-30",
         "eval_session": "2020-12-29",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "CAN",
@@ -19979,25 +19979,25 @@
         "ticker": "DQ",
         "entry_date": "2020-12-10",
         "eval_session": "2020-12-09",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "SNAP",
         "entry_date": "2020-11-19",
         "eval_session": "2020-11-18",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.5
       },
       {
         "ticker": "SHOP",
         "entry_date": "2020-06-15",
         "eval_session": "2020-06-12",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "GUSH",
@@ -20011,17 +20011,17 @@
         "ticker": "CODX",
         "entry_date": "2020-07-21",
         "eval_session": "2020-07-20",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.5
       },
       {
         "ticker": "CODX",
         "entry_date": "2020-05-07",
         "eval_session": "2020-05-06",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "ERX",
@@ -20051,9 +20051,9 @@
         "ticker": "PTON",
         "entry_date": "2020-12-14",
         "eval_session": "2020-12-11",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "ETHE",
@@ -20067,17 +20067,17 @@
         "ticker": "OKTA",
         "entry_date": "2020-05-04",
         "eval_session": "2020-05-01",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "NET",
         "entry_date": "2020-06-15",
         "eval_session": "2020-06-12",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.5
       },
       {
         "ticker": "SPCE",
@@ -20099,25 +20099,25 @@
         "ticker": "PDD",
         "entry_date": "2020-05-08",
         "eval_session": "2020-05-07",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "DDOG",
         "entry_date": "2020-06-08",
         "eval_session": "2020-06-05",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.5
       },
       {
         "ticker": "LABU",
         "entry_date": "2020-06-18",
         "eval_session": "2020-06-17",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "CCJ",
@@ -20211,9 +20211,9 @@
         "ticker": "NVAX",
         "entry_date": "2020-02-26",
         "eval_session": "2020-02-25",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "SOXL",
@@ -20259,9 +20259,9 @@
         "ticker": "BYND",
         "entry_date": "2020-09-29",
         "eval_session": "2020-09-28",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "GUSH",
@@ -20339,17 +20339,17 @@
         "ticker": "BYND",
         "entry_date": "2020-06-08",
         "eval_session": "2020-06-05",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "RUN",
         "entry_date": "2020-11-17",
         "eval_session": "2020-11-16",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "NUGT",
@@ -20371,9 +20371,9 @@
         "ticker": "TAN",
         "entry_date": "2020-11-16",
         "eval_session": "2020-11-13",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.0
       },
       {
         "ticker": "BKKT",
@@ -20395,25 +20395,25 @@
         "ticker": "RH",
         "entry_date": "2020-07-01",
         "eval_session": "2020-06-30",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 4.0
       },
       {
         "ticker": "SE",
         "entry_date": "2020-09-25",
         "eval_session": "2020-09-24",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "ROKU",
         "entry_date": "2020-07-09",
         "eval_session": "2020-07-08",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "PFE",
@@ -20491,25 +20491,25 @@
         "ticker": "TWLO",
         "entry_date": "2020-06-15",
         "eval_session": "2020-06-12",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "PTON",
         "entry_date": "2020-07-27",
         "eval_session": "2020-07-24",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "NVDA",
         "entry_date": "2020-09-27",
         "eval_session": "2020-09-25",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "FCX",
@@ -20531,9 +20531,9 @@
         "ticker": "BCRX",
         "entry_date": "2020-06-26",
         "eval_session": "2020-06-25",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "LI",
@@ -20571,9 +20571,9 @@
         "ticker": "ZM",
         "entry_date": "2020-10-09",
         "eval_session": "2020-10-08",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.5
       },
       {
         "ticker": "HUYA",
@@ -20587,9 +20587,9 @@
         "ticker": "INO",
         "entry_date": "2020-03-03",
         "eval_session": "2020-03-02",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "NTLA",
@@ -20619,9 +20619,9 @@
         "ticker": "JD",
         "entry_date": "2020-04-06",
         "eval_session": "2020-04-03",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "AMD",
@@ -20643,9 +20643,9 @@
         "ticker": "OKTA",
         "entry_date": "2020-06-17",
         "eval_session": "2020-06-16",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "ALB",
@@ -20667,9 +20667,9 @@
         "ticker": "MRNA",
         "entry_date": "2020-04-03",
         "eval_session": "2020-04-02",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "SE",
@@ -20683,41 +20683,41 @@
         "ticker": "DT",
         "entry_date": "2020-01-06",
         "eval_session": "2020-01-03",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 0.5
       },
       {
         "ticker": "TSLA",
         "entry_date": "2020-10-08",
         "eval_session": "2020-10-07",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "FSLY",
         "entry_date": "2020-09-21",
         "eval_session": "2020-09-18",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "NUGT",
         "entry_date": "2020-04-22",
         "eval_session": "2020-04-21",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.5
       },
       {
         "ticker": "DOYU",
         "entry_date": "2020-08-24",
         "eval_session": "2020-08-21",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "BILI",
@@ -20763,9 +20763,9 @@
         "ticker": "SOXL",
         "entry_date": "2020-06-02",
         "eval_session": "2020-06-01",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "ALB",
@@ -20779,17 +20779,17 @@
         "ticker": "DDOG",
         "entry_date": "2020-07-20",
         "eval_session": "2020-07-17",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "TTD",
         "entry_date": "2020-07-31",
         "eval_session": "2020-07-30",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "YINN",
@@ -20835,9 +20835,9 @@
         "ticker": "AMD",
         "entry_date": "2020-08-20",
         "eval_session": "2020-08-19",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "JAGX",
@@ -20875,9 +20875,9 @@
         "ticker": "DDS",
         "entry_date": "2019-10-09",
         "eval_session": "2019-10-08",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "SLV",
@@ -20915,9 +20915,9 @@
         "ticker": "DXCM",
         "entry_date": "2020-06-30",
         "eval_session": "2020-06-29",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "RBLX",
@@ -20955,9 +20955,9 @@
         "ticker": "SOXL",
         "entry_date": "2020-12-28",
         "eval_session": "2020-12-24",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "AVGO",
@@ -20979,9 +20979,9 @@
         "ticker": "Z",
         "entry_date": "2020-07-30",
         "eval_session": "2020-07-29",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "QCLN",
@@ -21067,9 +21067,9 @@
         "ticker": "ESTC",
         "entry_date": "2020-09-16",
         "eval_session": "2020-09-15",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "ETHE",
@@ -21115,9 +21115,9 @@
         "ticker": "TTD",
         "entry_date": "2020-08-26",
         "eval_session": "2020-08-25",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "PALL",
@@ -21131,17 +21131,17 @@
         "ticker": "JD",
         "entry_date": "2020-07-02",
         "eval_session": "2020-07-01",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "SHOP",
         "entry_date": "2020-08-26",
         "eval_session": "2020-08-25",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "YINN",
@@ -21155,17 +21155,17 @@
         "ticker": "TSLA",
         "entry_date": "2020-10-12",
         "eval_session": "2020-10-09",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "TLRY",
         "entry_date": "2020-04-24",
         "eval_session": "2020-04-23",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "SLV",
@@ -21179,9 +21179,9 @@
         "ticker": "TSLA",
         "entry_date": "2020-08-06",
         "eval_session": "2020-08-05",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "AGQ",
@@ -21211,9 +21211,9 @@
         "ticker": "ZM",
         "entry_date": "2020-08-03",
         "eval_session": "2020-07-31",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "TQQQ",
@@ -21235,9 +21235,9 @@
         "ticker": "JD",
         "entry_date": "2020-07-20",
         "eval_session": "2020-07-17",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "LHX",
@@ -21259,9 +21259,9 @@
         "ticker": "TSLA",
         "entry_date": "2020-10-13",
         "eval_session": "2020-10-12",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "ARKK",
@@ -21315,9 +21315,9 @@
         "ticker": "JD",
         "entry_date": "2020-11-04",
         "eval_session": "2020-11-03",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "TSLA",
@@ -21339,9 +21339,9 @@
         "ticker": "BLDP",
         "entry_date": "2020-02-10",
         "eval_session": "2020-02-07",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.0
       },
       {
         "ticker": "IWN",
@@ -21355,9 +21355,9 @@
         "ticker": "TQQQ",
         "entry_date": "2020-11-04",
         "eval_session": "2020-11-03",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "TSM",
@@ -21419,9 +21419,9 @@
         "ticker": "TQQQ",
         "entry_date": "2020-11-13",
         "eval_session": "2020-11-12",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "ROKU",
@@ -21443,9 +21443,9 @@
         "ticker": "JD",
         "entry_date": "2020-10-29",
         "eval_session": "2020-10-28",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "NIU",
@@ -21475,17 +21475,17 @@
         "ticker": "SHOP",
         "entry_date": "2020-06-02",
         "eval_session": "2020-06-01",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "NET",
         "entry_date": "2020-11-17",
         "eval_session": "2020-11-16",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "SNOW",
@@ -21499,9 +21499,9 @@
         "ticker": "MELI",
         "entry_date": "2020-11-05",
         "eval_session": "2020-11-04",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "KRE",
@@ -21515,9 +21515,9 @@
         "ticker": "WKHS",
         "entry_date": "2020-08-03",
         "eval_session": "2020-07-31",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "SQM",
@@ -21547,17 +21547,17 @@
         "ticker": "DDOG",
         "entry_date": "2020-09-22",
         "eval_session": "2020-09-21",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "IQ",
         "entry_date": "2020-01-22",
         "eval_session": "2020-01-21",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "ARKK",
@@ -21587,9 +21587,9 @@
         "ticker": "ROKU",
         "entry_date": "2019-10-04",
         "eval_session": "2019-10-03",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "QS",
@@ -21603,17 +21603,17 @@
         "ticker": "SHOP",
         "entry_date": "2020-08-19",
         "eval_session": "2020-08-18",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "TWLO",
         "entry_date": "2020-08-18",
         "eval_session": "2020-08-17",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "FAS",
@@ -21747,9 +21747,9 @@
         "ticker": "TSLA",
         "entry_date": "2020-05-08",
         "eval_session": "2020-05-07",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "AMAT",
@@ -21771,17 +21771,17 @@
         "ticker": "JD",
         "entry_date": "2020-07-27",
         "eval_session": "2020-07-24",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "TSLA",
         "entry_date": "2020-11-09",
         "eval_session": "2020-11-06",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.0
       },
       {
         "ticker": "NUE",
@@ -21811,9 +21811,9 @@
         "ticker": "JD",
         "entry_date": "2020-10-27",
         "eval_session": "2020-10-26",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "TAN",
@@ -21875,9 +21875,9 @@
         "ticker": "SE",
         "entry_date": "2020-11-20",
         "eval_session": "2020-11-19",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "FCX",
@@ -21915,9 +21915,9 @@
         "ticker": "OKTA",
         "entry_date": "2020-07-29",
         "eval_session": "2020-07-28",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "TSLA",
@@ -21947,9 +21947,9 @@
         "ticker": "DXCM",
         "entry_date": "2020-07-29",
         "eval_session": "2020-07-28",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "UVXY",
@@ -21995,17 +21995,17 @@
         "ticker": "INMD",
         "entry_date": "2020-02-18",
         "eval_session": "2020-02-14",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.5
       },
       {
         "ticker": "JNUG",
         "entry_date": "2020-10-21",
         "eval_session": "2020-10-20",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "FCX",
@@ -22027,17 +22027,17 @@
         "ticker": "PLUG",
         "entry_date": "2019-11-25",
         "eval_session": "2019-11-22",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "ZM",
         "entry_date": "2020-06-10",
         "eval_session": "2020-06-09",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "SEDG",
@@ -22051,9 +22051,9 @@
         "ticker": "ACB",
         "entry_date": "2020-06-08",
         "eval_session": "2020-06-05",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "ETHE",
@@ -22075,9 +22075,9 @@
         "ticker": "PENN",
         "entry_date": "2020-10-16",
         "eval_session": "2020-10-15",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.5
       },
       {
         "ticker": "PDD",
@@ -22107,33 +22107,33 @@
         "ticker": "FSLY",
         "entry_date": "2020-08-20",
         "eval_session": "2020-08-19",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "AMD",
         "entry_date": "2020-05-11",
         "eval_session": "2020-05-08",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "BILL",
         "entry_date": "2020-06-10",
         "eval_session": "2020-06-09",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "AMD",
         "entry_date": "2020-06-09",
         "eval_session": "2020-06-08",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "AGQ",
@@ -22147,9 +22147,9 @@
         "ticker": "PTON",
         "entry_date": "2020-06-09",
         "eval_session": "2020-06-08",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "TNA",
@@ -22187,9 +22187,9 @@
         "ticker": "SE",
         "entry_date": "2020-04-06",
         "eval_session": "2020-04-03",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "LRCX",
@@ -22235,9 +22235,9 @@
         "ticker": "QDEL",
         "entry_date": "2020-11-05",
         "eval_session": "2020-11-04",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "PINS",
@@ -22315,9 +22315,9 @@
         "ticker": "FVRR",
         "entry_date": "2020-09-22",
         "eval_session": "2020-09-21",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "AAL",
@@ -22331,9 +22331,9 @@
         "ticker": "PLUG",
         "entry_date": "2020-12-07",
         "eval_session": "2020-12-04",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "SHOP",
@@ -22347,9 +22347,9 @@
         "ticker": "ROKU",
         "entry_date": "2020-07-31",
         "eval_session": "2020-07-30",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 4.0
       },
       {
         "ticker": "INO",
@@ -22363,25 +22363,25 @@
         "ticker": "ROKU",
         "entry_date": "2020-09-15",
         "eval_session": "2020-09-14",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "BILI",
         "entry_date": "2020-06-12",
         "eval_session": "2020-06-11",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.5
       },
       {
         "ticker": "CRSP",
         "entry_date": "2020-07-20",
         "eval_session": "2020-07-17",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "MSTR",
@@ -22443,9 +22443,9 @@
         "ticker": "PLUG",
         "entry_date": "2020-04-27",
         "eval_session": "2020-04-24",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 4.0
       },
       {
         "ticker": "COIN",
@@ -22475,9 +22475,9 @@
         "ticker": "SE",
         "entry_date": "2020-10-29",
         "eval_session": "2020-10-28",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "PLUG",
@@ -22547,25 +22547,25 @@
         "ticker": "TWLO",
         "entry_date": "2020-06-10",
         "eval_session": "2020-06-09",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "SE",
         "entry_date": "2020-11-04",
         "eval_session": "2020-11-03",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "ETSY",
         "entry_date": "2020-06-10",
         "eval_session": "2020-06-09",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "TNA",
@@ -22619,9 +22619,9 @@
         "ticker": "BNTX",
         "entry_date": "2020-05-20",
         "eval_session": "2020-05-19",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "SOXL",
@@ -22635,9 +22635,9 @@
         "ticker": "MDB",
         "entry_date": "2020-05-05",
         "eval_session": "2020-05-04",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 4.0
       },
       {
         "ticker": "LMND",
@@ -22683,33 +22683,33 @@
         "ticker": "SE",
         "entry_date": "2020-12-03",
         "eval_session": "2020-12-02",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "PINS",
         "entry_date": "2020-12-09",
         "eval_session": "2020-12-08",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "DKNG",
         "entry_date": "2020-06-22",
         "eval_session": "2020-06-19",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "MRNA",
         "entry_date": "2020-06-24",
         "eval_session": "2020-06-23",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "GUSH",
@@ -22739,9 +22739,9 @@
         "ticker": "PDD",
         "entry_date": "2020-09-01",
         "eval_session": "2020-08-31",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "GBTC",
@@ -22763,9 +22763,9 @@
         "ticker": "DKNG",
         "entry_date": "2020-08-18",
         "eval_session": "2020-08-17",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "SNOW",
@@ -22787,9 +22787,9 @@
         "ticker": "BILI",
         "entry_date": "2020-06-08",
         "eval_session": "2020-06-05",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.5
       },
       {
         "ticker": "BYND",
@@ -22803,25 +22803,25 @@
         "ticker": "MRNA",
         "entry_date": "2020-06-30",
         "eval_session": "2020-06-29",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "SE",
         "entry_date": "2020-10-27",
         "eval_session": "2020-10-26",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "BILI",
         "entry_date": "2020-03-05",
         "eval_session": "2020-03-04",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "XPEV",
@@ -22835,17 +22835,17 @@
         "ticker": "NIO",
         "entry_date": "2020-09-22",
         "eval_session": "2020-09-21",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.5
       },
       {
         "ticker": "BILI",
         "entry_date": "2020-07-21",
         "eval_session": "2020-07-20",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "GBTC",
@@ -22867,9 +22867,9 @@
         "ticker": "NIO",
         "entry_date": "2020-12-30",
         "eval_session": "2020-12-29",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "CHWY",
@@ -22947,9 +22947,9 @@
         "ticker": "LABU",
         "entry_date": "2020-02-19",
         "eval_session": "2020-02-18",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "MDB",
@@ -22971,33 +22971,33 @@
         "ticker": "DDS",
         "entry_date": "2019-10-25",
         "eval_session": "2019-10-24",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.0
       },
       {
         "ticker": "HMY",
         "entry_date": "2019-10-08",
         "eval_session": "2019-10-07",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "JD",
         "entry_date": "2020-04-14",
         "eval_session": "2020-04-13",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "NIO",
         "entry_date": "2020-02-20",
         "eval_session": "2020-02-19",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "GUSH",
@@ -23051,9 +23051,9 @@
         "ticker": "TDOC",
         "entry_date": "2020-07-30",
         "eval_session": "2020-07-29",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "SE",
@@ -23067,9 +23067,9 @@
         "ticker": "TNA",
         "entry_date": "2020-09-02",
         "eval_session": "2020-09-01",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "DOCU",
@@ -23099,17 +23099,17 @@
         "ticker": "ACAD",
         "entry_date": "2019-10-21",
         "eval_session": "2019-10-18",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "ZM",
         "entry_date": "2020-04-23",
         "eval_session": "2020-04-22",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "CCL",
@@ -23131,9 +23131,9 @@
         "ticker": "SPOT",
         "entry_date": "2020-08-19",
         "eval_session": "2020-08-18",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.0
       },
       {
         "ticker": "CCL",
@@ -23155,9 +23155,9 @@
         "ticker": "W",
         "entry_date": "2020-10-19",
         "eval_session": "2020-10-16",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "UVXY",
@@ -23171,9 +23171,9 @@
         "ticker": "BNTX",
         "entry_date": "2020-07-28",
         "eval_session": "2020-07-27",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "CCL",
@@ -23187,9 +23187,9 @@
         "ticker": "MDB",
         "entry_date": "2020-07-08",
         "eval_session": "2020-07-07",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "RIOT",
@@ -23267,9 +23267,9 @@
         "ticker": "ESTC",
         "entry_date": "2020-09-21",
         "eval_session": "2020-09-18",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "JNUG",
@@ -23371,17 +23371,17 @@
         "ticker": "UAL",
         "entry_date": "2020-07-01",
         "eval_session": "2020-06-30",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "APT",
         "entry_date": "2020-04-23",
         "eval_session": "2020-04-22",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "UVXY",
@@ -23403,17 +23403,17 @@
         "ticker": "NUGT",
         "entry_date": "2020-05-05",
         "eval_session": "2020-05-04",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "MRNA",
         "entry_date": "2020-06-15",
         "eval_session": "2020-06-12",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "NET",
@@ -23443,9 +23443,9 @@
         "ticker": "BCRX",
         "entry_date": "2020-05-04",
         "eval_session": "2020-05-01",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "SQM",
@@ -23491,17 +23491,17 @@
         "ticker": "PDD",
         "entry_date": "2020-08-19",
         "eval_session": "2020-08-18",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "BLDP",
         "entry_date": "2020-04-27",
         "eval_session": "2020-04-24",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "QS",
@@ -23547,17 +23547,17 @@
         "ticker": "NUGT",
         "entry_date": "2019-10-24",
         "eval_session": "2019-10-23",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "INO",
         "entry_date": "2020-07-17",
         "eval_session": "2020-07-16",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "EDC",
@@ -23603,9 +23603,9 @@
         "ticker": "DDOG",
         "entry_date": "2020-06-03",
         "eval_session": "2020-06-02",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "COIN",
@@ -23619,9 +23619,9 @@
         "ticker": "AGQ",
         "entry_date": "2020-08-26",
         "eval_session": "2020-08-25",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "BTBT",
@@ -23643,9 +23643,9 @@
         "ticker": "LRN",
         "entry_date": "2020-08-05",
         "eval_session": "2020-08-04",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "URA",
@@ -23667,9 +23667,9 @@
         "ticker": "BILI",
         "entry_date": "2020-07-31",
         "eval_session": "2020-07-30",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "RBLX",
@@ -23691,9 +23691,9 @@
         "ticker": "BE",
         "entry_date": "2020-12-04",
         "eval_session": "2020-12-03",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "CCJ",
@@ -23771,9 +23771,9 @@
         "ticker": "BNTX",
         "entry_date": "2020-05-05",
         "eval_session": "2020-05-04",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "ETSY",
@@ -23819,9 +23819,9 @@
         "ticker": "BE",
         "entry_date": "2020-12-15",
         "eval_session": "2020-12-14",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "RIVN",
@@ -23835,9 +23835,9 @@
         "ticker": "INO",
         "entry_date": "2020-08-05",
         "eval_session": "2020-08-04",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "TNA",
@@ -24003,25 +24003,25 @@
         "ticker": "PLUG",
         "entry_date": "2020-09-15",
         "eval_session": "2020-09-14",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "DDOG",
         "entry_date": "2020-07-29",
         "eval_session": "2020-07-28",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "RRC",
         "entry_date": "2020-01-07",
         "eval_session": "2020-01-06",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "BLDP",
@@ -24043,9 +24043,9 @@
         "ticker": "APT",
         "entry_date": "2020-04-21",
         "eval_session": "2020-04-20",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "MELI",
@@ -24075,9 +24075,9 @@
         "ticker": "ACMR",
         "entry_date": "2020-02-10",
         "eval_session": "2020-02-07",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "CLNE",
@@ -24115,9 +24115,9 @@
         "ticker": "BCRX",
         "entry_date": "2020-05-20",
         "eval_session": "2020-05-19",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.5
       },
       {
         "ticker": "PLUG",
@@ -24155,9 +24155,9 @@
         "ticker": "TLRY",
         "entry_date": "2020-04-20",
         "eval_session": "2020-04-17",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "ACB",
@@ -24179,17 +24179,17 @@
         "ticker": "ENPH",
         "entry_date": "2020-11-05",
         "eval_session": "2020-11-04",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.5
       },
       {
         "ticker": "DQ",
         "entry_date": "2020-12-08",
         "eval_session": "2020-12-07",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 1.5
       },
       {
         "ticker": "HOOD",
@@ -24219,9 +24219,9 @@
         "ticker": "NUGT",
         "entry_date": "2020-09-09",
         "eval_session": "2020-09-08",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "NVAX",
@@ -24235,9 +24235,9 @@
         "ticker": "APT",
         "entry_date": "2020-04-22",
         "eval_session": "2020-04-21",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 3.0
       },
       {
         "ticker": "W",
@@ -24291,9 +24291,9 @@
         "ticker": "DQ",
         "entry_date": "2020-11-24",
         "eval_session": "2020-11-23",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "BBBY",
@@ -24323,17 +24323,17 @@
         "ticker": "APT",
         "entry_date": "2020-05-06",
         "eval_session": "2020-05-05",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "PLUG",
         "entry_date": "2020-07-22",
         "eval_session": "2020-07-21",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "BTBT",
@@ -24355,17 +24355,17 @@
         "ticker": "ACB",
         "entry_date": "2020-05-28",
         "eval_session": "2020-05-27",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "NVAX",
         "entry_date": "2020-12-17",
         "eval_session": "2020-12-16",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "TLRY",
@@ -24419,9 +24419,9 @@
         "ticker": "AYTU",
         "entry_date": "2020-03-27",
         "eval_session": "2020-03-26",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "BLDP",
@@ -24459,9 +24459,9 @@
         "ticker": "NVAX",
         "entry_date": "2020-02-24",
         "eval_session": "2020-02-21",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "CBAT",
@@ -24475,9 +24475,9 @@
         "ticker": "JNUG",
         "entry_date": "2020-06-02",
         "eval_session": "2020-06-01",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "FLGT",
@@ -24491,9 +24491,9 @@
         "ticker": "WKHS",
         "entry_date": "2020-07-30",
         "eval_session": "2020-07-29",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "ETHE",
@@ -24507,9 +24507,9 @@
         "ticker": "DKNG",
         "entry_date": "2020-08-13",
         "eval_session": "2020-08-12",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "AMC",
@@ -24539,9 +24539,9 @@
         "ticker": "APT",
         "entry_date": "2020-05-14",
         "eval_session": "2020-05-13",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "MQ",
@@ -24563,17 +24563,17 @@
         "ticker": "AYTU",
         "entry_date": "2020-05-14",
         "eval_session": "2020-05-13",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "VIR",
         "entry_date": "2020-06-19",
         "eval_session": "2020-06-18",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "APT",
@@ -24595,9 +24595,9 @@
         "ticker": "ARCT",
         "entry_date": "2020-07-08",
         "eval_session": "2020-07-07",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "CREX",
@@ -24627,17 +24627,17 @@
         "ticker": "STNE",
         "entry_date": "2020-03-03",
         "eval_session": "2020-03-02",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 2.0
       },
       {
         "ticker": "RIOT",
         "entry_date": "2020-09-01",
         "eval_session": "2020-08-31",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "SIGA",
@@ -24651,9 +24651,9 @@
         "ticker": "BCRX",
         "entry_date": "2020-04-30",
         "eval_session": "2020-04-29",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "VIR",
@@ -24675,9 +24675,9 @@
         "ticker": "INO",
         "entry_date": "2020-07-21",
         "eval_session": "2020-07-20",
-        "in_field": false,
-        "top_thirty": false,
-        "stars": null
+        "in_field": true,
+        "top_thirty": true,
+        "stars": 3.0
       },
       {
         "ticker": "TLRY",
@@ -24715,9 +24715,9 @@
         "ticker": "RIOT",
         "entry_date": "2020-08-14",
         "eval_session": "2020-08-13",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "BKKT",
@@ -24763,9 +24763,9 @@
         "ticker": "MARA",
         "entry_date": "2020-08-14",
         "eval_session": "2020-08-13",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.5
       },
       {
         "ticker": "OCGN",
@@ -24851,9 +24851,9 @@
         "ticker": "MARA",
         "entry_date": "2020-09-01",
         "eval_session": "2020-08-31",
-        "in_field": false,
+        "in_field": true,
         "top_thirty": false,
-        "stars": null
+        "stars": 2.0
       },
       {
         "ticker": "AYTU",
@@ -24908,31 +24908,31 @@
   "regression": {
     "exit_label": "10sma",
     "n_replayable": 656,
-    "n_detected": 159,
+    "n_detected": 349,
     "blind_spot_count": 92,
     "dimension_stats": [
       {
         "dimension": "Tightness",
         "weight": 2,
-        "n": 158,
-        "hit_rate": 0.2911392405063291,
-        "spread": 0.45428755556775596,
-        "correlation": 0.09973884395195816,
+        "n": 348,
+        "hit_rate": 0.3448275862068966,
+        "spread": 0.47531202593414557,
+        "correlation": 0.07158823628710681,
         "untestable": false
       },
       {
         "dimension": "Orderliness",
         "weight": 1,
-        "n": 158,
-        "hit_rate": 0.35443037974683544,
-        "spread": 0.47834034500484013,
-        "correlation": -0.05519586000209199,
+        "n": 348,
+        "hit_rate": 0.35344827586206895,
+        "spread": 0.4780403666555783,
+        "correlation": -0.04586016072301795,
         "untestable": false
       },
       {
         "dimension": "Prior move",
         "weight": 1,
-        "n": 158,
+        "n": 348,
         "hit_rate": 1.0,
         "spread": 0.0,
         "correlation": null,
@@ -24941,37 +24941,37 @@
       {
         "dimension": "Base length",
         "weight": 0,
-        "n": 158,
-        "hit_rate": 0.5126582278481012,
-        "spread": 0.4998397435856272,
-        "correlation": -0.07778000337374383,
+        "n": 348,
+        "hit_rate": 0.47701149425287354,
+        "spread": 0.4994712490259217,
+        "correlation": -0.057554660832682784,
         "untestable": false
       },
       {
         "dimension": "MA support",
         "weight": 1,
-        "n": 158,
-        "hit_rate": 0.7721518987341772,
-        "spread": 0.4194440892602757,
-        "correlation": -0.12693810221465202,
+        "n": 348,
+        "hit_rate": 0.7787356321839081,
+        "spread": 0.41509811773969435,
+        "correlation": -0.11758059528333988,
         "untestable": false
       },
       {
         "dimension": "Volume",
         "weight": 1,
-        "n": 158,
-        "hit_rate": 0.37341772151898733,
-        "spread": 0.483711615298367,
-        "correlation": -0.10808150512343133,
+        "n": 348,
+        "hit_rate": 0.3649425287356322,
+        "spread": 0.48141404160626067,
+        "correlation": -0.07662618594605967,
         "untestable": false
       },
       {
         "dimension": "ADR",
         "weight": 2,
-        "n": 158,
-        "hit_rate": 0.7911392405063291,
-        "spread": 0.40649470185649145,
-        "correlation": 0.10657532739162139,
+        "n": 348,
+        "hit_rate": 0.8017241379310345,
+        "spread": 0.3987010717188682,
+        "correlation": 0.09468555695338679,
         "untestable": false
       }
     ],
@@ -25046,8 +25046,16 @@
         "ticker": "NVAX",
         "entry_date": "2020-06-15",
         "eval_session": "2020-06-12",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.12479578336327413,
         "stop_width_adr": 0.28618183044152473,
         "mfe": 297.9,
@@ -25101,8 +25109,16 @@
         "ticker": "MARA",
         "entry_date": "2020-11-16",
         "eval_session": "2020-11-13",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.11401826708040672,
         "stop_width_adr": 0.24855737328190006,
         "mfe": 175.3,
@@ -25112,8 +25128,16 @@
         "ticker": "JMIA",
         "entry_date": "2020-07-20",
         "eval_session": "2020-07-17",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.12610993139051274,
         "stop_width_adr": 0.46354566050603463,
         "mfe": 197.26,
@@ -25172,8 +25196,16 @@
         "ticker": "SE",
         "entry_date": "2020-05-05",
         "eval_session": "2020-05-04",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.047750155712259476,
         "stop_width_adr": 0.47811895277643474,
         "mfe": 102.16,
@@ -25254,8 +25286,16 @@
         "ticker": "GRWG",
         "entry_date": "2020-11-12",
         "eval_session": "2020-11-11",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.10933844008680649,
         "stop_width_adr": 0.6799788439265274,
         "mfe": 62.22,
@@ -25284,8 +25324,16 @@
         "ticker": "TSLA",
         "entry_date": "2020-06-30",
         "eval_session": "2020-06-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04278456197230858,
         "stop_width_adr": 0.5416358524275527,
         "mfe": 66.23,
@@ -25344,8 +25392,16 @@
         "ticker": "W",
         "entry_date": "2020-07-27",
         "eval_session": "2020-07-24",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.0579715627872031,
         "stop_width_adr": 0.5777493265418474,
         "mfe": 52.04,
@@ -25355,8 +25411,16 @@
         "ticker": "FUTU",
         "entry_date": "2020-11-05",
         "eval_session": "2020-11-04",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05316838712924029,
         "stop_width_adr": 0.6119293716693329,
         "mfe": 56.84,
@@ -25366,8 +25430,16 @@
         "ticker": "NIO",
         "entry_date": "2020-09-29",
         "eval_session": "2020-09-28",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.0831761129461919,
         "stop_width_adr": 0.22379347004465913,
         "mfe": 52.02,
@@ -25410,8 +25482,16 @@
         "ticker": "FCEL",
         "entry_date": "2020-12-15",
         "eval_session": "2020-12-14",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.2172706835327725,
         "stop_width_adr": 0.1303679018823394,
         "mfe": 71.31,
@@ -25421,8 +25501,16 @@
         "ticker": "SOXL",
         "entry_date": "2020-12-30",
         "eval_session": "2020-12-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04677852007061284,
         "stop_width_adr": 0.4066579595392782,
         "mfe": 44.45,
@@ -25432,8 +25520,16 @@
         "ticker": "NVAX",
         "entry_date": "2020-04-03",
         "eval_session": "2020-04-02",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.1850037162221835,
         "stop_width_adr": 0.3764134279590562,
         "mfe": 83.43,
@@ -25443,8 +25539,16 @@
         "ticker": "FCEL",
         "entry_date": "2020-02-10",
         "eval_session": "2020-02-07",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": false,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.10823487538980534,
         "stop_width_adr": 0.3079722059390206,
         "mfe": 60.0,
@@ -25454,8 +25558,16 @@
         "ticker": "TSLA",
         "entry_date": "2020-12-24",
         "eval_session": "2020-12-23",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.058815968954660125,
         "stop_width_adr": 0.31102509013362833,
         "mfe": 37.6,
@@ -25465,8 +25577,16 @@
         "ticker": "BLDP",
         "entry_date": "2020-06-29",
         "eval_session": "2020-06-26",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06725892287607028,
         "stop_width_adr": 0.28091933222457444,
         "mfe": 51.22,
@@ -25495,8 +25615,16 @@
         "ticker": "CAN",
         "entry_date": "2020-12-30",
         "eval_session": "2020-12-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.12590386582947927,
         "stop_width_adr": 0.616459855205731,
         "mfe": 68.58,
@@ -25536,8 +25664,16 @@
         "ticker": "DQ",
         "entry_date": "2020-12-10",
         "eval_session": "2020-12-09",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08090171490889955,
         "stop_width_adr": 0.9503861808136886,
         "mfe": 57.46,
@@ -25547,8 +25683,16 @@
         "ticker": "SNAP",
         "entry_date": "2020-11-19",
         "eval_session": "2020-11-18",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.062360597496271354,
         "stop_width_adr": 0.38445856669132816,
         "mfe": 31.17,
@@ -25558,8 +25702,16 @@
         "ticker": "SHOP",
         "entry_date": "2020-06-15",
         "eval_session": "2020-06-12",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": false,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05218186952066722,
         "stop_width_adr": 0.2456890283594594,
         "mfe": 37.82,
@@ -25588,8 +25740,16 @@
         "ticker": "CODX",
         "entry_date": "2020-07-21",
         "eval_session": "2020-07-20",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.08526225880590445,
         "stop_width_adr": 0.8310156492344447,
         "mfe": 55.73,
@@ -25599,8 +25759,16 @@
         "ticker": "CODX",
         "entry_date": "2020-05-07",
         "eval_session": "2020-05-06",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.1250248178508076,
         "stop_width_adr": 0.26356569379229533,
         "mfe": 99.87,
@@ -25643,8 +25811,16 @@
         "ticker": "PTON",
         "entry_date": "2020-12-14",
         "eval_session": "2020-12-11",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05873943407596144,
         "stop_width_adr": 0.6100966966677569,
         "mfe": 36.63,
@@ -25673,8 +25849,16 @@
         "ticker": "OKTA",
         "entry_date": "2020-05-04",
         "eval_session": "2020-05-01",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04578253853706991,
         "stop_width_adr": 0.4239147796736424,
         "mfe": 29.54,
@@ -25684,8 +25868,16 @@
         "ticker": "NET",
         "entry_date": "2020-06-15",
         "eval_session": "2020-06-12",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05384013153937707,
         "stop_width_adr": 0.6211874877952547,
         "mfe": 28.7,
@@ -25725,8 +25917,16 @@
         "ticker": "PDD",
         "entry_date": "2020-05-08",
         "eval_session": "2020-05-07",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.050082895417581784,
         "stop_width_adr": 0.3475862097420077,
         "mfe": 34.8,
@@ -25736,8 +25936,16 @@
         "ticker": "DDOG",
         "entry_date": "2020-06-08",
         "eval_session": "2020-06-05",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07295617366519125,
         "stop_width_adr": 0.3020795415375228,
         "mfe": 28.1,
@@ -25747,8 +25955,16 @@
         "ticker": "LABU",
         "entry_date": "2020-06-18",
         "eval_session": "2020-06-17",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.09716473146749914,
         "stop_width_adr": 0.31039728489443646,
         "mfe": 37.02,
@@ -25903,8 +26119,16 @@
         "ticker": "NVAX",
         "entry_date": "2020-02-26",
         "eval_session": "2020-02-25",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08960700050527443,
         "stop_width_adr": 0.677875688914783,
         "mfe": 99.21,
@@ -26001,8 +26225,16 @@
         "ticker": "BYND",
         "entry_date": "2020-09-29",
         "eval_session": "2020-09-28",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.06838026588288831,
         "stop_width_adr": 0.5479075412280893,
         "mfe": 19.16,
@@ -26151,8 +26383,16 @@
         "ticker": "BYND",
         "entry_date": "2020-06-08",
         "eval_session": "2020-06-05",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07229698435495517,
         "stop_width_adr": 0.36508922219794676,
         "mfe": 19.57,
@@ -26162,8 +26402,16 @@
         "ticker": "RUN",
         "entry_date": "2020-11-17",
         "eval_session": "2020-11-16",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06745926231545708,
         "stop_width_adr": 0.4829343828309068,
         "mfe": 20.98,
@@ -26203,8 +26451,16 @@
         "ticker": "TAN",
         "entry_date": "2020-11-16",
         "eval_session": "2020-11-13",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": false,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.04452476470008678,
         "stop_width_adr": 0.46890633709381824,
         "mfe": 18.24,
@@ -26236,8 +26492,16 @@
         "ticker": "RH",
         "entry_date": "2020-07-01",
         "eval_session": "2020-06-30",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.0543244118265956,
         "stop_width_adr": 0.7093094473956914,
         "mfe": 13.01,
@@ -26247,8 +26511,16 @@
         "ticker": "SE",
         "entry_date": "2020-09-25",
         "eval_session": "2020-09-24",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05221767812378111,
         "stop_width_adr": 0.4665402133207855,
         "mfe": 15.23,
@@ -26258,8 +26530,16 @@
         "ticker": "ROKU",
         "entry_date": "2020-07-09",
         "eval_session": "2020-07-08",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.06314210334132912,
         "stop_width_adr": 0.36524913268920933,
         "mfe": 19.03,
@@ -26400,8 +26680,16 @@
         "ticker": "TWLO",
         "entry_date": "2020-06-15",
         "eval_session": "2020-06-12",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05253608422740773,
         "stop_width_adr": 0.5739056157732207,
         "mfe": 11.75,
@@ -26411,8 +26699,16 @@
         "ticker": "PTON",
         "entry_date": "2020-07-27",
         "eval_session": "2020-07-24",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.059012985592215995,
         "stop_width_adr": 0.3879201652607168,
         "mfe": 15.58,
@@ -26422,8 +26718,16 @@
         "ticker": "NVDA",
         "entry_date": "2020-09-27",
         "eval_session": "2020-09-25",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05620326501630747,
         "stop_width_adr": 0.2596656867124376,
         "mfe": 10.08,
@@ -26455,8 +26759,16 @@
         "ticker": "BCRX",
         "entry_date": "2020-06-26",
         "eval_session": "2020-06-25",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.0742899995548532,
         "stop_width_adr": 0.6888236397328507,
         "mfe": 28.57,
@@ -26518,8 +26830,16 @@
         "ticker": "ZM",
         "entry_date": "2020-10-09",
         "eval_session": "2020-10-08",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.059798209756189935,
         "stop_width_adr": 0.1750071836889143,
         "mfe": 20.12,
@@ -26540,8 +26860,16 @@
         "ticker": "INO",
         "entry_date": "2020-03-03",
         "eval_session": "2020-03-02",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.12873039497032995,
         "stop_width_adr": 0.5701411498796396,
         "mfe": 255.23,
@@ -26592,8 +26920,16 @@
         "ticker": "JD",
         "entry_date": "2020-04-06",
         "eval_session": "2020-04-03",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06971617624942075,
         "stop_width_adr": 0.3462194861975712,
         "mfe": 15.81,
@@ -26633,8 +26969,16 @@
         "ticker": "OKTA",
         "entry_date": "2020-06-17",
         "eval_session": "2020-06-16",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05171904412379382,
         "stop_width_adr": 0.44665897417796074,
         "mfe": 16.23,
@@ -26666,8 +27010,16 @@
         "ticker": "MRNA",
         "entry_date": "2020-04-03",
         "eval_session": "2020-04-02",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.15565417079180163,
         "stop_width_adr": 0.20690816698846343,
         "mfe": 14.85,
@@ -26688,8 +27040,16 @@
         "ticker": "DT",
         "entry_date": "2020-01-06",
         "eval_session": "2020-01-03",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.03621706522207263,
         "stop_width_adr": 0.7271520044824109,
         "mfe": 11.83,
@@ -26699,8 +27059,16 @@
         "ticker": "TSLA",
         "entry_date": "2020-10-08",
         "eval_session": "2020-10-07",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06555725575488924,
         "stop_width_adr": 0.12169850011414936,
         "mfe": 10.3,
@@ -26710,8 +27078,16 @@
         "ticker": "FSLY",
         "entry_date": "2020-09-21",
         "eval_session": "2020-09-18",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08414920503932753,
         "stop_width_adr": 0.6939654817071014,
         "mfe": 54.78,
@@ -26721,8 +27097,16 @@
         "ticker": "NUGT",
         "entry_date": "2020-04-22",
         "eval_session": "2020-04-21",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.13654998029230175,
         "stop_width_adr": 0.16075593321365547,
         "mfe": 17.98,
@@ -26732,8 +27116,16 @@
         "ticker": "DOYU",
         "entry_date": "2020-08-24",
         "eval_session": "2020-08-21",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05811698193504966,
         "stop_width_adr": 0.4091415373356442,
         "mfe": 17.9,
@@ -26814,8 +27206,16 @@
         "ticker": "SOXL",
         "entry_date": "2020-06-02",
         "eval_session": "2020-06-01",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.08437002854848094,
         "stop_width_adr": 0.35709606416563805,
         "mfe": 29.49,
@@ -26836,8 +27236,16 @@
         "ticker": "DDOG",
         "entry_date": "2020-07-20",
         "eval_session": "2020-07-17",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05899363187853472,
         "stop_width_adr": 0.3314858728450494,
         "mfe": 3.49,
@@ -26847,8 +27255,16 @@
         "ticker": "TTD",
         "entry_date": "2020-07-31",
         "eval_session": "2020-07-30",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.048710166875588976,
         "stop_width_adr": 0.2363452249977121,
         "mfe": 15.12,
@@ -26937,8 +27353,16 @@
         "ticker": "AMD",
         "entry_date": "2020-08-20",
         "eval_session": "2020-08-19",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.0477687145949318,
         "stop_width_adr": 0.3427258664035432,
         "mfe": 14.33,
@@ -27000,8 +27424,16 @@
         "ticker": "DDS",
         "entry_date": "2019-10-09",
         "eval_session": "2019-10-08",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05488294511837749,
         "stop_width_adr": 0.521486942574101,
         "mfe": 5.95,
@@ -27079,8 +27511,16 @@
         "ticker": "DXCM",
         "entry_date": "2020-06-30",
         "eval_session": "2020-06-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05163488790020433,
         "stop_width_adr": 0.056163576952175144,
         "mfe": 2.24,
@@ -27134,8 +27574,16 @@
         "ticker": "SOXL",
         "entry_date": "2020-12-28",
         "eval_session": "2020-12-24",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04709991945581919,
         "stop_width_adr": 0.07753592332034832,
         "mfe": 0.21,
@@ -27167,8 +27615,16 @@
         "ticker": "Z",
         "entry_date": "2020-07-30",
         "eval_session": "2020-07-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05154592357104126,
         "stop_width_adr": 0.09253325959232692,
         "mfe": 4.5,
@@ -27296,8 +27752,16 @@
         "ticker": "ESTC",
         "entry_date": "2020-09-16",
         "eval_session": "2020-09-15",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05185731772492994,
         "stop_width_adr": 0.10987852723563411,
         "mfe": 1.86,
@@ -27370,8 +27834,16 @@
         "ticker": "TTD",
         "entry_date": "2020-08-26",
         "eval_session": "2020-08-25",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.03800030087746592,
         "stop_width_adr": 0.16501045953191454,
         "mfe": 2.97,
@@ -27392,8 +27864,16 @@
         "ticker": "JD",
         "entry_date": "2020-07-02",
         "eval_session": "2020-07-01",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.03271389482929017,
         "stop_width_adr": 0.19930269490031388,
         "mfe": 0.93,
@@ -27403,8 +27883,16 @@
         "ticker": "SHOP",
         "entry_date": "2020-08-26",
         "eval_session": "2020-08-25",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04409847187514511,
         "stop_width_adr": 0.15153505713069046,
         "mfe": 5.78,
@@ -27425,8 +27913,16 @@
         "ticker": "TSLA",
         "entry_date": "2020-10-12",
         "eval_session": "2020-10-09",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05974054535691414,
         "stop_width_adr": 0.11463023180396305,
         "mfe": 1.79,
@@ -27436,8 +27932,16 @@
         "ticker": "TLRY",
         "entry_date": "2020-04-24",
         "eval_session": "2020-04-23",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.16902918553664775,
         "stop_width_adr": 0.04080095222752312,
         "mfe": 34.48,
@@ -27458,8 +27962,16 @@
         "ticker": "TSLA",
         "entry_date": "2020-08-06",
         "eval_session": "2020-08-05",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07372303219375809,
         "stop_width_adr": 0.09960420708490328,
         "mfe": 1.86,
@@ -27518,8 +28030,16 @@
         "ticker": "ZM",
         "entry_date": "2020-08-03",
         "eval_session": "2020-07-31",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04997179848075302,
         "stop_width_adr": 0.15702710690763957,
         "mfe": 6.34,
@@ -27551,8 +28071,16 @@
         "ticker": "JD",
         "entry_date": "2020-07-20",
         "eval_session": "2020-07-17",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.03367401763241412,
         "stop_width_adr": 0.23568639843166111,
         "mfe": 1.11,
@@ -27584,8 +28112,16 @@
         "ticker": "TSLA",
         "entry_date": "2020-10-13",
         "eval_session": "2020-10-12",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05464380879090094,
         "stop_width_adr": 0.14913963721867457,
         "mfe": 0.5,
@@ -27685,8 +28221,16 @@
         "ticker": "JD",
         "entry_date": "2020-11-04",
         "eval_session": "2020-11-03",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.03225404157720827,
         "stop_width_adr": 0.27433897064360085,
         "mfe": 6.61,
@@ -27726,8 +28270,16 @@
         "ticker": "BLDP",
         "entry_date": "2020-02-10",
         "eval_session": "2020-02-07",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08335405712537655,
         "stop_width_adr": 0.10966194255845506,
         "mfe": 4.66,
@@ -27748,8 +28300,16 @@
         "ticker": "TQQQ",
         "entry_date": "2020-11-04",
         "eval_session": "2020-11-03",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.059371844468465884,
         "stop_width_adr": 0.15572483490767122,
         "mfe": 1.83,
@@ -27844,8 +28404,16 @@
         "ticker": "TQQQ",
         "entry_date": "2020-11-13",
         "eval_session": "2020-11-12",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06573164062046138,
         "stop_width_adr": 0.3967326192767262,
         "mfe": 2.91,
@@ -27885,8 +28453,16 @@
         "ticker": "JD",
         "entry_date": "2020-10-29",
         "eval_session": "2020-10-28",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.02843753208785881,
         "stop_width_adr": 0.3515193502210436,
         "mfe": 3.54,
@@ -27937,8 +28513,16 @@
         "ticker": "SHOP",
         "entry_date": "2020-06-02",
         "eval_session": "2020-06-01",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05792133053686579,
         "stop_width_adr": 0.29103514544462405,
         "mfe": 1.86,
@@ -27948,8 +28532,16 @@
         "ticker": "NET",
         "entry_date": "2020-11-17",
         "eval_session": "2020-11-16",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05700912543678517,
         "stop_width_adr": 0.1835063839584576,
         "mfe": 2.43,
@@ -27970,8 +28562,16 @@
         "ticker": "MELI",
         "entry_date": "2020-11-05",
         "eval_session": "2020-11-04",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04245119303362216,
         "stop_width_adr": 0.24883588721107888,
         "mfe": 2.82,
@@ -27992,8 +28592,16 @@
         "ticker": "WKHS",
         "entry_date": "2020-08-03",
         "eval_session": "2020-07-31",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.12077022492243628,
         "stop_width_adr": 0.24790977891866844,
         "mfe": 17.84,
@@ -28044,8 +28652,16 @@
         "ticker": "DDOG",
         "entry_date": "2020-09-22",
         "eval_session": "2020-09-21",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05712311117589399,
         "stop_width_adr": 0.19079626757258464,
         "mfe": 5.06,
@@ -28055,8 +28671,16 @@
         "ticker": "IQ",
         "entry_date": "2020-01-22",
         "eval_session": "2020-01-21",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.02914167146195551,
         "stop_width_adr": 0.3775502377116133,
         "mfe": 2.44,
@@ -28099,8 +28723,16 @@
         "ticker": "ROKU",
         "entry_date": "2019-10-04",
         "eval_session": "2019-10-03",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07575708407076684,
         "stop_width_adr": 0.148440659792696,
         "mfe": 2.38,
@@ -28129,8 +28761,16 @@
         "ticker": "SHOP",
         "entry_date": "2020-08-19",
         "eval_session": "2020-08-18",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.047182648039025984,
         "stop_width_adr": 0.23940546120897424,
         "mfe": 0.61,
@@ -28140,8 +28780,16 @@
         "ticker": "TWLO",
         "entry_date": "2020-08-18",
         "eval_session": "2020-08-17",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.04322332727689796,
         "stop_width_adr": 0.2605283941300797,
         "mfe": 1.03,
@@ -28367,8 +29015,16 @@
         "ticker": "TSLA",
         "entry_date": "2020-05-08",
         "eval_session": "2020-05-07",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07023006696344317,
         "stop_width_adr": 0.1782092072076392,
         "mfe": 0.56,
@@ -28400,8 +29056,16 @@
         "ticker": "JD",
         "entry_date": "2020-07-27",
         "eval_session": "2020-07-24",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.034891188114957825,
         "stop_width_adr": 0.598244879535979,
         "mfe": 1.07,
@@ -28411,8 +29075,16 @@
         "ticker": "TSLA",
         "entry_date": "2020-11-09",
         "eval_session": "2020-11-06",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.037425129328319616,
         "stop_width_adr": 0.33946563933265733,
         "mfe": 2.84,
@@ -28463,8 +29135,16 @@
         "ticker": "JD",
         "entry_date": "2020-10-27",
         "eval_session": "2020-10-26",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.02820045634524552,
         "stop_width_adr": 0.4599108897712404,
         "mfe": 1.78,
@@ -28567,8 +29247,16 @@
         "ticker": "SE",
         "entry_date": "2020-11-20",
         "eval_session": "2020-11-19",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.05519206451881924,
         "stop_width_adr": 0.2406289829944949,
         "mfe": 4.11,
@@ -28638,8 +29326,16 @@
         "ticker": "OKTA",
         "entry_date": "2020-07-29",
         "eval_session": "2020-07-28",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04647212065503924,
         "stop_width_adr": 0.29031785661248155,
         "mfe": 7.79,
@@ -28698,8 +29394,16 @@
         "ticker": "DXCM",
         "entry_date": "2020-07-29",
         "eval_session": "2020-07-28",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04403255437807618,
         "stop_width_adr": 0.3146947327662805,
         "mfe": 2.71,
@@ -28780,8 +29484,16 @@
         "ticker": "INMD",
         "entry_date": "2020-02-18",
         "eval_session": "2020-02-14",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.06987631719687767,
         "stop_width_adr": 0.20431409278501908,
         "mfe": 2.04,
@@ -28791,8 +29503,16 @@
         "ticker": "JNUG",
         "entry_date": "2020-10-21",
         "eval_session": "2020-10-20",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.06158341724809553,
         "stop_width_adr": 0.2322032978096061,
         "mfe": 2.64,
@@ -28824,8 +29544,16 @@
         "ticker": "PLUG",
         "entry_date": "2019-11-25",
         "eval_session": "2019-11-22",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06878037763537796,
         "stop_width_adr": 0.2088941146575462,
         "mfe": 16.09,
@@ -28835,8 +29563,16 @@
         "ticker": "ZM",
         "entry_date": "2020-06-10",
         "eval_session": "2020-06-09",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06402660969013421,
         "stop_width_adr": 0.22441206567177757,
         "mfe": 1.69,
@@ -28857,8 +29593,16 @@
         "ticker": "ACB",
         "entry_date": "2020-06-08",
         "eval_session": "2020-06-05",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.16666808112534484,
         "stop_width_adr": 0.15310214893588248,
         "mfe": 9.52,
@@ -28906,8 +29650,16 @@
         "ticker": "PENN",
         "entry_date": "2020-10-16",
         "eval_session": "2020-10-15",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07119505540963335,
         "stop_width_adr": 0.20789702880003721,
         "mfe": 1.86,
@@ -28966,8 +29718,16 @@
         "ticker": "FSLY",
         "entry_date": "2020-08-20",
         "eval_session": "2020-08-19",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08343546237322487,
         "stop_width_adr": 0.38000444887442847,
         "mfe": 20.18,
@@ -28977,8 +29737,16 @@
         "ticker": "AMD",
         "entry_date": "2020-05-11",
         "eval_session": "2020-05-08",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04567525437179076,
         "stop_width_adr": 0.33202937516963704,
         "mfe": 4.64,
@@ -28988,8 +29756,16 @@
         "ticker": "BILL",
         "entry_date": "2020-06-10",
         "eval_session": "2020-06-09",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07594592330297376,
         "stop_width_adr": 0.20074830330515428,
         "mfe": 4.55,
@@ -28999,8 +29775,16 @@
         "ticker": "AMD",
         "entry_date": "2020-06-09",
         "eval_session": "2020-06-08",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04062776564498749,
         "stop_width_adr": 0.37501377483678205,
         "mfe": 9.62,
@@ -29021,8 +29805,16 @@
         "ticker": "PTON",
         "entry_date": "2020-06-09",
         "eval_session": "2020-06-08",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06841738553875136,
         "stop_width_adr": 0.460080662423567,
         "mfe": 5.78,
@@ -29092,8 +29884,16 @@
         "ticker": "SE",
         "entry_date": "2020-04-06",
         "eval_session": "2020-04-03",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.0755888675196054,
         "stop_width_adr": 0.20717277254099692,
         "mfe": 2.35,
@@ -29166,8 +29966,16 @@
         "ticker": "QDEL",
         "entry_date": "2020-11-05",
         "eval_session": "2020-11-04",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.054996424306205396,
         "stop_width_adr": 0.29382674407855436,
         "mfe": 4.6,
@@ -29308,8 +30116,16 @@
         "ticker": "FVRR",
         "entry_date": "2020-09-22",
         "eval_session": "2020-09-21",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07836335725119592,
         "stop_width_adr": 0.2950996589626976,
         "mfe": 11.55,
@@ -29338,8 +30154,16 @@
         "ticker": "PLUG",
         "entry_date": "2020-12-07",
         "eval_session": "2020-12-04",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.09220912856111321,
         "stop_width_adr": 0.1810995222142893,
         "mfe": 0.89,
@@ -29360,8 +30184,16 @@
         "ticker": "ROKU",
         "entry_date": "2020-07-31",
         "eval_session": "2020-07-30",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.058128971978405566,
         "stop_width_adr": 0.28931517654698014,
         "mfe": 2.37,
@@ -29382,8 +30214,16 @@
         "ticker": "ROKU",
         "entry_date": "2020-09-15",
         "eval_session": "2020-09-14",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05622066356189254,
         "stop_width_adr": 0.3000486114907589,
         "mfe": 5.7,
@@ -29393,8 +30233,16 @@
         "ticker": "BILI",
         "entry_date": "2020-06-12",
         "eval_session": "2020-06-11",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.0673760224017951,
         "stop_width_adr": 0.2501473370416812,
         "mfe": 1.15,
@@ -29404,8 +30252,16 @@
         "ticker": "CRSP",
         "entry_date": "2020-07-20",
         "eval_session": "2020-07-17",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06844880957121474,
         "stop_width_adr": 0.24650206642393988,
         "mfe": 1.41,
@@ -29516,8 +30372,16 @@
         "ticker": "PLUG",
         "entry_date": "2020-04-27",
         "eval_session": "2020-04-24",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.06978330038010269,
         "stop_width_adr": 0.25306977534622016,
         "mfe": 1.55,
@@ -29576,8 +30440,16 @@
         "ticker": "SE",
         "entry_date": "2020-10-29",
         "eval_session": "2020-10-28",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04366007506032157,
         "stop_width_adr": 0.4078144842204289,
         "mfe": 0.88,
@@ -29691,8 +30563,16 @@
         "ticker": "TWLO",
         "entry_date": "2020-06-10",
         "eval_session": "2020-06-09",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.054631542544239284,
         "stop_width_adr": 0.33540981511709633,
         "mfe": 2.08,
@@ -29702,8 +30582,16 @@
         "ticker": "SE",
         "entry_date": "2020-11-04",
         "eval_session": "2020-11-03",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04449670918365726,
         "stop_width_adr": 0.41192079321946384,
         "mfe": 7.88,
@@ -29713,8 +30601,16 @@
         "ticker": "ETSY",
         "entry_date": "2020-06-10",
         "eval_session": "2020-06-09",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.06303695177427962,
         "stop_width_adr": 0.29125540820751156,
         "mfe": 1.51,
@@ -29806,8 +30702,16 @@
         "ticker": "BNTX",
         "entry_date": "2020-05-20",
         "eval_session": "2020-05-19",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08904528717472907,
         "stop_width_adr": 0.21056701140407053,
         "mfe": 1.74,
@@ -29836,8 +30740,16 @@
         "ticker": "MDB",
         "entry_date": "2020-05-05",
         "eval_session": "2020-05-04",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05297468246873401,
         "stop_width_adr": 0.35408497662880695,
         "mfe": 3.04,
@@ -29910,8 +30822,16 @@
         "ticker": "SE",
         "entry_date": "2020-12-03",
         "eval_session": "2020-12-02",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.054204063991253215,
         "stop_width_adr": 0.35837213584714117,
         "mfe": 2.37,
@@ -29921,8 +30841,16 @@
         "ticker": "PINS",
         "entry_date": "2020-12-09",
         "eval_session": "2020-12-08",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.0517677787707461,
         "stop_width_adr": 0.37605992718094305,
         "mfe": 1.85,
@@ -29932,8 +30860,16 @@
         "ticker": "DKNG",
         "entry_date": "2020-06-22",
         "eval_session": "2020-06-19",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.09750681447139359,
         "stop_width_adr": 0.19993897810861483,
         "mfe": 0.34,
@@ -29943,8 +30879,16 @@
         "ticker": "MRNA",
         "entry_date": "2020-06-24",
         "eval_session": "2020-06-23",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06845384077195597,
         "stop_width_adr": 0.28424464261348903,
         "mfe": 1.36,
@@ -29995,8 +30939,16 @@
         "ticker": "PDD",
         "entry_date": "2020-09-01",
         "eval_session": "2020-08-31",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05066476588415475,
         "stop_width_adr": 0.389557550712689,
         "mfe": 2.97,
@@ -30036,8 +30988,16 @@
         "ticker": "DKNG",
         "entry_date": "2020-08-18",
         "eval_session": "2020-08-17",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07514542985323933,
         "stop_width_adr": 0.26460704238220273,
         "mfe": 5.41,
@@ -30069,8 +31029,16 @@
         "ticker": "BILI",
         "entry_date": "2020-06-08",
         "eval_session": "2020-06-05",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06666967759606442,
         "stop_width_adr": 0.3021140149149337,
         "mfe": 1.28,
@@ -30091,8 +31059,16 @@
         "ticker": "MRNA",
         "entry_date": "2020-06-30",
         "eval_session": "2020-06-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06327680600166934,
         "stop_width_adr": 0.3200101658618244,
         "mfe": 1.49,
@@ -30102,8 +31078,16 @@
         "ticker": "SE",
         "entry_date": "2020-10-27",
         "eval_session": "2020-10-26",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04248508261578089,
         "stop_width_adr": 0.47764971285403407,
         "mfe": 3.54,
@@ -30113,8 +31097,16 @@
         "ticker": "BILI",
         "entry_date": "2020-03-05",
         "eval_session": "2020-03-04",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06132592121297833,
         "stop_width_adr": 0.33025455070825466,
         "mfe": 2.24,
@@ -30143,8 +31135,16 @@
         "ticker": "NIO",
         "entry_date": "2020-09-22",
         "eval_session": "2020-09-21",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.09350462514655446,
         "stop_width_adr": 0.22397189811882978,
         "mfe": 1.83,
@@ -30154,8 +31154,16 @@
         "ticker": "BILI",
         "entry_date": "2020-07-21",
         "eval_session": "2020-07-20",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06009527920491655,
         "stop_width_adr": 0.34760613723733086,
         "mfe": 1.89,
@@ -30195,8 +31203,16 @@
         "ticker": "NIO",
         "entry_date": "2020-12-30",
         "eval_session": "2020-12-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08412426238292056,
         "stop_width_adr": 0.2520605817720985,
         "mfe": 2.59,
@@ -30329,8 +31345,16 @@
         "ticker": "LABU",
         "entry_date": "2020-02-19",
         "eval_session": "2020-02-18",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.056067142623964415,
         "stop_width_adr": 0.3902893787811154,
         "mfe": 1.43,
@@ -30362,8 +31386,16 @@
         "ticker": "DDS",
         "entry_date": "2019-10-25",
         "eval_session": "2019-10-24",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04736616597666373,
         "stop_width_adr": 0.4627794616315916,
         "mfe": 4.37,
@@ -30373,8 +31405,16 @@
         "ticker": "HMY",
         "entry_date": "2019-10-08",
         "eval_session": "2019-10-07",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.0524285373637697,
         "stop_width_adr": 0.41723460351798075,
         "mfe": 1.25,
@@ -30384,8 +31424,16 @@
         "ticker": "JD",
         "entry_date": "2020-04-14",
         "eval_session": "2020-04-13",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.06176830225439737,
         "stop_width_adr": 0.3543042173389709,
         "mfe": 0.67,
@@ -30395,8 +31443,16 @@
         "ticker": "NIO",
         "entry_date": "2020-02-20",
         "eval_session": "2020-02-19",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.09561446589370708,
         "stop_width_adr": 0.22958052745489238,
         "mfe": 7.32,
@@ -30504,8 +31560,16 @@
         "ticker": "TDOC",
         "entry_date": "2020-07-30",
         "eval_session": "2020-07-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.0504427597368635,
         "stop_width_adr": 0.44251005868570864,
         "mfe": 6.89,
@@ -30526,8 +31590,16 @@
         "ticker": "TNA",
         "entry_date": "2020-09-02",
         "eval_session": "2020-09-01",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.04113125001238137,
         "stop_width_adr": 0.5440070652119573,
         "mfe": 1.52,
@@ -30578,8 +31650,16 @@
         "ticker": "ACAD",
         "entry_date": "2019-10-21",
         "eval_session": "2019-10-18",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.045288891619288785,
         "stop_width_adr": 0.500849678988556,
         "mfe": 7.56,
@@ -30589,8 +31669,16 @@
         "ticker": "ZM",
         "entry_date": "2020-04-23",
         "eval_session": "2020-04-22",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.0838993535710183,
         "stop_width_adr": 0.2718511070301488,
         "mfe": 15.31,
@@ -30630,8 +31718,16 @@
         "ticker": "SPOT",
         "entry_date": "2020-08-19",
         "eval_session": "2020-08-18",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": true,
+          "ADR": false
+        },
         "adr_at_entry": 0.043231686431044455,
         "stop_width_adr": 0.5289382877631976,
         "mfe": 0.3,
@@ -30671,8 +31767,16 @@
         "ticker": "W",
         "entry_date": "2020-10-19",
         "eval_session": "2020-10-16",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.053163179234921545,
         "stop_width_adr": 0.44176940198059855,
         "mfe": 1.14,
@@ -30693,8 +31797,16 @@
         "ticker": "BNTX",
         "entry_date": "2020-07-28",
         "eval_session": "2020-07-27",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.10528814187512114,
         "stop_width_adr": 0.22431434398950226,
         "mfe": 1.19,
@@ -30723,8 +31835,16 @@
         "ticker": "MDB",
         "entry_date": "2020-07-08",
         "eval_session": "2020-07-07",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.04513092511576285,
         "stop_width_adr": 0.5243365395845446,
         "mfe": 2.73,
@@ -30865,8 +31985,16 @@
         "ticker": "ESTC",
         "entry_date": "2020-09-21",
         "eval_session": "2020-09-18",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": false
+        },
         "adr_at_entry": 0.04915834183909969,
         "stop_width_adr": 0.49015563165462955,
         "mfe": 4.48,
@@ -31040,8 +32168,16 @@
         "ticker": "UAL",
         "entry_date": "2020-07-01",
         "eval_session": "2020-06-30",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.10264256261011792,
         "stop_width_adr": 0.24618264160339995,
         "mfe": 3.15,
@@ -31051,8 +32187,16 @@
         "ticker": "APT",
         "entry_date": "2020-04-23",
         "eval_session": "2020-04-22",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.15816363115208937,
         "stop_width_adr": 0.15972798367561422,
         "mfe": 1.75,
@@ -31084,8 +32228,16 @@
         "ticker": "NUGT",
         "entry_date": "2020-05-05",
         "eval_session": "2020-05-04",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.0959392462710634,
         "stop_width_adr": 0.2657783596353551,
         "mfe": 4.03,
@@ -31095,8 +32247,16 @@
         "ticker": "MRNA",
         "entry_date": "2020-06-15",
         "eval_session": "2020-06-12",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.09052722167320354,
         "stop_width_adr": 0.2811811186079979,
         "mfe": 1.48,
@@ -31147,8 +32307,16 @@
         "ticker": "BCRX",
         "entry_date": "2020-05-04",
         "eval_session": "2020-05-01",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.1401023414186777,
         "stop_width_adr": 0.18636134350094283,
         "mfe": 2.61,
@@ -31221,8 +32389,16 @@
         "ticker": "PDD",
         "entry_date": "2020-08-19",
         "eval_session": "2020-08-18",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05137572744938781,
         "stop_width_adr": 0.5167368744271319,
         "mfe": 4.28,
@@ -31232,8 +32408,16 @@
         "ticker": "BLDP",
         "entry_date": "2020-04-27",
         "eval_session": "2020-04-24",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.057970250963794726,
         "stop_width_adr": 0.45782593518122583,
         "mfe": 0.66,
@@ -31306,8 +32490,16 @@
         "ticker": "NUGT",
         "entry_date": "2019-10-24",
         "eval_session": "2019-10-23",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07233074043891055,
         "stop_width_adr": 0.37574204527030725,
         "mfe": 10.87,
@@ -31317,8 +32509,16 @@
         "ticker": "INO",
         "entry_date": "2020-07-17",
         "eval_session": "2020-07-16",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.1699119053095918,
         "stop_width_adr": 0.16071676824490752,
         "mfe": 6.88,
@@ -31391,8 +32591,16 @@
         "ticker": "DDOG",
         "entry_date": "2020-06-03",
         "eval_session": "2020-06-02",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.0698632763937891,
         "stop_width_adr": 0.3956785533848012,
         "mfe": 1.56,
@@ -31413,8 +32621,16 @@
         "ticker": "AGQ",
         "entry_date": "2020-08-26",
         "eval_session": "2020-08-25",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08539108262501904,
         "stop_width_adr": 0.32429356338502197,
         "mfe": 6.52,
@@ -31454,8 +32670,16 @@
         "ticker": "LRN",
         "entry_date": "2020-08-05",
         "eval_session": "2020-08-04",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08789903911392825,
         "stop_width_adr": 0.32171783457083436,
         "mfe": 8.28,
@@ -31487,8 +32711,16 @@
         "ticker": "BILI",
         "entry_date": "2020-07-31",
         "eval_session": "2020-07-30",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.059370553196438206,
         "stop_width_adr": 0.48405002496647376,
         "mfe": 11.26,
@@ -31528,8 +32760,16 @@
         "ticker": "BE",
         "entry_date": "2020-12-04",
         "eval_session": "2020-12-03",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.09910328949807586,
         "stop_width_adr": 0.2935555396290166,
         "mfe": 20.4,
@@ -31646,8 +32886,16 @@
         "ticker": "BNTX",
         "entry_date": "2020-05-05",
         "eval_session": "2020-05-04",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.10423574194870648,
         "stop_width_adr": 0.2910102600799082,
         "mfe": 1.87,
@@ -31728,8 +32976,16 @@
         "ticker": "BE",
         "entry_date": "2020-12-15",
         "eval_session": "2020-12-14",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.11381558619002315,
         "stop_width_adr": 0.5263133124881956,
         "mfe": 2.28,
@@ -31750,8 +33006,16 @@
         "ticker": "INO",
         "entry_date": "2020-08-05",
         "eval_session": "2020-08-04",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.10462546365408558,
         "stop_width_adr": 0.3003912272492392,
         "mfe": 5.38,
@@ -32053,8 +33317,16 @@
         "ticker": "PLUG",
         "entry_date": "2020-09-15",
         "eval_session": "2020-09-14",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08242128318668104,
         "stop_width_adr": 0.4091842409161656,
         "mfe": 2.67,
@@ -32064,8 +33336,16 @@
         "ticker": "DDOG",
         "entry_date": "2020-07-29",
         "eval_session": "2020-07-28",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": false,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.05610116870757015,
         "stop_width_adr": 0.6033359167891903,
         "mfe": 6.58,
@@ -32075,8 +33355,16 @@
         "ticker": "RRC",
         "entry_date": "2020-01-07",
         "eval_session": "2020-01-06",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.07632215393992428,
         "stop_width_adr": 0.445090635613242,
         "mfe": 2.34,
@@ -32116,8 +33404,16 @@
         "ticker": "APT",
         "entry_date": "2020-04-21",
         "eval_session": "2020-04-20",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.1643994111175676,
         "stop_width_adr": 0.210475669525497,
         "mfe": 0.48,
@@ -32160,8 +33456,16 @@
         "ticker": "ACMR",
         "entry_date": "2020-02-10",
         "eval_session": "2020-02-07",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.12879328094952053,
         "stop_width_adr": 0.2718510950284837,
         "mfe": 9.04,
@@ -32231,8 +33535,16 @@
         "ticker": "BCRX",
         "entry_date": "2020-05-20",
         "eval_session": "2020-05-19",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.1383932711341897,
         "stop_width_adr": 0.25903756960129454,
         "mfe": 6.42,
@@ -32294,8 +33606,16 @@
         "ticker": "TLRY",
         "entry_date": "2020-04-20",
         "eval_session": "2020-04-17",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.21955841254814795,
         "stop_width_adr": 0.16622615340216151,
         "mfe": 8.47,
@@ -32327,8 +33647,16 @@
         "ticker": "ENPH",
         "entry_date": "2020-11-05",
         "eval_session": "2020-11-04",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07953574452685246,
         "stop_width_adr": 0.4656653088163749,
         "mfe": 12.16,
@@ -32338,8 +33666,16 @@
         "ticker": "DQ",
         "entry_date": "2020-12-08",
         "eval_session": "2020-12-07",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08320581846277256,
         "stop_width_adr": 0.44523195355518774,
         "mfe": 4.9,
@@ -32382,8 +33718,16 @@
         "ticker": "NUGT",
         "entry_date": "2020-09-09",
         "eval_session": "2020-09-08",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.07419652870138148,
         "stop_width_adr": 0.5051556916088393,
         "mfe": 5.21,
@@ -32412,8 +33756,16 @@
         "ticker": "APT",
         "entry_date": "2020-04-22",
         "eval_session": "2020-04-21",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.15864777183613488,
         "stop_width_adr": 0.24175728024116866,
         "mfe": 0.42,
@@ -32505,8 +33857,16 @@
         "ticker": "DQ",
         "entry_date": "2020-11-24",
         "eval_session": "2020-11-23",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.08284620901684128,
         "stop_width_adr": 0.4805608710705183,
         "mfe": 4.29,
@@ -32557,8 +33917,16 @@
         "ticker": "APT",
         "entry_date": "2020-05-06",
         "eval_session": "2020-05-05",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.10358589268450036,
         "stop_width_adr": 0.38802619886148326,
         "mfe": 1.73,
@@ -32568,8 +33936,16 @@
         "ticker": "PLUG",
         "entry_date": "2020-07-22",
         "eval_session": "2020-07-21",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.09635864653025418,
         "stop_width_adr": 0.41782605793448613,
         "mfe": 0.65,
@@ -32609,8 +33985,16 @@
         "ticker": "ACB",
         "entry_date": "2020-05-28",
         "eval_session": "2020-05-27",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.15461964882112406,
         "stop_width_adr": 0.2789425955256542,
         "mfe": 4.07,
@@ -32620,8 +34004,16 @@
         "ticker": "NVAX",
         "entry_date": "2020-12-17",
         "eval_session": "2020-12-16",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.10439051694287574,
         "stop_width_adr": 0.415599200532326,
         "mfe": 2.05,
@@ -32729,8 +34121,16 @@
         "ticker": "AYTU",
         "entry_date": "2020-03-27",
         "eval_session": "2020-03-26",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.42256210665002847,
         "stop_width_adr": 0.10818359004478113,
         "mfe": 2.2,
@@ -32792,8 +34192,16 @@
         "ticker": "NVAX",
         "entry_date": "2020-02-24",
         "eval_session": "2020-02-21",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.09225520606974046,
         "stop_width_adr": 0.5137202218494089,
         "mfe": 0.71,
@@ -32822,8 +34230,16 @@
         "ticker": "JNUG",
         "entry_date": "2020-06-02",
         "eval_session": "2020-06-01",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.07730937910215051,
         "stop_width_adr": 0.6159543404963528,
         "mfe": 2.28,
@@ -32844,8 +34260,16 @@
         "ticker": "WKHS",
         "entry_date": "2020-07-30",
         "eval_session": "2020-07-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.14308167289404694,
         "stop_width_adr": 0.33520457040615914,
         "mfe": 4.92,
@@ -32866,8 +34290,16 @@
         "ticker": "DKNG",
         "entry_date": "2020-08-13",
         "eval_session": "2020-08-12",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07707835117708885,
         "stop_width_adr": 0.6358994939374301,
         "mfe": 1.89,
@@ -32926,8 +34358,16 @@
         "ticker": "APT",
         "entry_date": "2020-05-14",
         "eval_session": "2020-05-13",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": true,
+          "ADR": true
+        },
         "adr_at_entry": 0.09409559989903607,
         "stop_width_adr": 0.538555211190006,
         "mfe": 14.86,
@@ -32959,8 +34399,16 @@
         "ticker": "AYTU",
         "entry_date": "2020-05-14",
         "eval_session": "2020-05-13",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.11519064094590652,
         "stop_width_adr": 0.46925734252523055,
         "mfe": 6.74,
@@ -32970,8 +34418,16 @@
         "ticker": "VIR",
         "entry_date": "2020-06-19",
         "eval_session": "2020-06-18",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.07785224701168399,
         "stop_width_adr": 0.6968328093581969,
         "mfe": 5.2,
@@ -33003,8 +34459,16 @@
         "ticker": "ARCT",
         "entry_date": "2020-07-08",
         "eval_session": "2020-07-07",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.10398574996480443,
         "stop_width_adr": 0.5294799121744101,
         "mfe": 1.32,
@@ -33055,8 +34519,16 @@
         "ticker": "STNE",
         "entry_date": "2020-03-03",
         "eval_session": "2020-03-02",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": false,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.054156264735657454,
         "stop_width_adr": 1.0539804821531011,
         "mfe": 3.3,
@@ -33066,8 +34538,16 @@
         "ticker": "RIOT",
         "entry_date": "2020-09-01",
         "eval_session": "2020-08-31",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.1257124393644708,
         "stop_width_adr": 0.4576655012519226,
         "mfe": 6.3,
@@ -33096,8 +34576,16 @@
         "ticker": "BCRX",
         "entry_date": "2020-04-30",
         "eval_session": "2020-04-29",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.13798226056742222,
         "stop_width_adr": 0.4370236238318713,
         "mfe": 4.02,
@@ -33129,8 +34617,16 @@
         "ticker": "INO",
         "entry_date": "2020-07-21",
         "eval_session": "2020-07-20",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": true,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.17653705954628243,
         "stop_width_adr": 0.35036185609309023,
         "mfe": 3.52,
@@ -33192,8 +34688,16 @@
         "ticker": "RIOT",
         "entry_date": "2020-08-14",
         "eval_session": "2020-08-13",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.14516060341304846,
         "stop_width_adr": 0.45297018000425054,
         "mfe": 5.21,
@@ -33274,8 +34778,16 @@
         "ticker": "MARA",
         "entry_date": "2020-08-14",
         "eval_session": "2020-08-13",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": true,
+          "Prior move": true,
+          "Base length": true,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.23056788281892446,
         "stop_width_adr": 0.30337350403408503,
         "mfe": 8.55,
@@ -33411,8 +34923,16 @@
         "ticker": "MARA",
         "entry_date": "2020-09-01",
         "eval_session": "2020-08-31",
-        "detected": false,
-        "dimension_hits": {},
+        "detected": true,
+        "dimension_hits": {
+          "Tightness": false,
+          "Orderliness": false,
+          "Prior move": true,
+          "Base length": false,
+          "MA support": true,
+          "Volume": false,
+          "ADR": true
+        },
         "adr_at_entry": 0.17755447684196016,
         "stop_width_adr": 0.5415456025895192,
         "mfe": 8.08,
@@ -33503,8 +35023,8 @@
     ]
   },
   "contrast": {
-    "n_executed": 124,
-    "n_not_taken": 28672,
+    "n_executed": 258,
+    "n_not_taken": 53136,
     "blind_spot_count": 92,
     "comparison_group_note": "The not-taken detections are a comparison group: field members present on nights he traded, in names he did not enter and may never have seen. Their absence from his trade record carries no verdict on them.",
     "precision_note": "Precision is not measurable: the reference set records only the trades he entered, never a setup he passed over, so there is no control group and no false-positive rate is claimed. This comparison group is the nearest honest substitute, and no precision is asserted.",
@@ -33512,13 +35032,13 @@
       {
         "dimension": "Tightness",
         "weight": 2,
-        "taken_n": 124,
-        "taken_hit_rate": 0.33064516129032256,
-        "taken_spread": 0.4704454682592013,
-        "not_taken_n": 28672,
-        "not_taken_hit_rate": 0.193115234375,
-        "not_taken_spread": 0.39474262580482594,
-        "combined_spread": 0.395202327364131,
+        "taken_n": 258,
+        "taken_hit_rate": 0.34108527131782945,
+        "taken_spread": 0.47407394888126064,
+        "not_taken_n": 53136,
+        "not_taken_hit_rate": 0.19837774766636554,
+        "not_taken_spread": 0.39877815498994595,
+        "combined_spread": 0.39929878117944895,
         "untestable_within_executed": false,
         "testable_in_contrast": true,
         "testability_restored": false
@@ -33526,13 +35046,13 @@
       {
         "dimension": "Orderliness",
         "weight": 1,
-        "taken_n": 124,
-        "taken_hit_rate": 0.31451612903225806,
-        "taken_spread": 0.46432287646725107,
-        "not_taken_n": 28672,
-        "not_taken_hit_rate": 0.39292689732142855,
-        "not_taken_spread": 0.4884008094616389,
-        "combined_spread": 0.4883266636828799,
+        "taken_n": 258,
+        "taken_hit_rate": 0.3062015503875969,
+        "taken_spread": 0.4609144833131509,
+        "not_taken_n": 53136,
+        "not_taken_hit_rate": 0.39880683529057515,
+        "not_taken_spread": 0.48965288053486544,
+        "combined_spread": 0.4895601919733545,
         "untestable_within_executed": false,
         "testable_in_contrast": true,
         "testability_restored": false
@@ -33540,10 +35060,10 @@
       {
         "dimension": "Prior move",
         "weight": 1,
-        "taken_n": 124,
+        "taken_n": 258,
         "taken_hit_rate": 1.0,
         "taken_spread": 0.0,
-        "not_taken_n": 28672,
+        "not_taken_n": 53136,
         "not_taken_hit_rate": 1.0,
         "not_taken_spread": 0.0,
         "combined_spread": 0.0,
@@ -33554,13 +35074,13 @@
       {
         "dimension": "Base length",
         "weight": 0,
-        "taken_n": 124,
-        "taken_hit_rate": 0.4838709677419355,
-        "taken_spread": 0.49973978660740864,
-        "not_taken_n": 28672,
-        "not_taken_hit_rate": 0.6011090959821429,
-        "not_taken_spread": 0.4896702469107898,
-        "combined_spread": 0.48977421814868133,
+        "taken_n": 258,
+        "taken_hit_rate": 0.42248062015503873,
+        "taken_spread": 0.49395419397799695,
+        "not_taken_n": 53136,
+        "not_taken_hit_rate": 0.6164935260463715,
+        "not_taken_spread": 0.48623991854770965,
+        "combined_spread": 0.4864635630298913,
         "untestable_within_executed": false,
         "testable_in_contrast": true,
         "testability_restored": false
@@ -33568,13 +35088,13 @@
       {
         "dimension": "MA support",
         "weight": 1,
-        "taken_n": 124,
-        "taken_hit_rate": 0.7741935483870968,
-        "taken_spread": 0.4181123031230877,
-        "not_taken_n": 28672,
-        "not_taken_hit_rate": 0.7195870535714286,
-        "not_taken_spread": 0.44920098608954384,
-        "combined_spread": 0.44908596223241,
+        "taken_n": 258,
+        "taken_hit_rate": 0.7751937984496124,
+        "taken_spread": 0.41745463621197704,
+        "not_taken_n": 53136,
+        "not_taken_hit_rate": 0.7378801565793436,
+        "not_taken_spread": 0.4397874840258497,
+        "combined_spread": 0.43968991252821626,
         "untestable_within_executed": false,
         "testable_in_contrast": true,
         "testability_restored": false
@@ -33582,13 +35102,13 @@
       {
         "dimension": "Volume",
         "weight": 1,
-        "taken_n": 124,
-        "taken_hit_rate": 0.3870967741935484,
-        "taken_spread": 0.48708609259811286,
-        "not_taken_n": 28672,
-        "not_taken_hit_rate": 0.38636997767857145,
-        "not_taken_spread": 0.4869170545660027,
-        "combined_spread": 0.486917784921253,
+        "taken_n": 258,
+        "taken_hit_rate": 0.3449612403100775,
+        "taken_spread": 0.47535563843696066,
+        "not_taken_n": 53136,
+        "not_taken_hit_rate": 0.39976663655525446,
+        "not_taken_spread": 0.4898502555399492,
+        "combined_spread": 0.48979599339938223,
         "untestable_within_executed": false,
         "testable_in_contrast": true,
         "testability_restored": false
@@ -33596,13 +35116,13 @@
       {
         "dimension": "ADR",
         "weight": 2,
-        "taken_n": 124,
-        "taken_hit_rate": 0.8145161290322581,
-        "taken_spread": 0.3886895992672868,
-        "not_taken_n": 28672,
-        "not_taken_hit_rate": 0.5339006696428571,
-        "not_taken_spread": 0.4988494207651903,
-        "combined_spread": 0.4987658319342425,
+        "taken_n": 258,
+        "taken_hit_rate": 0.8217054263565892,
+        "taken_spread": 0.38276052389545767,
+        "not_taken_n": 53136,
+        "not_taken_hit_rate": 0.5429087624209575,
+        "not_taken_spread": 0.4981554356900081,
+        "combined_spread": 0.4980375633695859,
         "untestable_within_executed": false,
         "testable_in_contrast": true,
         "testability_restored": false

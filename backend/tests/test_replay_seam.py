@@ -66,6 +66,7 @@ from replay.field import (
     ScoredDetection,
     SevenDimScore,
     build_field,
+    build_field_sessions,
     replay_field,
     seven_dimension_score,
 )
@@ -2209,3 +2210,34 @@ def test_placement_pairs_the_top_thirty_hit_per_rubric_not_only_the_histogram():
     assert live.top_thirty == report.top_thirty_count == 1
     # Under the old rubric the same pick, in the same field, is off the board.
     assert old.top_thirty == 0
+
+
+# -- the replayed field outlives the rank table's retention window ----------
+
+
+def test_field_detects_on_a_session_whose_stored_ranks_were_pruned(store: Store):
+    """A measured session older than the rank table's retention window still
+    produces its detections.
+
+    ``Store.append_ranks`` keeps only ``RANK_RETENTION_YEARS`` and prunes as the
+    chain advances, and the whole chain is built before the detection pass runs —
+    so an early session's rank rows are gone by the time detection reaches it.
+    Gating on the store there returns an empty rank table, every member falls out
+    of the decile gate, and the session contributes nothing to the field while
+    looking exactly like a night that legitimately found no setup. The chain
+    carries the ranks it computed; those are what the gate reads.
+    """
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    chain = replay_chain(store, "US", burn_in=104)
+    (sf,) = chain
+    assert sf.ranks, "the chain computed this session's ranks"
+
+    # Retention having pruned this session's rows is indistinguishable, at the
+    # detection stage, from their never having been written.
+    store._cursor().execute("DELETE FROM ranks WHERE market = 'US'")
+    assert store.ranks("US", dates[104]) == []
+
+    (field,) = build_field_sessions(store, "US", chain)
+
+    assert [d.symbol for d in field.detections] == ["BASE"]

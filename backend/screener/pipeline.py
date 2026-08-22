@@ -210,7 +210,13 @@ def capture_follow_through(store: Store, market: str, session: date) -> bool | N
     return broke
 
 
-def rebuild_detections(store: Store, market: str, session: date) -> list[Detection]:
+def rebuild_detections(
+    store: Store,
+    market: str,
+    session: date,
+    *,
+    ranks: list[Rank] | None = None,
+) -> list[Detection]:
     """Pipeline stage: detect every eligible universe member for ``session``.
 
     Detection runs against **every universe member every night**, not only recent
@@ -225,9 +231,19 @@ def rebuild_detections(store: Store, market: str, session: date) -> list[Detecti
 
     Must run after the universe **and** the ranks for ``session`` are written: it
     reads both. A quarantined run wrote neither, so it never calls this.
+
+    ``ranks`` lets a caller supply the session's rank table instead of having it
+    read back from the store, and exists for exactly one caller: the replay
+    (:func:`replay.field.build_field_sessions`). The store keeps only
+    :data:`screener.store.RANK_RETENTION_YEARS` of rank rows and prunes as the
+    chain advances, so a whole-chain replay reaches this stage long after its early
+    sessions' rank rows are gone — and gating those sessions against an empty rank
+    table silently yields no detections at all. The nightly run is unaffected and
+    passes nothing: it detects the session it just ranked, whose rows are always
+    present.
     """
     members = store.universe(market, session)
-    gated = detection_gate(store.ranks(market, session))
+    gated = detection_gate(store.ranks(market, session) if ranks is None else ranks)
     rows: list[Detection] = []
     for symbol in members:
         if symbol not in gated:

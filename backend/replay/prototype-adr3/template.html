@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — Recent 3 days vs the prior 3 days</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f4f3ef;
+    --surface-1: #fcfcfb;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --good: #0ca30c;
+    --critical: #d03b3b;
+    --warning: #fab219;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-0: #111110;
+      --surface-1: #1a1a19;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255,255,255,0.10);
+      --series-1: #3987e5;
+      --series-2: #d95926;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--surface-0); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 80px; }
+  .proto { display: inline-block; font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--critical); border: 1px solid var(--critical); border-radius: 4px; padding: 2px 7px; font-weight: 700; }
+  h1 { font-size: 26px; margin: 12px 0 6px; letter-spacing: -0.01em; }
+  h2 { font-size: 17px; margin: 0 0 10px; }
+  .sub { color: var(--text-secondary); margin: 0 0 22px; max-width: 72ch; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .tab { font: inherit; font-size: 13px; cursor: pointer; padding: 7px 12px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary); }
+  .tab[aria-selected="true"] { background: var(--series-1); border-color: var(--series-1); color: #fff; font-weight: 600; }
+  .ctrls { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; align-items: end; }
+  .ctrl label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; }
+  .ctrl output { font-weight: 700; color: var(--text-primary); }
+  input[type=range] { width: 100%; accent-color: var(--series-1); }
+  select { font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); width: 100%; }
+  .state { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px;
+    background: var(--border); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 16px; }
+  .cell { background: var(--surface-1); padding: 11px 13px; }
+  .cell .k { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+  .cell .v { font-size: 21px; font-weight: 700; margin-top: 3px; }
+  .cell .n { font-size: 12px; color: var(--text-secondary); }
+  .pos { color: var(--good); } .neg { color: var(--critical); } .warn { color: var(--warning); }
+  figure { margin: 0 0 6px; }
+  figcaption { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); margin: 2px 0 8px; }
+  .swatch { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .grid-line { stroke: var(--grid); stroke-width: 1; }
+  .axis-line { stroke: var(--axis); stroke-width: 1; }
+  .tick { fill: var(--text-muted); font-size: 11px; }
+  .alab { fill: var(--text-secondary); font-size: 12px; }
+  .note { font-size: 13px; color: var(--text-secondary); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: right; padding: 6px 9px; border-bottom: 1px solid var(--border); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  .verdict { border-left: 3px solid var(--series-2); padding-left: 14px; margin: 14px 0; }
+  .verdict strong { color: var(--text-primary); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+    background: var(--surface-0); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="proto">Prototype — throwaway</span>
+  <h1>The recent 3 days vs the 3 days before them</h1>
+  <p class="sub">
+    At the evaluation session (the last session strictly before entry), how do the
+    final 3 bars compare with the 3 bars behind them — in average daily range, in
+    travel, and in volume? Every number below is recomputed in the browser from the
+    measured rows, so move the sliders and watch it change. <strong>Background</strong>
+    is the same tickers on random ordinary days: the control this study never had.
+  </p>
+
+  <div class="tabs" id="tabs"></div>
+  <div id="panel"></div>
+</div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+const E = D.entries, B = D.background;
+
+const METRICS = {
+  ar: {label: 'adr3_ratio — recent 3-bar avg daily range / prior 3-bar', max: 2.5, dflt: 0.9,
+       blurb: 'The question as asked: is each of the last 3 bars smaller than each of the 3 before?'},
+  sp: {label: 'span3_recent — recent 3-bar high-low span, in ADR20', max: 4, dflt: 1.5,
+       blurb: 'The level, not the change. This is what findings §3b measured (median 1.31).'},
+  vr: {label: 'vol3_ratio — recent 3-bar avg volume / prior 3-bar', max: 2.5, dflt: 0.9,
+       blurb: 'The dry-up companion. Same shape of question, applied to volume.'},
+  a2: {label: 'adr3_vs_adr20 — recent 3-bar avg daily range / ADR20', max: 2.5, dflt: 0.9,
+       blurb: 'The same contraction measured against the 20-day baseline instead.'},
+  v2: {label: 'vol3_vs_vol20 — recent 3-bar avg volume / 20-bar avg', max: 2.5, dflt: 0.9,
+       blurb: 'Volume dry-up against the 20-day baseline.'},
+};
+
+const q = (xs, p) => {
+  const s = xs.filter(v => v != null).sort((a, b) => a - b);
+  if (!s.length) return null;
+  const i = (s.length - 1) * p, lo = Math.floor(i), hi = Math.min(lo + 1, s.length - 1);
+  return s[lo] + (s[hi] - s[lo]) * (i - lo);
+};
+const pass = (rows, k, thr) => rows.filter(r => r[k] != null && r[k] <= thr).length;
+const fmt = (v, n = 2) => v == null ? '—' : v.toFixed(n);
+
+/* ---------- tiny SVG helpers ---------- */
+function hist(rows1, rows2, key, max, thr) {
+  const NB = 34, w = 640, h = 200, pad = {l: 38, r: 8, t: 8, b: 28};
+  const bin = xs => {
+    const c = new Array(NB).fill(0);
+    let n = 0;
+    xs.forEach(r => {
+      const v = r[key];
+      if (v == null) return;
+      c[Math.min(NB - 1, Math.floor(v / max * NB))]++; n++;
+    });
+    return c.map(v => n ? v / n : 0);
+  };
+  const a = bin(rows1), b = bin(rows2);
+  const peak = Math.max(...a, ...b) || 1;
+  const X = i => pad.l + i / NB * (w - pad.l - pad.r);
+  const Y = v => pad.t + (1 - v / peak) * (h - pad.t - pad.b);
+  const bw = (w - pad.l - pad.r) / NB;
+  let s = `<svg viewBox="0 0 ${w} ${h}" role="img">`;
+  for (let g = 0; g <= 4; g++) {
+    const y = pad.t + g / 4 * (h - pad.t - pad.b);
+    s += `<line class="grid-line" x1="${pad.l}" x2="${w - pad.r}" y1="${y}" y2="${y}"/>`;
+  }
+  b.forEach((v, i) => { s += `<rect x="${X(i)}" y="${Y(v)}" width="${bw}" height="${h - pad.b - Y(v)}" fill="var(--text-muted)" opacity=".38"/>`; });
+  a.forEach((v, i) => { s += `<rect x="${X(i) + bw * .18}" y="${Y(v)}" width="${bw * .64}" height="${h - pad.b - Y(v)}" fill="var(--series-1)" opacity=".92"/>`; });
+  const tx = pad.l + Math.min(thr, max) / max * (w - pad.l - pad.r);
+  s += `<line x1="${tx}" x2="${tx}" y1="${pad.t}" y2="${h - pad.b}" stroke="var(--series-2)" stroke-width="2" stroke-dasharray="4 3"/>`;
+  s += `<text class="tick" x="${tx + 4}" y="${pad.t + 12}" fill="var(--series-2)">${thr}</text>`;
+  s += `<line class="axis-line" x1="${pad.l}" x2="${w - pad.r}" y1="${h - pad.b}" y2="${h - pad.b}"/>`;
+  for (let g = 0; g <= 5; g++) {
+    const x = pad.l + g / 5 * (w - pad.l - pad.r);
+    s += `<text class="tick" x="${x}" y="${h - pad.b + 15}" text-anchor="middle">${(g / 5 * max).toFixed(1)}</text>`;
+  }
+  return s + '</svg>';
+}
+
+function liftCurve(key, max) {
+  const w = 640, h = 190, pad = {l: 42, r: 10, t: 10, b: 28}, N = 60;
+  const pts = [];
+  for (let i = 1; i <= N; i++) {
+    const thr = i / N * max;
+    const pe = pass(E, key, thr) / E.length, pb = pass(B, key, thr) / B.length;
+    if (pb > 0.005) pts.push([thr, pe / pb]);
+  }
+  const hiY = Math.max(3.5, ...pts.map(p => p[1]));
+  const X = v => pad.l + v / max * (w - pad.l - pad.r);
+  const Y = v => pad.t + (1 - (v - 0) / hiY) * (h - pad.t - pad.b);
+  let s = `<svg viewBox="0 0 ${w} ${h}" role="img">`;
+  for (let g = 0; g <= 4; g++) {
+    const y = pad.t + g / 4 * (h - pad.t - pad.b);
+    s += `<line class="grid-line" x1="${pad.l}" x2="${w - pad.r}" y1="${y}" y2="${y}"/>`;
+    s += `<text class="tick" x="${pad.l - 6}" y="${y + 4}" text-anchor="end">${(hiY * (1 - g / 4)).toFixed(1)}x</text>`;
+  }
+  s += `<line x1="${pad.l}" x2="${w - pad.r}" y1="${Y(1)}" y2="${Y(1)}" stroke="var(--critical)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+  s += `<text class="tick" x="${w - pad.r}" y="${Y(1) - 5}" text-anchor="end" fill="var(--critical)">no lift</text>`;
+  s += `<path d="${pts.map((p, i) => (i ? 'L' : 'M') + X(p[0]) + ' ' + Y(p[1])).join(' ')}" fill="none" stroke="var(--series-1)" stroke-width="2.5"/>`;
+  s += `<line class="axis-line" x1="${pad.l}" x2="${w - pad.r}" y1="${h - pad.b}" y2="${h - pad.b}"/>`;
+  for (let g = 0; g <= 5; g++) {
+    const x = pad.l + g / 5 * (w - pad.l - pad.r);
+    s += `<text class="tick" x="${x}" y="${h - pad.b + 15}" text-anchor="middle">${(g / 5 * max).toFixed(1)}</text>`;
+  }
+  return s + '</svg>';
+}
+
+/* ---------- panels ---------- */
+let state = {metric: 'ar', thr: 0.9, band: 'all'};
+const BANDS = {all: [0, 99], tight: [0, 1.0], mid: [1.0, 1.5], wide: [1.5, 2.5], loose: [2.5, 99]};
+const BAND_LABEL = {all: 'all entries', tight: 'span3 < 1.0 ADR', mid: 'span3 1.0–1.5 ADR',
+                    wide: 'span3 1.5–2.5 ADR', loose: 'span3 ≥ 2.5 ADR'};
+
+function freePlay() {
+  const m = METRICS[state.metric];
+  const inBand = r => { const [lo, hi] = BANDS[state.band]; return r.sp >= lo && r.sp < hi; };
+  const e = E.filter(inBand), b = B.filter(inBand);
+  const ne = pass(e, state.metric, state.thr), nb = pass(b, state.metric, state.thr);
+  const pe = e.length ? ne / e.length * 100 : 0, pb = b.length ? nb / b.length * 100 : 0;
+  const lift = pb ? pe / pb : null;
+  const kept = e.filter(r => r[state.metric] != null && r[state.metric] <= state.thr);
+  const dropped = e.filter(r => !(r[state.metric] != null && r[state.metric] <= state.thr));
+
+  document.getElementById('panel').innerHTML = `
+  <div class="card">
+    <div class="ctrls">
+      <div class="ctrl"><label>Metric</label>
+        <select id="mSel">${Object.entries(METRICS).map(([k, v]) =>
+          `<option value="${k}" ${k === state.metric ? 'selected' : ''}>${k} — ${v.label.split('—')[1].trim()}</option>`).join('')}</select></div>
+      <div class="ctrl"><label>Threshold — pass if ≤ <output>${state.thr.toFixed(2)}</output></label>
+        <input type="range" id="thr" min="0.1" max="${m.max}" step="0.05" value="${state.thr}"></div>
+      <div class="ctrl"><label>Hold the level fixed (span3 band)</label>
+        <select id="bSel">${Object.entries(BAND_LABEL).map(([k, v]) =>
+          `<option value="${k}" ${k === state.band ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+    </div>
+    <p class="note" style="margin:14px 0 0">${m.blurb}</p>
+    <div class="state">
+      <div class="cell"><div class="k">Entries passing</div><div class="v">${pe.toFixed(1)}%</div><div class="n">${ne} of ${e.length}</div></div>
+      <div class="cell"><div class="k">Background passing</div><div class="v">${pb.toFixed(1)}%</div><div class="n">${nb} of ${b.length}</div></div>
+      <div class="cell"><div class="k">Lift</div><div class="v ${lift == null ? '' : lift >= 1.25 ? 'pos' : lift <= 1.1 ? 'neg' : 'warn'}">${lift == null ? '—' : lift.toFixed(2) + 'x'}</div><div class="n">${BAND_LABEL[state.band]}</div></div>
+      <div class="cell"><div class="k">Median MFE, passing</div><div class="v">${fmt(q(kept.map(r => r.m), .5), 1)}%</div><div class="n">n=${kept.length}</div></div>
+      <div class="cell"><div class="k">Median MFE, failing</div><div class="v">${fmt(q(dropped.map(r => r.m), .5), 1)}%</div><div class="n">n=${dropped.length}</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Distribution — his entries against the same names on ordinary days</h2>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--series-1)"></span>entries (${e.length})</span>
+      <span><span class="swatch" style="background:var(--text-muted);opacity:.5"></span>background (${b.length})</span>
+      <span><span class="swatch" style="background:var(--series-2)"></span>threshold</span>
+    </div>
+    <figure>${hist(e, b, state.metric, m.max, state.thr)}
+      <figcaption>${m.label}. Share of each population per bin.</figcaption></figure>
+  </div>
+
+  <div class="card">
+    <h2>Lift at every threshold</h2>
+    <figure>${liftCurve(state.metric, m.max)}
+      <figcaption>Entry pass-rate ÷ background pass-rate, swept across the threshold.
+      Computed over all entries, ignoring the band selector. Above the dashed line the
+      cut selects his entries more often than the same stocks on ordinary days.</figcaption></figure>
+  </div>`;
+
+  document.getElementById('mSel').onchange = ev => {
+    state.metric = ev.target.value; state.thr = METRICS[state.metric].dflt; freePlay();
+  };
+  document.getElementById('thr').oninput = ev => { state.thr = +ev.target.value; freePlay(); };
+  document.getElementById('bSel').onchange = ev => { state.band = ev.target.value; freePlay(); };
+}
+
+function tableFor(rowsDef) {
+  return `<table><thead><tr><th>Cut</th><th>Entry</th><th>Background</th><th>Lift</th></tr></thead><tbody>
+  ${rowsDef.map(([label, key, thr, rowsE, rowsB]) => {
+    const pe = pass(rowsE, key, thr) / rowsE.length * 100;
+    const pb = pass(rowsB, key, thr) / rowsB.length * 100;
+    const l = pb ? pe / pb : 0;
+    return `<tr><td>${label}</td><td>${pe.toFixed(1)}%</td><td>${pb.toFixed(1)}%</td>
+      <td class="${l >= 1.25 ? 'pos' : l <= 1.1 ? 'neg' : 'warn'}">${l.toFixed(2)}x</td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+function walkYes() {
+  document.getElementById('panel').innerHTML = `
+  <div class="card">
+    <h2>Step 1 — yes, the last 3 days really are quieter</h2>
+    <p class="note">Median across his ${E.length} entries: the last 3 bars average
+      <strong>${fmt(q(E.map(r => r.ar), .5))}×</strong> the daily range of the 3 bars behind them.
+      On the same tickers on ordinary days the same ratio is
+      <strong>${fmt(q(B.map(r => r.ar), .5))}×</strong> — i.e. no contraction at all, as you would expect
+      of a random day. Travel contracts harder than daily range: span
+      <strong>${fmt(q(E.map(r => r.sp / r.pp), .5))}×</strong> vs background
+      <strong>${fmt(q(B.map(r => r.sp / r.pp), .5))}×</strong>. Volume dries up too.</p>
+    ${tableFor([
+      ['adr3_ratio ≤ 0.7', 'ar', 0.7, E, B],
+      ['adr3_ratio ≤ 0.9', 'ar', 0.9, E, B],
+      ['vol3_ratio ≤ 0.7', 'vr', 0.7, E, B],
+      ['vol3_vs_vol20 ≤ 0.8', 'v2', 0.8, E, B],
+      ['span3_recent ≤ 1.5 ADR', 'sp', 1.5, E, B],
+      ['span3_recent ≤ 1.0 ADR', 'sp', 1.0, E, B],
+    ])}
+    <p class="note" style="margin-top:12px">So the contraction is real and it is a property of the
+      entry, not just of the kind of stock. But look at the last two rows: the plain
+      <em>level</em> of the 3-bar span lifts far harder than any ratio does.</p>
+  </div>`;
+}
+
+function walkNo() {
+  const bands = [['span3 &lt; 1.0 ADR', 0, 1.0], ['span3 1.0–1.5', 1.0, 1.5],
+                 ['span3 1.5–2.5', 1.5, 2.5]];
+  document.getElementById('panel').innerHTML = `
+  <div class="card">
+    <h2>Step 2 — …but the ratio adds nothing once the level is held fixed</h2>
+    <p class="note">If the recent-vs-prior ratio carried its own information, it would still
+      lift inside a band where the 3-bar span is roughly constant. It does not.</p>
+    ${bands.map(([label, lo, hi]) => {
+      const e = E.filter(r => r.sp >= lo && r.sp < hi), b = B.filter(r => r.sp >= lo && r.sp < hi);
+      return `<h2 style="margin-top:18px;font-size:14px">${label} — ${e.length} entries, ${b.length} background</h2>
+      ${tableFor([['adr3_ratio ≤ 0.7', 'ar', 0.7, e, b], ['adr3_ratio ≤ 0.9', 'ar', 0.9, e, b],
+                  ['vol3_ratio ≤ 0.7', 'vr', 0.7, e, b], ['vol3_ratio ≤ 0.9', 'vr', 0.9, e, b]])}`;
+    }).join('')}
+    <div class="verdict"><strong>Every lift collapses to about 1.0 — several below it.</strong>
+      The apparent signal in "recent 3 days quieter than the prior 3 days" is the
+      absolute tightness of the last 3 days, re-expressed. Conditioned on the level,
+      the change carries no extra information about whether he took the trade.</div>
+  </div>`;
+}
+
+function walkOutcome() {
+  const buckets = (key, cuts) => cuts.map(([label, lo, hi]) => {
+    const g = E.filter(r => r[key] != null && r[key] >= lo && r[key] < hi);
+    return `<tr><td>${label}</td><td>${g.length}</td><td>${fmt(q(g.map(r => r.m), .5), 1)}</td>
+      <td>${fmt(q(g.map(r => r.m), .75), 1)}</td>
+      <td>${fmt(g.reduce((s, r) => s + (r.rr ?? 0), 0) / (g.length || 1))}</td></tr>`;
+  }).join('');
+  document.getElementById('panel').innerHTML = `
+  <div class="card">
+    <h2>Step 3 — and none of it predicts the outcome</h2>
+    <p class="note">MFE under the 10sma exit, the study's outcome variable of record
+      (the exits are counterfactual; MFE is a property of the entry).
+      All ${E.length} entries: median MFE ${fmt(q(E.map(r => r.m), .5), 1)}%.</p>
+    <table><thead><tr><th>Bucket</th><th>n</th><th>median MFE%</th><th>p75 MFE%</th><th>mean R</th></tr></thead>
+      <tbody>
+      <tr><td colspan="5" style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em">adr3_ratio</td></tr>
+      ${buckets('ar', [['&lt;0.6', 0, .6], ['0.6–0.85', .6, .85], ['0.85–1.15', .85, 1.15], ['1.15+', 1.15, 1e9]])}
+      <tr><td colspan="5" style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em">vol3_ratio</td></tr>
+      ${buckets('vr', [['&lt;0.7', 0, .7], ['0.7–1.0', .7, 1.0], ['1.0–1.5', 1.0, 1.5], ['1.5+', 1.5, 1e9]])}
+      <tr><td colspan="5" style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em">span3_recent (ADR)</td></tr>
+      ${buckets('sp', [['&lt;1.0', 0, 1.0], ['1.0–1.5', 1.0, 1.5], ['1.5–2.5', 1.5, 2.5], ['2.5+', 2.5, 1e9]])}
+      </tbody></table>
+    <div class="verdict">Flat. A seeded 20,000-resample bootstrap on the median MFE difference
+      returns <strong>p ≈ 0.52</strong> for adr3_ratio &lt; 0.85, for span3_ratio &lt; 0.8 and for
+      vol3_ratio &lt; 0.7 — indistinguishable from noise. These features describe
+      <em>what he buys</em>, not <em>which of his buys work</em>. That is the same split the
+      study's A3 found across the whole rubric.</div>
+  </div>`;
+}
+
+function caveats() {
+  document.getElementById('panel').innerHTML = `
+  <div class="card">
+    <h2>What this is, and what it is not</h2>
+    <p class="note">Coverage: <strong>${D.n_measured} of ${D.n_trades_total}</strong> trades
+      (${JSON.stringify(D.skipped)}), plus <strong>${D.n_background}</strong> background sessions —
+      ${D.params.background_n} random sessions per trade drawn from the same ticker within
+      ±${D.params.background_span} sessions, never within ${D.params.background_keepout} sessions of any real
+      entry, seed ${D.params.seed}. Bars: ${D.bar_window[0]} to ${D.bar_window[1]}, US only.</p>
+    <ul class="note">
+      <li><strong>The background is not a false-positive rate.</strong> It is "this stock on an
+        ordinary day", not "a setup he passed over". It answers whether a feature is a property
+        of the entry or of the name — nothing more. The study's standing limitation
+        (findings §7, §9) is unchanged.</li>
+      <li><strong>It is same-name matched by construction</strong>, which is its strength and its
+        bound: it cannot say anything about how these features behave across the wider universe.</li>
+      <li><strong>Sampling window overlaps the trade.</strong> Background sessions may fall after the
+        entry as well as before, so a name's post-breakout expansion is in the control. That
+        makes the control harder to beat, not easier — the lifts are if anything conservative.</li>
+      <li><strong>US, 2019–2022</strong> — one extraordinary momentum regime (findings §8).</li>
+      <li><strong>Throwaway.</strong> Not part of <code>python -m replay.study</code>; no constant in
+        <code>detection.py</code>, <code>score.py</code>, <code>universe.py</code> or <code>ranks.py</code> is touched.</li>
+    </ul>
+  </div>`;
+}
+
+const TABS = [['Free play', freePlay], ['1 · The ratio looks real', walkYes],
+              ['2 · Until you fix the level', walkNo], ['3 · Outcome: nothing', walkOutcome],
+              ['Caveats', caveats]];
+const tabs = document.getElementById('tabs');
+tabs.innerHTML = TABS.map(([t], i) =>
+  `<button class="tab" role="tab" aria-selected="${i === 0}" data-i="${i}">${t}</button>`).join('');
+tabs.onclick = ev => {
+  const b = ev.target.closest('.tab');
+  if (!b) return;
+  [...tabs.children].forEach(c => c.setAttribute('aria-selected', c === b));
+  TABS[+b.dataset.i][1]();
+};
+freePlay();
+</script>
+</body>
+</html>

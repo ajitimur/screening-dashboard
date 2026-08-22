@@ -46,8 +46,7 @@ from screener.store import Store
 
 from .chain import BURN_IN_SESSIONS, REPLAY_MARKET
 from .field import FieldSession, ScoredDetection, replay_field, star_order_key
-from .funnel import evaluation_session
-from .reference import ExecutedTrade, classify
+from .reference import ExecutedTrade, classify, evaluation_session
 
 # The study is scoped to US 2019–2022 and no figure from it is to be presented as
 # an IDX expectation (PRD user story 35 / Out of Scope). Stamped on every output.
@@ -331,9 +330,8 @@ def run_placement(
 
     Runs the replayed field (:func:`replay.field.replay_field`) over the window,
     then for each replayable trade looks up the field for the session strictly
-    before its entry and places it. Blind-spot trades get no
-    placement row — they are a blind spot counted in coverage, not an
-    absent-from-field verdict. The picks distribution is the star scores of his
+    before its entry and places it. Blind-spot trades get no placement row — they
+    are a blind spot counted in coverage, not an absent-from-field verdict. The picks distribution is the star scores of his
     in-field trades; the field distribution is the whole field on the same
     sessions his trades were evaluated against.
     """

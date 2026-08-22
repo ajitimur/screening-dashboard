@@ -223,7 +223,7 @@ detects must land *before* the denominator is built, or the run is stale on arri
 
 | Ticket | Relation | Land by |
 | --- | --- | --- |
-| **#139** — match a trade's bars to the listing that existed at its entry | **Landed.** The recycled-ticker rule this plan requires; it re-pinned the figures cited below: blind-spot 91 → **92** tickers, 170 → **172** trades, 18.15% → **18.02%** of R, replayable 658 → **656** | Phase 2 |
+| **#139** — match a trade's bars to the listing that existed at its entry | **Landed.** The recycled-ticker rule this plan requires; it re-pinned the figures cited below: blind-spot 91 → **92** tickers, 170 → **172** trades, 18.15% → **18.0%** of R, replayable 658 → **656** | Phase 2 |
 | **#145** — Tightness as a graded rubric input (**decided**, implementation outstanding) | Changes what passes the funnel, so it changes the denominator *and* the detected-count anchor. File the implementation ticket if none exists. | Phase 3 |
 | **#149** — `DETECTION_LOOKBACKS` 3 → 5 | Same class: adopt or reject on evidence, then freeze. A rejection recorded is as good as an adoption; an open question is not. | Phase 3 |
 | **#146**, **#147** — naming and the domain model | The run persists full `Detection` records and the write-up uses this vocabulary. Cheap now, a dead language later. | Phase 3 |
@@ -366,7 +366,7 @@ before reading any new figure:
 | Median trailing 5-bar range at his entries | **1.86 ADR** | Findings §3b, §3c |
 | Median 20-day ADR at entry eve | **6.08%** | Findings §3c |
 | Blind-spot tickers / trades, 2019–2022 | **92 / 172** (of 312 / 828) | Findings §2 |
-| Trades detected by the funnel | **104 of 658 replayable** (the 658 is the pre-#139 denominator §4 was measured under; it is 656 now) | Findings §4 |
+| Trades detected by the funnel | **104 of 656 replayable** (§4 measured 104 of 658; #139 removed `FUSE`'s 2 trades, neither of which was detected) | Findings §4 |
 
 These are the same reference set through a differently-built pipeline. Matching them says the
 new pipeline computes what the old one computed; a mismatch is a bug in the new store or the

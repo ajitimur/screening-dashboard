@@ -37,7 +37,6 @@ from replay.funnel import (
     FunnelReport,
     characterise_cluster_misses,
     diagnose_detection,
-    evaluation_session,
     run_funnel,
 )
 from replay.reference import (
@@ -49,6 +48,7 @@ from replay.reference import (
     assert_matches_reference,
     build_report,
     classify,
+    evaluation_session,
     load_trades,
     parse_trades,
     write_blind_spot_list,

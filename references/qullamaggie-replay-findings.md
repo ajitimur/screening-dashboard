@@ -97,10 +97,12 @@ stage failure or an absent-from-field verdict.
 > original 81 / 141 / 11.7% asked whether the provider returns the symbol *at all today*.
 > The study actually needs a stricter question — does the ticker have bars **in the replay
 > window** (`2019-04..2022-12`), which is the only condition under which the funnel or the
-> field can say anything about the trade. The two differ by 10 tickers / 29 trades, and
-> every one of those is a **symbol-reuse** case: APXT, BNKU, EYES, FNGU, LAC, LAZR, NRGU,
-> SI, SPWR, USLV all resolve today, but their bar history begins years *after* the entry
-> they are paired with, because the ticker was recycled onto an unrelated listing. Counting
+> field can say anything about the trade. The two differ by 11 tickers / 31 trades, and
+> every one of those is a **symbol-reuse** case: APXT, BNKU, EYES, FNGU, FUSE, LAC, LAZR,
+> NRGU, SI, SPWR, USLV all resolve today, but their bar history begins years *after* the
+> entry they are paired with, because the ticker was recycled onto an unrelated listing.
+> (Ten of the eleven were caught by the window test alone; `FUSE` needed the stricter
+> covers-the-evaluated-session test #139 landed — see the note below.) Counting
 > them replayable would not merely understate the hole — at any window overlap it would
 > replay one company's trade against another company's bars. So survivorship here is not
 > only delisting; it is delisting **plus ticker recycling**, and the recycled names are

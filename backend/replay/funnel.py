@@ -360,9 +360,10 @@ class FunnelReport:
 # -- evaluation session -------------------------------------------------------
 
 
-# ``evaluation_session`` lives in :mod:`replay.reference`, which needs it to decide
-# replayability (#139) and cannot import this module. Re-exported here, where it
-# was first defined and where every reader of the funnel looks for it.
+# ``evaluation_session`` lives in :mod:`replay.reference`: replayability is now
+# defined in terms of it (#139), and that module cannot import this one. It is
+# imported above rather than re-exported — every caller reads it from
+# :mod:`replay.reference`.
 
 
 def _session_index(calendar: list[date], when: date) -> int:
@@ -685,7 +686,8 @@ def run_funnel(
     (PRD user story 22).
 
     Blind-spot trades get no row — a ticker whose bars do not cover the trade's
-    evaluation session is a blind spot, not a stage failure. Continuation entries are tagged and kept in every denominator.
+    evaluation session is a blind spot, not a stage failure. Continuation entries
+    are tagged and kept in every denominator.
     """
     classified = classify(trades, store, market=market)
     calendar = store.sessions(market)

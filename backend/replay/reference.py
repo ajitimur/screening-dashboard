@@ -24,11 +24,11 @@ trade's evaluation session, and the store holds only ``2019-04..2022-12``
 (:mod:`replay.store`). That is the operationally true test — it is exactly the
 condition under which the funnel and the field can say anything about a trade —
 and it is stricter than asking whether the provider returns the symbol at all
-today. The two differ by 10 tickers / 29
+today. The two differ by 11 tickers / 31
 trades, every one of them a **symbol-reuse** case: the ticker resolves today, but
 its bar history begins years after the entry it is paired with, because the
-symbol was recycled onto an unrelated listing (APXT, BNKU, EYES, FNGU, LAC, LAZR,
-NRGU, SI, SPWR, USLV). Counting those replayable would not merely understate the
+symbol was recycled onto an unrelated listing (APXT, BNKU, EYES, FNGU, FUSE, LAC,
+LAZR, NRGU, SI, SPWR, USLV). Counting those replayable would not merely understate the
 hole; at any window overlap it would replay one company's trade against another
 company's bars — which is exactly what a has-any-bars test did to ``FUSE`` until
 #139 (its entry is 2021-01-04; its bars run 2022-03-07..2022-12-22, so the ten
@@ -232,6 +232,30 @@ class ClassifiedTrade:
     replayable: bool
 
 
+@dataclass(frozen=True)
+class BarSpan:
+    """The sessions a ticker's bars run between, oldest to newest, inclusive.
+
+    The store answers "what bars are under this symbol?"; replayability asks the
+    narrower "was this symbol quoted on that night?" — so the span, not the bar
+    list, is what :func:`classify` keeps, one per ticker rather than one per trade.
+    A gap inside the span (a halt, a missing session) still counts as covered: the
+    listing existed, which is the question being asked.
+    """
+
+    first: date
+    last: date
+
+    @classmethod
+    def of(cls, bars: list) -> "BarSpan | None":
+        """The span of ``bars``, or ``None`` when the store holds none."""
+        return cls(first=bars[0].session, last=bars[-1].session) if bars else None
+
+    def covers(self, session: date) -> bool:
+        """True when ``session`` falls inside the span."""
+        return self.first <= session <= self.last
+
+
 def evaluation_session(calendar: list[date], entry_date: date) -> date | None:
     """The last session in ``calendar`` strictly before ``entry_date``.
 
@@ -269,20 +293,15 @@ def classify(
     read once and cached, so a name traded several times still costs one store
     read.
     """
-    spans: dict[str, tuple[date, date] | None] = {}
+    spans: dict[str, BarSpan | None] = {}
     calendar = store.sessions(market)
     classified: list[ClassifiedTrade] = []
     for trade in trades:
         if trade.ticker not in spans:
-            bars = store.bars(market, trade.ticker)
-            spans[trade.ticker] = (bars[0].session, bars[-1].session) if bars else None
+            spans[trade.ticker] = BarSpan.of(store.bars(market, trade.ticker))
         span = spans[trade.ticker]
         session = evaluation_session(calendar, trade.entry_date)
-        replayable = (
-            span is not None
-            and session is not None
-            and span[0] <= session <= span[1]
-        )
+        replayable = span is not None and session is not None and span.covers(session)
         classified.append(ClassifiedTrade(trade=trade, replayable=replayable))
     return classified
 

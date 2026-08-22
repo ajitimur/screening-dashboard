@@ -89,9 +89,9 @@ stage failure or an absent-from-field verdict.
 | Total rows (executed entries) | 828 |
 | Rows with outcomes | 827 |
 | Distinct tickers | 312 |
-| Blind-spot tickers | **91** |
-| Blind-spot trades | **170** |
-| Blind-spot share of total realised R | **18.1%** |
+| Blind-spot tickers | **92** |
+| Blind-spot trades | **172** |
+| Blind-spot share of total realised R | **18.0%** |
 
 > **The hole is larger than #114 first measured**, and the correction matters. The
 > original 81 / 141 / 11.7% asked whether the provider returns the symbol *at all today*.
@@ -105,6 +105,20 @@ stage failure or an absent-from-field verdict.
 > replay one company's trade against another company's bars. So survivorship here is not
 > only delisting; it is delisting **plus ticker recycling**, and the recycled names are
 > silent rather than absent.
+
+> **#139 re-pinned these figures: the window test now asks whether the bars cover the
+> session the trade is evaluated at**, not merely whether the symbol has bars somewhere in
+> the window. The ten recycled names above were caught only by luck — their replacement
+> listings all begin after `2022-12`, so the window build excluded them and a has-any-bars
+> test happened to give the right answer. `FUSE` is where the luck ran out: it is paired
+> with a `2021-01-04` entry, and its bars in the store run `2022-03-07..2022-12-22`. Under
+> the old test its 2 trades were counted replayable, entered the funnel denominator, and
+> failed the detector's `history` gate — charged to the detector as a stage failure when
+> they are a coverage hole. The re-pinned figures supersede **91 / 170 / 18.15%** (658
+> replayable), which every measured result in §§3–8 below was computed under; the R share
+> moves *down* because `FUSE`'s two trades carried below-average R. Both moves are
+> corrections, not improvements — the hole is the same size, measured properly — and both
+> are small enough to leave every finding below standing as measured.
 
 These counts are **computed, never hard-coded**; `REFERENCE_FIGURES` records the pinned
 figures only to detect drift, and `assert_matches_reference` stops the run with a
@@ -860,13 +874,14 @@ and the ≥3.5★ share it declined to predict has now been measured.
 
 ### Coverage, restated so this result carries its own bound
 
-Unchanged and now permanent: **91 blind-spot tickers / 170 trades / 18.1% of total realised R**
+Unchanged and now permanent: **92 blind-spot tickers / 172 trades / 18.0% of total realised R**
 (§2), and only **104 of 658** replayable trades appeared in the field at all — **41** inside the
 board under v1, **45** under v2. So this is a rubric comparison measured on a **sixth of his
 record** against a field missing a quarter of its names, and the population missing is the one a
-momentum screener surfaces. #139 is **open** and proposes correcting these figures to
-92 / 172 / 18.02% once the recycled-symbol check lands; that correction is small and would move
-nothing here, but it has not landed and the figures above are the ones this run measured.
+momentum screener surfaces. #139 has now **landed**: the coverage figures above are the
+re-pinned ones (they were 91 / 170 / 18.15% when this run was measured), and the 658-trade
+denominator is the pre-#139 one — `FUSE`'s 2 trades leave it at 656. That correction moves
+nothing here, and the per-trade figures below are the ones this run measured.
 
 **The no-percentile constraint stands, permanently.** #136 said to keep it "unless the coverage
 hole is fully closed". With #129 closed won't-do the hole cannot be closed, so the constraint is
@@ -1237,7 +1252,7 @@ kept in both places because it bounds §5b — the evidence the ADR reweight res
 
 - **Survivorship coverage.** Everything derived from the field is read against a store
   missing 29% of its tickers, skewed toward names that later died. Every field-derived
-  result carries `blind_spot_count`; the 91-ticker / 170-trade / 18.1%-of-R hole is quantified
+  result carries `blind_spot_count`; the 92-ticker / 172-trade / 18.0%-of-R hole is quantified
   in [§2](#2-coverage--the-survivorship-hole-attach-to-every-field-derived-result) and the
   ticker list is committed.
 - **Range restriction (A3).** Every trade in the sample already passed the trader's eye, so

@@ -241,7 +241,7 @@ def run_contrast(
     outcome regression stands on, but reduced through an entirely separate code
     path into a separate result — the two are never merged), then contrasts the
     dimension distributions of the taken and not-taken detections. Only replayable
-    trades mark the field; blind-spot trades (ticker with no bars) never appear as
+    trades mark the field; blind-spot trades never appear as
     a taken detection and ride only in the coverage count.
     """
     classified = classify(trades, store, market=market)

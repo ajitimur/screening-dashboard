@@ -29,8 +29,9 @@ that is the single most valuable thing this study can return (issue #120).
 **Coverage and scope.** Every output carries its coverage number against the
 committed blind-spot tickers (user story 22), and the whole study is scoped to
 :data:`SCOPE` — US 2019–2022 — and is not presented as an IDX expectation (user
-story 35). A blind-spot trade (ticker with no bars) is *not* placed: it is a
-blind spot counted in coverage, never an absent-from-field verdict.
+story 35). A blind-spot trade — one whose bars do not cover its evaluation
+session — is *not* placed: it is a blind spot counted in coverage, never an
+absent-from-field verdict.
 """
 
 from __future__ import annotations
@@ -330,7 +331,7 @@ def run_placement(
 
     Runs the replayed field (:func:`replay.field.replay_field`) over the window,
     then for each replayable trade looks up the field for the session strictly
-    before its entry and places it. Blind-spot trades (ticker with no bars) get no
+    before its entry and places it. Blind-spot trades get no
     placement row — they are a blind spot counted in coverage, not an
     absent-from-field verdict. The picks distribution is the star scores of his
     in-field trades; the field distribution is the whole field on the same

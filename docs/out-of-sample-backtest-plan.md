@@ -187,10 +187,32 @@ Two consequences to carry:
 | --- | --- | --- |
 | Costs | Per-market commission + slippage, swept | IDX carries real fees and spread; US is near-zero |
 | Primary metric | Expectancy in R, after costs, per market per year, **arm B** | One pre-registered metric. Arm B is the reference set's primary exit, so the headline stays comparable. |
-| Kill criterion | | State in advance what result would make you abandon the method |
+| **Kill criterion** | Arm B's after-cost expectancy ≤ 0 in **both** markets, on the **full window and with 2020–21 excluded**, measured on the **survivor-biased store** | Below |
+| **Ship criterion** | Arm B's after-cost expectancy > 0 in a market across both windows, **and** the pessimistic bound from Phase 2 keeps it above 0 | A positive run that survives its own bias is the only kind that licenses a change |
 
-**Done when** every cell above has a value and a one-line justification, committed. The kill
-criterion is the one still blank, and it is the one that matters most: fill it before Phase 1.
+**Why the kill line is drawn on the survivor-biased number.** Survivorship inflates results in
+a known direction: the missing names are disproportionately the ones that died. So a failure
+there is decisive — the honest figure can only be worse. A *pass* proves much less, which is
+why the ship criterion has to clear the Phase 2 bound and the kill criterion does not.
+
+**What each verdict licenses**, so the decision is made now rather than in the moment:
+
+- **Kill fires** → the detector as encoded has no edge. The app's claim reduces to *ranking*
+  what a human selects, never selecting on its own, and the write-up says so in those words.
+- **Ship fires** → the change it licenses is named in the write-up before any constant moves,
+  and goes through the calibration rule (findings §7) like any other.
+- **Neither fires** → the run is inconclusive and is reported as inconclusive. Reaching for a
+  swept variant to break the tie is the failure mode this whole contract exists to prevent.
+
+**The two criteria have different scopes, deliberately.** The kill is **global** — it needs
+*both* markets to fail, because findings §8 says magnitudes do not transfer, so one market
+failing is evidence about that market rather than about the method. The ship is **per
+market**, for the same reason: a US pass licenses nothing in Jakarta.
+
+That leaves the one-market failure as its own verdict, named here so it is not improvised
+later: **the method stands, and that market is off** until a run explains why it differs.
+
+**Done when** every cell above has a value and a one-line justification, committed.
 
 ---
 

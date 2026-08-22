@@ -197,7 +197,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 1703867013.906479,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -216,7 +216,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 4098090.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 76
       },
       {
@@ -247,7 +247,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 302543497.36099243,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 49
       },
       {
@@ -266,7 +266,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 10231023.947143555,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -295,7 +295,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 28198972.411109924,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 15
       },
       {
@@ -314,7 +314,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 7670098.305230141,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 18
       },
       {
@@ -333,7 +333,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 13012893.231987953,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 22
       },
       {
@@ -364,7 +364,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 26992330.892145634,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 53
       },
       {
@@ -395,7 +395,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 21433195.61650753,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 127
       },
       {
@@ -426,7 +426,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 527869799.3383026,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -457,7 +457,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 106052360.940094,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -488,7 +488,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 800145018.3984756,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 49
       },
       {
@@ -519,7 +519,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 152651959.3849182,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -538,7 +538,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 4790270.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 1
       },
       {
@@ -569,7 +569,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 611454604.8660278,
-        "cluster_min_range_adr": 1.9587627488253347,
+        "range_3bar_adr": 1.9587627488253347,
         "sessions_since_prior_entry": null
       },
       {
@@ -600,7 +600,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 43976948.670352936,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 54
       },
       {
@@ -631,7 +631,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 438462823.226738,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 122
       },
       {
@@ -650,7 +650,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 2272822.3752388954,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -681,7 +681,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 79252000.27713776,
-        "cluster_min_range_adr": 2.897516755992205,
+        "range_3bar_adr": 2.897516755992205,
         "sessions_since_prior_entry": null
       },
       {
@@ -712,7 +712,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 492126955.4914856,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 5
       },
       {
@@ -743,7 +743,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 9800056691.139221,
-        "cluster_min_range_adr": 1.686945316315257,
+        "range_3bar_adr": 1.686945316315257,
         "sessions_since_prior_entry": 36
       },
       {
@@ -774,7 +774,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 4050857938.3613586,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 221
       },
       {
@@ -805,7 +805,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 456272713.1187439,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 110
       },
       {
@@ -836,7 +836,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 70026006.8894515,
-        "cluster_min_range_adr": 2.229686935572363,
+        "range_3bar_adr": 2.229686935572363,
         "sessions_since_prior_entry": 10
       },
       {
@@ -867,7 +867,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 335001861.68518066,
-        "cluster_min_range_adr": 1.7057044579797342,
+        "range_3bar_adr": 1.7057044579797342,
         "sessions_since_prior_entry": null
       },
       {
@@ -898,7 +898,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 46887012.271499634,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -929,7 +929,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 1345779639.7636414,
-        "cluster_min_range_adr": 1.540386171426201,
+        "range_3bar_adr": 1.540386171426201,
         "sessions_since_prior_entry": 5
       },
       {
@@ -960,7 +960,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 143630072.34592438,
-        "cluster_min_range_adr": 2.441926846438304,
+        "range_3bar_adr": 2.441926846438304,
         "sessions_since_prior_entry": 180
       },
       {
@@ -979,7 +979,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 469520156.30550385,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -998,7 +998,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 5942330.0,
-        "cluster_min_range_adr": 1.7912054260176922,
+        "range_3bar_adr": 1.7912054260176922,
         "sessions_since_prior_entry": null
       },
       {
@@ -1029,7 +1029,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 595890483.8241234,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 165
       },
       {
@@ -1060,7 +1060,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 226779744.19927597,
-        "cluster_min_range_adr": 1.7895624302526467,
+        "range_3bar_adr": 1.7895624302526467,
         "sessions_since_prior_entry": 2
       },
       {
@@ -1091,7 +1091,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 84511491.96500778,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 27
       },
       {
@@ -1120,7 +1120,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 41876982.621837616,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 33
       },
       {
@@ -1151,7 +1151,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 30828675363.498688,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 15
       },
       {
@@ -1182,7 +1182,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 33724371.55752182,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 24
       },
       {
@@ -1213,7 +1213,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 647993179.814107,
-        "cluster_min_range_adr": 2.2719974001012204,
+        "range_3bar_adr": 2.2719974001012204,
         "sessions_since_prior_entry": 79
       },
       {
@@ -1244,7 +1244,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 21559970.617842674,
-        "cluster_min_range_adr": 2.1133611975423965,
+        "range_3bar_adr": 2.1133611975423965,
         "sessions_since_prior_entry": null
       },
       {
@@ -1275,7 +1275,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 349522601.72777176,
-        "cluster_min_range_adr": 1.694826084253021,
+        "range_3bar_adr": 1.694826084253021,
         "sessions_since_prior_entry": 46
       },
       {
@@ -1306,7 +1306,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 21886713.627004623,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 23
       },
       {
@@ -1337,7 +1337,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 70000226.87988281,
-        "cluster_min_range_adr": 2.070156988408644,
+        "range_3bar_adr": 2.070156988408644,
         "sessions_since_prior_entry": 2
       },
       {
@@ -1368,7 +1368,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1500074409.2412949,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -1399,7 +1399,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 2182795591.644287,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 9
       },
       {
@@ -1430,7 +1430,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 120126262.44659424,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -1461,7 +1461,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 40639640.10574341,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 51
       },
       {
@@ -1492,7 +1492,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 66229409.92451477,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 51
       },
       {
@@ -1523,7 +1523,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 84744070.22943497,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 18
       },
       {
@@ -1554,7 +1554,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 295770897.69210815,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 90
       },
       {
@@ -1585,7 +1585,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 62525001.464509964,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -1616,7 +1616,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1140808375.9490967,
-        "cluster_min_range_adr": 1.7637848851465416,
+        "range_3bar_adr": 1.7637848851465416,
         "sessions_since_prior_entry": 98
       },
       {
@@ -1647,7 +1647,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 115875285.1701994,
-        "cluster_min_range_adr": 1.5521175126007583,
+        "range_3bar_adr": 1.5521175126007583,
         "sessions_since_prior_entry": 3
       },
       {
@@ -1678,7 +1678,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 262957145.80993652,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -1707,7 +1707,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 107080552.1938324,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -1738,7 +1738,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 862352324.7375488,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 93
       },
       {
@@ -1763,7 +1763,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 908345519.3641663,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -1794,7 +1794,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 272380661.19880676,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -1823,7 +1823,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 357411990.1626587,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -1854,7 +1854,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 115022318.82751465,
-        "cluster_min_range_adr": 2.0960513936987373,
+        "range_3bar_adr": 2.0960513936987373,
         "sessions_since_prior_entry": 84
       },
       {
@@ -1885,7 +1885,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 174504181.6417694,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -1916,7 +1916,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 918960763.9808655,
-        "cluster_min_range_adr": 1.8623305160093482,
+        "range_3bar_adr": 1.8623305160093482,
         "sessions_since_prior_entry": 4
       },
       {
@@ -1935,7 +1935,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 9431878.951015472,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 50
       },
       {
@@ -1966,7 +1966,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 326326086.1579895,
-        "cluster_min_range_adr": 1.5621764691711297,
+        "range_3bar_adr": 1.5621764691711297,
         "sessions_since_prior_entry": null
       },
       {
@@ -1997,7 +1997,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 473612122.3789215,
-        "cluster_min_range_adr": 3.4236730635623673,
+        "range_3bar_adr": 3.4236730635623673,
         "sessions_since_prior_entry": 53
       },
       {
@@ -2024,7 +2024,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 963422455.1286697,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -2055,7 +2055,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 44365778.65486145,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 92
       },
       {
@@ -2086,7 +2086,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 75904839.63317871,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 40
       },
       {
@@ -2117,7 +2117,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 419368008.74824524,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -2148,7 +2148,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 90688682.54528046,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 22
       },
       {
@@ -2179,7 +2179,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 33626965.28778076,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -2208,7 +2208,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 22211456.48431778,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -2239,7 +2239,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 844554807.5918198,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 62
       },
       {
@@ -2270,7 +2270,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 261445578.57484818,
-        "cluster_min_range_adr": 1.6951207252456688,
+        "range_3bar_adr": 1.6951207252456688,
         "sessions_since_prior_entry": null
       },
       {
@@ -2301,7 +2301,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 22344449.0295887,
-        "cluster_min_range_adr": 1.9495426887742981,
+        "range_3bar_adr": 1.9495426887742981,
         "sessions_since_prior_entry": null
       },
       {
@@ -2332,7 +2332,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 414994747.33924866,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 1
       },
       {
@@ -2363,7 +2363,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 47812612.506866455,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -2394,7 +2394,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 596547915.2759552,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 79
       },
       {
@@ -2425,7 +2425,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 219538353.86047363,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 18
       },
       {
@@ -2444,7 +2444,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 5086053.142356873,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 25
       },
       {
@@ -2475,7 +2475,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 1081708306.780243,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -2506,7 +2506,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 896629641.1212921,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 49
       },
       {
@@ -2537,7 +2537,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 585176903.6819458,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 208
       },
       {
@@ -2568,7 +2568,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 650970946.8429565,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -2599,7 +2599,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 585996461.8541718,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -2630,7 +2630,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 190848995.34816742,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -2649,7 +2649,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 5644281.445646286,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -2680,7 +2680,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1082987268.5714722,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 131
       },
       {
@@ -2711,7 +2711,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 277514962.88223267,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -2742,7 +2742,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 168261508.4049225,
-        "cluster_min_range_adr": 2.42487652704151,
+        "range_3bar_adr": 2.42487652704151,
         "sessions_since_prior_entry": 291
       },
       {
@@ -2773,7 +2773,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 180520736.1682129,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 243
       },
       {
@@ -2804,7 +2804,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 145096434.10072327,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -2823,7 +2823,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 16856732.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -2852,7 +2852,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 53276005.60510254,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -2883,7 +2883,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 244042337.21237183,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -2914,7 +2914,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 489615679.2907715,
-        "cluster_min_range_adr": 1.676154719717951,
+        "range_3bar_adr": 1.676154719717951,
         "sessions_since_prior_entry": 100
       },
       {
@@ -2945,7 +2945,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1083644436.8553162,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 100
       },
       {
@@ -2976,7 +2976,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1959931731.6444397,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -2995,7 +2995,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 8427400.277137756,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 13
       },
       {
@@ -3024,7 +3024,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 25035714.332504272,
-        "cluster_min_range_adr": 1.7072662303504875,
+        "range_3bar_adr": 1.7072662303504875,
         "sessions_since_prior_entry": null
       },
       {
@@ -3053,7 +3053,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 163366064.1242981,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -3084,7 +3084,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1154369041.9448853,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -3103,7 +3103,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 13729642.625331879,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -3134,7 +3134,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 3839439974.6875763,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 64
       },
       {
@@ -3165,7 +3165,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 274352990.0162697,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -3196,7 +3196,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 343463800.63114166,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 26
       },
       {
@@ -3227,7 +3227,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 605970307.1372986,
-        "cluster_min_range_adr": 1.7329374782109446,
+        "range_3bar_adr": 1.7329374782109446,
         "sessions_since_prior_entry": 3
       },
       {
@@ -3256,7 +3256,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 386696371.79374695,
-        "cluster_min_range_adr": 1.535010402678797,
+        "range_3bar_adr": 1.535010402678797,
         "sessions_since_prior_entry": 33
       },
       {
@@ -3287,7 +3287,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 8813755538.928986,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -3318,7 +3318,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 859571536.7008209,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 43
       },
       {
@@ -3337,7 +3337,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 9860302.235412598,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -3368,7 +3368,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 26849399.546194077,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 26
       },
       {
@@ -3393,7 +3393,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 94669466.50972366,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -3424,7 +3424,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 910661337.071991,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -3455,7 +3455,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 198827561.90814972,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -3486,7 +3486,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 345299831.6078186,
-        "cluster_min_range_adr": 1.7090395800485292,
+        "range_3bar_adr": 1.7090395800485292,
         "sessions_since_prior_entry": 3
       },
       {
@@ -3517,7 +3517,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 4021553219.793701,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 48
       },
       {
@@ -3548,7 +3548,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 54761147.105789185,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -3577,7 +3577,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 49628236.06438446,
-        "cluster_min_range_adr": 2.070333290554004,
+        "range_3bar_adr": 2.070333290554004,
         "sessions_since_prior_entry": 29
       },
       {
@@ -3608,7 +3608,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 84284160.58120728,
-        "cluster_min_range_adr": 1.705022137067258,
+        "range_3bar_adr": 1.705022137067258,
         "sessions_since_prior_entry": null
       },
       {
@@ -3627,7 +3627,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 15588023.786354065,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -3646,7 +3646,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 6776323.000335693,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 1
       },
       {
@@ -3677,7 +3677,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 886026524.2595673,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 110
       },
       {
@@ -3708,7 +3708,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 3744508654.7714233,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -3739,7 +3739,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 220947017.53234863,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 67
       },
       {
@@ -3770,7 +3770,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 450640495.8076477,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 31
       },
       {
@@ -3801,7 +3801,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 119765187.40844727,
-        "cluster_min_range_adr": 2.0336966748602343,
+        "range_3bar_adr": 2.0336966748602343,
         "sessions_since_prior_entry": 29
       },
       {
@@ -3830,7 +3830,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 853312928.560257,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -3861,7 +3861,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 335365674.505043,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -3890,7 +3890,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 139278874.9671936,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -3917,7 +3917,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 29066940.130329132,
-        "cluster_min_range_adr": 1.6575167691259562,
+        "range_3bar_adr": 1.6575167691259562,
         "sessions_since_prior_entry": null
       },
       {
@@ -3948,7 +3948,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 30594003020.72754,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 13
       },
       {
@@ -3979,7 +3979,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 810988512.2684479,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 21
       },
       {
@@ -4010,7 +4010,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 241580007.27020264,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 123
       },
       {
@@ -4041,7 +4041,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 35903168.17657471,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -4072,7 +4072,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 135048003.76739502,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 14
       },
       {
@@ -4103,7 +4103,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 673029282.611618,
-        "cluster_min_range_adr": 2.4000530423590627,
+        "range_3bar_adr": 2.4000530423590627,
         "sessions_since_prior_entry": 24
       },
       {
@@ -4134,7 +4134,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 406011141.1628723,
-        "cluster_min_range_adr": 1.6659308338686272,
+        "range_3bar_adr": 1.6659308338686272,
         "sessions_since_prior_entry": 126
       },
       {
@@ -4165,7 +4165,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 149816005.12161255,
-        "cluster_min_range_adr": 2.5953080640877406,
+        "range_3bar_adr": 2.5953080640877406,
         "sessions_since_prior_entry": 15
       },
       {
@@ -4196,7 +4196,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 420001621.17233276,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 78
       },
       {
@@ -4227,7 +4227,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 376990269.053936,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -4258,7 +4258,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 139276390.26031494,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 9
       },
       {
@@ -4287,7 +4287,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 387786575.70610046,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 29
       },
       {
@@ -4318,7 +4318,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 547524683.2008362,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -4347,7 +4347,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 21829819.175872803,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 12
       },
       {
@@ -4378,7 +4378,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 41798581.696891785,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 182
       },
       {
@@ -4409,7 +4409,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 212291740.21148682,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 193
       },
       {
@@ -4440,7 +4440,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 13123073227.080688,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 88
       },
       {
@@ -4471,7 +4471,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 296649899.7592926,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 56
       },
       {
@@ -4502,7 +4502,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 5723539565.890884,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 51
       },
       {
@@ -4533,7 +4533,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 127988436.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -4564,7 +4564,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 673783525.1858711,
-        "cluster_min_range_adr": 1.5157500721579225,
+        "range_3bar_adr": 1.5157500721579225,
         "sessions_since_prior_entry": 11
       },
       {
@@ -4595,7 +4595,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 189949327.460289,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -4624,7 +4624,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 26626159.73548889,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -4653,7 +4653,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 35441132.904815674,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -4684,7 +4684,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 522095749.2460251,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -4713,7 +4713,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 2061947527.7755737,
-        "cluster_min_range_adr": 1.6363867882521852,
+        "range_3bar_adr": 1.6363867882521852,
         "sessions_since_prior_entry": null
       },
       {
@@ -4744,7 +4744,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 215936942.33589172,
-        "cluster_min_range_adr": 1.5009251582531586,
+        "range_3bar_adr": 1.5009251582531586,
         "sessions_since_prior_entry": 2
       },
       {
@@ -4775,7 +4775,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 35181954.34188843,
-        "cluster_min_range_adr": 2.891016540497,
+        "range_3bar_adr": 2.891016540497,
         "sessions_since_prior_entry": null
       },
       {
@@ -4806,7 +4806,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 465558358.2763672,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -4829,7 +4829,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 336874634.765625,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -4858,7 +4858,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 54710941.791381836,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -4889,7 +4889,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 40845325.453567505,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -4920,7 +4920,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 493873034.88702774,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -4951,7 +4951,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 249131746.58632278,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 145
       },
       {
@@ -4982,7 +4982,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1367755290.737152,
-        "cluster_min_range_adr": 1.6407318457379738,
+        "range_3bar_adr": 1.6407318457379738,
         "sessions_since_prior_entry": null
       },
       {
@@ -5013,7 +5013,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 219530122.22604752,
-        "cluster_min_range_adr": 1.9744089356451626,
+        "range_3bar_adr": 1.9744089356451626,
         "sessions_since_prior_entry": 13
       },
       {
@@ -5032,7 +5032,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 0.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -5063,7 +5063,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 174677325.60195923,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -5094,7 +5094,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 37641779.15496826,
-        "cluster_min_range_adr": 1.549635148205623,
+        "range_3bar_adr": 1.549635148205623,
         "sessions_since_prior_entry": null
       },
       {
@@ -5125,7 +5125,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 116606962.43171692,
-        "cluster_min_range_adr": 1.5005211162855177,
+        "range_3bar_adr": 1.5005211162855177,
         "sessions_since_prior_entry": 50
       },
       {
@@ -5156,7 +5156,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 38744559.283447266,
-        "cluster_min_range_adr": 2.371444143799495,
+        "range_3bar_adr": 2.371444143799495,
         "sessions_since_prior_entry": 7
       },
       {
@@ -5187,7 +5187,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 533177349.51782227,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 12
       },
       {
@@ -5218,7 +5218,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 78838841.29295349,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 176
       },
       {
@@ -5249,7 +5249,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 2005291341.860962,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 12
       },
       {
@@ -5280,7 +5280,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 200029302.64968872,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 82
       },
       {
@@ -5311,7 +5311,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 154288692.83771515,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 14
       },
       {
@@ -5342,7 +5342,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 284490343.56594086,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -5373,7 +5373,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 37464414.95723724,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -5404,7 +5404,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 118539482.0350647,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -5435,7 +5435,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 182111272.3538475,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 25
       },
       {
@@ -5466,7 +5466,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 758487389.8521423,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 98
       },
       {
@@ -5497,7 +5497,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 35761417.8817749,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -5528,7 +5528,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 21932268255.056763,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -5547,7 +5547,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 6699021.914672852,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 12
       },
       {
@@ -5578,7 +5578,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 428396111.4692688,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 18
       },
       {
@@ -5597,7 +5597,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 13500012.119293213,
-        "cluster_min_range_adr": 1.6983510058126614,
+        "range_3bar_adr": 1.6983510058126614,
         "sessions_since_prior_entry": null
       },
       {
@@ -5628,7 +5628,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 716109021.6791153,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 56
       },
       {
@@ -5659,7 +5659,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 1709891732.6583862,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 5
       },
       {
@@ -5688,7 +5688,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 20266344.168395996,
-        "cluster_min_range_adr": 2.148845733032492,
+        "range_3bar_adr": 2.148845733032492,
         "sessions_since_prior_entry": 5
       },
       {
@@ -5719,7 +5719,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 28513293746.177673,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -5750,7 +5750,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 81208985.88413239,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -5781,7 +5781,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 657073226.791954,
-        "cluster_min_range_adr": 1.779747869619248,
+        "range_3bar_adr": 1.779747869619248,
         "sessions_since_prior_entry": 50
       },
       {
@@ -5812,7 +5812,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 22945266499.563217,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 26
       },
       {
@@ -5843,7 +5843,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 30438425.98876953,
-        "cluster_min_range_adr": 1.7762545897214652,
+        "range_3bar_adr": 1.7762545897214652,
         "sessions_since_prior_entry": 8
       },
       {
@@ -5874,7 +5874,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1001408742.149353,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -5905,7 +5905,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 60209601.38320923,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 12
       },
       {
@@ -5936,7 +5936,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1400720739.163971,
-        "cluster_min_range_adr": 1.6243248609721344,
+        "range_3bar_adr": 1.6243248609721344,
         "sessions_since_prior_entry": 37
       },
       {
@@ -5967,7 +5967,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 6459942043.527603,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 7
       },
       {
@@ -5998,7 +5998,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 2005291341.860962,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -6029,7 +6029,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 681138910.0650787,
-        "cluster_min_range_adr": 1.7493824738593045,
+        "range_3bar_adr": 1.7493824738593045,
         "sessions_since_prior_entry": 11
       },
       {
@@ -6060,7 +6060,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 359172475.0854492,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -6091,7 +6091,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 38166347391.95137,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 31
       },
       {
@@ -6122,7 +6122,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 25058510871.974945,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 1
       },
       {
@@ -6153,7 +6153,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1527409640.7016754,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 66
       },
       {
@@ -6184,7 +6184,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 354236136.3178253,
-        "cluster_min_range_adr": 2.205039020418428,
+        "range_3bar_adr": 2.205039020418428,
         "sessions_since_prior_entry": 60
       },
       {
@@ -6215,7 +6215,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 665289985.0370407,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -6246,7 +6246,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 330127534.17282104,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 80
       },
       {
@@ -6277,7 +6277,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1396594125.0637054,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 43
       },
       {
@@ -6308,7 +6308,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 28245691.64123535,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 26
       },
       {
@@ -6339,7 +6339,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 799178138.6112213,
-        "cluster_min_range_adr": 1.968065154476879,
+        "range_3bar_adr": 1.968065154476879,
         "sessions_since_prior_entry": 4
       },
       {
@@ -6370,7 +6370,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 34742799566.79382,
-        "cluster_min_range_adr": 1.8469444022790023,
+        "range_3bar_adr": 1.8469444022790023,
         "sessions_since_prior_entry": 15
       },
       {
@@ -6401,7 +6401,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1909172904.7851562,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 95
       },
       {
@@ -6430,7 +6430,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 47262564.69125748,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 60
       },
       {
@@ -6461,7 +6461,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 240981423.097229,
-        "cluster_min_range_adr": 1.9681587197977028,
+        "range_3bar_adr": 1.9681587197977028,
         "sessions_since_prior_entry": null
       },
       {
@@ -6492,7 +6492,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 4400042379.627991,
-        "cluster_min_range_adr": 1.75527546772622,
+        "range_3bar_adr": 1.75527546772622,
         "sessions_since_prior_entry": null
       },
       {
@@ -6523,7 +6523,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1310439954.4044495,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -6554,7 +6554,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 239370369.2346573,
-        "cluster_min_range_adr": 1.6415478750060233,
+        "range_3bar_adr": 1.6415478750060233,
         "sessions_since_prior_entry": 9
       },
       {
@@ -6585,7 +6585,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 42797079.108428955,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 23
       },
       {
@@ -6616,7 +6616,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 33349061.134783745,
-        "cluster_min_range_adr": 1.9548105193904672,
+        "range_3bar_adr": 1.9548105193904672,
         "sessions_since_prior_entry": 30
       },
       {
@@ -6647,7 +6647,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 70242800.82550049,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -6678,7 +6678,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 577053782.6843262,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 9
       },
       {
@@ -6705,7 +6705,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1168501094.8173523,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 54
       },
       {
@@ -6736,7 +6736,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 4774774708.453369,
-        "cluster_min_range_adr": 1.7824046620760374,
+        "range_3bar_adr": 1.7824046620760374,
         "sessions_since_prior_entry": 7
       },
       {
@@ -6765,7 +6765,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1189188777.6916504,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 91
       },
       {
@@ -6796,7 +6796,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 99886161.9146347,
-        "cluster_min_range_adr": 2.1830437319269307,
+        "range_3bar_adr": 2.1830437319269307,
         "sessions_since_prior_entry": 464
       },
       {
@@ -6827,7 +6827,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 739621341.0491943,
-        "cluster_min_range_adr": 1.8267441889958373,
+        "range_3bar_adr": 1.8267441889958373,
         "sessions_since_prior_entry": 2
       },
       {
@@ -6858,7 +6858,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 49449590.333366394,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -6889,7 +6889,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 280490549.5063782,
-        "cluster_min_range_adr": 1.8463568887735862,
+        "range_3bar_adr": 1.8463568887735862,
         "sessions_since_prior_entry": 102
       },
       {
@@ -6918,7 +6918,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 1874886232.1601868,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -6949,7 +6949,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 2775222393.104553,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 76
       },
       {
@@ -6980,7 +6980,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 218999374.86495972,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 109
       },
       {
@@ -7009,7 +7009,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1035311693.623352,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 163
       },
       {
@@ -7040,7 +7040,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 533122492.12646484,
-        "cluster_min_range_adr": 2.31000887697007,
+        "range_3bar_adr": 2.31000887697007,
         "sessions_since_prior_entry": null
       },
       {
@@ -7071,7 +7071,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 533177349.51782227,
-        "cluster_min_range_adr": 2.152611341098387,
+        "range_3bar_adr": 2.152611341098387,
         "sessions_since_prior_entry": 12
       },
       {
@@ -7102,7 +7102,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 215191200.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -7133,7 +7133,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 54570804.26559448,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7164,7 +7164,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 50674359.772872925,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 121
       },
       {
@@ -7195,7 +7195,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 25758650564.190674,
-        "cluster_min_range_adr": 1.706615527917372,
+        "range_3bar_adr": 1.706615527917372,
         "sessions_since_prior_entry": 31
       },
       {
@@ -7226,7 +7226,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 355034179.4075012,
-        "cluster_min_range_adr": 1.6822811425686348,
+        "range_3bar_adr": 1.6822811425686348,
         "sessions_since_prior_entry": 38
       },
       {
@@ -7255,7 +7255,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 182814663.33332062,
-        "cluster_min_range_adr": 1.7365648678801109,
+        "range_3bar_adr": 1.7365648678801109,
         "sessions_since_prior_entry": null
       },
       {
@@ -7286,7 +7286,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1117746978.1082153,
-        "cluster_min_range_adr": 1.9250460849204971,
+        "range_3bar_adr": 1.9250460849204971,
         "sessions_since_prior_entry": 9
       },
       {
@@ -7315,7 +7315,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1829680497.9499817,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7344,7 +7344,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 317497350.8605957,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7373,7 +7373,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 2345691339.452362,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7400,7 +7400,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 535375107.4760437,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 47
       },
       {
@@ -7431,7 +7431,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 2148140932.231903,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 46
       },
       {
@@ -7462,7 +7462,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 810810152.5054932,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 45
       },
       {
@@ -7493,7 +7493,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 150895345.77112198,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7524,7 +7524,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 53818317.45918274,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7555,7 +7555,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1327032006.952858,
-        "cluster_min_range_adr": 2.523307034056742,
+        "range_3bar_adr": 2.523307034056742,
         "sessions_since_prior_entry": 188
       },
       {
@@ -7586,7 +7586,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 370808314.69573975,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 38
       },
       {
@@ -7615,7 +7615,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 269350741.40872955,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7646,7 +7646,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 1999192915.7318115,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -7677,7 +7677,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 15593992910.430908,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 184
       },
       {
@@ -7708,7 +7708,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1061729514.617157,
-        "cluster_min_range_adr": 1.5686492980688551,
+        "range_3bar_adr": 1.5686492980688551,
         "sessions_since_prior_entry": null
       },
       {
@@ -7739,7 +7739,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 77398811.52076721,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 98
       },
       {
@@ -7770,7 +7770,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 640503509.3799591,
-        "cluster_min_range_adr": 1.8207341611541634,
+        "range_3bar_adr": 1.8207341611541634,
         "sessions_since_prior_entry": 8
       },
       {
@@ -7801,7 +7801,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 117063646.9116211,
-        "cluster_min_range_adr": 2.435427322663399,
+        "range_3bar_adr": 2.435427322663399,
         "sessions_since_prior_entry": null
       },
       {
@@ -7832,7 +7832,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 783768048.9233017,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 30
       },
       {
@@ -7863,7 +7863,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 70737153.47366333,
-        "cluster_min_range_adr": 2.149713874691997,
+        "range_3bar_adr": 2.149713874691997,
         "sessions_since_prior_entry": 207
       },
       {
@@ -7894,7 +7894,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 974134871.754837,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7913,7 +7913,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 6285344.858551025,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7944,7 +7944,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 466703067.3307419,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -7975,7 +7975,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 13017131991.5514,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 57
       },
       {
@@ -8006,7 +8006,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 878349052.9602051,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 120
       },
       {
@@ -8037,7 +8037,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 27441278404.719543,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 19
       },
       {
@@ -8068,7 +8068,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 681138910.0650787,
-        "cluster_min_range_adr": 1.7206687837480672,
+        "range_3bar_adr": 1.7206687837480672,
         "sessions_since_prior_entry": 5
       },
       {
@@ -8099,7 +8099,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 13931725491.645813,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 19
       },
       {
@@ -8130,7 +8130,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 237880713.4262085,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -8161,7 +8161,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 3938432823.449707,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -8192,7 +8192,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1766039968.4448242,
-        "cluster_min_range_adr": 2.2447147985890377,
+        "range_3bar_adr": 2.2447147985890377,
         "sessions_since_prior_entry": null
       },
       {
@@ -8223,7 +8223,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 782485812.8181458,
-        "cluster_min_range_adr": 1.8816974901696728,
+        "range_3bar_adr": 1.8816974901696728,
         "sessions_since_prior_entry": 24
       },
       {
@@ -8254,7 +8254,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 118069239.38484192,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -8285,7 +8285,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 233286248.2788086,
-        "cluster_min_range_adr": 1.5338928857001626,
+        "range_3bar_adr": 1.5338928857001626,
         "sessions_since_prior_entry": 30
       },
       {
@@ -8316,7 +8316,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 538550822.9370117,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 30
       },
       {
@@ -8347,7 +8347,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 26395669.073867798,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 121
       },
       {
@@ -8378,7 +8378,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 735467092.3843384,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -8409,7 +8409,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 69514344.54345703,
-        "cluster_min_range_adr": 2.1732831446739524,
+        "range_3bar_adr": 2.1732831446739524,
         "sessions_since_prior_entry": 5
       },
       {
@@ -8440,7 +8440,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 894291883.937645,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -8471,7 +8471,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 539063630.0041199,
-        "cluster_min_range_adr": 2.3166497428678947,
+        "range_3bar_adr": 2.3166497428678947,
         "sessions_since_prior_entry": 6
       },
       {
@@ -8502,7 +8502,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 927163956.3903809,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -8533,7 +8533,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 188828629.49127674,
-        "cluster_min_range_adr": 1.5841599254662733,
+        "range_3bar_adr": 1.5841599254662733,
         "sessions_since_prior_entry": 90
       },
       {
@@ -8564,7 +8564,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 151090892.49664307,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 13
       },
       {
@@ -8595,7 +8595,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 209884102.4963379,
-        "cluster_min_range_adr": 1.9561818426577966,
+        "range_3bar_adr": 1.9561818426577966,
         "sessions_since_prior_entry": 284
       },
       {
@@ -8626,7 +8626,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 350124308.6860657,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 29
       },
       {
@@ -8657,7 +8657,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 27093136547.47467,
-        "cluster_min_range_adr": 1.8815927451280723,
+        "range_3bar_adr": 1.8815927451280723,
         "sessions_since_prior_entry": 6
       },
       {
@@ -8688,7 +8688,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 503464658.2710266,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -8719,7 +8719,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 244474095.25177002,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -8750,7 +8750,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 394226167.6742554,
-        "cluster_min_range_adr": 1.5704200534348276,
+        "range_3bar_adr": 1.5704200534348276,
         "sessions_since_prior_entry": 20
       },
       {
@@ -8781,7 +8781,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 535477600.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 38
       },
       {
@@ -8812,7 +8812,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 2184248882.8216553,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -8843,7 +8843,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 341771586.9846344,
-        "cluster_min_range_adr": 2.1911719310848947,
+        "range_3bar_adr": 2.1911719310848947,
         "sessions_since_prior_entry": 5
       },
       {
@@ -8874,7 +8874,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1542924724.9679565,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 167
       },
       {
@@ -8905,7 +8905,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1253181785.974121,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 34
       },
       {
@@ -8934,7 +8934,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 55181969.03514862,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -8965,7 +8965,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 142015781.17141724,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 99
       },
       {
@@ -8996,7 +8996,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 721969135.461998,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 58
       },
       {
@@ -9027,7 +9027,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 4676564302.14119,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 47
       },
       {
@@ -9056,7 +9056,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 20898125.97230673,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 22
       },
       {
@@ -9087,7 +9087,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1563797134.6832275,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 33
       },
       {
@@ -9118,7 +9118,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 370373652.3239136,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 123
       },
       {
@@ -9149,7 +9149,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 122462445.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 7
       },
       {
@@ -9180,7 +9180,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 211720624.4874153,
-        "cluster_min_range_adr": 1.5393277958315748,
+        "range_3bar_adr": 1.5393277958315748,
         "sessions_since_prior_entry": 118
       },
       {
@@ -9211,7 +9211,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 711968541.6906357,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 22
       },
       {
@@ -9242,7 +9242,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 537226014.8220062,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -9273,7 +9273,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1571981487.8326416,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 99
       },
       {
@@ -9302,7 +9302,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 11899866795.461655,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -9333,7 +9333,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 213609588.39263916,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 8
       },
       {
@@ -9364,7 +9364,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 797913584.6176147,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -9395,7 +9395,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 3714308555.1576614,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -9422,7 +9422,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 100245491.1037445,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -9453,7 +9453,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 2819713442.9130554,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 20
       },
       {
@@ -9484,7 +9484,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 68454478.86734009,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -9513,7 +9513,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 395519478.35731506,
-        "cluster_min_range_adr": 2.0530517361592584,
+        "range_3bar_adr": 2.0530517361592584,
         "sessions_since_prior_entry": 119
       },
       {
@@ -9544,7 +9544,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 625036241.0903931,
-        "cluster_min_range_adr": 2.0008925318934216,
+        "range_3bar_adr": 2.0008925318934216,
         "sessions_since_prior_entry": 11
       },
       {
@@ -9569,7 +9569,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 203246962.97044754,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -9600,7 +9600,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 557782527.1476746,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 224
       },
       {
@@ -9631,7 +9631,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 749458540.983963,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 16
       },
       {
@@ -9662,7 +9662,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 232754383.01296234,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 72
       },
       {
@@ -9693,7 +9693,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 950159722.202301,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -9712,7 +9712,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 11944421.36001587,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -9743,7 +9743,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 181378004.45518494,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 329
       },
       {
@@ -9774,7 +9774,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 861103095.7004547,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 32
       },
       {
@@ -9805,7 +9805,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 682451926.0724306,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 99
       },
       {
@@ -9836,7 +9836,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 178327818.35784912,
-        "cluster_min_range_adr": 1.9593656786761882,
+        "range_3bar_adr": 1.9593656786761882,
         "sessions_since_prior_entry": null
       },
       {
@@ -9867,7 +9867,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 646491620.4051971,
-        "cluster_min_range_adr": 2.0407245413428354,
+        "range_3bar_adr": 2.0407245413428354,
         "sessions_since_prior_entry": 27
       },
       {
@@ -9898,7 +9898,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 832241157.4047089,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 26
       },
       {
@@ -9929,7 +9929,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 148885337.5512123,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -9960,7 +9960,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 608042414.8144531,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -9991,7 +9991,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 232921472.48535156,
-        "cluster_min_range_adr": 2.0888342654479377,
+        "range_3bar_adr": 2.0888342654479377,
         "sessions_since_prior_entry": 11
       },
       {
@@ -10022,7 +10022,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 448378183.1626892,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -10053,7 +10053,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 9333418632.803726,
-        "cluster_min_range_adr": 1.8125244140385905,
+        "range_3bar_adr": 1.8125244140385905,
         "sessions_since_prior_entry": 297
       },
       {
@@ -10084,7 +10084,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 152817187.61634827,
-        "cluster_min_range_adr": 1.8694549365107582,
+        "range_3bar_adr": 1.8694549365107582,
         "sessions_since_prior_entry": 11
       },
       {
@@ -10113,7 +10113,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 183337952.444458,
-        "cluster_min_range_adr": 1.7302212177152776,
+        "range_3bar_adr": 1.7302212177152776,
         "sessions_since_prior_entry": null
       },
       {
@@ -10144,7 +10144,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 120676220.59516907,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -10175,7 +10175,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1054989450.7527351,
-        "cluster_min_range_adr": 1.6786501805673368,
+        "range_3bar_adr": 1.6786501805673368,
         "sessions_since_prior_entry": null
       },
       {
@@ -10206,7 +10206,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 849972531.2261581,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 58
       },
       {
@@ -10237,7 +10237,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1586520295.1202393,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 96
       },
       {
@@ -10268,7 +10268,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1022375979.2427063,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 16
       },
       {
@@ -10287,7 +10287,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 3484008.039308548,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -10318,7 +10318,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 939135046.7132568,
-        "cluster_min_range_adr": 1.8020499086435777,
+        "range_3bar_adr": 1.8020499086435777,
         "sessions_since_prior_entry": 31
       },
       {
@@ -10349,7 +10349,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 178830548.11439514,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -10380,7 +10380,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 111361145.30143738,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -10411,7 +10411,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 303400599.41101074,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 190
       },
       {
@@ -10442,7 +10442,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 426197359.8083496,
-        "cluster_min_range_adr": 3.1760761746286734,
+        "range_3bar_adr": 3.1760761746286734,
         "sessions_since_prior_entry": 6
       },
       {
@@ -10473,7 +10473,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 86511651.63536072,
-        "cluster_min_range_adr": 2.038504882136336,
+        "range_3bar_adr": 2.038504882136336,
         "sessions_since_prior_entry": null
       },
       {
@@ -10504,7 +10504,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 112455536.54642105,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 5
       },
       {
@@ -10535,7 +10535,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 4400042379.627991,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 7
       },
       {
@@ -10566,7 +10566,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 222386095.74279785,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 143
       },
       {
@@ -10597,7 +10597,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 19057892518.90869,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 17
       },
       {
@@ -10628,7 +10628,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 40735933.7980628,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 104
       },
       {
@@ -10659,7 +10659,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 1021099840.9626007,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -10690,7 +10690,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 402874360.20851135,
-        "cluster_min_range_adr": 2.100900869380394,
+        "range_3bar_adr": 2.100900869380394,
         "sessions_since_prior_entry": null
       },
       {
@@ -10721,7 +10721,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 958248152.8743744,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 121
       },
       {
@@ -10752,7 +10752,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 455726173.2154846,
-        "cluster_min_range_adr": 1.8296427077115094,
+        "range_3bar_adr": 1.8296427077115094,
         "sessions_since_prior_entry": 2
       },
       {
@@ -10783,7 +10783,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 2594942284.105301,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 33
       },
       {
@@ -10808,7 +10808,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 88265015.21816254,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 10
       },
       {
@@ -10839,7 +10839,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1269338812.7301025,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 8
       },
       {
@@ -10870,7 +10870,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 979113137.8753662,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 52
       },
       {
@@ -10899,7 +10899,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 159975706.92100525,
-        "cluster_min_range_adr": 1.762280597065675,
+        "range_3bar_adr": 1.762280597065675,
         "sessions_since_prior_entry": null
       },
       {
@@ -10930,7 +10930,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 750312164.2196655,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 1
       },
       {
@@ -10959,7 +10959,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 44863155.54103851,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -10990,7 +10990,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 747262019.1452026,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -11021,7 +11021,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 806011017.1348572,
-        "cluster_min_range_adr": 1.6686663684292775,
+        "range_3bar_adr": 1.6686663684292775,
         "sessions_since_prior_entry": null
       },
       {
@@ -11052,7 +11052,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 394150799.1897583,
-        "cluster_min_range_adr": 1.8760616819330336,
+        "range_3bar_adr": 1.8760616819330336,
         "sessions_since_prior_entry": 4
       },
       {
@@ -11083,7 +11083,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 258926417.17071533,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -11114,7 +11114,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 750312164.2196655,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 153
       },
       {
@@ -11145,7 +11145,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1950161898.4294891,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 162
       },
       {
@@ -11176,7 +11176,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1269687769.7486877,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 43
       },
       {
@@ -11195,7 +11195,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 18876338.605880737,
-        "cluster_min_range_adr": 1.64856350684852,
+        "range_3bar_adr": 1.64856350684852,
         "sessions_since_prior_entry": 399
       },
       {
@@ -11224,7 +11224,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 609923529.6173096,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 176
       },
       {
@@ -11255,7 +11255,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 168385818.2899475,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 78
       },
       {
@@ -11284,7 +11284,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 70240206.61621094,
-        "cluster_min_range_adr": 2.714881144167653,
+        "range_3bar_adr": 2.714881144167653,
         "sessions_since_prior_entry": 11
       },
       {
@@ -11315,7 +11315,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 994098371.5763092,
-        "cluster_min_range_adr": 2.2671495317458072,
+        "range_3bar_adr": 2.2671495317458072,
         "sessions_since_prior_entry": 11
       },
       {
@@ -11346,7 +11346,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 116217249.2515564,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -11365,7 +11365,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 277823734.5703125,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -11396,7 +11396,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 2958806587.703705,
-        "cluster_min_range_adr": 2.4769365488930037,
+        "range_3bar_adr": 2.4769365488930037,
         "sessions_since_prior_entry": 26
       },
       {
@@ -11427,7 +11427,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 21474020.677642822,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -11446,7 +11446,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 425228.5033583641,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -11477,7 +11477,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1046158964.0621185,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 32
       },
       {
@@ -11508,7 +11508,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 603864600.7408142,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 8
       },
       {
@@ -11539,7 +11539,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 717822718.649292,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -11568,7 +11568,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 584156405.6625366,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -11599,7 +11599,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 989050895.7183838,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 7
       },
       {
@@ -11630,7 +11630,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 151104622.59140015,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 60
       },
       {
@@ -11659,7 +11659,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 57309918.8123703,
-        "cluster_min_range_adr": 2.156205863967897,
+        "range_3bar_adr": 2.156205863967897,
         "sessions_since_prior_entry": null
       },
       {
@@ -11690,7 +11690,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 150032554.11186218,
-        "cluster_min_range_adr": 2.0604056171684904,
+        "range_3bar_adr": 2.0604056171684904,
         "sessions_since_prior_entry": 4
       },
       {
@@ -11721,7 +11721,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 647948920.3468323,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 9
       },
       {
@@ -11752,7 +11752,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 363695032.5562744,
-        "cluster_min_range_adr": 1.6461314080463239,
+        "range_3bar_adr": 1.6461314080463239,
         "sessions_since_prior_entry": 19
       },
       {
@@ -11781,7 +11781,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 104346603.29303741,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -11812,7 +11812,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 366436828.9955139,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -11831,7 +11831,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1015276012.6190186,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -11862,7 +11862,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 54295551.62780285,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -11893,7 +11893,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 189399849.09534454,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 65
       },
       {
@@ -11924,7 +11924,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 477775781.6856384,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 172
       },
       {
@@ -11955,7 +11955,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 870874189.3493652,
-        "cluster_min_range_adr": 2.161282344408914,
+        "range_3bar_adr": 2.161282344408914,
         "sessions_since_prior_entry": 4
       },
       {
@@ -11986,7 +11986,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 403030651.66778564,
-        "cluster_min_range_adr": 1.5946933154113194,
+        "range_3bar_adr": 1.5946933154113194,
         "sessions_since_prior_entry": 22
       },
       {
@@ -12015,7 +12015,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 178764674.98483658,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 66
       },
       {
@@ -12046,7 +12046,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 359418732.30514526,
-        "cluster_min_range_adr": 1.6934731423193117,
+        "range_3bar_adr": 1.6934731423193117,
         "sessions_since_prior_entry": 91
       },
       {
@@ -12077,7 +12077,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1894084762.2504234,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 50
       },
       {
@@ -12108,7 +12108,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 234842396.4668274,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 26
       },
       {
@@ -12139,7 +12139,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 408710001.98604584,
-        "cluster_min_range_adr": 2.466671605646029,
+        "range_3bar_adr": 2.466671605646029,
         "sessions_since_prior_entry": 4
       },
       {
@@ -12170,7 +12170,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 167917082.9612732,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -12201,7 +12201,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 5827553348.057556,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 64
       },
       {
@@ -12232,7 +12232,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 269024400.0595093,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -12263,7 +12263,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 56904045.52838802,
-        "cluster_min_range_adr": 1.5641428779728859,
+        "range_3bar_adr": 1.5641428779728859,
         "sessions_since_prior_entry": null
       },
       {
@@ -12294,7 +12294,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 355035620.24650574,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -12325,7 +12325,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 3776354917.850113,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -12356,7 +12356,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 640189537.5,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 61
       },
       {
@@ -12387,7 +12387,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 221130873.5639572,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -12418,7 +12418,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 912958298.3455658,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 271
       },
       {
@@ -12449,7 +12449,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 383283186.1712723,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 1
       },
       {
@@ -12480,7 +12480,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 54570804.26559448,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 7
       },
       {
@@ -12509,7 +12509,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 83670299.1531372,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -12540,7 +12540,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 182787046.29592896,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 52
       },
       {
@@ -12571,7 +12571,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 562520150.1903534,
-        "cluster_min_range_adr": 1.6868368174393762,
+        "range_3bar_adr": 1.6868368174393762,
         "sessions_since_prior_entry": 26
       },
       {
@@ -12600,7 +12600,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 20579681.033706665,
-        "cluster_min_range_adr": 1.6325335325642252,
+        "range_3bar_adr": 1.6325335325642252,
         "sessions_since_prior_entry": 12
       },
       {
@@ -12629,7 +12629,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 26585746.554923058,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -12660,7 +12660,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 751709398.0194092,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 5
       },
       {
@@ -12689,7 +12689,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 299223555.0945282,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -12720,7 +12720,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 199090497.8942871,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 58
       },
       {
@@ -12751,7 +12751,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 573253459.4175339,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 93
       },
       {
@@ -12782,7 +12782,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 275829209.11979675,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -12813,7 +12813,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 152287691.4468193,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -12844,7 +12844,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 251984776.9809723,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 20
       },
       {
@@ -12875,7 +12875,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 624850525.6032944,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -12906,7 +12906,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 335220927.1102905,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -12937,7 +12937,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 860727619.2184448,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 58
       },
       {
@@ -12968,7 +12968,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 430873260.3178024,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 35
       },
       {
@@ -12999,7 +12999,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 564280651.5701294,
-        "cluster_min_range_adr": 2.4270945080278934,
+        "range_3bar_adr": 2.4270945080278934,
         "sessions_since_prior_entry": 10
       },
       {
@@ -13030,7 +13030,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 631106102.6103973,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 15
       },
       {
@@ -13061,7 +13061,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1290957716.8075562,
-        "cluster_min_range_adr": 1.89900244881799,
+        "range_3bar_adr": 1.89900244881799,
         "sessions_since_prior_entry": 90
       },
       {
@@ -13090,7 +13090,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 59808236.73591614,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -13121,7 +13121,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1972435426.3183594,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -13152,7 +13152,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1027631489.3963814,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -13183,7 +13183,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 559186313.571167,
-        "cluster_min_range_adr": 1.7124909557585701,
+        "range_3bar_adr": 1.7124909557585701,
         "sessions_since_prior_entry": 77
       },
       {
@@ -13214,7 +13214,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 446195075.9460449,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -13245,7 +13245,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1373037551.5508652,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 51
       },
       {
@@ -13276,7 +13276,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1100145805.9993744,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 150
       },
       {
@@ -13307,7 +13307,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 606131654.7805786,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 59
       },
       {
@@ -13338,7 +13338,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 688418092.5,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 249
       },
       {
@@ -13367,7 +13367,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 351599771.47865295,
-        "cluster_min_range_adr": 2.284157410386644,
+        "range_3bar_adr": 2.284157410386644,
         "sessions_since_prior_entry": 47
       },
       {
@@ -13398,7 +13398,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 757078494.1532135,
-        "cluster_min_range_adr": 2.2234329574931024,
+        "range_3bar_adr": 2.2234329574931024,
         "sessions_since_prior_entry": 30
       },
       {
@@ -13429,7 +13429,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 230358078.0456543,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 44
       },
       {
@@ -13460,7 +13460,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 545377138.1603241,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 107
       },
       {
@@ -13491,7 +13491,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 359484031.07852936,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 54
       },
       {
@@ -13522,7 +13522,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 263144593.0229187,
-        "cluster_min_range_adr": 1.77243027701507,
+        "range_3bar_adr": 1.77243027701507,
         "sessions_since_prior_entry": null
       },
       {
@@ -13551,7 +13551,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 3711916412.7105713,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 157
       },
       {
@@ -13582,7 +13582,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 160150974.2904663,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 15
       },
       {
@@ -13613,7 +13613,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 471282981.776804,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 18
       },
       {
@@ -13644,7 +13644,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 1197810789.9093628,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -13675,7 +13675,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 810960943.5362339,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -13704,7 +13704,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 866360895.6394196,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -13735,7 +13735,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 125075137.71514893,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -13764,7 +13764,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 181882614.99816895,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -13795,7 +13795,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 151416574.1672516,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 18
       },
       {
@@ -13826,7 +13826,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 676647272.410202,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 51
       },
       {
@@ -13857,7 +13857,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 976741856.4918518,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 59
       },
       {
@@ -13888,7 +13888,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 241229453.56537056,
-        "cluster_min_range_adr": 1.8998567235102362,
+        "range_3bar_adr": 1.8998567235102362,
         "sessions_since_prior_entry": 27
       },
       {
@@ -13913,7 +13913,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 323146639.59884644,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -13944,7 +13944,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 648400354.0878296,
-        "cluster_min_range_adr": 1.643815058566333,
+        "range_3bar_adr": 1.643815058566333,
         "sessions_since_prior_entry": 110
       },
       {
@@ -13975,7 +13975,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1334350783.121109,
-        "cluster_min_range_adr": 2.0233503187198334,
+        "range_3bar_adr": 2.0233503187198334,
         "sessions_since_prior_entry": 73
       },
       {
@@ -14006,7 +14006,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 979113137.8753662,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 1
       },
       {
@@ -14037,7 +14037,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 86270879.80426025,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -14068,7 +14068,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 433242314.40353394,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -14099,7 +14099,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 568093685.9736443,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 87
       },
       {
@@ -14130,7 +14130,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 2869848081.192398,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 45
       },
       {
@@ -14161,7 +14161,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 52130651.774168015,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 1
       },
       {
@@ -14192,7 +14192,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 596055487.5,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -14223,7 +14223,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 265871899.6887207,
-        "cluster_min_range_adr": 2.171919391907321,
+        "range_3bar_adr": 2.171919391907321,
         "sessions_since_prior_entry": null
       },
       {
@@ -14254,7 +14254,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 328359613.36502075,
-        "cluster_min_range_adr": 1.7227168566883935,
+        "range_3bar_adr": 1.7227168566883935,
         "sessions_since_prior_entry": 9
       },
       {
@@ -14285,7 +14285,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1556725346.0105896,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 49
       },
       {
@@ -14316,7 +14316,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 238201986.5715027,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 106
       },
       {
@@ -14335,7 +14335,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 17867526.317596436,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -14366,7 +14366,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 96658642.5,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -14397,7 +14397,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 41361520.5242157,
-        "cluster_min_range_adr": 1.5525373740879183,
+        "range_3bar_adr": 1.5525373740879183,
         "sessions_since_prior_entry": 2
       },
       {
@@ -14428,7 +14428,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 58896824.39804077,
-        "cluster_min_range_adr": 2.184630234735632,
+        "range_3bar_adr": 2.184630234735632,
         "sessions_since_prior_entry": 2
       },
       {
@@ -14459,7 +14459,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 603715868.3898926,
-        "cluster_min_range_adr": 1.593013769166573,
+        "range_3bar_adr": 1.593013769166573,
         "sessions_since_prior_entry": null
       },
       {
@@ -14490,7 +14490,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 96377076.5898614,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 28
       },
       {
@@ -14521,7 +14521,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1174055128.1204224,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 16
       },
       {
@@ -14552,7 +14552,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 261969128.42407227,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 56
       },
       {
@@ -14583,7 +14583,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 505215350.3528595,
-        "cluster_min_range_adr": 1.7702665904811545,
+        "range_3bar_adr": 1.7702665904811545,
         "sessions_since_prior_entry": 71
       },
       {
@@ -14614,7 +14614,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 19122723.448991776,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 53
       },
       {
@@ -14641,7 +14641,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 66702734.03482437,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -14672,7 +14672,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 507833476.083374,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 79
       },
       {
@@ -14703,7 +14703,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 71240487.3257637,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 62
       },
       {
@@ -14734,7 +14734,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 884604520.9510803,
-        "cluster_min_range_adr": 1.973516632073895,
+        "range_3bar_adr": 1.973516632073895,
         "sessions_since_prior_entry": 187
       },
       {
@@ -14765,7 +14765,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 409317475.3015518,
-        "cluster_min_range_adr": 2.490681386689015,
+        "range_3bar_adr": 2.490681386689015,
         "sessions_since_prior_entry": 9
       },
       {
@@ -14794,7 +14794,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 298921630.0,
-        "cluster_min_range_adr": 1.6492202696562759,
+        "range_3bar_adr": 1.6492202696562759,
         "sessions_since_prior_entry": null
       },
       {
@@ -14825,7 +14825,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 979251398.2721558,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 95
       },
       {
@@ -14844,7 +14844,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 6190896.9886779785,
-        "cluster_min_range_adr": 2.6984021174314825,
+        "range_3bar_adr": 2.6984021174314825,
         "sessions_since_prior_entry": null
       },
       {
@@ -14875,7 +14875,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 930094640.1058197,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 18
       },
       {
@@ -14906,7 +14906,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 755517127.7927399,
-        "cluster_min_range_adr": 2.7296617146208715,
+        "range_3bar_adr": 2.7296617146208715,
         "sessions_since_prior_entry": 22
       },
       {
@@ -14937,7 +14937,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 563093671.0090637,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 7
       },
       {
@@ -14966,7 +14966,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 24963902.993774414,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -14995,7 +14995,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 344585681.73065186,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15026,7 +15026,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1050962502.7381897,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 139
       },
       {
@@ -15057,7 +15057,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 208625176.89743042,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15088,7 +15088,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 102984916.65434837,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 1
       },
       {
@@ -15119,7 +15119,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 37673618.52769852,
-        "cluster_min_range_adr": 1.555905732312668,
+        "range_3bar_adr": 1.555905732312668,
         "sessions_since_prior_entry": 10
       },
       {
@@ -15150,7 +15150,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 75819656.97975159,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15181,7 +15181,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 32890232.208251953,
-        "cluster_min_range_adr": 2.2492538195875507,
+        "range_3bar_adr": 2.2492538195875507,
         "sessions_since_prior_entry": 59
       },
       {
@@ -15210,7 +15210,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 54095493.56272888,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15241,7 +15241,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 226428354.28142548,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 8
       },
       {
@@ -15260,7 +15260,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 426301540.41290283,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15291,7 +15291,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 240128784.31625366,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15322,7 +15322,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 116630266.8967247,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 79
       },
       {
@@ -15353,7 +15353,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 92399563.12713623,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 59
       },
       {
@@ -15384,7 +15384,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 549203832.5939178,
-        "cluster_min_range_adr": 1.9208057067606292,
+        "range_3bar_adr": 1.9208057067606292,
         "sessions_since_prior_entry": 76
       },
       {
@@ -15415,7 +15415,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 416404784.0619087,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 28
       },
       {
@@ -15446,7 +15446,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 17740308.277511597,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 28
       },
       {
@@ -15465,7 +15465,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1145133976.6540527,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15484,7 +15484,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 0.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15515,7 +15515,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1966726581.4117432,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 88
       },
       {
@@ -15546,7 +15546,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 35974630.13763428,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15577,7 +15577,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 73972230.62133789,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15602,7 +15602,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 31232466.202926636,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15631,7 +15631,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 52280311.08036041,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15662,7 +15662,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 759685951.3092041,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 197
       },
       {
@@ -15693,7 +15693,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 450397248.04115295,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 91
       },
       {
@@ -15724,7 +15724,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 161744428.017807,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 39
       },
       {
@@ -15755,7 +15755,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 250658145.47157288,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 23
       },
       {
@@ -15786,7 +15786,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 107123525.09689331,
-        "cluster_min_range_adr": 2.4957177955842185,
+        "range_3bar_adr": 2.4957177955842185,
         "sessions_since_prior_entry": null
       },
       {
@@ -15817,7 +15817,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 135018042.34228134,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 7
       },
       {
@@ -15836,7 +15836,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 10443636383.045197,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15867,7 +15867,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 451389400.126564,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -15898,7 +15898,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 717440102.9468536,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -15929,7 +15929,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 431115386.3937378,
-        "cluster_min_range_adr": 1.519390810367637,
+        "range_3bar_adr": 1.519390810367637,
         "sessions_since_prior_entry": 91
       },
       {
@@ -15948,7 +15948,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 294185.98980903625,
-        "cluster_min_range_adr": 1.9800527917850324,
+        "range_3bar_adr": 1.9800527917850324,
         "sessions_since_prior_entry": null
       },
       {
@@ -15979,7 +15979,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 144485632.24170685,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 136
       },
       {
@@ -16010,7 +16010,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 5063497193.181419,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 26
       },
       {
@@ -16041,7 +16041,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 302759825.61893463,
-        "cluster_min_range_adr": 1.6872881830599367,
+        "range_3bar_adr": 1.6872881830599367,
         "sessions_since_prior_entry": null
       },
       {
@@ -16060,7 +16060,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 6471651573.7335205,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 13
       },
       {
@@ -16091,7 +16091,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 76843792.5,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 14
       },
       {
@@ -16122,7 +16122,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 558269974.9359131,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -16153,7 +16153,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 130588325.71458817,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 14
       },
       {
@@ -16184,7 +16184,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 278677478.70788574,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -16215,7 +16215,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 33786726457.24182,
-        "cluster_min_range_adr": 1.8548593906698618,
+        "range_3bar_adr": 1.8548593906698618,
         "sessions_since_prior_entry": 5
       },
       {
@@ -16246,7 +16246,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 384725951.5762329,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 77
       },
       {
@@ -16277,7 +16277,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 45681284.883863926,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -16308,7 +16308,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 49077036.536461115,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -16339,7 +16339,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 646672421.6972351,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 62
       },
       {
@@ -16370,7 +16370,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 61776499.34310913,
-        "cluster_min_range_adr": 2.1799605802205275,
+        "range_3bar_adr": 2.1799605802205275,
         "sessions_since_prior_entry": null
       },
       {
@@ -16389,7 +16389,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 3648408.9710235596,
-        "cluster_min_range_adr": 2.073367494788934,
+        "range_3bar_adr": 2.073367494788934,
         "sessions_since_prior_entry": null
       },
       {
@@ -16420,7 +16420,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 401250858.0505371,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -16451,7 +16451,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1142989040.638733,
-        "cluster_min_range_adr": 1.7987223873889335,
+        "range_3bar_adr": 1.7987223873889335,
         "sessions_since_prior_entry": 66
       },
       {
@@ -16482,7 +16482,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 342525259.6124172,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 38
       },
       {
@@ -16511,7 +16511,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 288600923.20098877,
-        "cluster_min_range_adr": 1.6514522705405943,
+        "range_3bar_adr": 1.6514522705405943,
         "sessions_since_prior_entry": 7
       },
       {
@@ -16540,7 +16540,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 46815433.97426605,
-        "cluster_min_range_adr": 1.7332702872448464,
+        "range_3bar_adr": 1.7332702872448464,
         "sessions_since_prior_entry": null
       },
       {
@@ -16559,7 +16559,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 15066590.557289124,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 20
       },
       {
@@ -16590,7 +16590,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1703867013.906479,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -16621,7 +16621,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 52130651.774168015,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 32
       },
       {
@@ -16652,7 +16652,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 547610625.704956,
-        "cluster_min_range_adr": 1.9228595029181579,
+        "range_3bar_adr": 1.9228595029181579,
         "sessions_since_prior_entry": 432
       },
       {
@@ -16683,7 +16683,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 37215643.08857918,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -16714,7 +16714,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 706814302.009201,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 20
       },
       {
@@ -16743,7 +16743,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 27601755.56201935,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -16774,7 +16774,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 211272709.88826752,
-        "cluster_min_range_adr": 1.6121068609688294,
+        "range_3bar_adr": 1.6121068609688294,
         "sessions_since_prior_entry": null
       },
       {
@@ -16805,7 +16805,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 433225925.4764557,
-        "cluster_min_range_adr": 1.616324590093261,
+        "range_3bar_adr": 1.616324590093261,
         "sessions_since_prior_entry": 13
       },
       {
@@ -16836,7 +16836,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1146079132.1365356,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 126
       },
       {
@@ -16867,7 +16867,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 936970019.5233154,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -16898,7 +16898,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 48986296.97523117,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 12
       },
       {
@@ -16929,7 +16929,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 400212661.73000336,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 175
       },
       {
@@ -16958,7 +16958,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 60128075.1663208,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -16989,7 +16989,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 394550225.8054733,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 25
       },
       {
@@ -17008,7 +17008,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 9149115.893936157,
-        "cluster_min_range_adr": 2.2871198612425734,
+        "range_3bar_adr": 2.2871198612425734,
         "sessions_since_prior_entry": null
       },
       {
@@ -17039,7 +17039,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 83977081.799469,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 7
       },
       {
@@ -17070,7 +17070,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 71053193.42422485,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 11
       },
       {
@@ -17089,7 +17089,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 14921594.76829052,
-        "cluster_min_range_adr": 1.6693827712444853,
+        "range_3bar_adr": 1.6693827712444853,
         "sessions_since_prior_entry": 9
       },
       {
@@ -17120,7 +17120,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 350134125.6767273,
-        "cluster_min_range_adr": 1.6445846979600511,
+        "range_3bar_adr": 1.6445846979600511,
         "sessions_since_prior_entry": null
       },
       {
@@ -17151,7 +17151,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 72353514.48822021,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 9
       },
       {
@@ -17180,7 +17180,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 325340000.6483078,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -17211,7 +17211,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 567914500.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -17242,7 +17242,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 851038562.7319336,
-        "cluster_min_range_adr": 2.079824869089526,
+        "range_3bar_adr": 2.079824869089526,
         "sessions_since_prior_entry": 62
       },
       {
@@ -17273,7 +17273,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 346381920.5505371,
-        "cluster_min_range_adr": 1.6662457526613292,
+        "range_3bar_adr": 1.6662457526613292,
         "sessions_since_prior_entry": 86
       },
       {
@@ -17304,7 +17304,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 732244769.8883057,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 54
       },
       {
@@ -17335,7 +17335,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 52130651.774168015,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 1
       },
       {
@@ -17366,7 +17366,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 558269974.9359131,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 21
       },
       {
@@ -17391,7 +17391,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 100277096.34275436,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -17422,7 +17422,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 883770378.9741516,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -17441,7 +17441,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 150322.50084877014,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -17472,7 +17472,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 44424495.2221632,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -17503,7 +17503,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 688338501.6448975,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 56
       },
       {
@@ -17534,7 +17534,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 82408511.18564606,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -17565,7 +17565,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 103485719.67811584,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -17596,7 +17596,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 513931582.78656006,
-        "cluster_min_range_adr": 1.9167443805974453,
+        "range_3bar_adr": 1.9167443805974453,
         "sessions_since_prior_entry": 121
       },
       {
@@ -17621,7 +17621,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 71048308.76464844,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -17652,7 +17652,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 37590277.93159485,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 9
       },
       {
@@ -17683,7 +17683,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 264813607.97247887,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 60
       },
       {
@@ -17714,7 +17714,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 90576980.40194511,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 183
       },
       {
@@ -17741,7 +17741,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 275160501.70669556,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -17772,7 +17772,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 39839854.615859985,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 79
       },
       {
@@ -17803,7 +17803,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 433747757.0640564,
-        "cluster_min_range_adr": 1.732346169291726,
+        "range_3bar_adr": 1.732346169291726,
         "sessions_since_prior_entry": 130
       },
       {
@@ -17834,7 +17834,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 155533241.8301773,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 20
       },
       {
@@ -17865,7 +17865,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1006759026.8669128,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 19
       },
       {
@@ -17896,7 +17896,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 488415051.7738342,
-        "cluster_min_range_adr": 1.6124083943766316,
+        "range_3bar_adr": 1.6124083943766316,
         "sessions_since_prior_entry": null
       },
       {
@@ -17927,7 +17927,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 103485719.67811584,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -17958,7 +17958,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 374725678.4262657,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 25
       },
       {
@@ -17989,7 +17989,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 391479251.80389404,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 15
       },
       {
@@ -18018,7 +18018,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 36888957.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 4
       },
       {
@@ -18037,7 +18037,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 5712657.136464119,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18056,7 +18056,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 8280540.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 13
       },
       {
@@ -18087,7 +18087,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 96658642.5,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -18106,7 +18106,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 14184000.270938873,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 75
       },
       {
@@ -18135,7 +18135,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 23579751.765441895,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18166,7 +18166,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 61211424.19633865,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 16
       },
       {
@@ -18197,7 +18197,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 212312692.85125732,
-        "cluster_min_range_adr": 1.8632642254528433,
+        "range_3bar_adr": 1.8632642254528433,
         "sessions_since_prior_entry": 144
       },
       {
@@ -18228,7 +18228,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 39754361.962890625,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18259,7 +18259,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 280217970.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 36
       },
       {
@@ -18278,7 +18278,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1627026.9325532913,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 44
       },
       {
@@ -18309,7 +18309,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 366436828.9955139,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 37
       },
       {
@@ -18340,7 +18340,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 1048604469.9671936,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18367,7 +18367,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1046033038.6302948,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18398,7 +18398,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 652838085.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18429,7 +18429,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 28910449.16419983,
-        "cluster_min_range_adr": 1.7685434767345012,
+        "range_3bar_adr": 1.7685434767345012,
         "sessions_since_prior_entry": 6
       },
       {
@@ -18456,7 +18456,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 61684827.37874985,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18475,7 +18475,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 6393101.899719238,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 78
       },
       {
@@ -18506,7 +18506,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 18111610.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 33
       },
       {
@@ -18535,7 +18535,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 40429003.1993866,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18554,7 +18554,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 14919048.374772072,
-        "cluster_min_range_adr": 1.8037106097531106,
+        "range_3bar_adr": 1.8037106097531106,
         "sessions_since_prior_entry": 9
       },
       {
@@ -18573,7 +18573,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 526902.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18604,7 +18604,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 37535738.15841675,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18623,7 +18623,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 33851.89435529709,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18654,7 +18654,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 812808417.7631378,
-        "cluster_min_range_adr": 2.203253523002488,
+        "range_3bar_adr": 2.203253523002488,
         "sessions_since_prior_entry": 6
       },
       {
@@ -18673,7 +18673,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 4991265.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18702,7 +18702,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 90912243.82572174,
-        "cluster_min_range_adr": 2.193412484345611,
+        "range_3bar_adr": 2.193412484345611,
         "sessions_since_prior_entry": null
       },
       {
@@ -18733,7 +18733,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 33934564.546239376,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 12
       },
       {
@@ -18764,7 +18764,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 120628685.81643105,
-        "cluster_min_range_adr": 1.9178765372565159,
+        "range_3bar_adr": 1.9178765372565159,
         "sessions_since_prior_entry": null
       },
       {
@@ -18795,7 +18795,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 28052267.162275314,
-        "cluster_min_range_adr": 1.5473981914330113,
+        "range_3bar_adr": 1.5473981914330113,
         "sessions_since_prior_entry": null
       },
       {
@@ -18826,7 +18826,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 35509484.21125412,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 368
       },
       {
@@ -18845,7 +18845,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 4790270.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 37
       },
       {
@@ -18876,7 +18876,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 1078313404.488968,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -18907,7 +18907,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 112158395.00862122,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 149
       },
       {
@@ -18926,7 +18926,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 4384953.375,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18945,7 +18945,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 12136086.31927967,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -18976,7 +18976,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 105022284.73235607,
-        "cluster_min_range_adr": 1.9646170219864627,
+        "range_3bar_adr": 1.9646170219864627,
         "sessions_since_prior_entry": 183
       },
       {
@@ -19007,7 +19007,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 38756283.17292929,
-        "cluster_min_range_adr": 1.8892056888012305,
+        "range_3bar_adr": 1.8892056888012305,
         "sessions_since_prior_entry": null
       },
       {
@@ -19036,7 +19036,7 @@
         "entry_session_break": false,
         "continuation": true,
         "median_dollar_volume": 25775558.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -19065,7 +19065,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 215938312.5,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19084,7 +19084,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 891552.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 6
       },
       {
@@ -19115,7 +19115,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 636427760.4358673,
-        "cluster_min_range_adr": 1.6710947083366972,
+        "range_3bar_adr": 1.6710947083366972,
         "sessions_since_prior_entry": 10
       },
       {
@@ -19134,7 +19134,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 2413020.1564073563,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19165,7 +19165,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 57122622.35202789,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19184,7 +19184,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 2532870.7143962383,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 3
       },
       {
@@ -19203,7 +19203,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 49579.50061559677,
-        "cluster_min_range_adr": 1.6023395267090115,
+        "range_3bar_adr": 1.6023395267090115,
         "sessions_since_prior_entry": null
       },
       {
@@ -19234,7 +19234,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 46830794.96383667,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 151
       },
       {
@@ -19265,7 +19265,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 3642814545.6832886,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19284,7 +19284,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1518120.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19303,7 +19303,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 6341285.225961685,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 12
       },
       {
@@ -19322,7 +19322,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 8974420.334661007,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19353,7 +19353,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 22174425.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19372,7 +19372,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 929879.1655960083,
-        "cluster_min_range_adr": 1.563707684981835,
+        "range_3bar_adr": 1.563707684981835,
         "sessions_since_prior_entry": null
       },
       {
@@ -19401,7 +19401,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 43692266.14494324,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19432,7 +19432,7 @@
         "entry_session_break": true,
         "continuation": false,
         "median_dollar_volume": 36872800.45642853,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 12
       },
       {
@@ -19451,7 +19451,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 1391948.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 2
       },
       {
@@ -19470,7 +19470,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 479015.9490556717,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19501,7 +19501,7 @@
         "entry_session_break": true,
         "continuation": true,
         "median_dollar_volume": 28329912.497663498,
-        "cluster_min_range_adr": 1.7306853638581172,
+        "range_3bar_adr": 1.7306853638581172,
         "sessions_since_prior_entry": 5
       },
       {
@@ -19520,7 +19520,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 287160.0,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19539,7 +19539,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 1821469.2539156675,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": null
       },
       {
@@ -19570,7 +19570,7 @@
         "entry_session_break": false,
         "continuation": false,
         "median_dollar_volume": 608544436.7254257,
-        "cluster_min_range_adr": null,
+        "range_3bar_adr": null,
         "sessions_since_prior_entry": 49
       }
     ]

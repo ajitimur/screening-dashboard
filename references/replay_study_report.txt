@@ -35,7 +35,7 @@ cluster miss characterised (171 misses):
   fresh entries:                     148
   marginal (<= 2.0x ADR, a modest widen recovers): 113
   far (name in motion, no base):     58
-  tightest-window range in ADR: median 1.85 (p25 1.68, p75 2.13, max 3.42)
+  3-bar range in ADR: median 1.85 (p25 1.68, p75 2.13, max 3.42)
   sessions since prior entry (continuation misses): median 4.0 (min 2, max 5)
 
 == A2 placement ==

@@ -14,19 +14,22 @@ base, with its trigger and stop. The load-bearing identities this seam pins:
 Everything here is pure over an oldest-first ``list[Bar]`` — no store, no network.
 """
 
+import random
 from datetime import date, timedelta
 
 from screener.bars import Bar
 from screener.detection import (
     DETECTOR_VERSION,
+    K_MAX,
+    K_MIN,
     STOP_CONVENTION_ADR,
     TOP_DECILE,
     Rank,
     _churn_l,
     _dryup,
-    cluster_min_range_adr,
     detect,
     detection_gate,
+    range_3bar_adr,
 )
 
 CAL = [date(2026, 1, 1) + timedelta(days=i) for i in range(200)]
@@ -138,21 +141,50 @@ def test_a_name_with_no_tight_cluster_is_not_a_detection():
     assert detect("AAA", _bars(hlc), CAL[96]) is None
 
 
-def test_cluster_min_range_adr_reports_the_tightest_trailing_window():
-    # The read-only diagnostic behind the #132 study: the tightest trailing 3-7
-    # bar range in ADR, taken *regardless* of whether it clears TIGHT_MULT, so a
-    # ``no_cluster`` rejection can still be quantified against the condition's
-    # window. Range is monotonic in k, so the minimum is the smallest (3-bar)
-    # window that fits — here the last three bars span 110 − 104 = 6, which at
-    # adr_abs = 4.0 is 1.5 ADR; every wider window drags in the low-90 bars.
+def test_range_3bar_adr_reports_the_trailing_3_bar_range():
+    # The read-only diagnostic behind the #132 study: the trailing 3-bar range in
+    # ADR, taken *regardless* of whether it clears TIGHT_MULT, so a ``no_cluster``
+    # rejection can still be quantified against the condition's window. Here the
+    # last three bars span 110 − 104 = 6, which at adr_abs = 4.0 is 1.5 ADR; every
+    # wider window drags in the low-90 bars.
     high = [100.0, 100.0, 110.0, 110.0, 110.0]
     low = [90.0, 90.0, 104.0, 104.0, 104.0]
-    assert cluster_min_range_adr(high, low, 4, 4.0) == 1.5
+    assert range_3bar_adr(high, low, 4, 4.0) == 1.5
     # A window genuinely in motion reads far over the 1.5 window.
     wide_low = [90.0, 90.0, 100.0, 98.0, 102.0]
-    assert cluster_min_range_adr(high, wide_low, 4, 4.0) == (110.0 - 98.0) / 4.0
+    assert range_3bar_adr(high, wide_low, 4, 4.0) == (110.0 - 98.0) / 4.0
     # Non-positive ADR is undefined, not a range.
-    assert cluster_min_range_adr(high, low, 4, 0.0) is None
+    assert range_3bar_adr(high, low, 4, 0.0) is None
+    # A window running off the front of the series has nothing to measure.
+    assert range_3bar_adr(high, low, 1, 4.0) is None
+
+
+def test_range_3bar_adr_is_the_minimum_over_every_cluster_k():
+    # The rename rests on a proof, not a measurement: trailing range is monotone
+    # in k, so the min over k in [K_MIN, K_MAX] is *always* the K_MIN window. This
+    # pins the identity the docstring argues for — if a future K_MIN/K_MAX change
+    # or a scan rewrite broke it, the diagnostic's name would start lying. The
+    # oracle below is the scan `range_3bar_adr` used to run before #146 collapsed
+    # it; this is now the only place that loop lives.
+    def min_over_k(high, low, as_of, adr_abs):
+        best = None
+        for k in range(K_MIN, K_MAX + 1):
+            lo = as_of - k + 1
+            if lo < 0:
+                continue
+            rng = (max(high[lo:as_of + 1]) - min(low[lo:as_of + 1])) / adr_abs
+            best = rng if best is None or rng < best else best
+        return best
+
+    rng = random.Random(146)
+    for _ in range(200):
+        close = [rng.uniform(5.0, 200.0) for _ in range(12)]
+        high = [c * (1.0 + rng.uniform(0.0, 0.08)) for c in close]
+        low = [c * (1.0 - rng.uniform(0.0, 0.08)) for c in close]
+        for as_of in range(2, 12):
+            assert range_3bar_adr(high, low, as_of, 4.0) == min_over_k(
+                high, low, as_of, 4.0
+            )
 
 
 # -- the star score's derived signals (spec §4.7) -----------------------------

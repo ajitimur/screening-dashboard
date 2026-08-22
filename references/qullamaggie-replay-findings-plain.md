@@ -793,6 +793,91 @@ irrelevant. A specific suspect (the 14-day maximum) is named and left open.
 
 ---
 
+## Test 3d — Would "did it beat the index?" earn a place in the scoring? **No.**
+
+One of the eight scored qualities, **prior run-up**, is dead weight. Every setup
+the app finds passes it, by construction — 100% of his picks and 100% of the field
+he passed over. It takes up one of nine points and can never change the order of
+the list. So the question was whether something better could take its place.
+
+The candidate: **did the stock hold its ground against the market index while it
+was building its base?** Divide the stock's price by the index's price, and check
+whether that ratio is at least as high today as it was on the day the base
+started. Not "at a new high" — just *not worse*. Matching the index counts as a
+pass.
+
+**The rules for passing or failing were written down before the numbers were
+run.** That matters more than it sounds. Written afterwards, "the difference went
+the right way" means nothing, and this project has already had two qualities turn
+out to work backwards from what everyone expected. So four criteria were fixed in
+advance, and the study returns a verdict against them — no negotiating after the
+fact, and only **one** version of the idea was tested, because trying five and
+keeping the best-looking one is just fitting to noise.
+
+### The result
+
+The test was run twice, over the same 505 trading days, changing only which
+version of the setup-finder produced the field. The second run matters because the
+setup-finder has been changed twice since the original comparison table was made,
+and it now finds nearly three times as many setups per day.
+
+| | His picks | The field he passed over | Difference |
+|---|---|---|---|
+| Old setup-finder | 7.2% (69 trades) | 13.0% (14,354 setups) | **−5.8** |
+| Current setup-finder | 10.0% (140 trades) | 12.1% (34,543 setups) | **−2.1** |
+
+**The difference is negative on both.** He takes setups that held up against the
+index *less* often than the ones he skipped. That triggers criterion 4: **do not
+ship it, and write it down** — a negative result is information, not a failure.
+
+Nothing in the app changed. The scoring is exactly what it was.
+
+### Why it came out this way
+
+The reason is in the definition, and it only became obvious once the numbers were
+in. **The base starts at a high point** — normally the peak of the prior run-up,
+and on the small number of very long bases (1.9% of them, where a 45-day cap
+kicks in) the highest point within the last 45 days instead. Different bar, same
+character: a local high either way.
+
+So the test asks a stock to hold its ratio against the index *measured from its
+own high-water mark*. Almost nothing manages that: only about one setup in ten
+passes, in **both** groups. It's a near-constant, just stuck at the bottom instead
+of the top — a different flavour of the same problem as the quality it was meant
+to replace.
+
+There's a second problem. The candidate was also checked against a much simpler
+test: **is the stock's price itself at a new high over its base?** The two agree
+about 89% of the time. So the fancy index-relative version is mostly restating
+something the app already tells you — the breakout itself. That was written into
+the criteria in advance too, and it would have blocked the idea even if the
+difference had gone the right way.
+
+### The useful thing that fell out of it
+
+Re-running the comparison under the current setup-finder was supposed to be
+housekeeping — a worry that the current scoring weights were set from a table that
+was out of date. **They aren't.** All seven scored qualities rank in exactly the
+same order on the new field as the old one, same signs throughout. Every
+difference is smaller, which is what you'd expect when the field grows by 171%,
+but nothing swapped places. The weights that shipped are standing on ground that
+still holds.
+
+This is a positive result about the scoring that came out of a negative one about
+the candidate, and it's the more useful half.
+
+### What's still open
+
+Prior run-up is still dead weight, and the slot is still empty. This study
+removed one candidate for it; it didn't make the case for keeping the incumbent.
+And a negative result on *this* rule isn't a verdict on index-relative strength in
+general — a version anchored somewhere other than the run-up's peak would be a
+different idea, and would need its own criteria written down in advance. Choosing
+one *now*, having seen these numbers, is exactly the thing the advance-registration
+rule exists to stop.
+
+---
+
 ## Test 4 — Two direct measurements
 
 ### The app's suggested stop-loss was about 4× too wide. **Confirmed.**

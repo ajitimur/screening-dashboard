@@ -1475,6 +1475,163 @@ movers. The measured result and the explicit verdict — the ranking conclusion 
 not reversed**, and the §4 null holds only under its v1 stamp — are in **§4a**, together with
 why an in-sample gap at p = 0.055 is not a validation.
 
+### 5d. `RS line` — an index-relative candidate dimension. **Rejected on criterion 4** (#160)
+
+The first dimension pre-registered under `docs/adr/0005-what-admits-a-dimension-to-the-rubric.md`,
+and the first measured against ship criteria fixed **before** the numbers were visible. It was
+proposed for the slot `Prior move` cannot earn: a **constant dimension**, 100.0% in both groups,
+pooled spread 0.000, occupying a point of a nine-point rubric that can never move the sort.
+
+**The dimension, as registered.** `RS = adj_close(name) / adj_close(index)`, hit when
+`RS_today >= RS_at_base_start` over the detection's own base. Non-decayed, not a new high — a
+name that merely *matched* the index across its base passes, and the rule has no free
+parameter. The window is the detector's actual `base_start`, which re-anchors to the highest
+high within 45 bars on a capped base and is therefore not the prior-move peak there. The
+benchmark is `MARKET_INDEX` as it stands, `^IXIC`. Both legs read `adj_close`; a missing bar on
+either leg scores `False` and is never carried forward. **One variant, pass or fail** —
+selecting among candidate booleans by whichever gap is largest is magnitude-fitting, which #128
+Q2 forbids.
+
+#### The harness reproduces §5b exactly before it is trusted
+
+The contrast was re-run over the store's **persisted** detections first, all of which carry
+`detector_version = 1`. It returns **69 taken / 14,354 not-taken** and reproduces every one of
+§5b's seven gaps. That is the control: nothing below rests on a harness that could not first
+reproduce the table it is being read against.
+
+#### Two fields, because the detector moved twice since §5b
+
+§5b's table describes a field the detector no longer produces. #154 replaced the hard tightness
+cut with the far-outlier guard, and **#149 then admitted `12m` to the detection gate** — the
+second of which landed *after* #160 was written, so the issue's "re-run under `DETECTOR_VERSION
+= 2`" is already one version behind. The live detector is **v3**, and both field-widening
+changes are in it. Both contrasts run over the **same 505 sessions**, the same persisted
+universe and the same recomputed ranks, so the detector is the only thing that differs.
+
+| | detector v1 | detector v3 (live) |
+| --- | --- | --- |
+| Detections | 45,600 | 123,558 |
+| Per session | 90.3 | 244.7 (**+171%**) |
+| Taken | 69 | 140 |
+| Not-taken | 14,354 | 34,543 |
+
+**The `RS line` result, both fields:**
+
+| Field | Taken hit rate | Not-taken hit rate | Δ | Pooled spread | Disagreement |
+| --- | --- | --- | --- | --- | --- |
+| detector v1 | 7.2% (n=69) | 13.0% (n=14,354) | **−5.8** | 0.336 | 12.4% |
+| detector v3 | 10.0% (n=140) | 12.1% (n=34,543) | **−2.1** | 0.326 | 11.2% |
+
+#### Verdict against the four pre-registered criteria: **do not ship**
+
+1. **Δ positive, pooled spread > 0 → ship.** Does not apply. Δ is negative on both fields.
+2. **Δ positive, disagreement with price-at-new-high under ~15% → do not ship.** Does not apply
+   on its own terms (Δ is not positive), but the disagreement figure is **11.2%** under v3 and
+   **12.4%** under v1 — under the threshold on both. Had Δ come back positive, this criterion
+   would have blocked the dimension anyway.
+3. **Pooled spread 0.000 → do not ship.** Does not fire. Pooled spread is 0.326; the dimension
+   is not `Prior move` again, and that is the one thing it clearly is not.
+4. **Δ negative → do not ship, and record it.** **This is the criterion that fires.** He selects
+   names whose strength against the index *decayed* through the base — 10.0% of his picks hold
+   the ratio against 12.1% of the field he passed over.
+
+**No rubric change follows.** `RUBRIC_VERSION` stays 3, `DIMENSIONS` is untouched, and the
+follow-up (#161) has nothing to admit.
+
+**And the scoring wiring came out with the verdict.** #160 asked for the dimension to be wired
+through the four scoring callers, computed but not yet scored — scaffolding for a #161 that is
+now moot. Carrying an inert parameter through `score.py`, `candidates.py`, `digest.py`,
+`chart.py`, `app.py` and `pipeline.py` for a rejected dimension is documentation bought at the
+price of six modules, which is the trade ADR 0005 refuses in the `Prior move` case. What stays
+is what carries the evidence: `screener/relative_strength.py` (the pure helper), the replay's
+**candidate dimension** column, and the study script. The live app does not compute the RS
+line, and §5d is reproducible without it. If #161 is ever revived the wiring is one commit
+back in history, and it was a keystroke either way — the measurement was always the hard part.
+
+#### Why the gap is negative, and why it is small
+
+The mechanism is in the definition, and it was not visible until the numbers were.
+**`base_start` is a local high under both of the detector's branches.** On an uncapped base it
+is the prior-move peak — the highest point of the run-up. On a base past the 45-bar cap it is
+re-anchored to `_argmax(high, …)`, the highest high inside that window
+(`detection.py:437-441`) — a *different* bar, but a local maximum just the same. Capped bases
+are **1.9%** of the measured field (861 of 45,600 persisted detections at `base_len >= 45`;
+median base length 12), so the uncapped branch dominates, and the property the dimension trips
+over holds either way.
+
+So the rule asks a name to hold its ratio to the index measured *from a local maximum*. Almost
+nothing does: the hit rate is 10–13% across the whole field, in **both** groups. `RS line` is
+therefore near-constant in the low direction, the mirror image of the `Prior move` dimension it
+was proposed to replace.
+It has real pooled spread where `Prior move` has none, so it is not the same defect — but a
+dimension that fires on one detection in ten discriminates over a thin slice of the field, and
+the −2.1pp gap is measured across that slice.
+
+The **disagreement rate makes the redundancy concrete**, and it is asymmetric: of 3,897
+disagreements under v3, **3,308 are names where `RS line` fires and price does not**, against
+589 the other way. The dimension is close to a slightly-looser price-at-a-new-high test — which
+is the break test the app already reports as an event — rather than an independent
+index-relative reading. Criterion 2 was written for exactly this and it was right to be there.
+
+#### The §5b re-run: the ordering did **not** move
+
+#160 asked for the contrast to be re-measured under the current detector so `RS line`'s weight
+could be read off an ordinal position in a table the detector still produces, and flagged that
+this might reveal the live weights sitting on a superseded ordering. It does not. The seven
+rubric dimensions rank **identically** on both fields:
+
+| Dimension | Δ under v1 | Δ under v3 |
+| --- | --- | --- |
+| **ADR** | +29.3 | +26.4 |
+| **Tightness** | +20.8 | +13.5 |
+| MA support | +4.3 | +6.3 |
+| Prior move | 0.0 | 0.0 |
+| Volume | −3.9 | −0.3 |
+| Orderliness | −9.1 | −5.9 |
+| **Base length** | −13.4 | −7.8 |
+
+Same order, same signs, every magnitude compressed toward zero — which is what a field grown
+171% should do to a contrast against it. **The v2/v3 weights are not sitting on a superseded
+ordering**, so #135's ordinal swap and PRD #138's recalibration stand on a table the current
+detector reproduces. This is a positive result about the rubric that came out of a negative one
+about `RS line`, and it is the more useful half of the run.
+
+Note the scope this does and does not have: measuring all eight is not reweighting any of them.
+The other seven keep their weights here, and nothing in this section licenses moving one.
+
+#### Caveats carried with the result
+
+- **Benchmark contamination, measured and not repaired.** `replay.chain.synthesize_instruments`
+  tags every symbol with bars as a candidate, so `^IXIC` — the benchmark of the very ratio being
+  measured — sits in the replay store's `universe` (928 rows) and `ranks` (2,525 = 505 × 5). It
+  does **not** reach either comparison group: 0 rows in `detections`, and it clears the 0.90
+  detection gate on 0 of 505 ranked sessions, global max 0.8246, never within 0.075 of the cut.
+  Had it reached the not-taken group it would have scored a guaranteed tie against itself, which
+  is circularity rather than noise. The residual effect is on **denominators only** — one extra
+  name in ~1,000 per session, shifting every other percentile by ~0.1%, and the index sits
+  mid-pack (median 0.38–0.47), displacing names nowhere near the boundary. Fixed separately in
+  #162: rebuilding 4.7M rank rows would have run this study against a *different* field than
+  §5b's, breaking the comparability the whole exercise depends on.
+- **The coverage hole applies here as it does to §5b.** The taken group is the executed trades
+  that survived into the reconstructed field, not his entry record. §2's survivorship hole and
+  §5b's high-ADR keeping bias bound this contrast the same way.
+- **Criterion 2's ~15% is a judgement, not a measurement.** It is the one magnitude in this
+  design with nothing behind it, and it is recorded in ADR 0005 so an argument about it is an
+  argument about a number on the record. It did not decide this verdict — criterion 4 did — but
+  it would have, and it should be argued about before it decides the next one.
+- **A negative result on one variant is not a verdict on index-relative strength.** What was
+  measured is this rule, over this window, against this benchmark. A dimension anchored
+  somewhere other than the prior-move peak is a different dimension and would need its own
+  pre-registration; picking one now, after seeing these numbers, is precisely the
+  magnitude-fitting ADR 0005's pre-registration clause exists to prevent.
+
+#### What this leaves open
+
+`Prior move` is still a constant dimension and still retirable under ADR 0005, and the slot it
+occupies is still unfilled — this study removed a candidate for it, not the case against it.
+Reproduce with `python scripts/rs_line_contrast.py --store <copy of replay.duckdb>`; the
+machine-readable result is `references/rs_line_contrast.json`.
+
 ---
 
 ## 6. The two preliminary findings from #114

@@ -37,12 +37,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Iterable, Mapping, Sequence
 
 from screener.detection import DETECTION_LOOKBACKS, Detection, detection_gate
 from screener.pipeline import rebuild_detections
 from screener.ranks import Rank
+from screener.relative_strength import rs_line_for
 from screener.score import DIMENSIONS, Dimension, star_score
+from screener.source import MARKET_INDEX
 from screener.store import Store
 
 from .caching_store import CachingStore
@@ -116,6 +118,19 @@ class ScoredDetection:
     own name *was* the executed trade entered this session — his actual pick,
     against which the not-taken detections are contrasted (A3 selection contrast,
     issue #122). A quiet session (no entry) leaves both false.
+
+    ``rs_line`` is the **candidate dimension** (#160): whether the name held its
+    ratio to the benchmark across its own base
+    (:func:`screener.relative_strength.rs_line_for`). It sits beside the score
+    rather than inside it, because it is *not scored* — :data:`SevenDimScore`
+    stays exactly the seven dimensions the rubric weighs, so a dimension under
+    measurement can never quietly move a star or a ``star_rank`` while the
+    question of whether it belongs is open. A3's selection contrast reads it as
+    a candidate column.
+
+    It was measured and **not admitted** (findings §5d): a wrong-way gap, so
+    criterion 4 refused it and the rubric never read it. The field still computes
+    it, because that is what makes §5d reproducible rather than quotable.
     """
 
     symbol: str
@@ -124,6 +139,7 @@ class ScoredDetection:
     star_rank: int
     not_taken: bool
     taken: bool = False
+    rs_line: bool = False
 
 
 @dataclass(frozen=True)
@@ -180,6 +196,7 @@ def build_field(
     entered: Iterable[str] = (),
     any_entry: bool = False,
     lookbacks: Sequence[str] = DETECTION_LOOKBACKS,
+    rs_line_of: Mapping[str, bool] | None = None,
 ) -> list[ScoredDetection]:
     """Score each detection and sort into star order — the replayed candidate list.
 
@@ -200,8 +217,14 @@ def build_field(
     gate-width sweep (:mod:`replay.gate_sweep`, #149) can score a field under the
     width that admitted it — a name admitted by a widened gate holds the prior-move
     point under that gate, and scoring it against the live gate would understate it.
+
+    ``rs_line_of`` maps symbol → the candidate dimension (#160),
+    computed by the caller because it needs a second symbol's bars. It rides on
+    each :class:`ScoredDetection` and is **never scored**: a symbol absent from it
+    is ``False``, and the star order is identical whether it is supplied or not.
     """
     entered = set(entered)
+    rs_line_of = rs_line_of or {}
     gated = detection_gate(ranks, lookbacks=lookbacks)
     scored = [
         (det, seven_dimension_score(det, prior_move=det.symbol in gated))
@@ -216,9 +239,35 @@ def build_field(
             star_rank=rank,
             not_taken=any_entry and det.symbol not in entered,
             taken=det.symbol in entered,
+            rs_line=rs_line_of.get(det.symbol, False),
         )
         for rank, (det, score) in enumerate(scored, start=1)
     ]
+
+
+def session_rs_lines(
+    store: Store, market: str, detections: Iterable[Detection]
+) -> dict[str, bool]:
+    """The candidate RS-line dimension for each of a session's detections (#160).
+
+    ``RS = adj_close(name) / adj_close(index)``, hit when today's ratio is at or
+    above the ratio at the detection's own ``base_start``; the benchmark is
+    :data:`~screener.source.MARKET_INDEX` for the market. Computed here rather
+    than inside the score because it needs a *second* symbol's bars, and
+    :mod:`screener.score` is pure and does no I/O — the same reason ``prior_move``
+    and ``sector_share`` are caller-supplied.
+
+    Reads whole bar series (through the run-scoped cache, as every other stage
+    does) and never slices to the session: :func:`screener.relative_strength.rs_line`
+    reads the two named sessions *exactly*, both of which are on or before the
+    detection's own, so no later bar can leak in. A benchmark with no bar on
+    either session scores ``False`` and is never carried forward.
+    """
+    index_bars = store.bars(market, MARKET_INDEX[market])
+    return {
+        det.symbol: rs_line_for(det, store.bars(market, det.symbol), index_bars)
+        for det in detections
+    }
 
 
 def _entries_by_session(trades: Iterable[ExecutedTrade]) -> dict[date, set[str]]:
@@ -296,7 +345,8 @@ def build_field_sessions(
         detections = _session_detections(store, market, sf)
         entered = entries.get(sf.session, set())
         candidates = build_field(
-            detections, sf.ranks, entered=entered, any_entry=bool(entered)
+            detections, sf.ranks, entered=entered, any_entry=bool(entered),
+            rs_line_of=session_rs_lines(store, market, detections),
         )
         fields.append(
             FieldSession(

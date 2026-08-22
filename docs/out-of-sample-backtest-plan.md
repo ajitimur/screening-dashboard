@@ -48,7 +48,7 @@ change is a new run with a new contract, recorded beside this one.
 | --- | --- | --- |
 | Markets | US, IDX — **reported separately** | Findings §8: shapes travel, magnitudes do not |
 | Measured window | 2012-01-01 → latest complete session | |
-| Store window | **2009-01-01** → latest | The regime burn-in below binds, not the detector's. Working back from a 2012 start: 3 years of percentile burn-in, plus `detection.MIN_HISTORY` (80 bars) and the SMA50/ADR20 warm-up. |
+| Store window | **2011-01-01** → latest | Warm-up for a 2012 start: `detection.MIN_HISTORY` (80 bars), the SMA50/ADR20 universe gates, and `regime.REGIME_WARMUP` (25 index bars). The app's regime fits nothing, so no burn-in beyond its own warm-up is owed. |
 | Setup | Long breakout, EOD only | The reference set's scope, and the detector's |
 | Study level | **Signal-level primary; portfolio-level deferred** | [Below](#study-level) |
 
@@ -93,35 +93,45 @@ Three consequences, each of which will otherwise get misread later:
 
 ## Regime
 
-**Two axes, a conditioning variable, never a filter.** Nothing is excluded by regime; every
-result is *reported* by regime cell.
+**Use the app's regime — [`screener.regime`](../backend/screener/regime.py) as it stands.**
+A conditioning variable, never a filter: nothing is excluded by regime, and every result is
+*reported* by state.
 
 | | Definition |
 | --- | --- |
-| Axis 1 — breadth | Share of the universe with close > SMA50 |
-| Axis 2 — volatility | Median ADR20 across the universe |
-| Measured over | The **liquidity-only** universe — ADTV and the data-validity trim, without the 50MA or ADR20 gates |
-| Scale | Per-market **expanding percentile**, 3-year burn-in |
-| Buckets | Fixed terciles, 3 × 3 = 9 cells |
-| Index (QQQ / IHSG) | Descriptive cross-tab only |
+| State | `regime_state(index_bars)` → `FRIENDLY` / `CHOPPY` / `HOSTILE`, or undefined below `REGIME_WARMUP` (25 index bars) |
+| Read on | The market's own index — `^IXIC` (US), `^JKSE` (IDX), per `source.MARKET_INDEX` |
+| Evaluated at | t−1, like every other input |
+| Reported beside it | `breadth()` and follow-through, both descriptive |
 
-**Why liquidity-only.** Breadth measured over a universe already gated on the 50MA would sit
-pinned near 1.0 by construction, and median ADR20 over a universe gated at 3.5% would be
-censored from below. The regime axes need the unfiltered population to move at all.
+**Why this is the right call.** The app's regime has **zero tunable parameters** — two SMAs
+and a sign-only slope, no thresholds fitted to anything. That buys three things at once: no
+percentile machinery to build, no burn-in beyond 25 index bars, and no risk of fitting a
+regime scale to the same window whose results it will condition. It also means the backtest
+conditions on **the state the app actually shows**, so a finding here is directly actionable
+in the product rather than being about a parallel definition that ships nowhere.
 
-**Why expanding percentiles.** They are point-in-time by construction: session *t*'s
-percentile uses only history through *t*, so no regime label encodes the future. A fixed
-percentile fitted over the whole window would leak 2021 into 2013's label.
+Three states rather than nine cells also keeps the cells populated. **Report n per state**
+regardless.
 
-Two things to watch. The 3-year burn-in is what pushes the store back to 2009 — a burn-in
-starting at 2012 would mean no measured session before 2015. And with 9 cells across two
-markets, some will be thin; **report n per cell** and let a sparse cell read as sparse rather
-than as a finding.
+**Price the posture.** `HOSTILE` advises "sit out" and `CHOPPY` advises "reduced" — words the
+app prints today on no measured basis. This backtest can price that advice directly: what
+expectancy did signals taken in each state actually deliver? That is the single most
+product-relevant number in the whole run.
 
-**This is not `screener.regime`.** That module reads SMA10/20 posture on the index, and its
-`breadth()` is share above *rising SMA10/SMA20*. Both differ from the definitions above. Use
-these, and name the divergence in the write-up. Note also that the app's US index is `^IXIC`
-while the cross-tab here is QQQ; that is fine for a descriptive column, and worth one line.
+**Two companions, reported and kept in their place:**
+
+- **Breadth is descriptive only, and carries its own warning.** `regime.breadth()` is the
+  measure survivorship bias corrupts most directly — its own docstring says so, which is why
+  the app displays it and gates nothing on it. In a backtest the corruption is worse, not
+  better, because the missing names are disproportionately the ones that later died. Report
+  it; condition on the state, not on breadth. Phase 2's bound applies to this column with
+  full force.
+- **Follow-through is reconstructable here, and only here.** `index_broke_out` is captured
+  forward nightly because the app cannot rebuild it from a survivorship-biased past. **The
+  index series carries no survivorship hole**, so this backtest *can* reconstruct it
+  legitimately across fourteen years — the one regime signal the live app can never backfill.
+  Compute it, report it, and say plainly that it is unbiased where breadth is not.
 
 ## Entry, stop, exits
 
@@ -236,16 +246,15 @@ detections per session through the same modules the nightly run uses. The work i
 it past its `REPLAY_MARKET = "US"` and its 2019–2022 window, and swapping the app's universe
 for the contract's.
 
-Persist, per session: universe membership (both the screening and the liquidity-only
-populations), both regime axes with their expanding percentiles and tercile labels, the rank
-table, and every detection with its full `Detection` record and `star_score` breakdown.
-**These rows are the denominator** — the object this whole exercise exists to produce, and the
-input to every metric in Phase 5.
+Persist, per session: universe membership, the regime state with its breadth and
+follow-through companions, the rank table, and every detection with its full `Detection`
+record and `star_score` breakdown. **These rows are the denominator** — the object this whole
+exercise exists to produce, and the input to every metric in Phase 5.
 
-The contract's universe is stateless, so sessions no longer depend on each other through
-membership. Keep running them in an unbroken forward sequence anyway: the expanding
-percentiles are cumulative by definition, and a gapped sequence silently changes every regime
-label after the gap.
+The contract's universe is stateless and the app's regime reads only the index, so sessions
+no longer depend on each other. Run them forward in an unbroken sequence anyway, and let a
+gap fail loudly: a missing session is a data hole, and a backtest that quietly skips it
+reports on a market that took the day off.
 
 **Done when** both markets replay end to end with no gap and no session recomputed, burn-in
 sessions are persisted but excluded from measurement, and detections per session are plotted
@@ -291,10 +300,11 @@ crash and a mania; a pooled fourteen-year number describes neither.
 - **Does the rubric rank?** Bucket outcomes by `star_score` decile. §4a found a gap that was
   in-sample by construction (the v2 weights were fitted to that separation) and marginal at
   p = 0.055. This is the out-of-sample test that claim has never had.
-- **Does regime condition the edge?** Expectancy per 3 × 3 cell, per market, with n shown.
-  This is the payoff of treating regime as a conditioning variable: if the edge lives in two
-  of nine cells, that is a finding a filter would have hidden by never letting the other seven
-  trade.
+- **Does the app's regime condition the edge?** Expectancy per state, per market, with n
+  shown — and the counterfactual the product actually needs: what sitting out `HOSTILE` would
+  have cost or saved, and whether `CHOPPY` earns its "reduced". This is the payoff of treating
+  regime as a conditioning variable rather than a filter: every state gets to trade, so each
+  one's expectancy is measured instead of assumed.
 
 Sweep thresholds only after the pre-registered metric is computed and recorded, and report the
 count of variants tried beside any swept result. Every threshold tried is a test, and enough
@@ -355,9 +365,10 @@ history covers the session being replayed, which is what findings §2 had to swi
 **Phantom bars.** Zero-volume rows are removed at ingest, never zero-filled (see `CONTEXT.md`).
 A backtest that reintroduces them will trade on days the stock did not trade.
 
-**Expanding-percentile drift.** The early years are scored against a short history, so the
-first measured sessions carry the noisiest regime labels. Report the burn-in boundary, and
-check whether a finding survives dropping the first measured year.
+**Breadth is the corrupted column.** Survivorship hits it harder than anything else reported
+here, because the names missing from the store are disproportionately the ones that later
+died. Condition on the regime *state*, which reads only the index, and let breadth stay
+descriptive.
 
 **Row-counting the significance.** Overlapping signals in one name are correlated; bootstrap
 clustered by symbol.
@@ -367,7 +378,7 @@ throughout, including in the summary.
 
 **Multiple testing.** Pre-register one primary metric in Phase 0, report the variant count
 beside any swept figure, and let the pre-registered number stand as the headline even when a
-swept one looks better. Three exit arms and nine regime cells is 27 views of one dataset
+swept one looks better. Three exit arms and three regime states is nine views of one dataset
 before any threshold is swept.
 
 **The 2020–21 tape.** It rewarded momentum nearly everywhere. Report every year separately,

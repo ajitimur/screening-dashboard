@@ -320,7 +320,7 @@ hugging the rising 10/20/50-day (affordable stop); the swing-high break happens 
 
 | Trigger        | Character                                                                                                  |
 | -------------- | ---------------------------------------------------------------------------------------------------------- |
-| **1-min ORH**  | Earliest, **narrowest stop width**, **highest failure rate**. His most-used on high-conviction names.                 |
+| **1-min ORH**  | Earliest, **narrowest stop width**, **highest failure rate**. His most-used on high-conviction names.      |
 | **5-min ORH**  | Middle ground. The "second chance" if the 1-min fails or you missed it.                                    |
 | **60-min ORH** | Lowest failure rate, but often **way too wide** — the stock has already run and the stop becomes unusable. |
 

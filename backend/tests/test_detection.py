@@ -52,6 +52,19 @@ def _base_series():
     return hlc
 
 
+def _wandering_top_series(wander):
+    """``_base_series`` with the last 7 bars alternating ``±wander`` around 100.
+
+    Each bar keeps its own 1.0-wide range, so ADR is untouched; only the *span*
+    of the trailing window moves. The knob is base tightness alone.
+    """
+    hlc = _base_series()[:-7]
+    for i in range(7):
+        p = 100.0 + (wander if i % 2 else -wander)
+        hlc.append((p + 0.5, p - 0.5, p))
+    return hlc
+
+
 # -- the trigger is the cluster high, never the fitted line -------------------
 
 
@@ -94,29 +107,12 @@ def test_proposed_stop_is_the_traders_convention_not_the_cluster_low():
     assert d.stop_price < d.trigger
 
 
-def _wandering_top_series(wander):
-    """``_base_series`` with the last 7 bars alternating ``±wander`` around 100.
-
-    Each bar keeps its own 1.0-wide range, so ADR is untouched; only the *span*
-    of the trailing window moves. The knob is base tightness alone.
-    """
-    hlc = [(50.5, 49.5, 50.0)] * 60
-    for i in range(1, 16):
-        p = 50.0 + (99.0 - 50.0) * i / 15
-        hlc.append((p + 0.5, p - 0.5, p))
-    hlc += [(100.5, 99.5, 100.0)] * 23
-    for i in range(7):
-        p = 100.0 + (wander if i % 2 else -wander)
-        hlc.append((p + 0.5, p - 0.5, p))
-    return hlc
-
-
 def test_stop_width_does_not_move_with_base_tightness():
     # The two quantities the domain model keeps apart (issue #147). Base tightness
     # is setup geometry — the trailing window's span in ADR, what TIGHT_MULT gates
-    # and the rubric's x2 dimension scores. Stop width is his risk — the trigger-to-
-    # stop distance, fixed at the convention. Findings 3b measured them 3.8x apart on
-    # the same 649 entries; here they are wired apart, so a future edit that derives
+    # and the rubric's ×2 dimension scores. Stop width is his risk — the trigger-to-
+    # stop distance, fixed at the convention. Findings §3b measured them 3.8× apart
+    # on the same 649 entries; here they are wired apart, so a future edit deriving
     # the stop from the base geometry again fails this test.
     tight = detect("AAA", _bars(_wandering_top_series(0.0)), CAL[104])
     loose = detect("AAA", _bars(_wandering_top_series(0.2)), CAL[104])
@@ -126,7 +122,8 @@ def test_stop_width_does_not_move_with_base_tightness():
     assert loose.cluster_range_adr > tight.cluster_range_adr * 1.3
     assert loose.cluster_low < tight.cluster_low       # and so does the cluster low
     # ... stop width does not.
-    assert tight.stopw_adr == loose.stopw_adr == STOP_CONVENTION_ADR
+    assert abs(tight.stopw_adr - STOP_CONVENTION_ADR) < 1e-12
+    assert abs(loose.stopw_adr - STOP_CONVENTION_ADR) < 1e-12
 
 
 # -- line_ok is a verdict, not a gate; piercing bars do not invalidate --------

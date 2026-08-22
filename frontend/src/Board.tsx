@@ -351,7 +351,7 @@ function HeroCard({
 function StopWidthBar({ stopw }: { stopw: number }) {
   // `tight` here is a **stop width** tier — a narrow stop, his risk. It is not
   // base tightness (the setup's geometry, what the `Tightness` star dimension
-  // scores); the two run ~3.8x apart (issue #147, CONTEXT.md).
+  // scores); the two run ~3.8× apart (issue #147, CONTEXT.md).
   const tier = stopw <= 1 ? "tight" : stopw <= 2 ? "mid" : "wide";
   const width = Math.min(stopw / STOP_BAR_MAX, 1) * 100;
   return (

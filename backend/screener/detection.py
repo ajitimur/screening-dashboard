@@ -14,9 +14,11 @@ The structure is two levels, ported from the wayfinding prototype
   tests).
 - **The cluster** is the largest 3–7 bar trailing window whose span sits under
   ``TIGHT_MULT × ADR``. Its max high *is* the trigger, by identity. Its span is
-  **base tightness** — setup geometry, gated here and scored ×2 by the rubric.
-  It is never a stop level; **stop width** is a separate quantity, measured 3.8×
-  narrower on the same trades (findings §3b, issue #147).
+  **base tightness** as this module gates it — setup geometry, and what the
+  rubric scores ×2 through ``cluster_k``. (The *ungated* form of the same
+  quantity is :func:`cluster_min_range_adr`, which is what findings §3b puts at
+  a median of 1.310 ADR.) A span is never a stop level; **stop width** is a
+  separate quantity, measured 3.8× narrower on the same trades (issue #147).
 
 The envelope is anchored at the cluster's max-high bar and searched over
 **non-positive slopes only**, so the fitted line can never exceed the anchor —

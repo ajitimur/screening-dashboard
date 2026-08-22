@@ -1,0 +1,66 @@
+detection-gate width sweep (US) — #149
+sessions: 821 measured (2019-09-30 to 2022-12-30)
+replayable trades: 656   blind-spot coverage: 92 tickers missing from the field
+detection recall (gate-invariant): 549/656 (83.7%)   ex-continuation: 487/577 (84.4%)
+
+== composition of the recovered misses (the headline) ==
+recovered by widening 3→5: 75 trades (7 of them continuation entries)
+
+  admitted by                          count   share
+  12m only (excluded as stale)           49  65.3%
+  1w only (excluded as a burst)          22  29.3%
+  both 1w and 12m                          4  5.3%
+  also by a lookback already gated         0  0.0%
+
+  recovered solely by the two excluded lookbacks: 75 (100.0%)
+
+== where the recovered trades sat on the gate's own lookbacks ==
+admitted by       n   dead on 1m/3m/6m   within reach   med   1w  med   1m  med   3m  med   6m  med  12m
+12m only         49                  1             29      0.542     0.475     0.628     0.798     0.951
+1w only          22                  8              3      0.947     0.517     0.194     0.356     0.272
+both              4                  0              2      0.936     0.655     0.486     0.764     0.929
+
+`dead on 1m/3m/6m` is below the field median on every lookback the as-measured gate unions —
+the stale (or burst) qualifier as §4.5 describes it. `within reach` is at or above the 80th
+percentile on one of them: a name the as-measured gate nearly admitted on its own terms.
+
+== outcome quality of the recovered trades ==
+group                    n   mean R   trim5% R   median R   win rate   R>=3 rate   best trade's share of R   mean MFE%
+recovered by 3→5         75     0.91      -0.36      -1.00      17.3%       13.3%                     95.1%         9.5
+…12m only                49     1.87       0.12      -1.00      24.5%       20.4%                     70.7%        10.3
+…1w only                 22    -0.88      -0.99      -1.00       4.5%        0.0%                         —         8.5
+…both                     4    -1.00      -1.00      -1.00       0.0%        0.0%                         —         5.5
+passing 1m/3m/6m        395     1.37       0.03      -1.00      25.1%       16.8%                     19.2%        18.2
+
+Median R is −1.00 in every group — the method stops out most of the time and earns in
+the tail — so read the trimmed mean and the R>=3 rate, not the mean. A group whose best
+trade supplies most of its R has no central tendency worth quoting.
+
+== the gate widths ==
+gate width             universe   decile recall (ex-cont)      surfaced recall (ex-cont)     field    in-field   on board
+1m/3m/6m (as measured)    19.3%   395/656 (60.2%)  (58.9%)   349/656 (53.2%)  (52.3%)    148223      349      109
++1w (burst)               24.2%   421/656 (64.2%)  (62.9%)   361/656 (55.0%)  (54.4%)    166065      361      107
++12m (stale)              21.9%   448/656 (68.3%)  (67.4%)   397/656 (60.5%)  (60.0%)    175546      397      111
+five (3→5)                26.5%   470/656 (71.6%)  (70.7%)   409/656 (62.3%)  (62.0%)    191653      409      108
+
+== field inflation, priced as #141 prices the cluster gate ==
+baseline field: 148223 detections over 821 measured sessions,
+                54399 of them on the sessions his trades were evaluated at (A2's basis),
+                424.7 detections per entry surfaced — the funnel's own going rate.
+
+gate width             added detections   recovered entries   per entry   surfaced   per surfaced   vs going rate   board displacement   stale share of added
++1w (burst)                       17842                  26       686.2         12         1486.8           3.50x                  967                  29.9%
++12m (stale)                      27323                  53       515.5         48          569.2           1.34x                 1832                  13.4%
+five (3→5)                        43430                  75       579.1         60          723.8           1.70x                 2571                  20.1%
+
+Field inflation is a volume measure, not a false-positive rate: the added names carry
+no verdict (findings §7, §9). `vs going rate` divides the width's marginal cost per
+surfaced entry by the baseline's average one — a widening at 1.0x is buying entries at
+exactly the price the funnel already pays. `stale share of added` is the share of the
+detections the width adds that sit below the field median on every lookback the
+as-measured gate unions: §4.5's worry, measured against the field rather than against his trades.
+Board displacement counts board places taken by names the wider gate admits, summed
+over the measured sessions.
+
+Scope: US 2019–2022, a once-in-a-decade momentum regime. No figure here is an IDX
+expectation.

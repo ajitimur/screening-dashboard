@@ -197,9 +197,11 @@ the detector now costs.
 > versions of "strongest performers" in the code, and they were being conflated.
 > One combines five time horizons and lets through 27.2% of all stocks; the other —
 > **the one the detector actually uses** — combines only three (1-month, 3-month,
-> 6-month) and lets through just **19.4%**. Every write-up quoted the looser figure
+> 6-month) and let through just **19.4%**. Every write-up quoted the looser figure
 > while measuring the tighter gate. Corrected throughout; the glossary now names
-> them separately.
+> them separately. (The detector's filter has since been widened to four horizons
+> and 21.9% — see below. The figures in this section are the ones measured under
+> the three-horizon version.)
 
 **One oddity worth noting:** the setup detector is the only stage that scores
 *better* once repeat entries are removed (84.4% vs 83.7%). His add-on buys are
@@ -220,8 +222,46 @@ Broken into three groups, that loss is not one problem:
 
 So a quarter of the "miss" is the coverage hole wearing a disguise, and nearly
 half were nowhere near qualifying. **The filter's real width problem is 75 trades,
-not 263** — and even that can't be acted on, because widening it would admit
-unknown amounts of junk that we have no way to count.
+not 263.**
+
+### What those 75 turned out to be — and the one change that was made
+
+The filter looks at three time horizons and deliberately ignores two: the 1-week
+one (a stock up hard for a week has momentum, not a big prior move) and the
+12-month one (a stock that peaked a year ago is stale). So the obvious fix —
+"use all five" — quietly reverses a rule someone wrote on purpose. Before doing
+that, we measured which of the two ignored horizons was actually letting each of
+the 75 through, and what those trades did afterwards.
+
+The two halves turned out to be opposites.
+
+| | Trades recovered | How often they won | How often they made 3× the risk |
+|---|---|---|---|
+| Trades the filter already keeps | — | 25.1% | 16.8% |
+| Recovered via the **12-month** horizon | **49** | **24.5%** | **20.4%** |
+| Recovered via the **1-week** horizon | **22** | **4.5%** | **0.0%** |
+
+The 12-month half recovers trades that behave just like the ones already getting
+through. The 1-week half recovers 22 trades of which one made money and none made
+3×. And the "stale" worry turned out to be backwards: of the 49 trades the
+12-month horizon recovers, **one** was actually dead on the other three horizons —
+the rest were sitting just below the cut, which is what a stock in a quiet base
+looks like. The 1-week horizon was the one letting in dead stocks (a third of
+what it adds).
+
+**So we added the 12-month horizon and left the 1-week one out.** The filter now
+lets through 21.9% of stocks instead of 19.3%, and would have kept 68.3% of his
+trades instead of 60.2% — and 60.5% of them would have reached the list he
+actually reads, up from 53.2%. The price: about 27,000 extra names shown across
+three years, which sounds enormous but works out to roughly a third more than the
+cost-per-trade the filter was already paying (the 1-week horizon, by contrast,
+would have cost three and a half times it). The leaderboard barely moves: his own
+trades hold 109 of the top thirty before and 111 after. We still cannot count how
+many of those extra names are junk; that is what the out-of-sample backtest is
+for.
+
+The tables above are left as they were measured, under the old three-horizon
+filter. They are the evidence the decision was made from.
 
 ### Which part of "valid setup" does the rejecting
 

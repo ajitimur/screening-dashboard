@@ -1,0 +1,304 @@
+{
+  "market": "US",
+  "sessions": 821,
+  "first_session": "2019-09-30",
+  "last_session": "2022-12-30",
+  "replayable_trades": 656,
+  "blind_spot_count": 92,
+  "detection_recall": {
+    "passed": 549,
+    "total": 656,
+    "recall": 0.836890243902439,
+    "passed_ex_continuation": 487,
+    "total_ex_continuation": 577,
+    "recall_ex_continuation": 0.8440207972270364
+  },
+  "composition": {
+    "total": 75,
+    "stale_only_12m": 49,
+    "burst_only_1w": 22,
+    "both_excluded": 4,
+    "also_gated": 0,
+    "excluded_only": 75,
+    "continuation": 7
+  },
+  "recovered_profile": [
+    {
+      "label": "12m only",
+      "n": 49,
+      "dead_on_gated_lookbacks": 1,
+      "within_reach_of_the_gate": 29,
+      "median_percentiles": {
+        "1w": 0.542314335060449,
+        "1m": 0.47458595088520844,
+        "3m": 0.6278260869565218,
+        "6m": 0.7981072555205048,
+        "12m": 0.9506493506493506
+      }
+    },
+    {
+      "label": "1w only",
+      "n": 22,
+      "dead_on_gated_lookbacks": 8,
+      "within_reach_of_the_gate": 3,
+      "median_percentiles": {
+        "1w": 0.9468997892877844,
+        "1m": 0.5169584245076586,
+        "3m": 0.19385026737967914,
+        "6m": 0.35636544205250664,
+        "12m": 0.27247444465142273
+      }
+    },
+    {
+      "label": "both",
+      "n": 4,
+      "dead_on_gated_lookbacks": 0,
+      "within_reach_of_the_gate": 2,
+      "median_percentiles": {
+        "1w": 0.9359927872129246,
+        "1m": 0.6547437453053677,
+        "3m": 0.4862312092350596,
+        "6m": 0.7639898058380741,
+        "12m": 0.9294512297222659
+      }
+    }
+  ],
+  "outcomes": [
+    {
+      "label": "recovered by 3\u21925",
+      "n": 75,
+      "n_with_r": 75,
+      "mean_r": 0.9081333333333333,
+      "median_r": -1.0,
+      "trimmed_mean_r": -0.36253521126760563,
+      "win_rate": 0.17333333333333334,
+      "big_win_rate": 0.13333333333333333,
+      "top_trade_r_share": 0.9506680369989723,
+      "mean_mfe_pct": 9.5012
+    },
+    {
+      "label": "\u202612m only",
+      "n": 49,
+      "n_with_r": 49,
+      "mean_r": 1.8679591836734695,
+      "median_r": -1.0,
+      "trimmed_mean_r": 0.12282608695652172,
+      "win_rate": 0.24489795918367346,
+      "big_win_rate": 0.20408163265306123,
+      "top_trade_r_share": 0.7074183327870643,
+      "mean_mfe_pct": 10.282857142857143
+    },
+    {
+      "label": "\u20261w only",
+      "n": 22,
+      "n_with_r": 22,
+      "mean_r": -0.8827272727272728,
+      "median_r": -1.0,
+      "trimmed_mean_r": -0.9904999999999999,
+      "win_rate": 0.045454545454545456,
+      "big_win_rate": 0.0,
+      "top_trade_r_share": null,
+      "mean_mfe_pct": 8.491363636363637
+    },
+    {
+      "label": "\u2026both",
+      "n": 4,
+      "n_with_r": 4,
+      "mean_r": -1.0,
+      "median_r": -1.0,
+      "trimmed_mean_r": -1.0,
+      "win_rate": 0.0,
+      "big_win_rate": 0.0,
+      "top_trade_r_share": null,
+      "mean_mfe_pct": 5.4799999999999995
+    },
+    {
+      "label": "passing 1m/3m/6m",
+      "n": 395,
+      "n_with_r": 394,
+      "mean_r": 1.3735532994923856,
+      "median_r": -1.0,
+      "trimmed_mean_r": 0.0318716577540107,
+      "win_rate": 0.2512690355329949,
+      "big_win_rate": 0.16751269035532995,
+      "top_trade_r_share": 0.19220961602424333,
+      "mean_mfe_pct": 18.19822335025381
+    }
+  ],
+  "variants": [
+    {
+      "name": "1m/3m/6m (as measured)",
+      "lookbacks": [
+        "1m",
+        "3m",
+        "6m"
+      ],
+      "added_lookbacks": [],
+      "gate_population_share": 0.19296622768575328,
+      "decile_recall": {
+        "passed": 395,
+        "total": 656,
+        "recall": 0.6021341463414634,
+        "passed_ex_continuation": 340,
+        "total_ex_continuation": 577,
+        "recall_ex_continuation": 0.5892547660311959
+      },
+      "surfaced_recall": {
+        "passed": 349,
+        "total": 656,
+        "recall": 0.5320121951219512,
+        "passed_ex_continuation": 302,
+        "total_ex_continuation": 577,
+        "recall_ex_continuation": 0.5233968804159446
+      },
+      "field_detections": 148223,
+      "field_detections_on_trade_sessions": 54399,
+      "detections_per_surfaced_entry": 424.70773638968484,
+      "added_detections_total": 0,
+      "added_detections_stale": 0,
+      "added_stale_share": null,
+      "board_displacement": 0,
+      "picks_in_field": 349,
+      "picks_on_board": 109,
+      "inflation": null
+    },
+    {
+      "name": "+1w (burst)",
+      "lookbacks": [
+        "1m",
+        "3m",
+        "6m",
+        "1w"
+      ],
+      "added_lookbacks": [
+        "1w"
+      ],
+      "gate_population_share": 0.24184815772247678,
+      "decile_recall": {
+        "passed": 421,
+        "total": 656,
+        "recall": 0.6417682926829268,
+        "passed_ex_continuation": 363,
+        "total_ex_continuation": 577,
+        "recall_ex_continuation": 0.6291161178509532
+      },
+      "surfaced_recall": {
+        "passed": 361,
+        "total": 656,
+        "recall": 0.5503048780487805,
+        "passed_ex_continuation": 314,
+        "total_ex_continuation": 577,
+        "recall_ex_continuation": 0.5441941074523396
+      },
+      "field_detections": 166065,
+      "field_detections_on_trade_sessions": 60207,
+      "detections_per_surfaced_entry": 460.0138504155125,
+      "added_detections_total": 17842,
+      "added_detections_stale": 5332,
+      "added_stale_share": 0.29884542091693755,
+      "board_displacement": 967,
+      "picks_in_field": 361,
+      "picks_on_board": 107,
+      "inflation": {
+        "added_detections": 17842,
+        "recovered_entries": 26,
+        "surfaced_entries": 12,
+        "added_detections_per_recovered_entry": 686.2307692307693,
+        "added_detections_per_surfaced_entry": 1486.8333333333333
+      }
+    },
+    {
+      "name": "+12m (stale)",
+      "lookbacks": [
+        "1m",
+        "3m",
+        "6m",
+        "12m"
+      ],
+      "added_lookbacks": [
+        "12m"
+      ],
+      "gate_population_share": 0.21933004559928107,
+      "decile_recall": {
+        "passed": 448,
+        "total": 656,
+        "recall": 0.6829268292682927,
+        "passed_ex_continuation": 389,
+        "total_ex_continuation": 577,
+        "recall_ex_continuation": 0.6741767764298093
+      },
+      "surfaced_recall": {
+        "passed": 397,
+        "total": 656,
+        "recall": 0.6051829268292683,
+        "passed_ex_continuation": 346,
+        "total_ex_continuation": 577,
+        "recall_ex_continuation": 0.5996533795493935
+      },
+      "field_detections": 175546,
+      "field_detections_on_trade_sessions": 64070,
+      "detections_per_surfaced_entry": 442.1813602015113,
+      "added_detections_total": 27323,
+      "added_detections_stale": 3659,
+      "added_stale_share": 0.13391648062072248,
+      "board_displacement": 1832,
+      "picks_in_field": 397,
+      "picks_on_board": 111,
+      "inflation": {
+        "added_detections": 27323,
+        "recovered_entries": 53,
+        "surfaced_entries": 48,
+        "added_detections_per_recovered_entry": 515.5283018867924,
+        "added_detections_per_surfaced_entry": 569.2291666666666
+      }
+    },
+    {
+      "name": "five (3\u21925)",
+      "lookbacks": [
+        "1m",
+        "3m",
+        "6m",
+        "1w",
+        "12m"
+      ],
+      "added_lookbacks": [
+        "1w",
+        "12m"
+      ],
+      "gate_population_share": 0.26496261080847194,
+      "decile_recall": {
+        "passed": 470,
+        "total": 656,
+        "recall": 0.7164634146341463,
+        "passed_ex_continuation": 408,
+        "total_ex_continuation": 577,
+        "recall_ex_continuation": 0.707105719237435
+      },
+      "surfaced_recall": {
+        "passed": 409,
+        "total": 656,
+        "recall": 0.6234756097560976,
+        "passed_ex_continuation": 358,
+        "total_ex_continuation": 577,
+        "recall_ex_continuation": 0.6204506065857885
+      },
+      "field_detections": 191653,
+      "field_detections_on_trade_sessions": 69277,
+      "detections_per_surfaced_entry": 468.58924205378975,
+      "added_detections_total": 43430,
+      "added_detections_stale": 8745,
+      "added_stale_share": 0.20135850794381763,
+      "board_displacement": 2571,
+      "picks_in_field": 409,
+      "picks_on_board": 108,
+      "inflation": {
+        "added_detections": 43430,
+        "recovered_entries": 75,
+        "surfaced_entries": 60,
+        "added_detections_per_recovered_entry": 579.0666666666667,
+        "added_detections_per_surfaced_entry": 723.8333333333334
+      }
+    }
+  ],
+  "precision_note": "Field inflation is a volume measure, never a false-positive rate: the reference set records no setup he declined, so there is no control group (findings \u00a77, \u00a79)."
+}

@@ -221,7 +221,7 @@ def rebuild_detections(
 
     Detection runs against **every universe member every night**, not only recent
     movers (spec §4.5): the loop visits each member and the **decile gate** —
-    top decile in any of 1m/3m/6m, off the rank table — decides eligibility, not
+    top decile in any of 1m/3m/6m/12m, off the rank table — decides eligibility, not
     a "did it move today" pre-filter. Each gated member is handed its clean bars
     and detected; the cluster and catch-up gates live inside :func:`detect`.
 

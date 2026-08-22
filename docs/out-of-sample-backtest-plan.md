@@ -225,7 +225,7 @@ detects must land *before* the denominator is built, or the run is stale on arri
 | --- | --- | --- |
 | **#139** — match a trade's bars to the listing that existed at its entry | **Landed.** The recycled-ticker rule this plan requires; it re-pinned the figures cited below: blind-spot 91 → **92** tickers, 170 → **172** trades, 18.15% → **18.0%** of R, replayable 658 → **656** | Phase 2 |
 | **#145** — Tightness as a graded rubric input | **Landed as #154.** The hard 1.5×ADR cluster cut is now a far-outlier guard at 3.0 and the rubric grades base tightness (rubric v3, detector v2). It re-pinned the detected-count anchor 104 → **159 of 656** and more than doubled the field (90.3 → **201.6** detections per session). The guard's 3.0 is **provisional on n = 10** — firming it up is a result this run is expected to produce, not an input it needs. | Phase 3 |
-| **#149** — `DETECTION_LOOKBACKS` 3 → 5 | Same class: adopt or reject on evidence, then freeze. A rejection recorded is as good as an adoption; an open question is not. | Phase 3 |
+| **#149** — `DETECTION_LOOKBACKS` 3 → 5 | **Settled and landed.** 3→5 rejected; `12m` adopted alone, `1w` refused on evidence. The gate is now `("1m", "3m", "6m", "12m")` — **21.9%** of the universe, decile recall **68.3%**, detector v3. Build the denominator against **that** width (ADR 0003 amendment, findings §3e). | Phase 3 |
 | **#146**, **#147** — naming and the domain model | The run persists full `Detection` records and the write-up uses this vocabulary. Cheap now, a dead language later. | Phase 3 |
 | **#141** — price the marginal cluster widen | **Downstream, not blocking.** It falls back to field inflation because no false-positive rate exists; this backtest is what supplies one. | After |
 
@@ -234,8 +234,11 @@ precision is unmeasurable (findings §7, §9) — the gap this run closes. Runni
 first makes those tickets answerable against outcomes; running them first only makes the
 backtest stale. Land the correctness and naming work, settle #145 and #149 either way, freeze,
 then run. **#145 is now settled** (as #154) and its own guard is provisional on the thinnest
-bucket in the study — so it joins #141 and #149 in the set of questions this run is expected to
-answer, rather than one it was waiting on.
+bucket in the study — so it joins #141 in the set of questions this run is expected to answer,
+rather than one it was waiting on. **#149 is settled too**, and the 27,323 detections
+its adopted width adds are exactly the population this run is meant to price: #149 could only
+record them as **volume carrying no verdict**, which is the honest limit of a study without a
+control group, and left the verdict to this one.
 
 ---
 

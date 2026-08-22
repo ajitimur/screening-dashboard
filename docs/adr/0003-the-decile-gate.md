@@ -2,7 +2,10 @@
 status: accepted
 ---
 
-# The decile gate is not loosened on this evidence
+# The decile gate: what its width should union
+
+> Titled **"The decile gate is not loosened on this evidence"** until #149. It has since been
+> loosened — by one lookback, not the two this ADR proposed. See the amendment below.
 
 A1 measured the decile gate discarding **40% of Kullamägi's real entries** (recall 395/658,
 60.0%) at the session before entry, against liquidity's 90.9%. It is the largest single loss
@@ -10,6 +13,133 @@ in the funnel and the finding most likely to be acted on wrongly, which is why #
 as a spike rather than a change.
 
 This ADR records the option space and the reasoning.
+
+---
+
+## Amendment (#149): 3→5 is rejected. `12m` is adopted on its own; `1w` is refused on evidence
+
+**The leading candidate below did not survive being measured.** #149 built the sweep this ADR
+declined to authorise (`replay.gate_sweep`, `references/detection_gate_sweep.txt`) and
+decomposed the 75 recovered trades by the lookback that admits each one. Every figure below
+is from that sweep — 821 measured sessions, 656 replayable trades, coverage 92 blind-spot
+tickers, detector v2 (#154's graded base tightness).
+
+**`DETECTION_LOOKBACKS` is now `("1m", "3m", "6m", "12m")`.** That is not the widening this
+ADR proposed.
+
+### The 75 arrive entirely through the two lookbacks the spec excludes
+
+| Admitted by | Count | Share |
+| --- | --- | --- |
+| `12m` only | **49** | 65.3% |
+| `1w` only | **22** | 29.3% |
+| both `1w` and `12m` | 4 | 5.3% |
+| also by a lookback already gated | **0** | — (impossible by construction) |
+
+So 3→5 buys its whole recall gain with names `detection.py:449` excluded *on purpose*. This
+ADR argued the widening was safe because it is structural rather than a threshold move and
+does not change what "top decile" means. Both remain true, and neither answers this.
+
+### But "admitted by `12m`" is not "stale", and the difference decides it
+
+The exclusion's stated worry is a name that *topped out months ago and has done nothing
+since*. That is a claim about a name's recent ranks, not about which window let it in — so
+#149 measured the recent ranks:
+
+| Group | n | dead on 1m/3m/6m | within reach of the cut | median 6m pct |
+| --- | --- | --- | --- | --- |
+| `12m` only | 49 | **1** | 29 | **0.798** |
+| `1w` only | 22 | **8** | 3 | 0.356 |
+
+*(dead = below the field median on **every** gated window; within reach = ≥80th percentile on
+at least one.)*
+
+**One of the 49 trades `12m` recovers is stale in the sense the exclusion describes.** The
+group's median 6m percentile is 0.798 — names sitting just under the cut, quiet on 1m because
+they are *in a base*, which is the setup the detector exists to find. The same holds field-wide,
+not only for his trades: **14.1%** of the detections `12m` adds are dead on the gated windows,
+against **35.0%** for `1w`. The window named for staleness admits the *less* stale field of
+the two.
+
+### What each width costs, against the funnel's own going rate
+
+The gate as measured spends **424.7 detections per entry it surfaces** (148,223 detections over
+821 sessions, 349 entries surfaced). That is the denominator a marginal cost has to be read
+against; a widening at 1.0× is buying entries at the price the funnel already pays.
+
+| Width | Universe | Decile recall | Surfaced recall | Added detections | Per surfaced entry | vs going rate | Stale share of added |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `1m/3m/6m` (as measured) | 19.3% | 395/656 (60.2%) | 349/656 (53.2%) | — | — | — | — |
+| `+1w` | 24.2% | 421/656 (64.2%) | 361/656 (55.0%) | 17,842 | 1,486.8 | **3.50×** | 29.9% |
+| `+12m` | **21.9%** | **448/656 (68.3%)** | **397/656 (60.5%)** | 27,323 | 569.2 | **1.34×** | 13.4% |
+| five (3→5) | 26.5% | 470/656 (71.6%) | 409/656 (62.3%) | 43,430 | 723.8 | 1.70× | 20.1% |
+
+*The universe shares here — 19.3% and 26.5% — are the same two gates this ADR measured above
+at 19.4% and 27.2%, over a different window: the sweep recomputes the rank table in memory and
+so covers all **821** measured sessions, where the earlier figure covered the **505** the store
+still held rank rows for. The gates are identical; the windows are not. The field volumes are
+detector **v2** (#154) and are not comparable with any figure measured under v1, which is why
+this table quotes its own baseline rather than #141's 14,239 anchor. On A2's basis that baseline
+is 54,399 detections, 349/656 in the field and 109/656 on the board — the same three figures §4a
+reports, reached by an independent path.*
+
+Field inflation is a **volume** measure and never a false-positive rate: the added names carry
+no verdict (findings §7, §9). It is reported on the basis #141 sets for the cluster gate, so
+the funnel's two most expensive gates are priced comparably.
+
+### And the trades each half recovers are opposite in quality
+
+R here is fat-tailed — every group's median R is −1.00 — so the mean is a statement about one
+name. Read the trimmed mean and the tail rate:
+
+| Group | n | mean R | trim-5% R | win rate | R≥3 rate | best trade's share of R |
+| --- | --- | --- | --- | --- | --- | --- |
+| passing `1m/3m/6m` | 395 | 1.37 | 0.03 | 25.1% | 16.8% | 19.2% |
+| recovered by `12m` | 49 | 1.87 | 0.12 | **24.5%** | **20.4%** | 70.7% |
+| recovered by `1w` | 22 | −0.88 | −0.99 | **4.5%** | **0.0%** | — (no net R) |
+
+**The `12m` half recovers trades indistinguishable from the ones the gate already passes.**
+The `1w` half recovers 22 trades that won 4.5% of the time and not one of which reached 3R.
+Bundling them into a single "75 recovered" is exactly what this ADR's headline number could
+not see.
+
+### Verdict
+
+- **3→5 is rejected.** It is not one move: it is a defensible widening and an indefensible one
+  quoted at a blended price.
+- **`1w` stays excluded, now on evidence rather than on assertion.** It costs 3.50× the going
+  rate, adds the stalest field of any width, and the entries it recovers lose.
+- **`("1m", "3m", "6m", "12m")` is adopted.** ADR 0002's four conditions are met — the loss is
+  measured directly (A1), shown not to be a coverage artefact (§3's decomposition), the change
+  is structural with no threshold to justify, and the population cost is stated: **2.6 points
+  of universe and 27,323 detections for 53 recovered entries, 48 of which the app would have
+  surfaced.** Decile recall 60.2% → 68.3%; surfaced recall 53.2% → 60.5%. The board barely
+  moves: 1,832 top-30 places change hands over 821 sessions, and his own entries' board count
+  goes 109 → 111.
+- **The §4.5 exclusion is amended, not ignored.** `12m` was excluded on a prediction about what
+  it would admit; the prediction was measurable and it was wrong. `detection.py`'s docstring
+  now records the measurement rather than the prediction.
+
+### What this verdict does not claim
+
+- **Precision is still unmeasurable.** 27,323 added detections are 27,323 names carrying no
+  verdict, not 27,323 false positives. The out-of-sample backtest (`docs/out-of-sample-backtest-plan.md`)
+  is what prices them properly; this decision lands before its Phase 3 so the denominator is
+  frozen, which is what that plan asks for.
+- **n = 49 is a small sample from one regime**, and 70.7% of its R is one trade. The claim
+  rests on *absence of harm* (win rate 24.5% against 25.1%, R≥3 20.4% against 16.8%), which is
+  what adoption needs, and not on the recovered group being better — which the sample cannot
+  support.
+- **Scope is US 2019–2022.** No figure here is an IDX expectation.
+- The measurement is reproducible: `replay.gate_sweep` pins its baseline to the three-lookback
+  width rather than reading the live constant, so the report that decided this can still be
+  re-run after the decision moved that constant.
+
+**Everything below this line is the reasoning as it stood before the sweep**, kept as the
+record of what was argued and on what. Where it calls 3→5 "the leading candidate", read this
+amendment.
+
+---
 
 **Accepted on the full run.** It was raised `proposed` because the decomposition ADR 0002
 condition 2 requires was only 46% measured — 312 of 658 replayable trades, skewed to 2021–22.
@@ -92,7 +222,8 @@ loosening can recover.
 
 - **No constant changes.** This ADR settles the *reasoning*, not the edit. Adopting 3→5 is
   separate work and needs its own ticket; nothing here authorises touching
-  `DETECTION_LOOKBACKS`.
+  `DETECTION_LOOKBACKS`. *(Superseded by the amendment: #149 was that ticket, and it moved the
+  constant to `("1m", "3m", "6m", "12m")` — not to the five-lookback set.)*
 - **The evidence this ADR was waiting for has arrived.** The full 658-trade decomposition into
   coverage gap / recovered-by-5 / outside-any-union now rides the single forward chain (#131)
   and is committed in findings §3. The earlier obstacle — `append_ranks` pruning beyond
@@ -103,6 +234,8 @@ loosening can recover.
   the appendix below.
 - Should 3→5 be adopted, the change is confined to `DETECTION_LOOKBACKS`. Nothing outside
   `detection.py` reads it, so the breadth badge, sector strength and the boards are untouched.
+  *(Confirmed by #149's narrower adoption: the whole edit was one tuple, and the backend suite
+  passed unchanged.)*
 - The **18.8%** is a standing statement about what this funnel cannot do. If those entries
   matter, the answer is a different selection stage, not a looser decile.
 - Scoped to US 2019–2022. No figure here is an IDX expectation; the shape — that the decile

@@ -173,11 +173,11 @@ tagged `continuation`.
 | Stage | Recall (headline) | Recall (ex-continuation) | Notes |
 | --- | --- | --- | --- |
 | Liquidity | **598/656 (91.2%)** | **523/577 (90.6%)** | The one stage where a rejected name never reaches any tab — a miss here is otherwise invisible (user story 7). Cheapest of the three. |
-| Decile | **395/656 (60.2%)** | **340/577 (58.9%)** | The most aggressive filter — cuts to **19.4%** of the universe before the detector looks. Depends on the replayed field → coverage attached. Now the **largest** loss in the funnel. |
+| Decile | **395/656 (60.2%)** | **340/577 (58.9%)** | The most aggressive filter — cut to **19.4%** of the universe before the detector looks. **The gate has since moved:** #149 admitted `12m`, taking it to **21.9%** of the universe and decile recall to **448/656 (68.3%)** — see §3e. This row is the measurement under the three-lookback gate and is left as measured. Depends on the replayed field → coverage attached. |
 | Detection | **549/656 (83.7%)** | **487/577 (84.4%)** | Detector v2 (#154). Was 380/658 (57.8%) under the hard 1.5 cluster cut. Failures broken down by geometric condition below (user stories 9, 10). |
 
-> **The decile gate is the expensive one.** It discards **40% of his real entries on its
-> own**, before the detector is ever consulted — the largest single loss in the funnel, and
+> **The decile gate is the expensive one.** Under the width measured here it discards **40%
+> of his real entries on its own**, before the detector is ever consulted — the largest single loss in the funnel, and
 > nearly five times the liquidity stage's. **Correction (#133):** this table originally
 > quoted the gate as cutting to "~29% of the universe", following PRD #114 user story 8.
 > That figure is the *five*-lookback union (`ranks.py`, 27.2% measured); the gate this row
@@ -206,6 +206,9 @@ before anything is widened on the strength of it:
 | Coverage gap (absent from the field) | **64** | 24.3% | Not a ranking verdict at all — the ticker was not a universe member that session. §2's hole, showing up inside the funnel. |
 | Recovered by widening the gate 3→5 | **75** | 28.5% | Present, outside the **three**-union gate, but inside the **five**-union one. |
 | Outside even the five-union gate | **124** | 47.1% | A genuine cross-sectional miss: the name was not top-decile on any lookback. |
+
+**The middle bucket is the study's most concrete lead**, and §3e decomposes it one level
+further, which is what settled it.
 
 **The middle bucket is the study's most concrete lead.** 75 of his real entries — 11.4% of all
 658 replayable trades — sat inside the five-lookback union and outside the three. That is a
@@ -800,6 +803,136 @@ dimension can be put through it before it is weighted. It remains bounded — sa
 construction, so it says nothing about the wider universe; and its window straddles the entry, so
 post-breakout expansion sits in the control, which makes the lifts conservative rather than
 generous.
+
+---
+
+### 3e. What the 75 are made of, and what widening the gate is worth (#149)
+
+**Question.** ADR 0003 made *widen the gate from three lookbacks to five* its leading
+candidate on the strength of the 75-trade middle bucket above. But `1w` and `12m` are excluded
+from `detection_gate` **on purpose** — `1w` as a momentum burst, `12m` as staleness — so 3→5
+does not merely widen a gate, it reverses a stated rule. The 75 is a single number and cannot
+say whether the reversal is worth it. `replay.gate_sweep` prices each width separately
+(`references/detection_gate_sweep.txt` / `.json`; 821 measured sessions, **656** replayable
+trades, 92 blind-spot tickers, detector **v2**). The sweep is read-only, and pins its own baseline to the
+three-lookback width so it can still be re-run now that the verdict has moved the live one.
+
+#### Every one of the 75 arrives through a deliberately excluded lookback
+
+| Admitted by | Count | Share |
+| --- | --- | --- |
+| `12m` only | **49** | 65.3% |
+| `1w` only | **22** | 29.3% |
+| both | 4 | 5.3% |
+| also by a lookback already gated | **0** | impossible by construction |
+
+Seven of the 75 are continuation entries. Nothing arrives by `3m`/`6m` adjacency, because a
+name top-decile in a gated window already clears the gate — so the widening's entire recall
+gain is bought with the two windows the spec keeps out.
+
+#### …but "admitted by `12m`" and "stale" turn out to be different populations
+
+The exclusion's worry is a name that *topped out months ago and has done nothing since* — a
+claim about recent ranks, not about which window admitted it. Measured:
+
+| Group | n | dead on 1m/3m/6m | within reach of the cut | median 1m | median 3m | median 6m |
+| --- | --- | --- | --- | --- | --- | --- |
+| `12m` only | 49 | **1** | 29 | 0.475 | 0.628 | **0.798** |
+| `1w` only | 22 | **8** | 3 | 0.517 | 0.194 | 0.356 |
+
+*(dead = below the field median on **every** gated window; within reach = ≥80th percentile on
+at least one.)*
+
+**One of the 49.** The `12m`-only group sits at a median 6m percentile of 0.798 — just under
+the cut, and quiet on 1m because it is *in a base*, which is the shape the detector exists to
+find. The `1w`-only group is the opposite and is exactly what its exclusion describes: median
+3m percentile 0.194, more than a third of it dead on every gated window.
+
+The same holds field-wide, not only for his trades: of the detections each width **adds**,
+**14.1%** are dead on the gated windows for `12m` against **35.0%** for `1w`. The window named
+for staleness admits the less stale field of the two.
+
+#### Field inflation, on #141's basis, against the funnel's own going rate
+
+Precision is unmeasurable (§7, §9), so the cost is priced as **volume** — the same basis #141
+sets for the cluster gate, so the funnel's two most expensive gates are comparable. The live
+gate as measured spends **424.7 detections per entry surfaced** — 148,223 detections over 821
+sessions for 349 entries — and that is the denominator a marginal cost has to be read against.
+
+| Width | Universe | Decile recall (ex-cont) | Surfaced recall (ex-cont) | Added detections | Per recovered entry | Per surfaced entry | vs going rate | Board displacement | Stale share of added |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `1m/3m/6m` (as measured) | 19.3% | 395/656 (60.2%) / (58.9%) | 349/656 (53.2%) / (52.3%) | — | — | — | — | — | — |
+| `+1w` | 24.2% | 421/656 (64.2%) / (62.9%) | 361/656 (55.0%) / (54.4%) | 17,842 | 686.2 | 1,486.8 | **3.50×** | 967 | 29.9% |
+| **`+12m`** | **21.9%** | **448/656 (68.3%) / (67.4%)** | **397/656 (60.5%) / (60.0%)** | 27,323 | 515.5 | 569.2 | **1.34×** | 1,832 | 13.4% |
+| five (3→5) | 26.5% | 470/656 (71.6%) / (70.7%) | 409/656 (62.3%) / (62.0%) | 43,430 | 579.1 | 723.8 | 1.70× | 2,571 | 20.1% |
+
+*Three bookkeeping notes on this table.*
+
+**The universe shares.** 19.3% and 26.5% are the same gates quoted at **19.4%** and **27.2%**
+earlier in this section and in ADR 0003, over a different window: the sweep recomputes the rank
+table in memory and covers all **821** measured sessions, where those figures covered the
+**505** the store still held rank rows for. The gates are identical; the windows are not.
+
+**The field volumes are detector v2** (#154's graded base tightness) and are not comparable
+with anything measured under v1 — including the **14,239** that #141's ticket names as the
+baseline to price against. That is why the "going rate" here is the sweep's own baseline rather
+than that number: a marginal cost divided by an average from a different detector is not a ratio
+of anything.
+
+**The baseline row reproduces A2 exactly, and that is a cross-check rather than a coincidence.**
+On A2's own basis — the sessions his trades were evaluated at — this sweep's baseline width
+gives **54,399** detections, **349/656** in the field and **109/656** on the board: the same
+three figures §4a reports. The two arrive independently. The sweep reconstructs the chain and
+recomputes every session's ranks in memory; A2 reached the same place only once #141 stopped the
+detection pass reading ranks from the store, where retention had pruned them. Both paths now
+agree to the digit, which is the strongest statement either can make about the other.
+
+Detection recall itself is **gate-invariant** — each stage is evaluated unconditionally — and
+is 549/656 (83.7%), ex-continuation 487/577 (84.4%), at every width. *Surfaced* recall is the
+joint decile ∧ detection figure: what the app would actually have shown. **The board barely
+moves:** his own entries hold 109 of the top thirty under the gate as measured and 111 under
+`+12m`, and the 1,832 places that change hands are spread over 821 sessions.
+
+**Field inflation is a volume measure and never a false-positive rate.** The added names carry
+no verdict; they are names he may never have seen (cf. the not-taken comparison group, §5b).
+
+#### The two halves of 3→5 recover opposite kinds of trade
+
+R is fat-tailed here — **every** group's median R is −1.00 — so the mean is a statement about
+one name. The trimmed mean drops the top 5% of each group; the tail rate is where a breakout
+method's edge lives.
+
+| Group | n | mean R | trim-5% R | win rate | R≥3 rate | best trade's share of R | mean MFE% |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| passing `1m/3m/6m` | 395 | 1.37 | 0.03 | 25.1% | 16.8% | 19.2% | 18.2 |
+| recovered by 3→5 (all 75) | 75 | 0.91 | −0.36 | 17.3% | 13.3% | 95.1% | 9.5 |
+| …`12m` only | 49 | 1.87 | 0.12 | **24.5%** | **20.4%** | 70.7% | 10.3 |
+| …`1w` only | 22 | −0.88 | −0.99 | **4.5%** | **0.0%** | — (no net R) | 8.5 |
+| …both | 4 | −1.00 | −1.00 | 0.0% | 0.0% | — | 5.5 |
+
+**The `12m` half recovers trades indistinguishable from those the gate already passes.** The
+`1w` half recovers 22 trades that won 4.5% of the time, not one of which reached 3R. The
+blended "75 recovered" averages a defensible widening with an indefensible one.
+
+#### Verdict: 3→5 rejected; `12m` adopted; `1w` refused on evidence
+
+`DETECTION_LOOKBACKS` is now `("1m", "3m", "6m", "12m")`. ADR 0002's four conditions for
+loosening a cross-sectional cut are met, and the population cost is stated: **2.6 points of
+universe and 27,323 detections for 53 recovered entries, 48 of them surfaced.** The §4.5
+exclusion is amended rather than ignored — `12m` was excluded on a prediction about what it
+would admit, the prediction was measurable, and it was wrong. The reasoning is in
+`docs/adr/0003-the-decile-gate.md` (amendment).
+
+**What this does not claim.** Precision is still unmeasurable: 27,323 added detections are
+27,323 names carrying no verdict, not 27,323 false positives — the out-of-sample backtest is
+what prices them. n = 49 is small and 70.7% of its R is one trade, so the claim rests on
+*absence of harm*, not on the recovered group being better. §2's coverage hole bounds this
+like everything else. Scope is US 2019–2022.
+
+**The earlier figures in this section are left as measured** under the three-lookback gate.
+They are the evidence this verdict was reached from, and rewriting them to the new width would
+destroy the record of what was decided and why. `references/replay_study_report.txt` and
+`replay_study_results.json` likewise predate the change.
 
 ---
 
@@ -1642,6 +1775,22 @@ python -m replay.contrast    --store data/replay.duckdb
 
 Run separately, each rebuilds (or, on a built store, reuses) the whole chain; `replay.study`
 is the way to get all four for the price of one forward pass.
+
+**The gate-width sweep is separate, and read-only** (§3e, #149). It reconstructs the forward
+pass from the universe rows the store already holds and recomputes the ranks in memory — the
+chain's own reuse path with nothing written back — then runs the detector once over the union
+of every width it prices. About four minutes on a built store, against the study's half hour,
+because it never rebuilds the universe:
+
+```
+python -m replay.gate_sweep --store data/replay.duckdb \
+    --out-report references/detection_gate_sweep.txt \
+    --out-json   references/detection_gate_sweep.json
+```
+
+It baselines against the three-lookback width explicitly rather than reading
+`DETECTION_LOOKBACKS`, so it reproduces byte-for-byte after its own verdict moved that
+constant.
 
 **Runtime.** The chain is 947 sessions (126 burn-in + 821 measured) and dominates: on the
 2026-08-15 run the whole study took **29.8 minutes**, of which the chain was 29.1 and the

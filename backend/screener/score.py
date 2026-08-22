@@ -43,7 +43,12 @@ travelling to IDX):
 | Sector      | ×1     | leave-one-out 1m sector share ``>= 0.10`` |
 | ADR         | ×2     | ``ADR >= 0.05``                         |
 
-Three of the eight are read off the detection's own signal vector (tightness,
+``Tightness`` here is **base tightness** — how quiet the stock was before the break,
+read off the cluster's geometry. It is not stop width, and the two are 3.8× apart on
+his own trades (findings §3b, issue #147); the dimension label is kept as published
+because it rides the API payload and the digest.
+
+Three of the eight are read off the detection's own signal vector (base tightness,
 base length, ADR); orderliness, MA support and volume are the detector's derived
 signals (``churn_l``, ``sma20_rising``, ``dryup``); and two are **cross-sectional**
 — the prior-move percentile and the leave-one-out sector share, supplied by the
@@ -51,10 +56,13 @@ caller from the same session's rank table and labels. All eight are booleans ove
 persisted quantities, so a corrected rubric replays backwards over history (spec
 §7.5 / ticket 08 D16).
 
-Two things this module deliberately does not take: **the stop** (``stopw_adr`` is
-the cluster's range in ADR by identity, the narrowness the ×2 tightness dimension
-already reads — one ruler, not two, §4.6) and **the regime** (advisory only,
-§4.9). Neither is a parameter here, so the score cannot depend on either.
+Two things this module deliberately does not take: **the stop** and **the regime**
+(advisory only, §4.9). Neither is a parameter here, so the score cannot depend on
+either. The stop was originally excluded as a duplicate ruler — ``stopw_adr`` was
+then the cluster-low distance, so scoring it would have re-read the same base
+tightness the ×2 dimension already reads (§4.6). Since #127 it is the trader's
+**stop width** convention, a constant 0.345 ADR on every row, so it now carries no
+cross-sectional signal at all. Different reason, same exclusion.
 
 Pure and numpy-free, so it is unit-tested without the network.
 """
@@ -82,7 +90,7 @@ RUBRIC_VERSION = 2
 # not scored from the detection but passed in as a boolean by the caller, decided
 # upstream by the decile gate. The rubric's ceiling — nine weighted points, ÷2 for
 # 0.5–4.5 stars — is likewise not a tunable but the sum of the weights below.
-TIGHT_K = 5              # cluster_k >= 5
+TIGHT_K = 5              # cluster_k >= 5 — base tightness, never a stop width
 CHURN_LO, CHURN_HI = 0.30, 0.60   # 0.30 <= churn/L <= 0.60, a band on both edges
 BASE_LEN_MAX = 14        # base_len <= 14
 DRYUP_MAX = 0.95         # dry-up <= 0.95

@@ -102,10 +102,19 @@ Prior-move peak through today, capped at 45 bars. Always ends today — there is
 thing as a base that ended last week.
 
 **Cluster**:
-The largest trailing 3–7 bar window spanning at most 1.5 × ADR. The tight end of the base.
+The largest trailing 3–7 bar window spanning at most 1.5 × ADR. The quiet end of the base —
+where **base tightness** is measured. Never a stop level.
 
 **Cluster length `k`**:
-Bars in the cluster. The double-weighted tightness dimension of the star score.
+Bars in the cluster. The double-weighted **base tightness** dimension of the star score.
+
+**Base tightness**:
+How quiet the stock was *before* the break — the trailing 3-bar range in ADR
+(`cluster_range_adr`; range is monotone in `k`, so the tightest window of 3–7 is always the
+3-bar one). Setup geometry: it is what `TIGHT_MULT` gates on and what the rubric's ×2
+`Tightness` dimension scores. Median **1.310 ADR** over his 649 replayable entries
+(findings §3b). Distinct from **stop width**, which is 3.8× narrower on the same trades.
+_Avoid_: tightness or tight (unqualified), tight zone, tight stop.
 
 **Envelope**:
 The upper trendline — anchored at the cluster's max high, fitted backwards over the base's
@@ -118,6 +127,22 @@ silent tiebreak.
 **Trigger**:
 `cluster_high`, by identity — the envelope is anchored at the cluster's max high and can
 never exceed it.
+
+**Stop width**:
+How much of the entry he is willing to lose — trigger to stop, in ADR (`stopw_adr`). Position
+sizing, not setup geometry: a detector output and a card claim, fixed at
+`STOP_CONVENTION_ADR = 0.345`, the median of his 649 executed stops (findings §6 Finding 1,
+issue #127; reproduced quantile-for-quantile by §3b). It is **not** the consolidation low and
+never was — he risks the **entry bar** (`references/qullamaggie-entry-ma-distance.md`).
+_Avoid_: risk_adr, tight stop, cluster-low stop, risk.
+
+**The 3.8× gap**:
+Why **base tightness** and **stop width** are two terms and not one. Measured on the same 649
+entries at the same evaluation sessions (findings §3b): base 1.310 ADR median against stop
+width 0.345 ADR — **ratio of medians 3.80×**, median per-trade ratio 3.77×. Reasoning that
+"the stop sits below the tight zone" places it at ~1.3 ADR and nearly quadruples risk per
+trade; that is the ~1.28 ADR cluster-low default issue #127 removed. The two are also
+independently tunable and independently evidenced.
 
 **Detection**:
 A name with a valid base, cluster and MA catch-up, inside the detection gate, on a session.

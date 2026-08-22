@@ -422,8 +422,11 @@ is the provenance of `STOP_CONVENTION_ADR = 0.345` (#127). That is an independen
 different code path, not a new result, and is the main external check this prototype has passed.
 
 What is new is the pairing: base tightness and stop width are **different quantities by ~3.8×**, and
-both are called "tight" in the codebase and in the method notes. Worth separating in the domain
-model before either is tuned.
+both were called "tight" in the codebase and in the method notes. **Separated in the domain model by
+#147**, before either was tuned: `CONTEXT.md` now defines **base tightness** (setup geometry — what
+`TIGHT_MULT` gates and the rubric's ×2 dimension scores) and **stop width** (his risk — what
+`STOP_CONVENTION_ADR` encodes) as distinct terms, citing this section for the pairing and §6 Finding 1
+/ #127 for the convention.
 
 > *Method note, recorded because the first pass got it wrong.* Both rows above are **ratios** — his
 > stop as a fraction of entry, ADR as a fraction of close — so a split cancels and all 649 rows

@@ -12,8 +12,11 @@ The structure is two levels, ported from the wayfinding prototype
   slope test decides its extent — it is a span, not a shape, so a bar that pierces
   the envelope does not invalidate it (the boundaries are fits, not monotonic
   tests).
-- **The cluster** is the largest 3–7 bar trailing window tight enough to sit
-  under ``TIGHT_MULT × ADR``. Its max high *is* the trigger, by identity.
+- **The cluster** is the largest 3–7 bar trailing window whose span sits under
+  ``TIGHT_MULT × ADR``. Its max high *is* the trigger, by identity. Its span is
+  **base tightness** — setup geometry, gated here and scored ×2 by the rubric.
+  It is never a stop level; **stop width** is a separate quantity, measured 3.8×
+  narrower on the same trades (findings §3b, issue #147).
 
 The envelope is anchored at the cluster's max-high bar and searched over
 **non-positive slopes only**, so the fitted line can never exceed the anchor —
@@ -22,7 +25,7 @@ reaches the trigger**: it gates ``line_ok`` and it draws the chart, nothing else
 
 Gates (a name is a detection iff all hold):
 
-- **Cluster** — a tight 3–7 bar cluster exists (step 3).
+- **Cluster** — a 3–7 bar cluster inside ``TIGHT_MULT × ADR`` exists (step 3).
 - **Catch-up** — price is back at the 10/20 MA (step 2).
 - **Decile** — top decile in **any of 1m/3m/6m**, off the rank table
   (:func:`detection_gate`). 1w is a momentum burst, not §3.1's big prior move;
@@ -61,6 +64,8 @@ MAX_BASE_LEN = 45  # re-anchor to the highest high within 45 bars past this
 MIN_BASE_LEN = 3   # §3.1's minimum; the base always ends today
 
 # The cluster: the largest trailing k in [K_MIN, K_MAX] spanning ≤ TIGHT_MULT×ADR.
+# TIGHT_MULT gates **base tightness** — how quiet the stock was before the break —
+# and nothing else. It has never bounded a stop; see STOP_CONVENTION_ADR below.
 K_MIN, K_MAX = 3, 7
 TIGHT_MULT = 1.5
 
@@ -86,13 +91,23 @@ MAX_OVERSHOOT_ADR = 1.0
 # Detection requires ≥ 80 bars of history and a positive ADR (spec §4.5).
 MIN_HISTORY = 80
 
-# The proposed stop is placed at the trader's own convention, not at the cluster
-# low. The replay (findings §6 finding 1; PRD #114, issue #127) measured his 649
-# executed stops at a **median of 0.345 ADR** (p25 0.238, p75 0.490, 98.15% at or
-# under 1.0 ADR); the cluster-low stop the detector used to propose ran a median
-# of 1.28 ADR — roughly four times wider than the stop he actually places. The
-# card's risk and affordability read this proposed stop, so the number a user
-# reads is now derived from a stop the trader would plausibly place. The cluster
+# **Stop width** — his risk, not the setup's geometry. This is **not the cluster
+# low, and it never was**: the cluster low is where the base sat, and he does not
+# stop under the consolidation. He risks the **entry bar**, which is why stop width
+# is uncorrelated with how far price has run from the MA (Spearman −0.002,
+# ``references/qullamaggie-entry-ma-distance.md``).
+#
+# The replay (findings §6 finding 1; PRD #114, issue #127) measured his 649 executed
+# stops at a **median of 0.345 ADR** (p25 0.238, p75 0.490, 98.15% at or under
+# 1.0 ADR); the cluster-low stop the detector used to propose ran a median of
+# 1.28 ADR — roughly four times wider than the stop he actually places. Findings §3b
+# reproduces the stop row quantile-for-quantile and pairs it with **base tightness**
+# (median 1.310 ADR): the two differ by **3.80× at the median**. Deriving this
+# constant from the base again would nearly quadruple risk per trade — that is the
+# mistake #127 removed and #147 named.
+#
+# The card's risk and affordability read this proposed stop, so the number a user
+# reads is derived from a stop the trader would plausibly place. The cluster
 # geometry (``cluster_low``) is unchanged and still carried on the row; it is just
 # no longer what the detector proposes as the stop.
 STOP_CONVENTION_ADR = 0.345
@@ -152,7 +167,8 @@ class Detection:
     def stop_price(self) -> float:
         """The proposed stop line in price terms: the trigger less the convention
         stop budget (``trigger − stop``). This is the stop the Board and Setups
-        cards draw and derive risk from (issue #127) — no longer the cluster low.
+        cards draw and derive risk from (issue #127) — the cluster low is base
+        geometry and is not, and was never, the stop.
         On a fixture whose ``stop`` was built as ``trigger − cluster_low`` this
         still evaluates to the cluster low, so the identity degrades gracefully."""
         return self.trigger - self.stop
@@ -206,7 +222,8 @@ def _find_cluster(high: list[float], low: list[float], as_of: int, adr_abs: floa
     """Largest trailing 3–7 bar window spanning ≤ ``TIGHT_MULT × ADR``.
 
     Returns ``(k, cluster_high, cluster_low, range_adr)`` for the first (largest)
-    k that is tight enough, or ``None`` (``no_cluster``, a rejection).
+    k whose **base tightness** clears the gate, or ``None`` (``no_cluster``, a
+    rejection). ``cluster_low`` is base geometry for the chart, never a stop.
     """
     if adr_abs <= 0:
         return None
@@ -225,7 +242,11 @@ def _find_cluster(high: list[float], low: list[float], as_of: int, adr_abs: floa
 def cluster_min_range_adr(
     high: list[float], low: list[float], as_of: int, adr_abs: float
 ) -> float | None:
-    """The tightest trailing 3–7 bar window range at ``as_of``, in ADR units.
+    """The narrowest trailing 3–7 bar window range at ``as_of``, in ADR units.
+
+    **Base tightness**, ungated — the same quantity ``TIGHT_MULT`` cuts into, not
+    a stop width. Range is monotone in ``k``, so this is always the 3-bar range
+    (confirmed on all 649 replayable entries, findings §3b).
 
     A read-only diagnostic: the minimum over ``k`` in ``[K_MIN, K_MAX]`` of the
     ``k``-bar trailing range ``(max high − min low) / adr_abs``, taken regardless
@@ -356,9 +377,10 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
 
     Returns ``None`` when the per-name gates fail: too little history (< 80 bars)
     or non-positive ADR, no prior move, a base shorter than 3 bars, price not yet
-    caught up to the 10/20, or no tight cluster. The **decile** gate is not
-    applied here — it is cross-sectional and lives in the pipeline; a caller
-    detecting a single name in isolation has already decided it is eligible.
+    caught up to the 10/20, or no cluster inside ``TIGHT_MULT × ADR``. The
+    **decile** gate is not applied here — it is cross-sectional and lives in the
+    pipeline; a caller detecting a single name in isolation has already decided it
+    is eligible.
     """
     idx = _as_of_index(bars, as_of)
     if idx is None or idx < MIN_HISTORY:
@@ -408,9 +430,10 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
     trigger = cluster_high  # by identity — never max(line, high); the clamp is dead
     # The proposed stop is the trader's convention (issue #127): a fixed
     # STOP_CONVENTION_ADR multiple of the night's ADR below the trigger, in price
-    # units. By construction ``stopw_adr`` equals the convention — the a·trigger
-    # in ``stop`` cancels — so every proposed stop sits at 0.345 ADR, not the
-    # ~1.28 ADR the cluster-low distance used to yield.
+    # units. Note what is *not* read here — ``cluster_low``, ``range_adr``, nor any
+    # other base-tightness quantity. By construction ``stopw_adr`` equals the
+    # convention — the a·trigger in ``stop`` cancels — so every proposed stop sits
+    # at 0.345 ADR, not the ~1.28 ADR the cluster-low distance used to yield.
     stop = STOP_CONVENTION_ADR * a * trigger if trigger > 0 else float("nan")
     stopw_adr = stop / trigger / a if trigger > 0 else float("nan")
 

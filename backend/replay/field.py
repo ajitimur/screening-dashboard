@@ -39,7 +39,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Callable, Iterable, Sequence
 
-from screener.detection import Detection, detection_gate
+from screener.detection import TIGHT_MULT, Detection, detect, detection_gate
 from screener.pipeline import rebuild_detections
 from screener.ranks import Rank
 from screener.score import DIMENSIONS, Dimension, star_score
@@ -241,11 +241,51 @@ def _session_detections(store: Store, market: str, session: date) -> list[Detect
     empty result deterministically: the two-year rank retention that may have
     emptied that session's decile gate is the same on every pass, so a night that
     detected nothing the first time detects nothing again.
+
+    A measurement pass takes neither branch — see :func:`_detect_uncommitted`.
     """
     persisted = store.detections(market, session)
     if persisted:
         return persisted
     return rebuild_detections(store, market, session)
+
+
+def _detect_uncommitted(
+    store: Store, market: str, sf: SessionField, tight_mult: float
+) -> list[Detection]:
+    """Detect over one chain session's gated universe **in memory**, persisting nothing.
+
+    Mirrors :func:`screener.pipeline.rebuild_detections` gate for gate — every
+    universe member, the decile gate, the app's own :func:`screener.detection.detect`
+    — and differs from it in two ways that a *measurement* pass requires:
+
+    - **It appends nothing.** A field built at a swept ``tight_mult`` is not the
+      app's field, so writing it into the store would put rows there that no live
+      run produced, and reading persisted rows back for it would silently return
+      the live field under a swept label. A measurement pass leaves the store's
+      detection rows untouched.
+    - **The decile gate is read off the chain's own ranks, not the store's.**
+      ``rebuild_detections`` reads :meth:`Store.ranks`, whose two-year retention
+      (:data:`screener.store.RANK_RETENTION_YEARS`) prunes an early session's rank
+      rows long before a whole-chain pass reaches the detection stage — so a
+      session outside the retained window gates against an *empty* rank table and
+      yields no detections at all. The chain already carries the ranks it computed
+      for every session (``SessionField.ranks``, recomputed in memory on reuse for
+      exactly this reason), and the A1 funnel already reads its decile verdicts
+      from there. Reading them here puts the two analyses on the same table and
+      keeps every session of a sweep comparable to every other.
+    """
+    gated = detection_gate(sf.ranks)
+    rows: list[Detection] = []
+    for symbol in sf.members:
+        if symbol not in gated:
+            continue
+        found = detect(
+            symbol, store.bars(market, symbol), sf.session, tight_mult=tight_mult
+        )
+        if found is not None:
+            rows.append(found)
+    return rows
 
 
 def build_field_sessions(
@@ -255,6 +295,8 @@ def build_field_sessions(
     *,
     trades: Iterable[ExecutedTrade] = (),
     progress: Callable[[int, int, date], None] | None = None,
+    tight_mult: float = TIGHT_MULT,
+    persist: bool = True,
 ) -> list[FieldSession]:
     """Run the per-session detection pass over an already-built forward ``chain``.
 
@@ -267,14 +309,28 @@ def build_field_sessions(
     ``progress`` is called as ``progress(i, total, session)`` after each session's
     detections are built (1-based ``i``), so a long run reports rather than hanging
     silently. The store is wrapped in the run-scoped bar cache if it is not already.
+
+    ``tight_mult`` is the detector's cluster cut and defaults to the live constant.
+    ``persist`` chooses between the app's field and a **measurement** field: the
+    default reuses or appends the store's detection rows, while ``persist=False``
+    computes every session in memory off the chain's own ranks and writes nothing
+    (:func:`_detect_uncommitted`). A swept cut is always a measurement field —
+    passing one forces ``persist=False``, because a field built at a cut the app
+    does not run is not the app's field and must never be stored as one. The #141
+    sweep rebuilds the field at every cut it prices, over one shared chain.
     """
+    measure_only = not persist or tight_mult != TIGHT_MULT
     store = CachingStore.wrap(store)
     entries = _entries_by_session(trades)
 
     total = len(chain)
     fields: list[FieldSession] = []
     for i, sf in enumerate(chain, start=1):
-        detections = _session_detections(store, market, sf.session)
+        detections = (
+            _detect_uncommitted(store, market, sf, tight_mult)
+            if measure_only
+            else _session_detections(store, market, sf.session)
+        )
         entered = entries.get(sf.session, set())
         candidates = build_field(
             detections, sf.ranks, entered=entered, any_entry=bool(entered)

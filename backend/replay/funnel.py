@@ -65,6 +65,7 @@ from screener.detection import (
     MAX_BASE_LEN,
     MIN_BASE_LEN,
     MIN_HISTORY,
+    TIGHT_MULT,
     _argmax,
     _as_of_index,
     _find_cluster,
@@ -374,7 +375,9 @@ def _session_index(calendar: list[date], when: date) -> int:
 # -- detection failure attribution --------------------------------------------
 
 
-def diagnose_detection(bars: list[Bar], as_of: date) -> str | None:
+def diagnose_detection(
+    bars: list[Bar], as_of: date, *, tight_mult: float = TIGHT_MULT
+) -> str | None:
     """The first detector gate that fails for ``(bars, as_of)``, or ``None``.
 
     Walks :func:`screener.detection.detect`'s gates in its exact order, reusing its
@@ -382,6 +385,11 @@ def diagnose_detection(bars: list[Bar], as_of: date) -> str | None:
     a reimplementation of it (PRD user story 31). ``None`` means every gate passed —
     the name is a detection. Called only to attribute a miss the detector already
     returned; the pass/fail verdict is always :func:`detect`'s.
+
+    ``tight_mult`` is the cluster cut the *detector* ran at and defaults to the live
+    :data:`screener.detection.TIGHT_MULT`. The #141 sweep runs both at a swept cut
+    together: attributing a miss at 1.5 against a detector that ran at 2.0 would
+    report a `cluster` miss on a name the swept detector detected.
     """
     idx = _as_of_index(bars, as_of)
     if idx is None or idx < MIN_HISTORY:
@@ -416,7 +424,7 @@ def diagnose_detection(bars: list[Bar], as_of: date) -> str | None:
     if not caught_up:
         return COND_CATCH_UP
 
-    if _find_cluster(high, low, idx, adr_abs) is None:
+    if _find_cluster(high, low, idx, adr_abs, tight_mult) is None:
         return COND_CLUSTER
 
     return None
@@ -506,10 +514,13 @@ def _funnel_row(
     gate3_by_session: dict[date, set[str]],
     gate5_by_session: dict[date, set[str]],
     percentiles_by_session: dict[date, dict[str, dict[str, float]]],
+    tight_mult: float = TIGHT_MULT,
 ) -> FunnelRow:
     # Secondary signal, independent of the eval session: does the base the app
     # would look for stand on the entry session itself?
-    entry_session_break = detect(trade.ticker, bars, trade.entry_date) is not None
+    entry_session_break = (
+        detect(trade.ticker, bars, trade.entry_date, tight_mult=tight_mult) is not None
+    )
     eval_session = evaluation_session(calendar, trade.entry_date)
 
     if eval_session is None:
@@ -553,9 +564,13 @@ def _funnel_row(
     )
     decile_verdicts = {lb: pct >= TOP_DECILE for lb, pct in eval_percentiles.items()}
 
-    detection = detect(trade.ticker, bars, eval_session)
+    detection = detect(trade.ticker, bars, eval_session, tight_mult=tight_mult)
     detection_pass = detection is not None
-    failed_condition = None if detection_pass else diagnose_detection(bars, eval_session)
+    failed_condition = (
+        None
+        if detection_pass
+        else diagnose_detection(bars, eval_session, tight_mult=tight_mult)
+    )
     # The margin of a `cluster` miss (#132): how far the trailing 3-bar range —
     # the tightest window there is — sat over the condition's TIGHT_MULT window.
     # Set only on a cluster miss — the other conditions have their own margins and
@@ -623,6 +638,7 @@ def build_funnel_report(
     market: str,
     *,
     blind_spot_tickers: Iterable[str] = (),
+    tight_mult: float = TIGHT_MULT,
 ) -> FunnelReport:
     """Walk every replayable trade over an already-built forward ``chain``.
 
@@ -630,6 +646,10 @@ def build_funnel_report(
     decile gates, and the per-lookback margins off the chain the caller already
     computed, so the one-process runner (:mod:`replay.study`) can share a single
     chain across all four analyses instead of rebuilding it per analysis.
+
+    ``tight_mult`` is handed to the detector and to the miss attribution alike. It
+    defaults to the live cut; the #141 sweep re-walks the same chain at other cuts
+    to measure what recall a widen recovers, and moves no constant to do it.
     """
     distances = _prior_entry_distances(classified, calendar)
     members_by_session = {sf.session: set(sf.members) for sf in chain}
@@ -662,6 +682,7 @@ def build_funnel_report(
                 gate3_by_session,
                 gate5_by_session,
                 percentiles_by_session,
+                tight_mult,
             )
         )
 
@@ -676,6 +697,7 @@ def run_funnel(
     blind_spot_tickers: Iterable[str] = (),
     burn_in: int = BURN_IN_SESSIONS,
     sessions: Sequence[date] | None = None,
+    tight_mult: float = TIGHT_MULT,
 ) -> FunnelReport:
     """Walk every replayable trade through the liquidity, decile and detection stages.
 
@@ -690,6 +712,9 @@ def run_funnel(
     Blind-spot trades get no row — a ticker whose bars do not cover the trade's
     evaluation session is a blind spot, not a stage failure. Continuation entries
     are tagged and kept in every denominator.
+
+    ``tight_mult`` is the detector's cluster cut, defaulting to the live constant;
+    see :func:`build_funnel_report`.
     """
     classified = classify(trades, store, market=market)
     calendar = store.sessions(market)
@@ -703,6 +728,7 @@ def run_funnel(
     return build_funnel_report(
         classified, calendar, chain, store, market,
         blind_spot_tickers=blind_spot_tickers,
+        tight_mult=tight_mult,
     )
 
 

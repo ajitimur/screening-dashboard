@@ -1,0 +1,27 @@
+TIGHT_MULT sweep — pricing the marginal cluster widen (US, #141)
+one forward chain: 821 measured sessions, 92 blind-spot tickers, board size 30
+scope: US 2019–2022
+
+   cut   recall  ex-cont   recov   marginal      field     added  added/entry   in-field   top-30  displaced
+  1.50   57.9%   59.1%       0     0/113      68,654         0            —   242/656       112          0  (live)
+  1.75   68.1%   69.3%      67    67/113      94,467    25,813        385.3   287/656       109      8,351
+  2.00   75.2%   76.1%     113   113/113     114,279    45,625        403.8   316/656       104     10,905
+  2.25   80.2%   80.6%     146   113/113     128,651    59,997        410.9   335/656       103     11,913
+
+baseline (the live gate, TIGHT_MULT = 1.5): 68,654 detections over 821 sessions, detection recall 57.9% (380/656), 113 marginal `cluster` misses
+
+the same fields counted on his evaluation sessions only — the denominator the study's committed field distribution uses, not the whole chain:
+  TIGHT_MULT 1.5: 27,116 detections
+  TIGHT_MULT 1.75: 36,253 detections  (+9,137)
+  TIGHT_MULT 2: 43,067 detections  (+15,951)
+  TIGHT_MULT 2.25: 47,953 detections  (+20,837)
+
+headline — added detections per recovered entry:
+  TIGHT_MULT 1.75: 385.3 extra detections field-wide for each of the 67 real entries it recovers (25,813 added over 67)
+  TIGHT_MULT 2: 403.8 extra detections field-wide for each of the 113 real entries it recovers (45,625 added over 113)
+  TIGHT_MULT 2.25: 410.9 extra detections field-wide for each of the 146 real entries it recovers (59,997 added over 146)
+
+constraint: field inflation is a VOLUME proxy, never a false-positive rate: the admitted names carry no verdict — they are names he may never have seen (§5b, §9)
+coverage:   every figure is bounded by 92 blind-spot tickers; only a fraction of replayable trades reach the field at all
+scope:      US 2019–2022 — no figure here transfers to IDX (§8)
+no live constant is changed by this measurement: TIGHT_MULT = 1.5 stands

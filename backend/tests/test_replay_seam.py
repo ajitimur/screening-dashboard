@@ -61,6 +61,7 @@ from replay.chain import (
 )
 from replay.field import (
     SEVEN_DIM_LABEL,
+    build_field_sessions,
     SEVEN_DIM_MAX_POINTS,
     FieldSession,
     ScoredDetection,
@@ -96,10 +97,22 @@ from replay.contrast import (
     format_report as format_contrast_report,
     run_contrast,
 )
+from replay.sweep import (
+    DEFAULT_TIGHT_MULTS,
+    PRECISION_IS_NOT_MEASURED,
+    SweepPoint,
+    TightMultSweep,
+    added_per_recovered,
+    board_displacement,
+    format_sweep,
+    pick_sessions,
+    recovered_entries,
+    run_sweep,
+)
 from replay.caching_store import CachingStore
 from replay.store import WINDOW_END, WINDOW_START, build_replay_store
 from screener.bars import Bar
-from screener.detection import Detection, detect
+from screener.detection import TIGHT_MULT, Detection, detect
 from screener.store import Store
 
 
@@ -2206,3 +2219,241 @@ def test_placement_pairs_the_top_thirty_hit_per_rubric_not_only_the_histogram():
     assert live.top_thirty == report.top_thirty_count == 1
     # Under the old rubric the same pick, in the same field, is off the board.
     assert old.top_thirty == 0
+
+
+# -- pricing the marginal cluster widen (issue #141) ------------------------
+#
+# §3a left 113 marginal `cluster` misses as its open question and refused the
+# widen on the calibration rule alone, with the cost unquantified. Precision is
+# unmeasurable and stays so; **field volume** is not. The sweep runs the detector
+# at several cuts over **one** forward chain and reports, at each, what recall
+# comes back and how much the field inflates — so the trade has a price even
+# though it has no false-positive rate. No live constant moves.
+
+
+def _marginal_tail_hlc(flat: int = 60):
+    """A run-up into a base whose tightest window sits *just past* the 1.5× gate.
+
+    Same shape as ``_wide_tail_hlc`` but with the final three bars spanning
+    110 ± 1.1 rather than blowing out: the trailing 3-bar range reads **1.85 ADR**,
+    the median of §3a's 113 marginal misses. The live gate declines it; a widen to
+    2.0 recovers it. This is the population #141 prices.
+    """
+    hlc = [(100.5, 99.5, 100.0)] * flat
+    for i in range(1, 16):  # tight run-up 100 -> 110
+        p = 100.0 + (110.0 - 100.0) * i / 15
+        hlc.append((p + 0.5, p - 0.5, p))
+    hlc += [(110.5, 109.5, 110.0)] * 12   # the shelf that sets ADR
+    hlc += [(111.1, 108.9, 110.0)] * 3    # 1.85 ADR — marginal, not in motion
+    return hlc
+
+
+def test_diagnose_detection_honours_the_swept_cut(store: Store):
+    """The funnel's miss attribution walks the detector's gates at the same cut the
+    detector ran at — otherwise a swept run would report a `cluster` miss on a name
+    the swept detector detected."""
+    dates = _daily(date(2020, 1, 1), 90)
+    bars = _bars_from_hlc(dates, _marginal_tail_hlc())
+
+    assert diagnose_detection(bars, dates[89]) == COND_CLUSTER
+    assert diagnose_detection(bars, dates[89], tight_mult=1.75) == COND_CLUSTER
+    assert diagnose_detection(bars, dates[89], tight_mult=2.0) is None
+
+
+def test_funnel_recovers_a_marginal_miss_at_a_widened_cut(store: Store):
+    """A1 recall at a swept cut: the marginal miss the live gate declines is
+    detected at 2.0, and the row's `cluster` attribution goes with it."""
+    dates = _daily(date(2020, 1, 1), 90)
+    store.append_bars("US", "MARG", _bars_from_hlc(dates, _marginal_tail_hlc()))
+    trades = parse_trades([_funnel_record("MARG", dates[89] + timedelta(days=1))])
+
+    live = run_funnel(trades, store, burn_in=0)
+    widened = run_funnel(trades, store, burn_in=0, tight_mult=2.0)
+
+    assert live.detection.passed == 0
+    assert live.rows[0].failed_condition == COND_CLUSTER
+    assert live.rows[0].range_3bar_adr < MARGINAL_TIGHT_MULT   # a marginal miss
+    assert widened.detection.passed == 1
+    assert widened.rows[0].failed_condition is None
+    # The margin is a property of the bars, not of the cut, so it is unchanged and
+    # the two runs stay comparable row for row.
+    assert widened.rows[0].range_3bar_adr is None  # only set on a miss
+
+
+def test_a_swept_field_pass_never_persists_its_detections(store: Store):
+    """The swept field is **not** the app's field, so it must not be written into
+    the store as if it were — nor read back from it. The live pass persists; a
+    swept pass computes in memory and leaves the store's detection rows alone."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "MARG", _bars_from_hlc(dates, _marginal_tail_hlc(flat=75)))
+    chain = replay_chain(store, "US", burn_in=104)
+
+    live = build_field_sessions(store, "US", chain)
+    persisted_after_live = store.detections("US", dates[104])
+    widened = build_field_sessions(store, "US", chain, tight_mult=2.25)
+
+    assert live[0].field_size == 0                       # the live gate sees nothing
+    assert widened[0].field_size == 1                    # the widen admits MARG
+    assert store.detections("US", dates[104]) == persisted_after_live
+
+
+def test_added_detections_per_recovered_entry_is_the_headline():
+    """The ticket's headline number, as arithmetic: extra field-wide detections
+    divided by the real entries the widen recovers. Undefined — not zero, not
+    infinite — when nothing was recovered, because a ratio with no denominator is
+    not a price."""
+    assert added_per_recovered(added=2400, recovered=80) == 30.0
+    assert added_per_recovered(added=0, recovered=0) is None
+    assert added_per_recovered(added=1500, recovered=0) is None
+
+
+def test_recovered_entries_counts_only_misses_the_widen_turned_into_detections():
+    """Recall recovered is measured row-by-row against the live gate, not as a
+    difference of two totals: the marginal share is the subset that missed on
+    `cluster` inside the 2.0× marginal boundary."""
+    live = [
+        _make_funnel_row(ticker="MARG", failed_condition=COND_CLUSTER, range_3bar_adr=1.85),
+        _make_funnel_row(ticker="FAR", failed_condition=COND_CLUSTER, range_3bar_adr=3.10),
+        _make_funnel_row(ticker="RAMP", failed_condition=COND_BASE_LENGTH),
+    ]
+    swept = [
+        dataclasses.replace(live[0], detection_pass=True, failed_condition=None,
+                            range_3bar_adr=None),
+        live[1],
+        live[2],
+    ]
+
+    rec = recovered_entries(live, swept)
+
+    assert rec.recovered == 1
+    assert rec.marginal_recovered == 1
+    assert rec.marginal_baseline == 1        # FAR sits past the 2.0 boundary
+    assert rec.recovered_tickers == ["MARG"]
+
+
+def test_board_displacement_counts_slots_lost_and_taken():
+    """Board displacement is per session and symmetric: names the widen pushes off
+    the top thirty, and names it puts on. A name already on the board that merely
+    moves rank is neither."""
+    one, two = date(2020, 6, 1), date(2020, 6, 2)
+    live = [_field_of(one, ["A", "B", "C"]), _field_of(two, ["D"])]
+    swept = [_field_of(one, ["X", "A", "B"]), _field_of(two, ["D"])]
+
+    disp = board_displacement(live, swept, board_size=3)
+
+    assert disp.displaced == 1       # C fell off
+    assert disp.admitted == 1        # X took its slot
+    assert disp.sessions_changed == 1
+
+
+def test_sweep_baseline_point_is_the_live_gate_and_prices_the_widen(store: Store):
+    """End to end over one chain: the sweep's first point *is* the live detector
+    (zero added, zero recovered, no price), and the widened point carries the
+    recall it recovers, the field inflation it causes and the ratio between them."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "MARG", _bars_from_hlc(dates, _marginal_tail_hlc(flat=75)))
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    trades = parse_trades([_funnel_record("MARG", dates[104] + timedelta(days=1))])
+
+    sweep = run_sweep(store, "US", trades=trades, burn_in=104,
+                      tight_mults=(TIGHT_MULT, 2.25))
+
+    base, wide = sweep.points
+    assert base.tight_mult == TIGHT_MULT and base.baseline is True
+    assert base.added_detections == 0
+    assert base.recovered == 0
+    assert base.added_per_recovered is None       # the live gate prices nothing
+    assert base.detection_passed == 0             # MARG is a marginal miss today
+
+    assert wide.baseline is False
+    assert wide.detection_passed == 1             # the entry comes back
+    assert wide.recovered == 1
+    assert wide.marginal_recovered == 1
+    # MARG joins the field it was absent from; the price of one recovered entry.
+    assert wide.added_detections == wide.field_detections - base.field_detections
+    assert wide.added_detections >= 1
+    assert wide.added_per_recovered == wide.added_detections / 1
+
+    # The live constant is untouched by the measurement — the ticket's hard rule.
+    assert TIGHT_MULT == 1.5
+
+
+def test_sweep_report_states_the_ratio_and_refuses_to_call_it_precision(store: Store):
+    """The report's headline is the ratio, and it carries the constraint that makes
+    it honest: field inflation is a *volume* proxy and never a false-positive rate."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    trades = parse_trades([_funnel_record("BASE", dates[104] + timedelta(days=1))])
+
+    sweep = run_sweep(store, "US", trades=trades, burn_in=104,
+                      tight_mults=(TIGHT_MULT, 2.0))
+    text = format_sweep(sweep)
+
+    assert "added detections per recovered entry" in text
+    assert PRECISION_IS_NOT_MEASURED in text
+    assert "1.50" in text and "2.00" in text
+
+
+def test_a_measurement_field_gates_on_the_chains_ranks_not_the_stores(store: Store):
+    """The decile gate for a measurement pass is read off the chain, not the store.
+
+    ``Store.ranks`` carries only the last two years (``RANK_RETENTION_YEARS``), and a
+    whole-chain pass reaches the detection stage long after the early sessions'
+    rank rows have been pruned — so gating on the store would silently hand those
+    sessions an empty rank table and no detections at all. The chain carries the
+    ranks it computed for every session; those are what a measurement pass reads.
+    """
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    chain = replay_chain(store, "US", burn_in=104)
+    assert store.ranks("US", dates[104])            # the store's rows are present…
+
+    (with_chain_ranks,) = build_field_sessions(store, "US", chain, persist=False)
+    starved = dataclasses.replace(chain[0], ranks=[])
+    (with_no_ranks,) = build_field_sessions(store, "US", [starved], persist=False)
+
+    assert [d.symbol for d in with_chain_ranks.detections] == ["BASE"]
+    # …and are ignored: an empty chain rank table gates every member out, which is
+    # exactly what a retention-pruned session would silently look like.
+    assert with_no_ranks.detections == []
+
+
+def test_pick_sessions_are_the_evaluation_sessions_his_entries_are_placed_against():
+    """The second denominator the sweep reports. The study's committed field
+    distribution counts detections on his evaluation sessions only ("same
+    sessions"), so the whole-chain total is not comparable to it — a sweep that
+    quoted one against the other's baseline would be comparing two populations."""
+    cal = [date(2020, 6, i) for i in (1, 2, 3, 4)]
+    fields = [_field_of(d, ["A"]) for d in cal[:3]]   # no field on the 4th
+    trades = parse_trades(
+        [
+            _funnel_record("AAA", cal[2]),   # evaluated on the 2nd
+            _funnel_record("BBB", cal[3]),   # evaluated on the 3rd
+            _funnel_record("CCC", cal[0]),   # nothing precedes it — no eval session
+        ]
+    )
+
+    assert pick_sessions(trades, cal, fields) == {cal[1], cal[2]}
+
+
+def test_the_sweep_carries_the_reference_sets_blind_spot_coverage(store: Store):
+    """Every field-derived result carries its coverage (user story 22). A blind
+    spot is a ticker with no bars — recomputed from the reference set here as the
+    study does it, never defaulted to zero, which would claim a completeness the
+    study has not got."""
+    dates = _daily(date(2020, 1, 1), 105)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _textbook_base_hlc()))
+    trades = parse_trades(
+        [
+            _funnel_record("BASE", dates[104] + timedelta(days=1)),
+            _funnel_record("GHOST", dates[104] + timedelta(days=1)),  # no bars
+        ]
+    )
+
+    sweep = run_sweep(store, "US", trades=trades, burn_in=104,
+                      tight_mults=(TIGHT_MULT, 2.0))
+
+    assert sweep.blind_spot_count == 1
+    # …and the pick-session total is the whole-chain total here, since the one
+    # measured session is also the one evaluation session.
+    assert sweep.baseline.pick_session_detections == sweep.baseline.field_detections

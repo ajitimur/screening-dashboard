@@ -229,8 +229,14 @@ def _prior_move(high: list[float], low: list[float], as_of: int):
     return best
 
 
-def _find_cluster(high: list[float], low: list[float], as_of: int, adr_abs: float):
-    """Largest trailing 3–7 bar window spanning ≤ ``TIGHT_MULT × ADR``.
+def _find_cluster(
+    high: list[float],
+    low: list[float],
+    as_of: int,
+    adr_abs: float,
+    tight_mult: float = TIGHT_MULT,
+):
+    """Largest trailing 3–7 bar window spanning ≤ ``tight_mult × ADR``.
 
     Returns ``(k, cluster_high, cluster_low, range_adr)`` for the first (largest)
     k whose **base tightness** clears the gate, or ``None`` (``no_cluster``, a
@@ -239,6 +245,10 @@ def _find_cluster(high: list[float], low: list[float], as_of: int, adr_abs: floa
     The scan runs down from ``K_MAX``, but pass/fail is settled at ``K_MIN`` —
     ``K_MAX`` moves only the reported ``k``. :func:`range_3bar_adr` carries the
     argument.
+
+    ``tight_mult`` defaults to the module constant and every live caller leaves it
+    there. It is an argument only so the #141 sweep can price a widen without
+    mutating :data:`TIGHT_MULT`; see :func:`detect`.
     """
     if adr_abs <= 0:
         return None
@@ -249,7 +259,7 @@ def _find_cluster(high: list[float], low: list[float], as_of: int, adr_abs: floa
         ch = max(high[lo:as_of + 1])
         cl = min(low[lo:as_of + 1])
         range_adr = (ch - cl) / adr_abs
-        if range_adr <= TIGHT_MULT:
+        if range_adr <= tight_mult:
             return k, ch, cl, range_adr
     return None
 
@@ -392,15 +402,30 @@ def _as_of_index(bars: list[Bar], as_of: date) -> int | None:
     return idx if idx >= 0 else None
 
 
-def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
+def detect(
+    symbol: str,
+    bars: list[Bar],
+    as_of: date,
+    *,
+    tight_mult: float = TIGHT_MULT,
+) -> Detection | None:
     """The base for ``(symbol, as_of)``, or ``None`` if the name is not a setup.
 
     Returns ``None`` when the per-name gates fail: too little history (< 80 bars)
     or non-positive ADR, no prior move, a base shorter than 3 bars, price not yet
-    caught up to the 10/20, or no cluster inside ``TIGHT_MULT × ADR``. The
+    caught up to the 10/20, or no cluster inside ``tight_mult × ADR``. The
     **decile** gate is not applied here — it is cross-sectional and lives in the
     pipeline; a caller detecting a single name in isolation has already decided it
     is eligible.
+
+    **``tight_mult`` is a measurement seam, not a setting.** It defaults to
+    :data:`TIGHT_MULT` and every caller in the app leaves it there — the live cut
+    is the constant and remains 1.5. The parameter exists so the study can run the
+    detector at other cuts (issue #141 prices a widen by the field inflation it
+    causes) without assigning to the module constant, which would leak the swept
+    value into every other caller in the process. Passing a non-default value
+    yields a field that is **not** the app's field, and nothing derived from it may
+    be reported as one.
     """
     idx = _as_of_index(bars, as_of)
     if idx is None or idx < MIN_HISTORY:
@@ -437,7 +462,7 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
     if not caught_up:
         return None
 
-    cluster = _find_cluster(high, low, idx, adr_abs)
+    cluster = _find_cluster(high, low, idx, adr_abs, tight_mult)
     if cluster is None:
         return None
     k, cluster_high, cluster_low, range_adr = cluster

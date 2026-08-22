@@ -329,6 +329,112 @@ its false-positive cost; and an out-of-regime or IDX reference set, so the windo
 once-in-a-decade US momentum regime (§8). Absent those, the question is re-openable rather than
 settled by omission, and the machinery above is what a re-opening would read.
 
+#### The widen now has a price: **~400 extra detections field-wide per real entry recovered** (#141)
+
+**What was missing.** The paragraph above closes with "a widen that recovers 113 of his entries at
+an unmeasured cost in noise is exactly the trade this study cannot price." That was half right. It
+is true of *precision* — there is no control group and never will be (§7, §9). It is **not** true
+of **field volume**, which is countable on every measured session. Until #141 nobody knew whether
+the widen would have cost 2 extra detections per recovered entry or 2,000, and those are very
+different worlds.
+
+**Measured.** `TIGHT_MULT` is now an argument on `screener.detection.detect` (defaulting to the
+module constant, which is unchanged), threaded through the funnel's detector call *and* its miss
+attribution and through the field's detection pass. `replay.sweep` walks one forward chain and
+rebuilds the funnel and the field at each cut. All 821 measured sessions, the same chain, the same
+bars:
+
+| `TIGHT_MULT` | Detection recall | ex-continuation | Entries recovered | of the 113 marginal | Field detections | Added | **Added per recovered entry** |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **1.50** (live) | **57.9%** | 59.1% | — | — | **68,654** | — | — |
+| 1.75 | 68.1% | 69.3% | 67 | 67 | 94,467 | +25,813 | **385** |
+| 2.00 | 75.2% | 76.1% | 113 | **113 (all)** | 114,279 | +45,625 | **404** |
+| 2.25 | 80.2% | 80.6% | 146 | 113 | 128,651 | +59,997 | **411** |
+
+**The headline is ~400.** A widen to 2.0 recovers **every one of the 113 marginal misses** — the
+partition above is exact, not approximate — and lifts detection recall from 57.9% to 75.2%. It
+does so by putting **45,625 more names into the field**, which is **404 extra detections field-wide
+for each real entry it buys**. The answer to "2 or 2,000?" is: **a few hundred**, and the ratio is
+flat across the sweep (385 → 404 → 411), so it is a property of the cut's neighbourhood rather than
+an artefact of one point.
+
+**Board displacement runs the wrong way, and this is the sharpest result in the ticket.** A widen
+was supposed to help his names surface. It does the opposite where it matters. His picks reaching
+the field at all rise (242 → 316 of 656), but the count landing **inside the top thirty — the board
+he actually reads — falls at every step: 112 → 109 → 104 → 103**. The admitted names crowd his own
+out: 10,905 board slots change hands at 2.0. The widen buys detection recall and pays for it in
+board placement, which is the thing a detection is for.
+
+**Verdict: the refusal stands, and now on evidence as well as on principle.** Leave `TIGHT_MULT`,
+`K_MIN` and `K_MAX` unchanged. Three legs, in order of weight:
+
+1. **The calibration rule still forbids it outright, and this measurement cannot change that.**
+   `TIGHT_MULT` is a **threshold move on a score dimension**, so ADR 0002's first limb governs:
+   loosening needs A3 to show the dimension has no signal *and* real spread. Tightness has clear
+   signal — §5b's **+20.8pp**, the second-strongest selector in the rubric — so the precondition
+   fails. Nothing in #141 speaks to that limb, and nothing in #141 was ever going to: ADR 0002's
+   condition 4 (state the population cost) is a condition on *cross-sectional cuts*, and it is
+   explicit that "a threshold move still requires the score-dimension limb above". This ticket
+   supplies a condition-4-shaped number for a gate that condition 4 does not govern. **The number
+   is informative, not licensing.** Anyone citing the 404 as grounds to widen has read it backwards.
+2. **The board result argues against the widen on its own terms**, without reference to the rule.
+   The change costs his picks board places. A gate loosening that reduces the number of his real
+   entries the trader would have seen on the board is not a recall improvement in any sense he cares
+   about.
+3. **The cost is now sized rather than feared.** ~400 names per entry is not "unmeasurable noise"
+   and it is not catastrophic either; it is a real, stated price. Recording it converts the refusal
+   from an argument that could only be made once into one that a later ticket can re-open with
+   different evidence and re-price on the same instrument.
+
+**What this figure is not — read this before quoting it.** Field inflation is a **volume** proxy.
+It is **not a false-positive rate** and must never be reported as one. The 45,625 added names carry
+no verdict: nothing in the reference set says whether any of them would have lost money, because it
+records no setup he declined (§5b's not-taken comparison group, §9). §3b gives the admitted band a
+*quality* — his own trades in the 1.5–2.0 ADR bucket averaged **+0.84R**, positive but well under
+the 1.0–1.5 band's +1.35R — but §3b is conditioned entirely on trades he **took** and supplies no
+false-positive rate either. The two together bound the trade; they do not settle it.
+
+**Coverage and scope, carried as everywhere else.** 92 blind-spot tickers on this run (the committed
+figure is 91; #139 moved the replayable count from 658 to 656). Scope is US 2019–2022, 86.6% of
+entries from 2020–21 — no figure here transfers to IDX (§8).
+
+**Provenance.** `backend/replay/sweep.py`, run 2026-08-22 over one 947-session chain (126 burn-in,
+821 measured); outputs committed at `references/tight_mult_sweep_report.txt` and
+`references/tight_mult_sweep_results.json`. Row-level seam:
+`backend/tests/test_replay_seam.py`. **No live constant was changed by this ticket** —
+`K_MIN, K_MAX = 3, 7` and `TIGHT_MULT = 1.5` stand.
+
+#### A defect this ticket had to fix to measure anything, and which the committed A2 result rests on
+
+The sweep needs the baseline and the swept cuts built the same way, which forced a look at how the
+field's detection pass gates. It reads the **store's** rank rows
+(`screener.pipeline.rebuild_detections` → `Store.ranks`). `Store.append_ranks` prunes rows outside
+`RANK_RETENTION_YEARS = 2` as the chain advances, and `replay.study` runs the *whole* chain before
+the detection pass — so by the time detection runs, every measured session older than two years
+before the chain's end gates against an **empty rank table** and yields no detections at all.
+
+Measured directly, one chain, two field passes:
+
+| Detection pass gates on | Sessions with any detection | Detections | On his eval sessions | In field | Top 30 |
+| --- | --- | --- | --- | --- | --- |
+| **The store's ranks** (what the study ran) | **505/821** | 45,600 | **14,239** | **104/656** | **45** |
+| The chain's own ranks | **821/821** | 68,654 | 27,116 | **242/656** | **112** |
+
+The first row reproduces the committed §4 figures exactly — 14,239 field detections, 104 in-field,
+45 in the top thirty. So **the committed A2 field is empty on 316 of 821 measured sessions (38.5%)**,
+and its headline "only 104/658 (15.8%) of his picks appear in the field at all" is in substantial
+part an artefact of rank retention rather than a fact about the field. Read correctly the figure is
+**242/656 (36.9%)**, and the top-thirty count is **112, not 45**.
+
+`#141` does not rewrite §4 — that is a separate ticket's job, and one that should re-run the whole
+study. What it does is (a) make the *sweep* read the chain's ranks, which the A1 funnel already
+does, so every point of the sweep is comparable to every other, and (b) record the defect here with
+the measurement that establishes it. Two further notes for whoever picks it up: the committed
+`data/replay.duckdb` also cannot be re-run by `replay_chain` at all — it carries universe rows for
+928 sessions but run records for only 19, predating the #126 reuse marker, so the chain calls
+`rebuild_universe` on an already-populated session and dies on the write-once guard. Both figures
+above come from a repaired *copy*.
+
 ---
 
 ### 3b. What "tight" is in the trade record itself — the shape of the tightness signal (prototype, side-car)
@@ -1408,6 +1514,25 @@ python -m replay.contrast    --store data/replay.duckdb
 Run separately, each rebuilds (or, on a built store, reuses) the whole chain; `replay.study`
 is the way to get all four for the price of one forward pass.
 
+**The `TIGHT_MULT` sweep (#141) is a fifth entry point, deliberately outside `replay.study`.** It
+runs the detector at cuts the app does not use, so its field is a *measurement* field: computed in
+memory, gating on the chain's own ranks, persisted nowhere, and never to be read as the app's.
+
+```
+python -m replay.sweep --store data/replay.duckdb   # one chain, four cuts, ~8 min on a built store
+```
+
+It sweeps `1.5, 1.75, 2.0, 2.25` by default (`--tight-mults`), always including the live gate as its
+baseline, and writes `references/tight_mult_sweep_report.txt` and
+`references/tight_mult_sweep_results.json`. It changes no constant and writes nothing to the store.
+
+**Two things about the committed store, before either command is run again.** `data/replay.duckdb`
+carries universe rows for 928 sessions but run records for only 19 — it predates the #126 reuse
+marker — so `replay_chain` calls `rebuild_universe` on an already-populated session and dies on the
+write-once guard. Rebuild the store from step 1 rather than reusing it. And the study's detection
+pass gates on retention-pruned rank rows, which empties the field on 316 of the 821 measured
+sessions; §3a records the measurement.
+
 **Runtime.** The chain is 947 sessions (126 burn-in + 821 measured) and dominates: on the
 2026-08-15 run the whole study took **29.8 minutes**, of which the chain was 29.1 and the
 per-session detection pass that builds the field added 0.6. Treat it as an order of
@@ -1428,7 +1553,8 @@ or more.
 _Provenance: PRD #114; A1 funnel #116/#119; A2 chain/field/placement #117/#118/#120; A3
 outcome regression #121; A3 selection contrast #122; this write-up #123. Analysis code:
 `backend/replay/`. Row-level seam: `backend/tests/test_replay_seam.py`. Decile decomposition
-#133; cluster characterisation #132; recalibration #138; paired A2 re-run #136. Study last run
+#133; cluster characterisation #132; recalibration #138; paired A2 re-run #136. Cluster-widen
+pricing #141 (`backend/replay/sweep.py`), run 2026-08-22. Study last run
 2026-08-19; the survivorship hole closed won't-do as #129._
 
 _Side-car prototypes, outside §10 and outside `replay.study` — each rebuilt by running the

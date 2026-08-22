@@ -23,10 +23,12 @@ from screener.detection import (
     K_MAX,
     K_MIN,
     STOP_CONVENTION_ADR,
+    TIGHT_MULT,
     TOP_DECILE,
     Rank,
     _churn_l,
     _dryup,
+    _find_cluster,
     detect,
     detection_gate,
     range_3bar_adr,
@@ -266,3 +268,76 @@ def test_detection_gate_is_inclusive_at_the_threshold():
         Rank("BELOW", "6m", percentile=TOP_DECILE - 1e-9, raw_return=0.2),
     ]
     assert detection_gate(rows) == {"AT"}
+
+
+# -- TIGHT_MULT injected for the #141 sweep ---------------------------------
+#
+# The cluster gate's cut is a module constant, and it stays one: the live value
+# is ``TIGHT_MULT = 1.5`` and no measurement may move it. Issue #141 needs to
+# *price* a widen — how much the detected field inflates per real entry a wider
+# gate recovers — which means running the detector at 1.75 / 2.0 / 2.25 without
+# ever mutating the constant. So the cut becomes an argument that defaults to it.
+
+
+def _marginal_cluster_series():
+    """A base whose tightest window sits just *past* the 1.5× gate.
+
+    60 flat bars at 100, a tight run-up to 110, a 12-bar shelf at 110 (which sets
+    a small ADR), then three bars spanning 110 ± 1.1. The trailing 3-bar range
+    reads **1.85 ADR** — the median of the 113 marginal `cluster` misses in
+    findings §3a, against a 1.5× gate. A widen to 2.0 recovers it; the live gate
+    declines it.
+    """
+    hlc = [(100.5, 99.5, 100.0)] * 60
+    for i in range(1, 16):  # tight run-up 100 -> 110
+        p = 100.0 + (110.0 - 100.0) * i / 15
+        hlc.append((p + 0.5, p - 0.5, p))
+    hlc += [(110.5, 109.5, 110.0)] * 12   # the shelf that sets ADR
+    hlc += [(111.1, 108.9, 110.0)] * 3    # 1.85 ADR — marginal, not in motion
+    return hlc
+
+
+def test_the_marginal_fixture_sits_between_the_live_gate_and_a_widen():
+    """The fixture's premise, pinned: 1.85 ADR, over 1.5 and under 2.0."""
+    bars = _bars(_marginal_cluster_series())
+    idx = len(bars) - 1
+    from screener.indicators import adr as _adr
+
+    adr_abs = _adr(bars) * bars[idx].close
+    r3 = range_3bar_adr([b.high for b in bars], [b.low for b in bars], idx, adr_abs)
+    assert 1.8 < r3 < 1.9
+    assert TIGHT_MULT < r3 < 2.0
+
+
+def test_a_marginal_cluster_miss_is_recovered_by_a_widened_tight_mult():
+    bars = _bars(_marginal_cluster_series())
+    as_of = bars[-1].session
+    assert detect("AAA", bars, as_of) is None            # the live gate declines it
+    assert detect("AAA", bars, as_of, tight_mult=1.75) is None   # still over 1.75
+    widened = detect("AAA", bars, as_of, tight_mult=2.0)
+    assert widened is not None
+    assert widened.cluster_range_adr <= 2.0
+
+
+def test_tight_mult_defaults_to_the_module_constant():
+    # Passing the constant explicitly is the same call as not passing it — the
+    # sweep's baseline point is the live detector, not a near-copy of it.
+    bars = _bars(_base_series())
+    as_of = CAL[104]
+    assert detect("AAA", bars, as_of) == detect("AAA", bars, as_of, tight_mult=TIGHT_MULT)
+
+
+def test_sweeping_tight_mult_never_mutates_the_live_constant():
+    bars = _bars(_marginal_cluster_series())
+    for mult in (1.5, 1.75, 2.0, 2.25):
+        detect("AAA", bars, bars[-1].session, tight_mult=mult)
+    assert TIGHT_MULT == 1.5
+
+
+def test_find_cluster_takes_the_cut_as_an_argument():
+    # The gate is one comparison and it reads the argument, not the constant.
+    high = [100.0, 100.0, 110.0, 110.0, 110.0]
+    low = [90.0, 90.0, 104.0, 104.0, 104.0]  # trailing 3-bar range = 1.5 ADR at 4.0
+    assert _find_cluster(high, low, 4, 4.0, tight_mult=1.4) is None
+    k, ch, cl, r = _find_cluster(high, low, 4, 4.0, tight_mult=1.5)
+    assert (k, ch, cl, r) == (3, 110.0, 104.0, 1.5)

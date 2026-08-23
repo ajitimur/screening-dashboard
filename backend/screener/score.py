@@ -29,6 +29,21 @@ one ticketed as #135:
 - Tightness stays ×2 (+20.8pp, second-strongest); Prior move / MA support /
   Volume / Sector stay ×1, having no ordinal basis to move (see the table below).
 
+**``Prior move`` stays ×1 despite measuring nothing** (#160/#161). It is a
+**constant dimension** — 100.0% in both the taken and the not-taken group, pooled
+spread 0.000 in findings §5b and again in §5d — so it cannot move the sort under
+any field, and ADR 0005 argues a dimension like that is retired rather than kept.
+The argument was tested standalone when ``RS line``, the candidate proposed for
+its slot, was measured and refused; it does not survive on its own. Its premise is
+that the point is *scarce*, and the ceiling here is the sum of the weights rather
+than a budget — a ninth dimension can be added without retiring the eighth, so
+retiring this one frees nothing. Against that: because it hits on every row,
+zeroing or deleting it moves the scale identically (ceiling 9 → 8, stars 0.5–4.5 →
+0.0–4.0), re-basing every frozen digest and acceptance B9 while **reordering
+nothing**, and it is the only breakdown row recording that the name cleared the
+decile gate ADR 0003 is about. So it is retired when something takes its slot, not
+before. The measurement is on the record and costs nothing to wait on.
+
 The eight dimensions and their **published** thresholds — one set serves both
 markets (spec §4.7; the eye is harsher on IDX, but that is the population, not the
 calibration; a weight *ordering* is shape not magnitude, so §8 permits it

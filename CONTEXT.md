@@ -226,9 +226,21 @@ restated anywhere else.
 
 **Constant dimension**:
 A score dimension true for every detection by construction, so it shifts every score equally
-and can never move the sort. `Prior move` is one, and is kept for what it documents, not for
-what it discriminates — a defence ADR 0005 (`proposed`) argues against, which would make it
-the first candidate for **retirement** if that ADR is accepted.
+and can never move the sort. `Prior move` is the only one, measured at pooled spread 0.000 in
+findings §5b and again in §5d, on a field 171% larger.
+
+**It stays at ×1, and is retired only when something takes its slot** (#160/#161). ADR 0005
+(`proposed`) calls keeping it "documentation bought at the price of a point", but that presumes
+the point is **scarce** — and it is not: the ceiling is the sum of the weights, not a budget, so
+a ninth dimension can be added without retiring the eighth and retiring this one frees nothing.
+The measurement is not in doubt; what fails is the case for acting on it alone. Because the
+dimension hits on every row its weight lands on every score, so zeroing *or* deleting it moves
+the scale identically — ceiling 9 → 8, stars 0.5–4.5 → 0.0–4.0 — which re-bases every frozen
+digest, `HERO_MIN` and acceptance B9 **while reordering nothing**. It is also the only breakdown
+row recording that the name cleared the decile gate ADR 0003 is about, so retiring it before
+that metadata exists loses information outright.
+_Avoid_: reading §5b's 0.000 as a standing instruction to retire it; the spread says the
+dimension cannot discriminate, not that removing it is free.
 
 **Candidate dimension**:
 A dimension **under measurement**, not in the rubric: computed on every detection in the

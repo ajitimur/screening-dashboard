@@ -249,11 +249,14 @@ weighted by nothing. It is how ADR 0005's admission rule is exercised — a dime
 rubric slot on a measured non-zero gap with non-zero pooled spread, and until that measurement
 exists it must be unable to move a star, a sort or a board place. So it lives on a field member
 of its own (`RS line` on `replay.field.ScoredDetection.rs_line`), never inside `SevenDimScore`,
-and nothing in `screener` scores it. Two are registered — `RS line`, measured and rejected, and
-**Relative move**, whose definition exists but whose contrast (#171) has not been run, so it has
-no field member yet. **Pre-registered as one variant, pass or fail** — trying several and
-keeping the largest gap is magnitude-fitting (#128 Q2). A candidate that fails leaves its
-measurement behind and takes its wiring with it.
+and nothing in `screener` scores it. Two are registered, both measured, neither admitted —
+`RS line` (rejected on a wrong-way gap) and **Relative move** (a positive gap that landed on its
+own refusal threshold, #171). **Pre-registered as one variant, pass or fail** — trying several
+and keeping the largest gap is magnitude-fitting (#128 Q2). A study may report further columns
+beside a candidate, as §5e does for the raw and other-window moves; those are **descriptive and
+permanently inadmissible**, and they are handed to `contrast_dimensions` as readers rather than
+listed in `CANDIDATES`, so the registered list cannot quietly grow one. A candidate that fails
+leaves its measurement behind and takes its wiring with it.
 _Avoid_: experimental dimension, provisional dimension (a **graded dimension** is live; this
 is not).
 
@@ -271,8 +274,10 @@ was proposed for is still open, and **Relative move** is the second candidate fo
 **Relative move**:
 The `6m` return **relative to `MARKET_INDEX`**, compounded — `(1 + stock) / (1 + index) − 1` —
 divided by the name's own `ADR`, taken at the session being scored and never past it. Hit when it is above zero: the name outran the index over six
-months. The second **candidate dimension** (#170), **pre-registered and not yet measured**;
-#171 runs the contrast that can judge it. Both legs read `calendar_return`, so the anchor is
+months. The second **candidate dimension** (#170), **measured and not admitted** (findings §5e,
+#171): Δ **+3.6pp** under the live detector — positive, unlike `RS line` — on a not-taken hit
+rate of **84.94%** against a pre-registered ~85% ceiling, 0.29 standard errors inside it. The
+criteria do not separate, so `Prior move` keeps its ×1 and `RUBRIC_VERSION` stays 3. Both legs read `calendar_return`, so the anchor is
 calendar-dated and resolves to the last bar on or before it, and a missing leg is **absent**,
 scoring `False` and never carried forward. Named apart from `Prior move` on purpose — a
 **rubric version** re-scores a stored row by dimension name, so one label cannot mean two

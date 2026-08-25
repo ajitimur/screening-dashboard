@@ -1024,6 +1024,11 @@ with 46.4% of entries *down* on the week, and the `1w` beat-rate against `QQQ` i
 ordinary day's 49.1% — a coin flip on both panels. This is the confirmation a future proposal to
 re-admit `1w` has to answer, and it is recorded here so the proposal starts from it.
 
+Both readings here are of his trades alone. §5e adds a **fourth** line with a comparison group
+under it — the same week measured against the not-taken detections, −4.5pp raw and −3.9pp netted
+— and one warning this section's convention earns: measured at the detection's own session
+instead of the one before, the same gap reads **+31.6pp**, all of it the entry day.
+
 #### Joined to base age: the flat week is the base, for 62.5% of entries (#172)
 
 The reading above — "he buys the quiet end of the base" — held two facts side by side without joining
@@ -1924,6 +1929,203 @@ occupies is still unfilled — this study removed a candidate for it, not the ca
 Reproduce with `python scripts/rs_line_contrast.py --store <copy of replay.duckdb>`; the
 machine-readable result is `references/rs_line_contrast.json`.
 
+### 5e. `Relative move` — the prior move as a degree. **Measured; the criteria do not separate** (#171)
+
+The second dimension pre-registered under
+`docs/adr/0005-what-admits-a-dimension-to-the-rubric.md`, and the answer to the gap §3f left
+open. §3f measured the prior move behind 582 of his entries against a **same-name background** —
+the same tickers on random ordinary days. That is §3d's device and it is deliberately weak: a
+random day is not a setup he passed over, so nothing computed against it is a precision figure
+(§9). §3f could therefore describe what he buys and show the description is not an artefact of
+the tape. It could not say what the strength cut-off costs, or whether a `6m`-relative prior move
+separates his picks from the setups he passed over.
+
+This is that measurement: §5b's instrument — taken detections against not-taken detections, no
+outcome variable anywhere — with the prior-move quantities carried as columns.
+
+**The dimension, as registered.** `((1 + r6m(name)) / (1 + r6m(index)) − 1) / ADR(name)`, hit
+above zero. Compounded rather than subtracted, both legs `calendar_return` so the anchor is
+calendar-dated, the `ADR` leg sliced to the scored session, a missing leg absent rather than
+zero, benchmark `^IXIC`. **One variant, pass or fail.** The executable definition is
+`screener.relative_strength.relative_move_adr` and the contrast imports it rather than restating
+it.
+
+#### The harness reproduces §5b and §5d before it is trusted
+
+Over the store's **persisted** detections, all `detector_version = 1`, it returns **69 taken /
+14,354 not-taken** and reproduces every one of §5b's seven gaps and §5d's `RS line` figure, on
+both fields, to the tenth of a point. That is two independent harnesses now landing on the same
+table, and it is the reason anything below is worth reading.
+
+#### The two fields, and the seven rubric dimensions on each
+
+| Dimension | Δ under v1 | Δ under v3 |
+| --- | --- | --- |
+| **ADR** | +29.3 | +26.4 |
+| **Tightness** | +20.8 | +13.5 |
+| MA support | +4.3 | +6.3 |
+| Prior move | 0.0 | 0.0 |
+| Volume | −3.9 | −0.3 |
+| Orderliness | −9.1 | −5.9 |
+| **Base length** | −13.4 | −7.8 |
+
+Unchanged from §5d, as it must be — same sessions, same universe, same recomputed ranks, and the
+detector is the only thing that moves between the two columns. 45,600 detections and 69 taken
+under v1; 123,558 and 140 under the live v3.
+
+#### The registered dimension, both fields
+
+| Field | Taken hit rate | Not-taken hit rate | Δ | Pooled spread | Disagreement with `Prior move` |
+| --- | --- | --- | --- | --- | --- |
+| detector v1 | 91.3% (n=69) | 87.3% (n=14,354) | **+4.0** | 0.332 | 12.7% |
+| detector v3 (live) | 88.6% (n=140) | 84.9% (n=34,543) | **+3.6** | 0.357 | **15.1%** |
+
+The gap is positive on both fields — the first index-relative candidate of which that is true,
+and the pre-registered answer to the objection that `RS line` had this shape already. Anchoring
+six calendar months back rather than at `base_start` does change the sign, so §5d's post-mortem
+named the mechanism correctly.
+
+#### Verdict against the four pre-registered criteria: **the criteria do not separate**
+
+ADR 0005 requires the contrast to be read on the field the dimension would ship against, which is
+the live v3. There, no criterion fires on the literal thresholds and criterion 1 admits the
+dimension. Under v1 criterion 2 refuses it. The two fields disagree, and the reason is one
+number sitting on its own bound:
+
+1. **Δ positive, not-taken hit rate between ~15% and ~85% → ship.** Fires under v3 — at
+   **84.94%**, which is **0.06pp** inside the ceiling.
+2. **Δ positive, disagreement with `Prior move` under ~15% on the not-taken group → do not
+   ship.** Fires under v1, at 12.7%. Under v3 disagreement is 15.06%, and disagreement is exactly
+   `1 − hit rate`, so criteria 1 and 2 are **the same number read from two sides**. Whichever way
+   that number is rounded, both criteria go with it.
+3. **Not-taken hit rate under ~15% → do not ship.** Does not fire; the dimension is not `RS line`
+   again, and that is the one thing it clearly is not.
+4. **Δ negative → do not ship.** Does not fire on either field.
+
+**So the letter says ship and the tilde says do not, and this study is not entitled to choose.**
+The margin is **0.29 standard errors** on the not-taken proportion (s.e. 0.19pp at n=34,543): the
+measured hit rate and the pre-registered ceiling are statistically the same number. ADR 0005
+recorded that threshold as "a judgement, not a measurement… the one magnitude in this design
+with nothing behind it," and said it should be argued about *before* it decided anything. It has
+now decided something, by six hundredths of a point, and the argument it invited has not
+happened. Picking a reading here — rounding 84.94% up to the bound, or down inside it — is
+choosing a verdict after seeing the number, which is the one move pre-registration exists to
+prevent.
+
+The gap itself is no firmer. **Δ +3.6pp carries a standard error of 2.70pp** (taken n=140), so it
+sits 1.35 s.e. from zero; under v1, +4.0pp against 3.40pp. A dimension whose gap cannot be
+distinguished from zero and whose hit rate cannot be distinguished from its own refusal bound has
+not produced the evidence ADR 0005 asks for, whichever side of the bound it is filed on.
+
+**No rubric change follows from this ticket.** `RUBRIC_VERSION` stays 3, `DIMENSIONS` is
+untouched, `Prior move` keeps its ×1 and the decile gate keeps its record in the score. Had the
+dimension been admitted cleanly its weight would have been **×1** — Δ +3.6 ranks below
+`Tightness` (+13.5) and below `MA support` (+6.3), so the ordinal rule puts it with the ×1s, not
+the ×2s. That is worth stating because it bounds what was at stake: the change on offer was to
+retire a dimension, force a rubric version, and alter the composition of every star ceiling
+frozen afterwards — ADR 0005's own list calls that hard to reverse in the direction that matters
+— in exchange for a ×1 row whose gap is 1.35 standard errors from nothing.
+
+#### Why the gap is small, and what criterion 2 was right about
+
+Criterion 2 was written for the possibility that a `6m`-relative grade has little left to say
+*within* a population the decile gate has already filtered, however much it has to say within his
+trade record. The descriptive columns show that is exactly what happened.
+
+| Column | Taken | Not-taken | Δ | Taken median (×ADR) | Not-taken median |
+| --- | --- | --- | --- | --- | --- |
+| raw `6m` | 95.0% | 89.2% | +5.8 | +11.54 | +11.53 |
+| raw `12m` | 89.3% | 88.5% | **+0.8** | +37.01 | +27.82 |
+| **`Relative move`** (rel `6m`) | 88.6% | 84.9% | +3.6 | +8.96 | +8.34 |
+| rel `12m` | 85.7% | 82.1% | +3.6 | +21.62 | +14.53 |
+
+Live detector v3; every value in ADR units, above-zero as the cut, and **every one of these
+columns is descriptive and permanently inadmissible** — ADR 0005 registers one variant per
+candidate, and reading a verdict off whichever column came back widest is the magnitude-fitting
+#128 Q2 forbids. They are here to explain the registered column, not to compete with it.
+
+The explanation is that **the field he passed over has already risen**. 89.2% of not-taken
+detections are up over six months and 88.5% over twelve; netting out the index moves those to
+84.9% and 82.1%. Every one of these columns is a near-constant in both groups, and the
+`Prior move` dimension is the limiting case of the same fact at 100.0%/100.0%. The decile gate
+guarantees top-decile in one of four lookbacks to *exist* as a detection, so by the time the
+contrast sees a name the question "has this thing gone up?" is nearly answered. §3f could not
+see this because it never looks at the field — which is precisely why this ticket exists, and
+why criterion 2 was the criterion most likely to fire.
+
+Note also that the raw `12m` column is a **true** constant-in-disguise at +0.8pp, while its
+index-relative form reads +3.6pp. Netting out the index buys real separation. It buys about three
+and a half points of it, off a base of eighty-five.
+
+#### `1w` over the field he passed over — the fourth line, and it is flat
+
+ADR 0003 excludes `1w` from `detection_gate`, and three lines of evidence now support that: the
+gate sweep (#149), and two readings of his own entries (§3f, narrowed per trade by #172). All
+three are drawn from his trades alone. This is the first with a comparison group under it.
+
+| Column | Taken | Not-taken | Δ | Taken median (×ADR) | Not-taken median |
+| --- | --- | --- | --- | --- | --- |
+| raw `1w`, at the detection session | 74.3% | 42.7% | **+31.6** | +0.50 | −0.18 |
+| raw `1w`, through the session before | 37.9% | 42.4% | **−4.5** | −0.19 | −0.19 |
+| rel `1w`, at the detection session | 67.9% | 39.0% | **+28.9** | +0.25 | −0.27 |
+| rel `1w`, through the session before | 35.0% | 38.9% | **−3.9** | −0.24 | −0.28 |
+
+**The whole of the first row is the entry day.** A taken detection's session *is* the session he
+entered on, so at the detection session the window holds the day he bought it — one bar in five.
+Measured through the session before, which is §3f's own convention and adopted there for the same
+reason (at a 09:42 median entry the entry day is not on screen at the click), the +31.6pp gap
+becomes −4.5pp and the medians are **identical to two decimals**: −0.19 ADR in his picks and
+−0.19 in the field he passed over.
+
+So the fourth line reads the same as the first three, and it is now the one line with a
+comparison group. Against the field he passed over on the same nights, the week before his entry
+is not distinguishable from the week before a setup he did not take. Had this section published
+the uncontrolled row it would have put +31.6pp on the record as the widest prior-move gap
+measured anywhere in this study — wider than `ADR`'s +26.4 — and it would have been an artefact
+of which session the window ended on.
+
+The control cuts the other way too: it is a reminder that every column in this section is read at
+the detection's own session, and that for the taken group that session is not a neutral one. Over
+six months one bar is nothing, which is why the registered dimension is left at its registered
+anchor. Over a week it is the entire result.
+
+#### Caveats carried with the result
+
+- **The coverage hole applies here as it does to §5b and §5d.** The taken group is the executed
+  trades that survived into the reconstructed field — 69 under v1, 140 under v3 — not his entry
+  record. §2's survivorship hole and §5b's high-ADR keeping bias bound this contrast the same
+  way, and the taken group is small enough that they bound it harder: the standard errors quoted
+  above are sampling error alone and assume the 140 are a fair draw, which §2 says they are not.
+- **The regime bound, with full force.** `QQQ` was negative over the trailing twelve months on
+  1.7% of his entry dates (§3f). An index-relative dimension measured on this record is measured
+  against a rising tape, and nothing here says what it does when the tape reverses.
+- **The benchmark contamination is §5d's, unchanged.** `^IXIC` sits in the store's `universe` and
+  `ranks` (#162) and reaches neither comparison group — 0 rows in `detections`, 0 of 505 sessions
+  above the gate. It shifts percentile denominators by ~0.1% and nothing else. It was left in
+  place for the same reason as before: rebuilding 4.7M rank rows would run this contrast against
+  a different field than §5b's and break the comparability the ordinal rule depends on.
+- **No third variant may be proposed off the back of this.** `RS line` was refused and this one
+  did not clear its bound; §5d's clause applies unchanged. Choosing a third anchor now, after
+  seeing which of two failed and how, is the fitting the pre-registration clause exists to
+  prevent.
+- **The store was read, not rebuilt.** `data/replay.duckdb` cannot be re-run in place — its
+  detections are detector v1 over 505 sessions and a full chain re-run raises
+  `SessionExistsError` — so this takes §5d's route: persisted detections for the v1 control, the
+  live field recomputed in memory, nothing written back. The ranks are the chain's own,
+  recomputed per session, not the store's pruned table (#141/#164).
+
+#### What this leaves open
+
+The rubric slot `Prior move` cannot earn is still open, and it is now open on a different footing
+than after §5d: not because the candidate pointed the wrong way, but because the criterion that
+would have decided it is a number nobody had evidence for, and the measurement landed on it. That
+argument is worth having on its own, before it decides a third candidate — and it is an argument
+about ADR 0005's ~15%, not about this dimension.
+
+Reproduce with `python scripts/relative_move_contrast.py --store <copy of replay.duckdb>`; the
+machine-readable result is `references/relative_move_contrast.json`. Run 2026-08-25, detector v1
+and live v3, rubric v3.
+
 ---
 
 ## 6. The two preliminary findings from #114
@@ -2167,9 +2369,14 @@ measurement outside this window.
   **The proxy is no longer the only route: §3f takes the quantity directly**, as the raw
   `1w/1m/3m/6m/12m` return behind each entry and as a return relative to `QQQ`/`^IXIC`, and
   finds real spread (`6m` median +55.8%, p25 +15.1 to p95 +370.7) with the same split of signs
-  — long lookbacks favourable, `1m` adverse. What stays unmeasurable is the **gate**: §3f is
-  still executed trades only, with a same-name background rather than a control group of
-  rejected setups, so it cannot price the decile cut itself. The 2020–21 caveat is now
+  — long lookbacks favourable, `1m` adverse. **§5e then put the quantity against the field he
+  passed over** (#171), which is as close to a control group as this study has: his picks beat
+  the index over six months 88.6% of the time against the not-taken detections' 84.9%, a gap of
+  +3.6pp with a standard error of 2.70pp. So the quantity is measurable, its gap points the
+  favourable way, and its gap is small — because a field the decile gate has already filtered is
+  89.2% up over six months before anyone looks at it. What stays unmeasurable is the **gate**
+  itself: the not-taken detections are names he may never have seen, not setups he rejected, so
+  neither §3f nor §5e can price the decile cut. The 2020–21 caveat is now
   bounded rather than removed — `QQQ` was negative over the trailing year on 1.7% of his entry
   dates, so the record holds almost no bear-market `12m` observations.
 - It cannot speak to **Episodic Pivot** or **Parabolic Short** setups, to **intraday**
@@ -2296,7 +2503,8 @@ _Provenance: PRD #114; A1 funnel #116/#119; A2 chain/field/placement #117/#118/#
 outcome regression #121; A3 selection contrast #122; this write-up #123. Analysis code:
 `backend/replay/`. Row-level seam: `backend/tests/test_replay_seam.py`. Decile decomposition
 #133; cluster characterisation #132; recalibration #138; paired A2 re-run #136; the tightness
-restructure #145/#154; the discrimination grid #165. Study last run **2026-08-22**, on detector
+restructure #145/#154; the discrimination grid #165; the `RS line` contrast #160; the
+`Relative move` contrast #171. Study last run **2026-08-22**, on detector
 v2 and rubric v3 — the run that re-pinned §3's detection row, §3's condition table and §4's
 `in_field` anchor. **§4b's grid is newer than that run** (`replay.discrimination_grid`,
 2026-08-25, read-only over the same store): it carries the only figures measured under the live

@@ -23,6 +23,7 @@ from screener.indicators import anchor_date
 from screener.relative_strength import (
     RELATIVE_MOVE_LOOKBACK,
     base_start_session,
+    move_adr,
     relative_move_adr,
     relative_move_hit,
     rs_line,
@@ -441,3 +442,60 @@ def test_a_name_with_no_range_at_all_is_absent_rather_than_a_divide_by_zero():
         for b in _step(CAL_YEAR, 100.0, 200.0)
     ]
     assert relative_move_adr(rangeless, index, _AS_OF) is None
+
+
+# -- the raw move, the un-benchmarked sibling (#171) ---------------------------
+#
+# `move_adr` is **not** a registered candidate and never can be: ADR 0005 admits
+# one variant per registration, and `Relative move` is it. This is the raw column
+# §3f measured — the prior move itself, before the index is netted out — carried
+# by #171's contrast so the relative figure can be read against the thing it is
+# relative to. It shares the ADR denominator, and therefore the slicing guard,
+# with the registered dimension; that shared site is the reason it lives here
+# rather than in the study script.
+
+
+def test_the_raw_move_is_the_return_in_the_names_own_adr():
+    name = _step(CAL_YEAR, 100.0, 200.0, adr_pct=0.10)
+    assert move_adr(name, _AS_OF) == pytest.approx(1.0 / 0.10)
+
+
+def test_the_raw_move_nets_out_nothing__that_is_the_whole_difference():
+    """The pair #171 reports side by side: a name that doubled while the index
+    rose 25% has a raw move of +100% and a relative one of +60%. Netting the
+    index out is what turns the first into the second, and reporting only one of
+    them is what §3f warns leaves the tape unaccounted for."""
+    name = _step(CAL_YEAR, 100.0, 200.0, adr_pct=0.05)
+    index = _step(CAL_YEAR, 100.0, 125.0)
+    assert move_adr(name, _AS_OF) == pytest.approx(1.0 / 0.05)
+    assert relative_move_adr(name, index, _AS_OF) == pytest.approx(0.6 / 0.05)
+
+
+def test_the_raw_moves_adr_leg_is_sliced_at_as_of_too():
+    """The same lookahead guard, asserted separately: two functions sharing a
+    helper is not the same as two functions both being tested for the leak."""
+    quiet = _step(CAL_YEAR, 100.0, 200.0, adr_pct=0.05)
+    later = [
+        b if b.session <= _AS_OF else Bar(
+            b.session, b.open, b.low * 2, b.low, b.close, b.adj_close, b.volume
+        )
+        for b in _step(CAL_YEAR + [_AS_OF + timedelta(days=i) for i in range(1, 40)],
+                       100.0, 200.0, adr_pct=0.05)
+    ]
+    assert move_adr(later, _AS_OF) == pytest.approx(move_adr(quiet, _AS_OF))
+
+
+def test_the_raw_move_carries_the_same_absent_rules():
+    young = _step(CAL_YEAR[-40:], 100.0, 200.0, anchor=CAL_YEAR[-40])
+    rangeless = [
+        Bar(b.session, b.low, b.low, b.low, b.low, b.adj_close, 1000)
+        for b in _step(CAL_YEAR, 100.0, 200.0)
+    ]
+    assert move_adr(young, _AS_OF) is None
+    assert move_adr(rangeless, _AS_OF) is None
+
+
+def test_the_raw_move_takes_the_same_windows_the_relative_one_does():
+    name = _step(CAL_YEAR, 100.0, 200.0, anchor=anchor_date(_AS_OF, "12m"))
+    assert move_adr(name, _AS_OF, lookback="12m") == pytest.approx(1.0 / 0.05)
+    assert move_adr(name, _AS_OF, lookback="1w") == pytest.approx(0.0)

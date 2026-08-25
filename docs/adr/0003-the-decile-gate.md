@@ -198,6 +198,34 @@ The bound: executed trades only, one regime, and a same-name background rather t
 group of rejected setups (findings §9). None of these figures is a precision measurement, and the
 band figures are per-trade readings of the same 582 rows rather than a second sample.
 
+### A fourth line, and the first with a comparison group (#171)
+
+The three above are all drawn from his trades alone. §5e of the replay findings ran the `1w`
+return through §5b's selection contrast — his picks against the **not-taken detections**, field
+members present the same nights in names he did not enter — over 505 sessions under the live
+detector:
+
+| `1w` reading, live detector v3 | His picks | The field he passed over | Δ |
+| --- | --- | --- | --- |
+| Raw, in ADR units, above zero | 37.9% | 42.4% | **−4.5pp** |
+| Netted against `MARKET_INDEX` | 35.0% | 38.9% | **−3.9pp** |
+
+Median week: **−0.19 ×ADR** in his picks and **−0.19** in the field he passed over, identical to
+two decimals. n = 140 taken against 34,543 not-taken. Against setups he did not take on the same
+nights, the week before his entry is not distinguishable from the week before theirs.
+
+**One methodological warning rides with it**, because the same table measured the other way says
+the opposite. Read at the detection's own session the gap is **+31.6pp** — the widest prior-move
+gap anywhere in that study, wider than `ADR`'s — and all of it is the entry day: a taken
+detection's session *is* the session he bought it on, one bar in a five-bar window. The rows above
+are measured through the session strictly before, which is §3f's convention and adopted there for
+the same reason. Any future `1w` proposal that quotes a gap has to say which session its window
+ends on, because that choice is worth 36 points.
+
+The comparison group is not a control group of rejected setups — he may never have seen those
+names — and §5e's own coverage and regime bounds attach. What it removes is the objection that
+the three readings above only ever looked at trades he took.
+
 ---
 
 **Everything below this line is the reasoning as it stood before the sweep**, kept as the

@@ -68,6 +68,7 @@ from replay.field import (
     build_field,
     build_field_sessions,
     replay_field,
+    session_relative_moves,
     seven_dimension_score,
 )
 from replay.placement import (
@@ -88,6 +89,8 @@ from replay.regression import (
     run_regression,
 )
 from replay.contrast import (
+    CANDIDATE_DIMENSIONS,
+    CONTRAST_DIMENSIONS,
     COMPARISON_GROUP_NOTE,
     PRECISION_NOTE,
     DimensionContrast,
@@ -101,7 +104,10 @@ from replay.caching_store import CachingStore
 from replay.store import WINDOW_END, WINDOW_START, build_replay_store
 from screener.bars import Bar
 from screener.detection import Detection, detect, detection_gate
+from screener.indicators import anchor_date
 from screener.ranks import Rank
+from screener.relative_strength import relative_move_hit
+from screener.source import MARKET_INDEX
 from screener.store import Store
 
 
@@ -1789,12 +1795,18 @@ def test_distribution_percentiles_are_linear_interpolated():
 
 
 def _scored_det(
-    symbol: str, cluster_k: int, *, taken=False, not_taken=False, rs_line=False
+    symbol: str,
+    cluster_k: int,
+    *,
+    taken=False,
+    not_taken=False,
+    rs_line=False,
+    relative_move=None,
 ):
     """A field candidate carrying a real seven-dimension breakdown: ``cluster_k``
     flips the Tightness dimension, every other dimension is hit by construction.
-    ``rs_line`` is the candidate dimension under measurement (#160), which sits
-    beside the score rather than inside it."""
+    ``rs_line`` (#160) and ``relative_move`` (#170) are the candidate dimensions
+    under measurement, which sit beside the score rather than inside it."""
     det = _det(symbol, cluster_k)
     return ScoredDetection(
         symbol=symbol,
@@ -1804,6 +1816,7 @@ def _scored_det(
         not_taken=not_taken,
         taken=taken,
         rs_line=rs_line,
+        relative_move=relative_move,
     )
 
 
@@ -1843,7 +1856,7 @@ def test_selection_contrast_over_a_fixture_field_with_known_members():
     assert set(by_dim) == {
         "Tightness", "Orderliness", "Prior move",
         "Base length", "MA support", "Volume", "ADR",
-        "RS line",
+        "RS line", "Relative move",
     }
     # The candidate carries no weight: it is measured, not scored (ADR 0005).
     assert by_dim["RS line"].weight == 0
@@ -2911,3 +2924,120 @@ def test_the_grid_never_mutates_the_live_detector_constants():
         detection_module.OUTLIER_MULT,
         detection_module.DETECTION_LOOKBACKS,
     ) == before
+
+
+# -- the second candidate dimension (#170/#171) -------------------------------
+#
+# `Relative move` — the `6m` return relative to ``MARKET_INDEX``, compounded, in
+# ADR units, hit above zero. Pre-registered in ADR 0005 and measured by #171's
+# selection contrast. It rides the field member as a **value** where ``RS line``
+# rides as a boolean, and the reason is the registration's: the rubric owns the
+# cut, a breakdown row carries the number, and a row cannot be re-denominated
+# retroactively.
+
+
+def test_the_relative_move_rides_as_a_value_and_the_cut_lives_in_one_place():
+    """The column is the number; the boolean is derived from it at read time.
+
+    Carrying the pass/fail instead would freeze the pre-registered cut into every
+    stored row, and ADR 0004's later grading question — asked of the value —
+    could then only be answered by re-scoring history.
+    """
+    dets = [_det("AAA", 6), _det("BBB", 3)]
+
+    field = build_field(dets, [], relative_move_of={"AAA": 2.5, "BBB": -1.0})
+
+    assert {d.symbol: d.relative_move for d in field} == {"AAA": 2.5, "BBB": -1.0}
+    by_dim = {
+        c.dimension: c
+        for c in contrast_dimensions(
+            [d for d in field if d.symbol == "AAA"],
+            [d for d in field if d.symbol == "BBB"],
+        )
+    }
+    assert by_dim["Relative move"].taken_hit_rate == 1.0
+    assert by_dim["Relative move"].not_taken_hit_rate == 0.0
+    assert by_dim["Relative move"].weight == 0
+
+
+def test_an_absent_relative_move_is_none_and_scores_a_miss():
+    """A name that had not listed six months ago, or has no ADR, is **absent** —
+    not zero. The distinction is the rank table's own convention, and zero would
+    be a real value sitting exactly on the cut."""
+    field = build_field([_det("AAA", 6)], [])
+
+    assert field[0].relative_move is None
+    by_dim = {c.dimension: c for c in contrast_dimensions(field, [])}
+    assert by_dim["Relative move"].taken_hit_rate == 0.0
+
+
+def test_the_relative_move_does_not_move_a_replayed_star():
+    """The staging invariant, asserted for the second candidate as it was for the
+    first: measuring a dimension cannot contaminate the field it is measured on."""
+    strong = _scored_det("AAA", 6, relative_move=9.0)
+    weak = _scored_det("AAA", 6, relative_move=-9.0)
+    assert strong.score == weak.score
+    assert strong.score.breakdown == weak.score.breakdown
+    assert "Relative move" not in {d.dimension for d in strong.score.breakdown}
+
+
+def test_session_relative_moves_reads_the_market_index_as_the_benchmark(store: Store):
+    """The wiring #171 runs on: the value is the name's `6m` return netted against
+    ``MARKET_INDEX``, in the name's own ADR, read off the store.
+
+    Two names over the same benchmark — one that outran it, one that lagged —
+    pin that the benchmark is actually netted out rather than the raw move being
+    reported under a relative name.
+    """
+    sessions = _daily(date(2020, 1, 1), 260)
+    as_of = sessions[-1]
+    anchor = anchor_date(as_of, "6m")
+
+    def _step(before: float, after: float) -> list[Bar]:
+        return [
+            Bar(s, p, p * 1.05, p, p, p, 1000)
+            for s, p in ((s, before if s <= anchor else after) for s in sessions)
+        ]
+
+    store.append_bars("US", MARKET_INDEX["US"], _step(100.0, 125.0))
+    store.append_bars("US", "FAST", _step(100.0, 200.0))
+    store.append_bars("US", "SLOW", _step(100.0, 110.0))
+    dets = [
+        dataclasses.replace(_det("FAST", 6), session=as_of),
+        dataclasses.replace(_det("SLOW", 6), session=as_of),
+    ]
+
+    values = session_relative_moves(store, "US", dets)
+
+    assert values["FAST"] == pytest.approx(0.6 / 0.05)
+    assert values["SLOW"] < 0
+    assert relative_move_hit(values["FAST"]) is True
+    assert relative_move_hit(values["SLOW"]) is False
+
+
+def test_a_study_column_is_read_through_a_supplied_reader_not_a_new_field():
+    """#171 reports five descriptive columns beside the registered dimension —
+    the raw move and the relative one at `1w` and `12m` — and none of them is a
+    candidate for the rubric.
+
+    So they are handed to the contrast as readers by the study script rather than
+    added to :class:`ScoredDetection`, which is what keeps
+    :data:`CANDIDATE_DIMENSIONS` an honest list of what has actually been
+    registered. A column that can be promoted by editing a tuple is a column that
+    can be promoted after seeing its gap.
+    """
+    taken = [_scored_det("P1", 6, taken=True), _scored_det("P2", 6, taken=True)]
+    not_taken = [_scored_det("N1", 6, not_taken=True)]
+    values = {"P1": 3.0, "P2": -1.0, "N1": -1.0}
+
+    contrasts = contrast_dimensions(
+        taken,
+        not_taken,
+        dimensions=CONTRAST_DIMENSIONS + (("raw 12m", 0),),
+        readers={"raw 12m": lambda d: values[d.symbol] > 0},
+    )
+
+    by_dim = {c.dimension: c for c in contrasts}
+    assert by_dim["raw 12m"].taken_hit_rate == 0.5
+    assert by_dim["raw 12m"].not_taken_hit_rate == 0.0
+    assert "raw 12m" not in dict(CANDIDATE_DIMENSIONS)

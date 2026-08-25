@@ -48,8 +48,9 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from datetime import date
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Iterable, Mapping, Sequence
 
+from screener.relative_strength import relative_move_hit
 from screener.score import Dimension
 from screener.store import Store
 
@@ -145,13 +146,29 @@ class SelectionContrast:
 # rubric weighs, so a dimension under measurement cannot move a star or a board
 # place while the question of whether it belongs is still open.
 #
-# ``RS line`` (#160) is the one candidate: whether the name held its ratio to the
-# benchmark across its own base. It was measured for the slot ``Prior move``
-# cannot earn — a **constant dimension**, 100.0% in both groups, pooled spread
-# 0.000 — and **rejected** on criterion 4, a wrong-way gap (findings §5d). It
-# stays a column because retiring the evidence with the candidate would leave
-# §5d unreproducible; its weight is 0 because it has none, and nothing here
-# touches :mod:`screener.score`.
+# Two are registered, in the order ADR 0005 registered them:
+#
+# - ``RS line`` (#160) — whether the name held its ratio to the benchmark across
+#   its own base. Measured for the slot ``Prior move`` cannot earn — a
+#   **constant dimension**, 100.0% in both groups, pooled spread 0.000 — and
+#   **rejected** on criterion 4, a wrong-way gap (findings §5d). It stays a
+#   column because retiring the evidence with the candidate would leave §5d
+#   unreproducible.
+# - ``Relative move`` (#170) — the `6m` return relative to ``MARKET_INDEX``,
+#   compounded, in ADR units, hit above the pre-registered cut. Measured by #171
+#   (findings §5e). The cut is applied here, at read time, off the value the
+#   field member carries: one site owns it, so the column the contrast reads and
+#   the row a rubric would score can never disagree about where the line is.
+#
+# Both carry weight 0 because they have none, and nothing here touches
+# :mod:`screener.score`.
+#
+# **This tuple is the list of what has actually been registered**, and it is
+# deliberately short. #171 reports five further columns — the raw move and the
+# relative one at other windows — and those are handed in as ``readers`` by the
+# study script rather than added here, because ADR 0005 admits **one**
+# pre-registered variant per registration. A column promotable by editing this
+# tuple is a column promotable after its gap is visible.
 #
 # **One entry per candidate, name and reader together.** Keeping the reader in a
 # second dict keyed by the same string let a typo fall through to the rubric
@@ -159,6 +176,7 @@ class SelectionContrast:
 # be wrong and look fine.
 CANDIDATES: tuple[tuple[str, int, Callable[[ScoredDetection], bool]], ...] = (
     ("RS line", 0, lambda d: d.rs_line),
+    ("Relative move", 0, lambda d: relative_move_hit(d.relative_move)),
 )
 
 CANDIDATE_DIMENSIONS: tuple[tuple[str, int], ...] = tuple(
@@ -179,14 +197,18 @@ def _dim_hit(breakdown: Sequence[Dimension], name: str) -> bool:
     return False
 
 
-def _booleans(detections: Iterable[ScoredDetection], name: str) -> list[float]:
+def _booleans(
+    detections: Iterable[ScoredDetection],
+    name: str,
+    readers: Mapping[str, Callable[[ScoredDetection], bool]],
+) -> list[float]:
     """The dimension's boolean (1.0 hit / 0.0 miss) across a group of detections.
 
     A **candidate dimension** is read off the field member; a rubric dimension off
     its score breakdown. The two are kept apart deliberately — see
     :data:`CANDIDATE_DIMENSIONS`.
     """
-    reader = _CANDIDATE_READERS.get(name)
+    reader = readers.get(name)
     if reader is not None:
         return [1.0 if reader(d) else 0.0 for d in detections]
     return [1.0 if _dim_hit(d.score.breakdown, name) else 0.0 for d in detections]
@@ -202,6 +224,7 @@ def contrast_dimensions(
     not_taken: Iterable[ScoredDetection],
     *,
     dimensions: tuple[tuple[str, int], ...] = CONTRAST_DIMENSIONS,
+    readers: Mapping[str, Callable[[ScoredDetection], bool]] | None = None,
 ) -> list[DimensionContrast]:
     """Contrast each dimension's hit distribution between the two field groups.
 
@@ -212,13 +235,21 @@ def contrast_dimensions(
     sample, and a dimension untestable within his trades alone but with spread
     across the pooled sample is flagged as testability-restored (PRD user story
     19). No outcome is read — this measures selection, not prediction.
+
+    ``readers`` supplements :data:`CANDIDATES` for a study reporting a column that
+    is **not** a registered candidate — #171's raw and other-window moves, which
+    ADR 0005's one-variant clause puts permanently out of reach of the rubric.
+    They are a caller's argument rather than a module-level tuple precisely so
+    that nothing can quietly promote one; a name given here shadows a rubric
+    dimension of the same name, which is why the study prefixes its columns.
     """
     taken = list(taken)
     not_taken = list(not_taken)
+    all_readers = {**_CANDIDATE_READERS, **(readers or {})}
     contrasts: list[DimensionContrast] = []
     for name, weight in dimensions:
-        taken_xs = _booleans(taken, name)
-        not_taken_xs = _booleans(not_taken, name)
+        taken_xs = _booleans(taken, name, all_readers)
+        not_taken_xs = _booleans(not_taken, name, all_readers)
         pooled = taken_xs + not_taken_xs
 
         taken_spread = _pstdev(taken_xs)

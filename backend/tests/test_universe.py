@@ -134,6 +134,18 @@ def test_a_dotted_share_class_is_still_common_stock():
         assert is_common_stock(symbol, "Corp Common Stock"), symbol
 
 
+def test_a_market_index_is_not_common_stock():
+    # Issue #162. The index is a benchmark, never a rankable name, and the "^"
+    # prefix is the only mark it carries: it has no "$", and where the symbol is
+    # read without a security name — the replay store keeps bars, not listings —
+    # an empty name read as common stock let ``^IXIC`` compete in the replayed
+    # field. The live path is protected by the role filter upstream; this is the
+    # second layer, and the only one the replay can reach.
+    for symbol in ["^IXIC", "^JKSE", "^GSPC"]:
+        assert not is_common_stock(symbol, ""), symbol
+        assert not is_common_stock(symbol, "NASDAQ Composite Index"), symbol
+
+
 def test_the_twelve_named_adrs_survive_instrument_exclusion():
     # The D13 defect check: an earlier pattern matching "Depositary Sh" would
     # have deleted the most liquid ADRs the method exists to trade.

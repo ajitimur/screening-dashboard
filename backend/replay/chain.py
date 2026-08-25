@@ -43,14 +43,32 @@ from typing import Callable, Iterable, Sequence
 
 from screener.pipeline import rebuild_ranks
 from screener.ranks import Rank, rank_table
-from screener.source import Instrument
+from screener.source import MARKET_INDEX, Instrument
 from screener.store import Store
-from screener.universe import rebuild_universe
+from screener.universe import is_common_stock, rebuild_universe
 
 from .caching_store import CachingStore
 
 # The reference set is entirely US breakout trades (PRD "Out of Scope: IDX").
 REPLAY_MARKET = "US"
+
+# Every reference whose bars reached the replay store, named because nothing else
+# can name them (#162). :mod:`replay.store` copies bars filtered by market and
+# date, not by role, and role is never persisted — not in the replay store, not
+# in the live one either; it exists only at enumeration, read off the Nasdaq
+# listing file's ETF flag (:mod:`screener.source`). So the copy brings the
+# references' bars across with no way left to recognise them.
+#
+# The index announces itself with "^" and ``is_common_stock`` rejects it on that.
+# An ETF announces nothing: ``SPY`` is four letters with no "$" and no name, which
+# is exactly what a common stock looks like. These four were fetched as study
+# benchmarks (``QQQ`` is §3f's headline contrast) and each carried 928 ``universe``
+# rows and 2,525 ``ranks`` rows in ``data/replay.duckdb``, the same as ``^IXIC``.
+#
+# This is a blocklist and it rots silently: a benchmark fetched later would be
+# ranked exactly as these were. A test pins it against what the store holds, which
+# turns the rot into a failing test rather than a quiet contamination.
+REPLAY_REFERENCES = {MARKET_INDEX[REPLAY_MARKET], "SPY", "QQQ", "IWM", "DIA"}
 
 # A fixed, deterministic stamp for the run record the chain writes as each
 # session's "already computed" marker (issue #126). The replay has no wall clock —
@@ -103,19 +121,28 @@ class SessionField:
 
 
 def synthesize_instruments(store: Store, market: str = REPLAY_MARKET) -> list[Instrument]:
-    """One ``candidate`` :class:`Instrument` per symbol with bars in the store.
+    """One ``candidate`` :class:`Instrument` per rankable symbol with bars in the store.
 
     The app's enumeration returns today's listing snapshot, so it is useless for
     reconstructing a past field; the replay's instrument set is instead exactly
-    the names the store holds bars for (PRD "A2 replay chain"). Every synthesised
-    instrument is a candidate — references (indices, ETFs) are never rankable and
-    the reference set is all common-stock breakouts — and carries no security
-    name, which :func:`screener.universe.is_common_stock` reads as common stock
-    (the live pull already filtered instrument types before the bars were stored).
+    the names the store holds bars for (PRD "A2 replay chain"). Synthesised
+    instruments carry no security name, which
+    :func:`screener.universe.is_common_stock` reads as common stock (the live pull
+    already filtered instrument types before the bars were stored).
+
+    Not every symbol with bars is a candidate, though, and for a while this
+    function said otherwise (#162). References — indices, ETFs — are never
+    rankable, but :mod:`replay.store` copies bars filtered by market and date and
+    not by role, so their bars are here too, with no role column and no security
+    name left to read them by. The symbol is the whole of the identity that
+    survived the copy, so both halves of the exclusion are read off it:
+    ``is_common_stock`` rejects the index on its ``^``, and
+    :data:`REPLAY_REFERENCES` names the benchmark ETFs, which carry no mark at all.
     """
     return [
         Instrument(market=market, symbol=s, role="candidate")
         for s in store.symbols(market)
+        if s not in REPLAY_REFERENCES and is_common_stock(s, "")
     ]
 
 

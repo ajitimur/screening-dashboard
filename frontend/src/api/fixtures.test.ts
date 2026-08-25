@@ -20,17 +20,12 @@ describe("the typed fixture module", () => {
 
   it("defaults every phase-2 nullable field to null", () => {
     expect(fx.candidate().verdict).toBeNull();
-    expect(fx.leaderRow().tier).toBeNull();
-    expect(fx.leaderRow().rs_pctile).toBeNull();
     expect(fx.leader().cutoffs).toBeNull();
     expect(fx.sectorMember().pct_of_52w_high).toBeNull();
     expect(fx.sectorMember().verdict).toBeNull();
   });
 
   it("makes phase-2 fields constructible when a test wants them populated", () => {
-    const row = fx.leaderRow({ tier: "A", rs_pctile: 0.98 });
-    expect(row.tier).toBe("A");
-    expect(row.rs_pctile).toBe(0.98);
     expect(fx.candidate({ verdict: "ready" }).verdict).toBe("ready");
   });
 

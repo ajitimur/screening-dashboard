@@ -41,7 +41,7 @@ type ViewKey = (typeof VIEWS)[number]["key"];
 const LOW_ADR = 0.04;
 
 // The four sortable columns (spec §5.3): return is the default and the primary
-// key, `k/5`, ADR% and $vol are the others. RS and the tier band are P2.
+// key, `k/5`, ADR% and $vol are the others. The tier band is P2.
 type SortKey = "return" | "breadth" | "adr" | "dvol";
 interface SortState {
   key: SortKey;

@@ -11,8 +11,8 @@ each board member's bars (for the ADR column), and returns five boards of up to
 
 Two phase-1 leaders-row fields land here — ``sector`` and ``dollar_volume`` —
 both cheap: the read already loads exactly these names' bars for the ADR column,
-and sector is a store lookup (spec §4.4). ``tier``, ``rs_pctile`` and a
-per-lookback ``cutoffs`` block are typed nullable phase-2 and return null.
+and sector is a store lookup (spec §4.4). A per-lookback ``cutoffs`` block is
+typed nullable phase-2 and returns null.
 """
 
 from datetime import date, datetime, timedelta
@@ -91,7 +91,7 @@ def test_sector_is_null_when_label_never_fetched(store: Store):
     assert row["sector"] is None
 
 
-def test_phase2_fields_are_typed_null(store: Store):
+def test_cutoffs_is_typed_null(store: Store):
     session = date(2026, 8, 4)
     _publish(store, "US", session)
     store.append_bars("US", "WIN", _flat_bars(140.0))
@@ -104,9 +104,6 @@ def test_phase2_fields_are_typed_null(store: Store):
     # cutoffs sits beside the rows, one block per lookback board — never repeated
     # on every row (spec §4.4). Phase-2, so null now.
     assert board["cutoffs"] is None
-    row = board["rows"][0]
-    assert row["tier"] is None
-    assert row["rs_pctile"] is None
 
 
 def test_leaders_rank_on_raw_return_and_carry_furniture(store: Store):

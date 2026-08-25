@@ -183,7 +183,6 @@ def create_app(
         boards = [
             Leader(
                 lookback=b.lookback,
-                # tier / rs_pctile / cutoffs are phase-2 and default to null.
                 rows=[LeaderRow(**vars(r)) for r in b.rows],
             )
             for b in build_boards(rows, prev, adrs, sectors, dollar_volumes)

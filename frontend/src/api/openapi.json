@@ -479,7 +479,7 @@
         "type": "object"
       },
       "LeaderRow": {
-        "description": "One leaderboard row: a name ranked on **pure return**, plus its furniture\n(spec \u00a74.3 / \u00a74.4 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks\ncurrently led \u2014 a persistence count, *not* a quality score); ``is_new`` marks\nabsence from this board last session; ``surge`` flags a 1w name up \u226530% over\nthe week; ``adr`` is a column for the toggle, never the sort key, ``None`` when\nit cannot be computed.\n\n``sector`` and ``dollar_volume`` are the two **phase-1** additions (spec \u00a74.4):\nboth cheap, since the read already loads exactly these names' bars for the ADR\ncolumn and sector is a store lookup. Without them the phase-1 control bar would\nship with two live controls and two dead ones. ``sector`` is ``None`` when the\nlabel was never fetched; ``dollar_volume`` is ``None`` when the name's bars\ncould not supply it, the same guard the ADR column carries.\n\n``tier`` and ``rs_pctile`` are **phase-2**, typed nullable and returning\n``None`` until the cross-sectional tier banding lands in the run (spec \u00a74.4).",
+        "description": "One leaderboard row: a name ranked on **pure return**, plus its furniture\n(spec \u00a74.3 / \u00a74.4 / ticket 06). ``breadth`` is the ``k/5`` badge (lookbacks\ncurrently led \u2014 a persistence count, *not* a quality score); ``is_new`` marks\nabsence from this board last session; ``surge`` flags a 1w name up \u226530% over\nthe week; ``adr`` is a column for the toggle, never the sort key, ``None`` when\nit cannot be computed.\n\n``sector`` and ``dollar_volume`` are the two **phase-1** additions (spec \u00a74.4):\nboth cheap, since the read already loads exactly these names' bars for the ADR\ncolumn and sector is a store lookup. Without them the phase-1 control bar would\nship with two live controls and two dead ones. ``sector`` is ``None`` when the\nlabel was never fetched; ``dollar_volume`` is ``None`` when the name's bars\ncould not supply it, the same guard the ADR column carries.",
         "properties": {
           "adr": {
             "anyOf": [
@@ -515,17 +515,6 @@
             "title": "Raw Return",
             "type": "number"
           },
-          "rs_pctile": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rs Pctile"
-          },
           "sector": {
             "anyOf": [
               {
@@ -544,17 +533,6 @@
           "symbol": {
             "title": "Symbol",
             "type": "string"
-          },
-          "tier": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier"
           }
         },
         "required": [

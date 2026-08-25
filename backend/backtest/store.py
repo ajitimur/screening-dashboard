@@ -178,6 +178,7 @@ def build_backtest_store(
     finality rule.
     """
     enumerated = [market_symbol(market, s) for s in symbols]
+    total = len(enumerated)
     counts: Counter[str] = Counter()
     resolved: list[str] = []
     refusals: list[Refusal] = []
@@ -208,10 +209,10 @@ def build_backtest_store(
                     else resolution.status
                 )
                 refusals.append(Refusal(resolution.symbol, reason))
-            if done % PROGRESS_EVERY == 0 or done == len(enumerated):
+            if done % PROGRESS_EVERY == 0 or done == total:
                 progress(
                     progress_line(
-                        market, done, len(enumerated), counts,
+                        market, done, total, counts,
                         elapsed=time.monotonic() - started,
                     )
                 )
@@ -224,7 +225,7 @@ def build_backtest_store(
     # no verdict.
     return BuildCoverage(
         market=market,
-        enumerated=len(enumerated),
+        enumerated=total,
         resolved=tuple(sorted(resolved)),
         refusals=tuple(sorted(refusals, key=lambda r: r.symbol)),
     ).check()

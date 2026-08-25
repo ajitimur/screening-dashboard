@@ -70,6 +70,28 @@ REPLAY_MARKET = "US"
 # turns the rot into a failing test rather than a quiet contamination.
 REPLAY_REFERENCES = {MARKET_INDEX[REPLAY_MARKET], "SPY", "QQQ", "IWM", "DIA"}
 
+# The blocklist per market (#183). Market is threaded through the whole chain, so
+# the reference exclusion must be the *replayed* market's rather than a constant
+# fixed to US: ``QQQ`` is a US benchmark but an ordinary common stock on IDX, and
+# applying :data:`REPLAY_REFERENCES` to another market would strike it wrongly.
+# Only US has study benchmarks copied into a replay store; a market with none
+# named falls back to its own index alone — which :func:`is_common_stock` already
+# rejects on the ``^`` mark, so the fallback restates the existing exclusion
+# rather than adding one, and keeps the set a function of the market either way.
+REPLAY_REFERENCES_BY_MARKET: dict[str, set[str]] = {REPLAY_MARKET: REPLAY_REFERENCES}
+
+
+def replay_references(market: str) -> set[str]:
+    """The benchmark references to exclude from ``market``'s ranked field (#162).
+
+    US carries the five benchmarks copied into ``data/replay.duckdb``
+    (:data:`REPLAY_REFERENCES`); any other market has none named and falls back to
+    its own :data:`~screener.source.MARKET_INDEX`, which is a no-op restatement of
+    the ``^``-mark exclusion. Reading the set off the market is what keeps the
+    blocklist from being a US-only constant applied to whatever the chain replays.
+    """
+    return REPLAY_REFERENCES_BY_MARKET.get(market, {MARKET_INDEX[market]})
+
 # A fixed, deterministic stamp for the run record the chain writes as each
 # session's "already computed" marker (issue #126). The replay has no wall clock —
 # the same store rebuilt twice must produce byte-identical run records — so the
@@ -137,12 +159,14 @@ def synthesize_instruments(store: Store, market: str = REPLAY_MARKET) -> list[In
     name left to read them by. The symbol is the whole of the identity that
     survived the copy, so both halves of the exclusion are read off it:
     ``is_common_stock`` rejects the index on its ``^``, and
-    :data:`REPLAY_REFERENCES` names the benchmark ETFs, which carry no mark at all.
+    :func:`replay_references` names the benchmark ETFs for ``market``, which carry
+    no mark at all.
     """
+    references = replay_references(market)
     return [
         Instrument(market=market, symbol=s, role="candidate")
         for s in store.symbols(market)
-        if s not in REPLAY_REFERENCES and is_common_stock(s, "")
+        if s not in references and is_common_stock(s, "")
     ]
 
 

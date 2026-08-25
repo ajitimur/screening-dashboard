@@ -240,6 +240,36 @@ def test_build_replay_store_copies_only_us_window_bars(tmp_path):
     assert (WINDOW_START, WINDOW_END) == (date(2019, 4, 1), date(2022, 12, 31))
 
 
+def test_build_replay_store_copies_a_non_default_market_and_window(tmp_path):
+    """The builder's market and window are arguments, not the US 2019–2022 module
+    constants they default to (#183). Pointed at IDX over a 2015 window it copies
+    exactly IDX's in-window bars and leaves the default market and window behind —
+    the same selectivity the US default has, driven by the passed values."""
+    live_path = tmp_path / "live.duckdb"
+    live = Store.open(live_path)
+    live.append_bars("IDX", "BBCA.JK", [_bar(date(2015, 6, 1))])  # in the passed window
+    live.append_bars("IDX", "OLD.JK", [_bar(date(2014, 1, 2))])  # before it
+    live.append_bars("US", "AAA", [_bar(date(2015, 6, 1))])  # the default market
+    live.close()
+
+    replay_path = tmp_path / "replay.duckdb"
+    stats = build_replay_store(
+        live_path, replay_path,
+        market="IDX", start=date(2015, 1, 1), end=date(2015, 12, 31),
+    )
+
+    replay = Store.open(replay_path)
+    try:
+        assert replay.bars("IDX", "BBCA.JK") == [_bar(date(2015, 6, 1))]
+        assert replay.bars("IDX", "OLD.JK") == []
+        assert replay.bars("US", "AAA") == []
+    finally:
+        replay.close()
+
+    assert stats.rows == 1
+    assert stats.tickers == 1
+
+
 def test_build_replay_store_leaves_live_store_byte_identical(tmp_path):
     live_path = tmp_path / "live.duckdb"
     live = Store.open(live_path)
@@ -1251,6 +1281,45 @@ def test_the_replay_reference_set_names_every_reference_with_bars():
     """The set is a blocklist, which rots silently — so it is pinned here against
     what ``data/replay.duckdb`` actually holds, measured at the time of #162."""
     assert REPLAY_REFERENCES == {"^IXIC", "SPY", "QQQ", "IWM", "DIA"}
+
+
+def test_the_reference_exclusion_is_the_replayed_markets_not_a_us_constant(store: Store):
+    """The blocklist is a function of the market being replayed, not the US module
+    constant applied to whatever runs (#183). ``QQQ`` is one of the US study
+    benchmarks (:data:`REPLAY_REFERENCES`), but on IDX it is an ordinary common
+    stock — striking it there is the US set leaking into another market's field.
+    The IDX index still goes, on its ``^`` mark exactly as the US one does."""
+    sessions = _calendar(22)
+    for symbol in ["QQQ", "AAA.JK", MARKET_INDEX["IDX"]]:
+        store.append_bars("IDX", symbol, [_dv_bar(s, 2_000_000, 1000.0) for s in sessions])
+
+    instruments = synthesize_instruments(store, "IDX")
+
+    assert [i.symbol for i in instruments] == ["AAA.JK", "QQQ"]
+    assert all(i.market == "IDX" for i in instruments)
+
+
+def test_replay_field_over_a_non_default_market_and_window(store: Store):
+    """Acceptance #183, end to end: the same chain drives a non-default market
+    over a non-default window. IDX bars in 2015 — neither the US default market
+    nor the 2019–2022 default window — replay through universe, detection and the
+    seven-dimension score, proving market and window are arguments rather than the
+    constants they were."""
+    dates = _daily(date(2015, 1, 1), 105)
+    store.append_bars(
+        "IDX", "BASE.JK",
+        _bars_from_hlc(dates, _textbook_base_hlc(), volume=30_000_000),
+    )
+
+    # burn_in=104 measures only the last session, where the base ends.
+    (field,) = replay_field(store, "IDX", burn_in=104)
+
+    assert field.session == dates[104]
+    assert field.session.year == 2015  # outside the US 2019–2022 default window
+    assert "BASE.JK" in field.members
+    assert [d.symbol for d in field.detections] == ["BASE.JK"]
+    assert field.detections[0].score.label == SEVEN_DIM_LABEL
+    assert field.detections[0].score.max_points == 8
 
 
 def test_the_replayed_field_never_ranks_the_benchmark(store: Store):

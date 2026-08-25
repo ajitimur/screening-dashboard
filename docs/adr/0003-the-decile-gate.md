@@ -135,7 +135,7 @@ not see.
   width rather than reading the live constant, so the report that decided this can still be
   re-run after the decision moved that constant.
 
-### Confirmed twice more, from outside the sweep's argument (#169)
+### Confirmed twice more, from outside the sweep's argument (#169/#172)
 
 The `1w` refusal above rests on one instrument: the gate sweep, which prices what the lookback
 recovers. §3f of the replay findings measured his entries themselves, and the week comes back
@@ -151,6 +151,42 @@ n = 582 of 828 logged breakout longs, measured through the session before entry.
 readings on the same panel are +55.8% and 74.2% against the background's 37.8%, so the panel
 plainly can separate a lookback that matters; `1w` is the window where it cannot.
 
+#### Both readings were re-measured per trade, and the claim narrowed (#172)
+
+The pooled figures above hold two facts side by side without joining them, and each turned out to
+need a correction. Neither reverses the refusal; one sharpens it and one removes a confound.
+
+**The +0.3% is a mixture over bases, not over weeks.** A pooled median that flat is equally
+consistent with weeks up 10% and down 10% cancelling, so base age was measured on the same rows
+(§3c's D1, sessions from the highest high of the trailing 120) and the week re-read inside each
+band:
+
+| Base age | share of entries | median `1w` % | 95% CI | down on the week |
+| --- | --- | --- | --- | --- |
+| ≤5 sessions | 11.9% | +1.61 | [−0.27, +3.73] | 43.5% |
+| 6–30 | 42.3% | **−0.04** | [−0.71, +0.40] | 50.4% |
+| 31–60 | 20.3% | **−0.28** | [−0.59, +0.88] | 51.7% |
+| >60 | 25.6% | +1.73 | [+0.87, +2.45] | 36.9% |
+
+In the two bands holding the modal entry — **62.5% of entries** — the week is *flatter* than
+pooled, both bootstrap CIs straddle zero, and more than half of entries are down on it. The
+correction runs the sharpening way.
+
+**The beat-rate had a confound, and survives it.** His entries break out of far younger structures
+than an ordinary day sits in — base age median 24.5 against **75** — so 48.1% against 49.1%
+compared two different base-age mixes. Matched band by band, the gaps are +3.3, +6.7 and +5.5 pp
+in the three older bands, every one inside two standard errors.
+
+**What the ≤5 and >60 bands are.** The `>60` band is the only one significantly up on the week,
+and its `3m` median is **−3.3%** against +44.5% in the 6–30 band: a stale 120-session high means
+there is no recent advance to base out of, and there the entry week *is* the move. That is a
+different setup under the same label, and it is a population question this study has not
+otherwise asked — not evidence for `1w`.
+
+So the sentence this ADR relies on is the narrower one: **for entries breaking out of a
+6-to-60-session structure, nothing about the prior week distinguishes it from any other week.**
+That is the modal breakout in his record, and it is the population the exclusion has to hold on.
+
 **What this adds and does not add.** It does not re-price the gate — recall, field inflation and
 the quality of recovered trades are the sweep's to measure, and the verdict above stands on
 those. What it adds is that the week carries no signal *at the entries themselves*, which is the
@@ -159,7 +195,8 @@ now point the same way, and a future proposal to re-admit `1w` has to answer all
 than the sweep alone.
 
 The bound: executed trades only, one regime, and a same-name background rather than a control
-group of rejected setups (findings §9). None of these figures is a precision measurement.
+group of rejected setups (findings §9). None of these figures is a precision measurement, and the
+band figures are per-trade readings of the same 582 rows rather than a second sample.
 
 ---
 

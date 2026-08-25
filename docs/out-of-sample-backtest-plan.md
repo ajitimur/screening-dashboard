@@ -224,7 +224,7 @@ detects must land *before* the denominator is built, or the run is stale on arri
 | Ticket | Relation | Land by |
 | --- | --- | --- |
 | **#139** — match a trade's bars to the listing that existed at its entry | **Landed.** The recycled-ticker rule this plan requires; it re-pinned the figures cited below: blind-spot 91 → **92** tickers, 170 → **172** trades, 18.15% → **18.0%** of R, replayable 658 → **656** | Phase 2 |
-| **#145** — Tightness as a graded rubric input | **Landed as #154.** The hard 1.5×ADR cluster cut is now a far-outlier guard at 3.0 and the rubric grades base tightness (rubric v3, detector v2). It re-pinned the detected-count anchor 104 → **159 of 656** and more than doubled the field (90.3 → **201.6** detections per session). The guard's 3.0 is **provisional on n = 10** — firming it up is a result this run is expected to produce, not an input it needs. | Phase 3 |
+| **#145** — Tightness as a graded rubric input | **Landed as #154.** The hard 1.5×ADR cluster cut is now a far-outlier guard at 3.0 and the rubric grades base tightness (rubric v3, detector v2). It re-pinned the `in_field` anchor and more than doubled the field. **Both of its figures were re-measured on the whole field by #165**, because the pair it originally quoted (104 → 159 of 656; 90.3 → 201.6 detections per session) was measured on the field the rank retention had truncated — 90.3 is exactly 45,600 ÷ the 505 sessions that survived it. On the whole 821-session chain the restructure moves `in_field` 242 → **349 of 656** and the field **83.6 → 180.5** detections per measured session (findings §4b). The guard's 3.0 is **provisional on n = 10** — firming it up is a result this run is expected to produce, not an input it needs. | Phase 3 |
 | **#149** — `DETECTION_LOOKBACKS` 3 → 5 | **Settled and landed.** 3→5 rejected; `12m` adopted alone, `1w` refused on evidence. The gate is now `("1m", "3m", "6m", "12m")` — **21.9%** of the universe, decile recall **68.3%**, detector v3. Build the denominator against **that** width (ADR 0003 amendment, findings §3e). | Phase 3 |
 | **#146**, **#147** — naming and the domain model | The run persists full `Detection` records and the write-up uses this vocabulary. Cheap now, a dead language later. | Phase 3 |
 | **#141** — price the marginal cluster widen | **Downstream, not blocking.** It falls back to field inflation because no false-positive rate exists; this backtest is what supplies one. | After |
@@ -371,7 +371,8 @@ before reading any new figure:
 | Median trailing 5-bar range at his entries | **1.86 ADR** | Findings §3b, §3c |
 | Median 20-day ADR at entry eve | **6.08%** | Findings §3c |
 | Blind-spot tickers / trades, 2019–2022 | **92 / 172** (of 312 / 828) | Findings §2 |
-| Trades detected by the funnel | **159 of 656 replayable** (re-pinned by #154's far-outlier guard, measured 2026-08-22; the superseded pins were 104 of 658, then 104 of 656 after #139) | Findings §4 |
+| Trades detected by the funnel (A1 detection recall) | **549 of 656 replayable** (83.7%; gate-invariant — the funnel evaluates every stage unconditionally, so #149's width does not move it. Detector v2/v3 geometry; the superseded pin under v1's hard cluster cut was 380 of 658) | Findings §3, §3b |
+| Trades that appeared in the replayed field (A2 `in_field`) | **349 of 656** at detector v2, and **397 of 656** at detector v3 (the live gate) — **anchor against the version the run is built at**. Both measured 2026-08-25 by `replay.discrimination_grid`; the v2 figure independently reproduces #164's committed run, the v3 figure is a **first measurement** and has no second one to agree with. Superseded pins, each measured on a narrower population: 159 and then 104 of 656 on the field the rank retention had truncated, and 104 of 658 before #139 | Findings §4b |
 
 These are the same reference set through a differently-built pipeline. Matching them says the
 new pipeline computes what the old one computed; a mismatch is a bug in the new store or the
@@ -379,10 +380,28 @@ new chain, and every downstream number inherits it.
 
 **Two kinds of anchor, and only one of them is stable.** The first three are geometry measured
 from his bars: they hold whatever the detector does, so they anchor the *store and the
-indicators*. The last two depend on coverage and on the gates themselves — #139 re-pins them
-to 92 / 172 / 656, and the #145 restructure moved the detected count again — both are now
-re-pinned above and the restructure has landed, so these are the pins to anchor against. An anchor quoted from a superseded pin fails for a
+indicators*. The last three depend on coverage and on the gates themselves, and have moved
+repeatedly: #139 re-pinned the coverage row to 92 / 172 / 656, #154's far-outlier guard moved
+the detected count, #149's gate width moved it again, and #164 found that every field-derived
+count before it was measured on a field the two-year rank retention had silently emptied on 316
+of the 821 sessions. All three are re-pinned above, against the live detector, and every
+superseded pin is recorded beside them. An anchor quoted from a superseded pin fails for a
 reason that has nothing to do with the pipeline it is testing.
+
+**On the `in_field` row carrying two values.** It is stamped per detector version because the
+quantity *is* per detector version — the v2 → v3 gate widening admits 48 more of his trades to
+the field without any of them changing. Quoting one against a run built at the other is the
+same error the row itself used to make. The v3 value is the one a run built today anchors on,
+and it is flagged as a first measurement so a mismatch is investigated in both directions
+rather than charged straight to the new pipeline.
+
+**The two field rows are different anchors and were once conflated.** Until #165 this table
+carried one row labelled "trades detected by the funnel" whose *value* was A2's `in_field`. They
+are not the same quantity and do not move together: detection recall asks whether the detector
+would have fired on his name at all and is gate-invariant, while `in_field` asks whether the name
+reached that night's field and moves with every gate and coverage change. A rebuilt pipeline
+checked against the wrong one of the two fails an anchor it should pass — which is the specific
+failure this table exists to prevent, arriving through the table itself.
 
 Anchor against **arms B and C**, whose exits match the reference set's two simulated ones.
 Arm A has no counterpart there and is measured, never anchored.

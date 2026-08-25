@@ -90,7 +90,11 @@ inside ADR 0001's constraint as the weights do.
   `DETECTOR_VERSION` is 2, and rows from v1 and v2 are drawn from different populations — the
   stamp exists so that comparison cannot happen silently. Findings §3's detection row, §3's
   condition table and §4's `in_field` anchor (104 → **159 of 656**) are re-pinned from the
-  2026-08-22 re-run.
+  2026-08-22 re-run. **Amended (#165, 2026-08-25):** that `in_field` pair was measured on the
+  field the two-year rank retention had truncated (#164). On the whole chain the same
+  restructure moves it **242 → 349 of 656**, and the live detector v3 reads **397 of 656**
+  (findings §4b). The 104 → 159 above is left as the record of what this ADR was decided on;
+  it is not the pin to anchor against.
 - **Work moved from the gate to the sort key.** The names the guard admits are the ones the
   graded dimension scores low, so they arrive at the bottom of the list rather than beside his
   own setups. That is only a good trade if the sort key is trusted, which is why the grade is

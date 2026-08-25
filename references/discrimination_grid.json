@@ -1,0 +1,644 @@
+{
+  "board_size": 30,
+  "blind_spot_count": 92,
+  "cells": [
+    {
+      "detector_version": 1,
+      "detector_note": "hard 1.5\u00d7ADR cluster cut, pre-#154",
+      "cluster_cut": 1.5,
+      "lookbacks": [
+        "1m",
+        "3m",
+        "6m"
+      ],
+      "field_source": "truncated",
+      "measured_sessions": 821,
+      "sessions_with_detections": 505,
+      "field_detections": 45600,
+      "detections_per_session": 55.54202192448234,
+      "detections_per_contributing_session": 90.29702970297029,
+      "placed": 656,
+      "in_field": 104,
+      "eval_field_detections": 14239,
+      "discrimination_stars": 3.5,
+      "published_rubric": 1,
+      "picks_share": 0.17307692307692307,
+      "field_share": 0.17824285413301497,
+      "edge_pp": -0.5165931056091894,
+      "by_rubric": [
+        {
+          "rubric_version": 3,
+          "top_thirty": 46,
+          "picks": {
+            "counts": {
+              "1.0": 1,
+              "1.5": 6,
+              "2.0": 15,
+              "2.5": 25,
+              "3.0": 41,
+              "3.5": 12,
+              "4.0": 4
+            },
+            "total": 104,
+            "share_at_or_above": 0.15384615384615385
+          },
+          "field": {
+            "counts": {
+              "1.0": 478,
+              "1.5": 1465,
+              "2.0": 3403,
+              "2.5": 4297,
+              "3.0": 3126,
+              "3.5": 1273,
+              "4.0": 197
+            },
+            "total": 14239,
+            "share_at_or_above": 0.10323758690919306
+          }
+        },
+        {
+          "rubric_version": 2,
+          "top_thirty": 45,
+          "picks": {
+            "counts": {
+              "0.5": 3,
+              "1.0": 4,
+              "1.5": 9,
+              "2.0": 15,
+              "2.5": 36,
+              "3.0": 22,
+              "3.5": 11,
+              "4.0": 4
+            },
+            "total": 104,
+            "share_at_or_above": 0.14423076923076922
+          },
+          "field": {
+            "counts": {
+              "0.5": 396,
+              "1.0": 1132,
+              "1.5": 2649,
+              "2.0": 3259,
+              "2.5": 3014,
+              "3.0": 2531,
+              "3.5": 916,
+              "4.0": 342
+            },
+            "total": 14239,
+            "share_at_or_above": 0.0883489009059625
+          }
+        },
+        {
+          "rubric_version": 1,
+          "top_thirty": 41,
+          "picks": {
+            "counts": {
+              "0.5": 3,
+              "1.0": 6,
+              "1.5": 10,
+              "2.0": 22,
+              "2.5": 25,
+              "3.0": 20,
+              "3.5": 9,
+              "4.0": 5,
+              "4.5": 4
+            },
+            "total": 104,
+            "share_at_or_above": 0.17307692307692307
+          },
+          "field": {
+            "counts": {
+              "0.5": 312,
+              "1.0": 1511,
+              "1.5": 2129,
+              "2.0": 2394,
+              "2.5": 2533,
+              "3.0": 2822,
+              "3.5": 1165,
+              "4.0": 1049,
+              "4.5": 324
+            },
+            "total": 14239,
+            "share_at_or_above": 0.17824285413301497
+          }
+        }
+      ]
+    },
+    {
+      "detector_version": 1,
+      "detector_note": "hard 1.5\u00d7ADR cluster cut, pre-#154",
+      "cluster_cut": 1.5,
+      "lookbacks": [
+        "1m",
+        "3m",
+        "6m"
+      ],
+      "field_source": "whole",
+      "measured_sessions": 821,
+      "sessions_with_detections": 821,
+      "field_detections": 68654,
+      "detections_per_session": 83.62241169305724,
+      "detections_per_contributing_session": 83.62241169305724,
+      "placed": 656,
+      "in_field": 242,
+      "eval_field_detections": 27116,
+      "discrimination_stars": 3.5,
+      "published_rubric": 1,
+      "picks_share": 0.17355371900826447,
+      "field_share": 0.19811181590205046,
+      "edge_pp": -2.455809689378599,
+      "by_rubric": [
+        {
+          "rubric_version": 3,
+          "top_thirty": 114,
+          "picks": {
+            "counts": {
+              "1.0": 1,
+              "1.5": 12,
+              "2.0": 33,
+              "2.5": 64,
+              "3.0": 94,
+              "3.5": 30,
+              "4.0": 8
+            },
+            "total": 242,
+            "share_at_or_above": 0.15702479338842976
+          },
+          "field": {
+            "counts": {
+              "1.0": 826,
+              "1.5": 2648,
+              "2.0": 6063,
+              "2.5": 8072,
+              "3.0": 6226,
+              "3.5": 2765,
+              "4.0": 516
+            },
+            "total": 27116,
+            "share_at_or_above": 0.12099867237055613
+          }
+        },
+        {
+          "rubric_version": 2,
+          "top_thirty": 112,
+          "picks": {
+            "counts": {
+              "0.5": 3,
+              "1.0": 7,
+              "1.5": 21,
+              "2.0": 37,
+              "2.5": 78,
+              "3.0": 64,
+              "3.5": 24,
+              "4.0": 8
+            },
+            "total": 242,
+            "share_at_or_above": 0.1322314049586777
+          },
+          "field": {
+            "counts": {
+              "0.5": 669,
+              "1.0": 2083,
+              "1.5": 4615,
+              "2.0": 6275,
+              "2.5": 5659,
+              "3.0": 5029,
+              "3.5": 1985,
+              "4.0": 801
+            },
+            "total": 27116,
+            "share_at_or_above": 0.10274376751733294
+          }
+        },
+        {
+          "rubric_version": 1,
+          "top_thirty": 95,
+          "picks": {
+            "counts": {
+              "0.5": 3,
+              "1.0": 15,
+              "1.5": 24,
+              "2.0": 49,
+              "2.5": 57,
+              "3.0": 52,
+              "3.5": 21,
+              "4.0": 14,
+              "4.5": 7
+            },
+            "total": 242,
+            "share_at_or_above": 0.17355371900826447
+          },
+          "field": {
+            "counts": {
+              "0.5": 541,
+              "1.0": 2655,
+              "1.5": 3820,
+              "2.0": 4591,
+              "2.5": 4675,
+              "3.0": 5462,
+              "3.5": 2468,
+              "4.0": 2141,
+              "4.5": 763
+            },
+            "total": 27116,
+            "share_at_or_above": 0.19811181590205046
+          }
+        }
+      ]
+    },
+    {
+      "detector_version": 2,
+      "detector_note": "far-outlier guard at 3.0 (#145/#154)",
+      "cluster_cut": 3.0,
+      "lookbacks": [
+        "1m",
+        "3m",
+        "6m"
+      ],
+      "field_source": "truncated",
+      "measured_sessions": 821,
+      "sessions_with_detections": 505,
+      "field_detections": 101790,
+      "detections_per_session": 123.98294762484775,
+      "detections_per_contributing_session": 201.56435643564356,
+      "placed": 656,
+      "in_field": 159,
+      "eval_field_detections": 29096,
+      "discrimination_stars": 3.5,
+      "published_rubric": 1,
+      "picks_share": 0.1320754716981132,
+      "field_share": 0.11063376409128403,
+      "edge_pp": 2.1441707606829175,
+      "by_rubric": [
+        {
+          "rubric_version": 3,
+          "top_thirty": 45,
+          "picks": {
+            "counts": {
+              "1.0": 3,
+              "1.5": 12,
+              "2.0": 29,
+              "2.5": 43,
+              "3.0": 54,
+              "3.5": 14,
+              "4.0": 4
+            },
+            "total": 159,
+            "share_at_or_above": 0.11320754716981132
+          },
+          "field": {
+            "counts": {
+              "0.5": 403,
+              "1.0": 1892,
+              "1.5": 4675,
+              "2.0": 7554,
+              "2.5": 7858,
+              "3.0": 4750,
+              "3.5": 1767,
+              "4.0": 197
+            },
+            "total": 29096,
+            "share_at_or_above": 0.06750068737970855
+          }
+        },
+        {
+          "rubric_version": 2,
+          "top_thirty": 43,
+          "picks": {
+            "counts": {
+              "0.5": 4,
+              "1.0": 6,
+              "1.5": 22,
+              "2.0": 31,
+              "2.5": 56,
+              "3.0": 25,
+              "3.5": 11,
+              "4.0": 4
+            },
+            "total": 159,
+            "share_at_or_above": 0.09433962264150944
+          },
+          "field": {
+            "counts": {
+              "0.5": 1262,
+              "1.0": 3319,
+              "1.5": 7178,
+              "2.0": 7381,
+              "2.5": 5451,
+              "3.0": 3247,
+              "3.5": 916,
+              "4.0": 342
+            },
+            "total": 29096,
+            "share_at_or_above": 0.04323618366785813
+          }
+        },
+        {
+          "rubric_version": 1,
+          "top_thirty": 31,
+          "picks": {
+            "counts": {
+              "0.5": 4,
+              "1.0": 12,
+              "1.5": 20,
+              "2.0": 35,
+              "2.5": 32,
+              "3.0": 35,
+              "3.5": 12,
+              "4.0": 5,
+              "4.5": 4
+            },
+            "total": 159,
+            "share_at_or_above": 0.1320754716981132
+          },
+          "field": {
+            "counts": {
+              "0.5": 978,
+              "1.0": 3946,
+              "1.5": 5503,
+              "2.0": 4344,
+              "2.5": 5223,
+              "3.0": 5883,
+              "3.5": 1846,
+              "4.0": 1049,
+              "4.5": 324
+            },
+            "total": 29096,
+            "share_at_or_above": 0.11063376409128403
+          }
+        }
+      ]
+    },
+    {
+      "detector_version": 2,
+      "detector_note": "far-outlier guard at 3.0 (#145/#154)",
+      "cluster_cut": 3.0,
+      "lookbacks": [
+        "1m",
+        "3m",
+        "6m"
+      ],
+      "field_source": "whole",
+      "measured_sessions": 821,
+      "sessions_with_detections": 821,
+      "field_detections": 148223,
+      "detections_per_session": 180.53958587088917,
+      "detections_per_contributing_session": 180.53958587088917,
+      "placed": 656,
+      "in_field": 349,
+      "eval_field_detections": 54399,
+      "discrimination_stars": 3.5,
+      "published_rubric": 1,
+      "picks_share": 0.14613180515759314,
+      "field_share": 0.12593981507012997,
+      "edge_pp": 2.019199008746317,
+      "by_rubric": [
+        {
+          "rubric_version": 3,
+          "top_thirty": 110,
+          "picks": {
+            "counts": {
+              "1.0": 4,
+              "1.5": 21,
+              "2.0": 64,
+              "2.5": 98,
+              "3.0": 116,
+              "3.5": 38,
+              "4.0": 8
+            },
+            "total": 349,
+            "share_at_or_above": 0.1318051575931232
+          },
+          "field": {
+            "counts": {
+              "0.5": 739,
+              "1.0": 3468,
+              "1.5": 8450,
+              "2.0": 13322,
+              "2.5": 14710,
+              "3.0": 9338,
+              "3.5": 3856,
+              "4.0": 516
+            },
+            "total": 54399,
+            "share_at_or_above": 0.08036912443243442
+          }
+        },
+        {
+          "rubric_version": 2,
+          "top_thirty": 109,
+          "picks": {
+            "counts": {
+              "0.5": 5,
+              "1.0": 9,
+              "1.5": 48,
+              "2.0": 72,
+              "2.5": 110,
+              "3.0": 73,
+              "3.5": 24,
+              "4.0": 8
+            },
+            "total": 349,
+            "share_at_or_above": 0.09169054441260745
+          },
+          "field": {
+            "counts": {
+              "0.5": 2261,
+              "1.0": 6139,
+              "1.5": 12565,
+              "2.0": 13794,
+              "2.5": 10272,
+              "3.0": 6582,
+              "3.5": 1985,
+              "4.0": 801
+            },
+            "total": 54399,
+            "share_at_or_above": 0.051214176731189914
+          }
+        },
+        {
+          "rubric_version": 1,
+          "top_thirty": 78,
+          "picks": {
+            "counts": {
+              "0.5": 5,
+              "1.0": 27,
+              "1.5": 47,
+              "2.0": 73,
+              "2.5": 67,
+              "3.0": 79,
+              "3.5": 30,
+              "4.0": 14,
+              "4.5": 7
+            },
+            "total": 349,
+            "share_at_or_above": 0.14613180515759314
+          },
+          "field": {
+            "counts": {
+              "0.5": 1754,
+              "1.0": 7131,
+              "1.5": 9600,
+              "2.0": 8465,
+              "2.5": 9452,
+              "3.0": 11146,
+              "3.5": 3947,
+              "4.0": 2141,
+              "4.5": 763
+            },
+            "total": 54399,
+            "share_at_or_above": 0.12593981507012997
+          }
+        }
+      ]
+    },
+    {
+      "detector_version": 3,
+      "detector_note": "guard at 3.0, gate admits 12m (#149)",
+      "cluster_cut": 3.0,
+      "lookbacks": [
+        "1m",
+        "3m",
+        "6m",
+        "12m"
+      ],
+      "field_source": "whole",
+      "measured_sessions": 821,
+      "sessions_with_detections": 821,
+      "field_detections": 175546,
+      "detections_per_session": 213.81973203410476,
+      "detections_per_contributing_session": 213.81973203410476,
+      "placed": 656,
+      "in_field": 397,
+      "eval_field_detections": 64070,
+      "discrimination_stars": 3.5,
+      "published_rubric": 1,
+      "picks_share": 0.13602015113350127,
+      "field_share": 0.11652879662868737,
+      "edge_pp": 1.94913545048139,
+      "by_rubric": [
+        {
+          "rubric_version": 3,
+          "top_thirty": 103,
+          "picks": {
+            "counts": {
+              "1.0": 6,
+              "1.5": 29,
+              "2.0": 80,
+              "2.5": 111,
+              "3.0": 123,
+              "3.5": 40,
+              "4.0": 8
+            },
+            "total": 397,
+            "share_at_or_above": 0.12090680100755667
+          },
+          "field": {
+            "counts": {
+              "0.5": 991,
+              "1.0": 4621,
+              "1.5": 10456,
+              "2.0": 16032,
+              "2.5": 16978,
+              "3.0": 10243,
+              "3.5": 4191,
+              "4.0": 558
+            },
+            "total": 64070,
+            "share_at_or_above": 0.07412205400343375
+          }
+        },
+        {
+          "rubric_version": 2,
+          "top_thirty": 111,
+          "picks": {
+            "counts": {
+              "0.5": 5,
+              "1.0": 14,
+              "1.5": 59,
+              "2.0": 82,
+              "2.5": 124,
+              "3.0": 79,
+              "3.5": 26,
+              "4.0": 8
+            },
+            "total": 397,
+            "share_at_or_above": 0.08564231738035265
+          },
+          "field": {
+            "counts": {
+              "0.5": 3148,
+              "1.0": 7685,
+              "1.5": 15198,
+              "2.0": 16273,
+              "2.5": 11447,
+              "3.0": 7257,
+              "3.5": 2176,
+              "4.0": 886
+            },
+            "total": 64070,
+            "share_at_or_above": 0.04779147807086
+          }
+        },
+        {
+          "rubric_version": 1,
+          "top_thirty": 73,
+          "picks": {
+            "counts": {
+              "0.5": 5,
+              "1.0": 32,
+              "1.5": 61,
+              "2.0": 82,
+              "2.5": 77,
+              "3.0": 86,
+              "3.5": 33,
+              "4.0": 14,
+              "4.5": 7
+            },
+            "total": 397,
+            "share_at_or_above": 0.13602015113350127
+          },
+          "field": {
+            "counts": {
+              "0.5": 2473,
+              "1.0": 9486,
+              "1.5": 11995,
+              "2.0": 9782,
+              "2.5": 10609,
+              "3.0": 12259,
+              "3.5": 4331,
+              "4.0": 2301,
+              "4.5": 834
+            },
+            "total": 64070,
+            "share_at_or_above": 0.11652879662868737
+          }
+        }
+      ]
+    }
+  ],
+  "steps": {
+    "retention_fix": {
+      "before": "detector v1, truncated field",
+      "after": "detector v1, whole field",
+      "edge_before_pp": -0.5165931056091894,
+      "edge_after_pp": -2.455809689378599
+    },
+    "detector_restructure": {
+      "before": "detector v1, whole field",
+      "after": "detector v2, whole field",
+      "edge_before_pp": -2.455809689378599,
+      "edge_after_pp": 2.019199008746317
+    }
+  },
+  "deleted_sessions": {
+    "sessions": 316,
+    "picks_at_stars": 24,
+    "picks_total": 138,
+    "picks_share": 0.17391304347826086,
+    "field_at_stars": 2834,
+    "field_total": 12877,
+    "field_share": 0.22008231730993244,
+    "edge_pp": -4.616927383167157
+  }
+}

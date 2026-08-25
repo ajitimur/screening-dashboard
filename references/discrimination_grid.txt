@@ -1,0 +1,82 @@
+Discrimination grid — the detector change held apart from the retention fix (#165)
+scope: US 2019-2022; blind-spot tickers missing from the field: 92
+the pair is quoted under rubric v1, the rubric §4's 17.3% / 17.8% was measured with
+
+== cells ==
+
+detector v1, truncated field  [hard 1.5×ADR cluster cut, pre-#154]
+  gate:                 1m/3m/6m
+  sessions with a field: 505/821
+  field detections:      45600  (55.5 per measured session, 90.3 per contributing one)
+  in_field:              104/656
+  field on his eval sessions: 14239
+  rubric v1 (§4's rubric):  picks >= 3.5* 17.31%   field 17.82%   edge -0.52pp   top 30 41/656
+  rubric v2:  picks >= 3.5* 14.42%   field 8.83%   edge +5.59pp   top 30 45/656
+  rubric v3:  picks >= 3.5* 15.38%   field 10.32%   edge +5.06pp   top 30 46/656
+
+detector v1, whole field  [hard 1.5×ADR cluster cut, pre-#154]
+  gate:                 1m/3m/6m
+  sessions with a field: 821/821
+  field detections:      68654  (83.6 per measured session, 83.6 per contributing one)
+  in_field:              242/656
+  field on his eval sessions: 27116
+  rubric v1 (§4's rubric):  picks >= 3.5* 17.36%   field 19.81%   edge -2.46pp   top 30 95/656
+  rubric v2:  picks >= 3.5* 13.22%   field 10.27%   edge +2.95pp   top 30 112/656
+  rubric v3:  picks >= 3.5* 15.70%   field 12.10%   edge +3.60pp   top 30 114/656
+
+detector v2, truncated field  [far-outlier guard at 3.0 (#145/#154)]
+  gate:                 1m/3m/6m
+  sessions with a field: 505/821
+  field detections:      101790  (124.0 per measured session, 201.6 per contributing one)
+  in_field:              159/656
+  field on his eval sessions: 29096
+  rubric v1 (§4's rubric):  picks >= 3.5* 13.21%   field 11.06%   edge +2.14pp   top 30 31/656
+  rubric v2:  picks >= 3.5* 9.43%   field 4.32%   edge +5.11pp   top 30 43/656
+  rubric v3:  picks >= 3.5* 11.32%   field 6.75%   edge +4.57pp   top 30 45/656
+
+detector v2, whole field  [far-outlier guard at 3.0 (#145/#154)]
+  gate:                 1m/3m/6m
+  sessions with a field: 821/821
+  field detections:      148223  (180.5 per measured session, 180.5 per contributing one)
+  in_field:              349/656
+  field on his eval sessions: 54399
+  rubric v1 (§4's rubric):  picks >= 3.5* 14.61%   field 12.59%   edge +2.02pp   top 30 78/656
+  rubric v2:  picks >= 3.5* 9.17%   field 5.12%   edge +4.05pp   top 30 109/656
+  rubric v3:  picks >= 3.5* 13.18%   field 8.04%   edge +5.14pp   top 30 110/656
+
+detector v3, whole field  [guard at 3.0, gate admits 12m (#149)]
+  gate:                 1m/3m/6m/12m
+  sessions with a field: 821/821
+  field detections:      175546  (213.8 per measured session, 213.8 per contributing one)
+  in_field:              397/656
+  field on his eval sessions: 64070
+  rubric v1 (§4's rubric):  picks >= 3.5* 13.60%   field 11.65%   edge +1.95pp   top 30 73/656
+  rubric v2:  picks >= 3.5* 8.56%   field 4.78%   edge +3.79pp   top 30 111/656
+  rubric v3:  picks >= 3.5* 12.09%   field 7.41%   edge +4.68pp   top 30 103/656
+
+== the two one-variable steps ==
+
+the retention fix alone (#164)
+  detector v1, truncated field  ->  detector v1, whole field
+  picks >= 3.5*: 17.31%  ->  17.36%
+  field >= 3.5*: 17.82%  ->  19.81%
+  edge:              -0.52pp  ->  -2.46pp
+  field detections:  45600  ->  68654
+
+the detector restructure alone (#154)
+  detector v1, whole field  ->  detector v2, whole field
+  picks >= 3.5*: 17.36%  ->  14.61%
+  field >= 3.5*: 19.81%  ->  12.59%
+  edge:              -2.46pp  ->  +2.02pp
+  field detections:  68654  ->  148223
+
+== what the deleted sessions held ==
+
+  the 316 sessions the retention emptied, at rubric v1, detector v1:
+  picks >= 3.5*: 24/138 = 17.39%
+  field >= 3.5*: 2834/12877 = 22.01%
+  edge on the deleted sessions: -4.62pp
+
+  The bug deleted the sessions where the field was strongest relative to
+  his picks, so cutting both sides on the same sessions still biased the
+  comparison — and biased it in the rubric's favour.

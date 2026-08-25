@@ -576,6 +576,12 @@ store holds ranks for):
 | `cluster` misses | 171 | **2** | −169 |
 | Detections per session | 90.3 | **201.6** | **+111.3 (+123.2%)** |
 
+**That last row's denominator is the 505 sessions, not the 821.** It is correct as stated and is
+left as measured — but #164 later found those were the only sessions carrying a field at all, so
+quoting 90.3 or 201.6 against a whole-chain figure compares two different denominators. On the
+whole chain the same step is **83.6 → 180.5** detections per measured session (§4b), which
+reproduces both figures above exactly when re-divided by the 505.
+
 **The population cost is the headline, not the recall.** The field more than doubles: 111 more
 names per session, or **0.66 additional names per session for each trade recovered**. That is a
 large number and it is the honest denominator — precision cannot be measured, so this ratio is what
@@ -1162,19 +1168,15 @@ across the fix. §4's historical rubric-stamped tables are left alone — they a
 what each rubric did to the field as it then stood. What changes is any figure describing how
 much of the field existed, and every one of those is restated above.
 
-**One thing this leaves open, flagged rather than answered.** The discrimination result —
-"the rubric does not discriminate his picks from the field", **17.3% vs 17.8%** at ≥3.5★ — is
-computed over this same field, on his picks against the field *on the same sessions*. Both
-sides were truncated together, so the comparison is not obviously invalid, but its published
-rates were measured on the truncated field and are not restated by this ticket. One data
-point says re-deriving them is not a formality: recomputed under **rubric v1 on the whole
-field**, the run above gives picks **14.6%** against field **12.6%** — a +2.0pp edge where
-the published pair shows −0.5pp. That figure is **not** a correction of 17.3/17.8, because two
-changes are confounded in it: the detector moved v1 → v2 with #154, and the field truncation
-was fixed here. Separating them needs a deliberate paired re-run of the kind §4a already does
-for rubric changes. Until then, §4's and §5's discrimination figures should be read as
-pending re-derivation rather than as settled — and the same caution applies to §6's
-"real but modest against A2's 17.3% / 17.8% gap".
+**One thing this left open, and #165 closed.** The discrimination result — "the rubric does
+not discriminate his picks from the field", **17.3% vs 17.8%** at ≥3.5★ — is computed over
+this same field. Recomputed under rubric v1 on the whole field the run above gives **14.6%**
+against **12.6%**, a +2.0pp edge where the published pair shows −0.5pp — but two changes are
+confounded in that figure (the detector moved v1 → v2 with #154, and the truncation was fixed
+here), so it corrects nothing. #164 marked §4/§5's discrimination figures pending rather than
+restating them. **§4b separates the two changes and restates them**, and the answer is not the
+one the confounded figure suggested: with the detector held at v1, the fix moves the pair to
+**17.4% / 19.8%**, a gap of **−2.46pp**. §4's null hardens on the whole field.
 
 Star distribution of his picks against the replayed field, on the same sessions:
 
@@ -1193,9 +1195,11 @@ Star distribution of his picks against the replayed field, on the same sessions:
 
 ### The rubric does not discriminate his picks from the field
 
-**Picks at ≥3.5 stars: 17.3%. Field at ≥3.5 stars: 17.8%.** (Rubric v1. Under the live v2
-rubric, on this same field, the gap opens to +5.6pp — §4a, which is where this conclusion is
-revised.)
+**Picks at ≥3.5 stars: 17.3%. Field at ≥3.5 stars: 17.8%.** (Rubric v1, on the **truncated**
+field — the pair as published. Under the live v2 rubric, on this same field, the gap opens to
++5.6pp — §4a, which is where this conclusion is revised. On the **whole** field with the
+detector held at v1, the pair is **17.4% / 19.8%** and the gap widens to −2.46pp — §4b, which
+is where the truncation is taken out of it.)
 
 His real, high-conviction, hand-picked entries land in the top of the star scale at
 essentially **the same rate as the general population of detections they were drawn
@@ -1373,6 +1377,119 @@ _Reproduce: `python -m replay.study --store data/replay.duckdb`, which writes
 `references/replay_study_report.txt` and `references/replay_study_results.json` — both committed
 beside this document. The store's derived tables must be empty; bars are the only input a chain
 reads (write-once rows from an earlier pass are read back, not recomputed)._
+
+---
+
+## 4b. The discrimination pair, with the two changes separated (#165)
+
+**Question.** §4's pair — picks **17.3%** against field **17.8%** at ≥3.5★ — was measured under
+detector v1 on the field the rank retention had truncated. #164 fixed the truncation and
+reported that the same rubric on the whole field reads **14.6% / 12.6%**, an edge *in his
+favour* where the published pair has him fractionally behind. It also said, correctly, that the
+figure corrects nothing: the detector had moved v1 → v2 with #154 in the same interval, so two
+variables moved between the two pairs and the movement is attributable to neither. This is the
+re-derivation that separates them.
+
+**Method.** The pair is re-measured at each detector version against each field, so exactly one
+variable moves between any two cells read against each other. One read-only pass reconstructs
+the forward chain from the universe rows the store holds with the ranks recomputed in memory —
+`replay.gate_sweep`'s own path, nothing written back — and every cell is derived from that one
+detection pass by filtering it. Two identities make that sound rather than convenient:
+
+- **v1's field is a filter on v2's.** `detection._find_cluster` records it: the restructure
+  grades what it used to gate, so a name inside the old 1.5×ADR cut keeps the same `k`, trigger
+  and span under the guard. Striking the rows past 1.5 reconstructs the older population
+  exactly, and the reconstruction is checkable — the committed store still holds the 45,600
+  `detector_version = 1` rows that pass emitted, and the v1/truncated cell reproduces that count
+  **to the row**.
+- **The truncated field is the whole field restricted to the retained sessions.** A pruned
+  session gated against an empty rank table, so it dropped every member: the truncation removed
+  whole sessions rather than thinning them. The retained set is read off the store's own `ranks`
+  table (505 sessions, 2020-12-30..2022-12-30) and handed in as a parameter.
+
+### The grid — all rubric v1, the rubric §4's pair was published under
+
+| Detector | Field | `in_field` | Field, his eval sessions | Detections / measured session | Picks ≥3.5★ | Field ≥3.5★ | Gap |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| v1 | truncated | 104/656 | 14,239 | 55.5 (90.3 per contributing) | 17.31% | 17.82% | **−0.52pp** (as published) |
+| v1 | whole | 242/656 | 27,116 | **83.6** | 17.36% | 19.81% | **−2.46pp** |
+| v2 | truncated | 159/656 | 29,096 | 124.0 (201.6 per contributing) | 13.21% | 11.06% | +2.14pp |
+| v2 | whole | 349/656 | 54,399 | **180.5** | 14.61% | 12.59% | +2.02pp |
+| v3 (live) | whole | 397/656 | 64,070 | 213.8 | 13.60% | 11.65% | +1.95pp |
+
+The per-session column carries both denominators, because the superseded 90.3 and 201.6 were
+taken over the 505 sessions that survived the retention rather than the 821 measured — the two
+truncated rows reproduce them exactly on that denominator, which is what identifies the
+superseded figures as arithmetic on a partial field rather than a different measurement.
+
+**The grid is checked against the record, not merely computed.** Four of the five cells have a
+committed figure to reproduce and every one of them reproduces to the digit: §4's own
+104 / 14,239 / 17.31 / 17.82 and its board hit of 41; §4a's inset block for the v2 truncated
+field (159 / 29,096, and 13.21 / 11.06, 9.43 / 4.32, 11.32 / 6.75 across the three rubrics, with
+31 / 43 / 45 on the board); #164's 349 / 54,399 and the committed report's rubric-v1 board hit of
+78; and #164's own v1-on-the-whole-field diagnostic of **242 / 27,116**. The fifth cell is the
+first measurement of `in_field` under the width #149 adopted.
+
+### The two one-variable steps
+
+**The retention fix alone — detector held at v1.** 17.31% / 17.82% → **17.36% / 19.81%**. His
+picks do not move (+0.05pp); the **field's** share rises by 1.99pp. The gap goes from −0.52pp to
+**−2.46pp**.
+
+The mechanism is in *which* sessions were missing, and the grid measures it rather than leaving
+it to be inferred — the **"what the deleted sessions held"** block of
+`references/discrimination_grid.txt` reports it with its counts:
+
+| On the 316 sessions the retention emptied | ≥3.5★ | Total | Share |
+| --- | --- | --- | --- |
+| His picks | 24 | 138 | **17.39%** |
+| The field | 2,834 | 12,877 | **22.01%** |
+
+On the 505 retained sessions the same two shares are 17.31% and 17.82%. So the population he
+was being compared against was **materially stronger on the sessions the bug deleted**, and his
+own picks were not. That is why cutting both sides on the same sessions still biased the
+comparison, and biased it in the rubric's favour. §4 was right that both sides were truncated
+together; that is not sufficient for the comparison to survive, and here it did not.
+
+**The detector restructure alone — on the whole field.** −2.46pp → **+2.02pp**. The whole of the
+edge #164 flagged is this step. It is also the mechanism §4a already named, arriving through the
+detector rather than through the weights: the far-outlier guard admits ~80,000 detections whose
+3-bar range sits past 1.5×ADR, rubric v1 scores `Tightness` off `cluster_k >= 5` and those names
+miss it, so the field's ≥3.5★ share falls from 19.81% to 12.59% while his picks fall less
+(17.36% → 14.61%). **The field fell; his picks did not rise** — the same sentence §4a wrote about
+the reweight.
+
+### Verdict — §4's null stands, and hardens
+
+**The negative result is not weakened by the retention fix; it is strengthened.** On the whole
+field, under the rubric and detector §4 published with, his hand-picked entries reach ≥3.5★
+**less** often than the population they were drawn from — 17.4% against 19.8%, a gap two and a
+half times the published one and in the same (unfavourable) direction. Nothing in this grid
+supports reading §4's null as an artefact of the truncation.
+
+**§4a's verdict — weakened, not reversed — survives the fix and is left standing.** Its claim is
+about a *rubric* change on a fixed field, and it reproduces on the whole field in both directions:
+on the v1 whole field the pair moves −2.46pp (v1) → +2.95pp (v2) → +3.60pp (v3), and on the v2
+whole field +2.02pp → +4.05pp → **+5.14pp**. The three reasons §4a gives for refusing to read that
+as validation are untouched by this ticket: it is in-sample and close to circular, it was marginal
+where it was tested, and the coverage hole is permanent.
+
+**What the live pair reads.** On the live detector (v3) and the live rubric (v3), on the whole
+field: picks **12.09%**, field **7.41%**, gap **+4.68pp**, with **103 of 656** inside the board.
+That is the pair to quote for the app as it stands today — and it carries §4a's three reasons
+with it, because it is the same in-sample rubric measured on the same incomplete field.
+
+**Coverage is unchanged and still bounds all of it.** 92 blind-spot tickers / 172 trades / 18.0%
+of realised R (§2). The fix restored sessions, never tickers; #129 is closed won't-do and the
+29% hole is permanent. Every cell above is measured against a field missing it.
+
+_Reproduce: `python -m replay.discrimination_grid --store data/replay.duckdb`, which writes
+`references/discrimination_grid.txt` and `references/discrimination_grid.json` — both committed
+beside this document. Read-only: it reconstructs the forward pass from the universe rows the
+store already holds and writes nothing back, so it runs against a built store in about four
+minutes and leaves it re-runnable. Every detector version's cluster cut and gate width are
+pinned in the module rather than read off the live constants, so it reproduces after a later
+ticket moves either._
 
 ---
 
@@ -1556,13 +1673,17 @@ is needed:
 
 The swap moves his picks **~0.19 stars more than the field** — the first quantified statement
 that a rubric change pushes in the direction A2 (§4) says the current rubric does not. It is
-real but modest against A2's 17.3% / 17.8% gap, and says nothing about whether the **3.5★
+real but modest against A2's 17.3% / 17.8% gap — **−2.46pp once the truncation is out of it**
+(§4b), which makes the gap the reweight is pushing against wider than this paragraph assumed,
+not narrower — and says nothing about whether the **3.5★
 share** moves, which depends on the joint distribution around the boundary. The numbers above
 are the computed expectation; the **measured** paired A2 re-run is **§4a**, and it confirms them
 — measured picks-minus-field shift **+0.196 stars** against the +0.19 predicted here, agreeing
 to about a hundredth of a star. The 3.5★
 share this paragraph declined to predict was also measured there, and it moves: **17.3% / 17.8%
-under v1 → 14.4% / 8.8% under v2 on the same field**.
+under v1 → 14.4% / 8.8% under v2 on the same field**. That pair is stamped to the *truncated*
+field; on the whole field the same rubric step reads **17.4% / 19.8% → 13.2% / 10.3%**, so the
+reweight's direction survives the fix (§4b).
 
 **#136 — the paired re-run is now wired, and separates the two variables by construction.**
 The obstacle #136 was written against — "re-run A2 and risk moving the field *and* the rubric
@@ -2083,6 +2204,23 @@ It baselines against the three-lookback width explicitly rather than reading
 `DETECTION_LOOKBACKS`, so it reproduces byte-for-byte after its own verdict moved that
 constant.
 
+**The discrimination grid is separate and read-only too** (§4b, #165), and stands on the same
+reconstruction for the same reason — it needs five fields over one chain, and rebuilding the
+chain five times to get them is half a day for a measurement that is four minutes of filtering.
+It runs the detector once over the union of every version's gate and derives each cell from that
+one pass:
+
+```
+python -m replay.discrimination_grid --store data/replay.duckdb \
+    --out-report references/discrimination_grid.txt \
+    --out-json   references/discrimination_grid.json
+```
+
+Like the sweep, every detector version's cluster cut and gate width are pinned in the module
+rather than read off `OUTLIER_MULT` and `DETECTION_LOOKBACKS`, so it keeps producing the same
+grid after a later ticket moves either — and unlike a re-run of `replay.study`, it works on the
+committed store as it stands, because it writes nothing and so never meets the write-once guard.
+
 **Runtime.** The chain is 947 sessions (126 burn-in + 821 measured) and dominates: on the
 2026-08-15 run the whole study took **29.8 minutes**, of which the chain was 29.1 and the
 per-session detection pass that builds the field added 0.6. Treat it as an order of
@@ -2104,8 +2242,13 @@ _Provenance: PRD #114; A1 funnel #116/#119; A2 chain/field/placement #117/#118/#
 outcome regression #121; A3 selection contrast #122; this write-up #123. Analysis code:
 `backend/replay/`. Row-level seam: `backend/tests/test_replay_seam.py`. Decile decomposition
 #133; cluster characterisation #132; recalibration #138; paired A2 re-run #136; the tightness
-restructure #145/#154. Study last run **2026-08-22**, on detector v2 and rubric v3 — the run that
-re-pinned §3's detection row, §3's condition table and §4's `in_field` anchor. The
+restructure #145/#154; the discrimination grid #165. Study last run **2026-08-22**, on detector
+v2 and rubric v3 — the run that re-pinned §3's detection row, §3's condition table and §4's
+`in_field` anchor. **§4b's grid is newer than that run** (`replay.discrimination_grid`,
+2026-08-25, read-only over the same store): it carries the only figures measured under the live
+detector v3, so §4's `in_field` anchor is pinned from §4b and not from the 2026-08-22 report.
+Anything else in this document stamped detector v2 is awaiting the next full `replay.study` run
+and says so where it matters. The
 recall-and-inflation ledger in §3b is a side-car, `scripts/base_tightness_restructure.py`, run against
 the same store and outside `replay.study`. The survivorship hole closed won't-do as #129._
 

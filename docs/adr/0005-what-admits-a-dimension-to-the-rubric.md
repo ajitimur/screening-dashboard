@@ -148,8 +148,9 @@ instrument that could retire it, since it is the only planned measurement outsid
 - **The contrast this rule reads must be re-run under `DETECTOR_VERSION = 2`.** §5b's published
   table — 69 taken against 14,354 not-taken — was measured under detector v1. #154's graded
   tightness grew the detector's population by **+111.3 detections per session (+123%)**, and
-  while §3's detection row and §4's `in_field` anchor were re-pinned (104 → 159 of 656), §5b
-  was not. An ordinal position assigned against the v1 table would rank a v2-measured dimension
+  while §3's detection row and §4's `in_field` anchor were re-pinned (104 → 159 of 656 — since
+  amended to 242 → **349 of 656** on the whole field, and **397** under the live detector v3;
+  #165, findings §4b), §5b was not. An ordinal position assigned against the v1 table would rank a v2-measured dimension
   among v1-measured ones, which is the field-change-versus-rubric-change confound in a new
   costume. The admission rule therefore requires the contrast to be **measured under the
   detector the dimension will ship against**.

@@ -2722,3 +2722,192 @@ def test_build_field_defaults_the_candidate_dimension_to_absent():
     # Supplying it changes neither the order nor the scores.
     assert [d.symbol for d in without] == [d.symbol for d in with_rs]
     assert [d.score for d in without] == [d.score for d in with_rs]
+
+
+# -- the discrimination grid (#165): the detector change held apart from the
+#    retention fix -----------------------------------------------------------
+#
+# §4's published pair — picks 17.3% against field 17.8% at >= 3.5 stars — was
+# measured under detector v1 on the field the two-year rank retention had
+# truncated. #164 fixed the truncation, and the same rubric on the whole field
+# reads 14.6% / 12.6%. Two variables moved between those two pairs, so neither
+# corrects the other. The grid re-measures the pair at each detector version
+# against each field, so exactly one variable moves between adjacent cells.
+
+
+def _grid_session(session: date, ranks: list[Rank], ranges: dict[str, float]):
+    """One prepared sweep session whose detections differ only in their trailing
+    3-bar range — the quantity v1's hard cut gated and v2's guard grades."""
+    from replay.gate_sweep import SweepSession, gate_membership
+
+    return SweepSession(
+        session=session,
+        members=sorted({r.symbol for r in ranks}),
+        ranks=ranks,
+        membership=gate_membership(ranks),
+        detections=[
+            dataclasses.replace(
+                _det(symbol, cluster_k=5), session=session, range_3bar_adr=r
+            )
+            for symbol, r in sorted(ranges.items())
+        ],
+    )
+
+
+def test_the_v1_field_is_the_v2_field_with_the_names_past_the_hard_cut_struck():
+    """The one identity the grid stands on (#154, ``detection._find_cluster``): the
+    restructure *added* names and moved none, so a name that cleared the old
+    1.5xADR cut emits the same row under v2 as it did under v1. Reconstructing
+    v1's field is therefore a filter on v2's, not a second detection pass."""
+    from replay.discrimination_grid import DETECTORS, under_detector
+
+    dets = [
+        dataclasses.replace(_det("TIGHT", cluster_k=5), range_3bar_adr=1.2),
+        dataclasses.replace(_det("WIDE", cluster_k=3), range_3bar_adr=2.4),
+    ]
+
+    # v1's hard cut strikes the name past 1.5; v2's far-outlier guard keeps it.
+    assert [d.symbol for d in under_detector(dets, DETECTORS[1])] == ["TIGHT"]
+    assert [d.symbol for d in under_detector(dets, DETECTORS[2])] == [
+        "TIGHT",
+        "WIDE",
+    ]
+
+
+def test_a_detector_version_carries_its_own_gate_width_not_the_live_one():
+    """The stamp is a claim about the **population**, and #149 moved that population
+    by admitting ``12m`` — so a version's lookbacks ride on the version rather than
+    being read off the live constant, whose value this grid's own reading must not
+    drift with (the discipline ``gate_sweep.GATE_AS_MEASURED`` sets)."""
+    from replay.discrimination_grid import DETECTORS
+    from replay.gate_sweep import GATE_AS_MEASURED
+
+    assert DETECTORS[1].lookbacks == GATE_AS_MEASURED
+    assert DETECTORS[2].lookbacks == GATE_AS_MEASURED
+    assert DETECTORS[3].lookbacks == ("1m", "3m", "6m", "12m")
+    # v1 and v2 differ in the cluster rule alone; v2 and v3 in the gate alone.
+    assert DETECTORS[1].cluster_cut != DETECTORS[2].cluster_cut
+    assert DETECTORS[2].cluster_cut == DETECTORS[3].cluster_cut
+
+
+def test_the_truncated_field_drops_every_session_the_rank_retention_pruned():
+    """What the bug did, reproduced as a parameter rather than as a bug: a measured
+    session outside the retained window gated against an empty rank table and
+    contributed *nothing*, so the truncated field is the whole field restricted to
+    the sessions the store still holds ranks for (#164)."""
+    from replay.discrimination_grid import (
+        DETECTORS,
+        FIELD_TRUNCATED,
+        FIELD_WHOLE,
+        measure_cell,
+    )
+
+    ranks = [Rank("NOW", "3m", percentile=0.95, raw_return=0.8)]
+    pruned, retained = date(2020, 3, 2), date(2022, 3, 2)
+    swept = [
+        _grid_session(pruned, ranks, {"NOW": 1.0}),
+        _grid_session(retained, ranks, {"NOW": 1.0}),
+    ]
+    def cell(source):
+        return measure_cell(
+            swept,
+            DETECTORS[2],
+            source,
+            replayable=[],
+            calendar=[pruned, retained],
+            stored_rank_sessions={retained},
+            blind_spot_count=0,
+        )
+
+    whole, truncated = cell(FIELD_WHOLE), cell(FIELD_TRUNCATED)
+
+    assert (whole.sessions_with_detections, whole.field_detections) == (2, 2)
+    assert (truncated.sessions_with_detections, truncated.field_detections) == (1, 1)
+    # Both measured the same two sessions — the truncation is in the field, not in
+    # the window, so the per-session figure is read against the window either way.
+    assert whole.measured_sessions == truncated.measured_sessions == 2
+    assert truncated.detections_per_session == 0.5
+    # Both denominators are carried: dividing by the sessions that survived is how
+    # the superseded 90.3 came about, so it is reported beside the honest figure
+    # rather than in place of it.
+    assert truncated.detections_per_contributing_session == 1.0
+
+
+def test_the_grid_reports_the_share_at_or_above_the_published_threshold():
+    """§4's pair is one number a side — the share at >= 3.5 stars — so the grid
+    emits that share rather than leaving a histogram to be re-totalled by hand at
+    each reading. An empty distribution has no share, and says so."""
+    from replay.discrimination_grid import DISCRIMINATION_STARS, share_at_or_above
+    from replay.placement import StarDistribution
+
+    assert DISCRIMINATION_STARS == 3.5
+    assert share_at_or_above(
+        StarDistribution.from_stars([4.0, 3.5, 3.0, 2.0]), DISCRIMINATION_STARS
+    ) == 0.5
+    assert share_at_or_above(StarDistribution.from_stars([]), 3.5) is None
+
+
+def test_the_deleted_sessions_are_measured_not_derived_by_subtraction_downstream():
+    """The retention step's *mechanism* — the field was strongest exactly where the
+    bug deleted it — is what turns "the null hardens" from an assertion into an
+    explanation, so the grid measures the deleted sessions' own contribution and
+    emits the counts. A share quoted in prose that no committed artefact carries is
+    the same unreproducible figure this whole study exists to avoid."""
+    from replay.discrimination_grid import (
+        DETECTORS,
+        FIELD_WHOLE,
+        CellMeasurement,
+        PrunedComparison,
+        pruned_comparison,
+    )
+    from replay.placement import RubricStarDistributions, StarDistribution
+
+    def cell(picks, field, sessions):
+        return CellMeasurement(
+            detector=DETECTORS[1],
+            field_source=FIELD_WHOLE,
+            measured_sessions=10,
+            sessions_with_detections=sessions,
+            field_detections=0,
+            placed=0,
+            in_field=0,
+            eval_field_detections=0,
+            by_rubric=[
+                RubricStarDistributions(
+                    rubric_version=1,
+                    picks=StarDistribution.from_stars(picks),
+                    field=StarDistribution.from_stars(field),
+                )
+            ],
+        )
+
+    # The truncated cell is a strict subset of the whole one — same detections,
+    # same scoring, fewer sessions — so the difference is the deleted sessions.
+    truncated = cell(picks=[4.0, 2.0], field=[3.5, 1.0], sessions=4)
+    whole = cell(picks=[4.0, 2.0, 2.5], field=[3.5, 1.0, 4.0, 3.5], sessions=10)
+
+    pruned = pruned_comparison(truncated, whole)
+
+    assert isinstance(pruned, PrunedComparison)
+    assert pruned.sessions == 6
+    # One extra pick, scoring below the threshold; two extra field rows, both above.
+    assert (pruned.picks_at_stars, pruned.picks_total) == (0, 1)
+    assert (pruned.field_at_stars, pruned.field_total) == (2, 2)
+    assert pruned.picks_share == 0.0
+    assert pruned.field_share == 1.0
+    assert pruned.edge == -100.0
+
+
+def test_the_grid_never_mutates_the_live_detector_constants():
+    """Read-only in the same sense the gate sweep is: every version's cluster cut
+    and gate width are handed to the filter, never assigned to the live module."""
+    from screener import detection as detection_module
+    from replay.discrimination_grid import DETECTORS, under_detector
+
+    before = (detection_module.OUTLIER_MULT, detection_module.DETECTION_LOOKBACKS)
+    for spec in DETECTORS.values():
+        under_detector([_det("AAA", cluster_k=5)], spec)
+    assert (
+        detection_module.OUTLIER_MULT,
+        detection_module.DETECTION_LOOKBACKS,
+    ) == before

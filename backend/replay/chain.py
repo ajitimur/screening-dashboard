@@ -92,6 +92,7 @@ def replay_references(market: str) -> set[str]:
     """
     return REPLAY_REFERENCES_BY_MARKET.get(market, {MARKET_INDEX[market]})
 
+
 # A fixed, deterministic stamp for the run record the chain writes as each
 # session's "already computed" marker (issue #126). The replay has no wall clock —
 # the same store rebuilt twice must produce byte-identical run records — so the

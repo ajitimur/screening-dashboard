@@ -3326,3 +3326,242 @@ def test_two_runs_under_different_contracts_are_distinguishable_from_output_alon
 
     assert a != b
     assert other != DEFAULT_CONTRACT
+
+
+# -- the stateless backtest universe classifier (issue #185) ---------------
+#
+# A new universe classifier for the backtest: close > SMA50, ADTV over the
+# contract's floors, ADR20 >= 3.5%, plus IDX's Rp 100 nominal-price trim, every
+# gate measured through t−1 and with no reference to prior membership. It reuses
+# the app's median-dollar-volume and instrument-type functions and leaves the
+# app's own (sticky, hysteretic) classifier alone. These extend the one replay
+# seam per the PRD's testing decisions.
+
+import inspect
+
+from backtest import universe as bt_universe
+from backtest.contract import (
+    UNIVERSE_IDX_PRICE_FLOOR_KEY,
+    UNIVERSE_STATELESSNESS_KEY,
+    UNIVERSE_TREND_GATE_KEY,
+    UNIVERSE_VOLATILITY_GATE_KEY,
+    UNIVERSE_VOLATILITY_GAP_REASON_KEY,
+)
+from screener.score import ADR_MIN as RUBRIC_ADR_MIN
+from screener.universe import (
+    LIQUIDITY_FLOOR as APP_LIQUIDITY_FLOOR,
+)
+from screener.universe import (
+    Candidate as AppCandidate,
+)
+from screener.universe import (
+    classify as app_classify,
+)
+
+# 59 consecutive sessions to slice trailing windows out of; a signal on session
+# ``t`` (one day past the last) is classified on all 59 (every bar < t). 59 clears
+# the SMA50 gate's 50-bar minimum with room to spare.
+_UNI_CAL = [date(2020, 1, 1) + timedelta(days=i) for i in range(59)]
+_UNI_SIGNAL = _UNI_CAL[-1] + timedelta(days=1)
+
+
+def _uni_bars(sessions, *, adj, close=None, hl=0.04, volume=100_000_000):
+    """Bars over ``sessions``. ``adj`` is a level or an ``i -> level`` callable
+    for the adjusted (split-corrected) close; ``close`` defaults to ``adj`` (no
+    split). ``hl`` sets the daily high/low range so ADR is tunable: the default
+    0.04 gives ADR ≈ 4.1%, clear of the 3.5% gate."""
+    out = []
+    for i, s in enumerate(sessions):
+        a = adj(i) if callable(adj) else adj
+        c = close(i) if callable(close) else (adj(i) if (close is None and callable(adj)) else (close if close is not None else a))
+        out.append(Bar(s, c, c * (1 + hl / 2), c * (1 - hl / 2), c, a, volume))
+    return out
+
+
+def _uni_candidate(symbol="AAA", name="Corp - Common Stock", **kw):
+    return bt_universe.Candidate(symbol=symbol, name=name, bars=_uni_bars(_UNI_CAL, **kw))
+
+
+def test_backtest_universe_is_stateless_the_app_is_not():
+    """Acceptance: classifying the same session from any prior-membership state
+    returns identical membership — because there is no prior-membership input at
+    all. The stateless classifier's signature carries no such parameter, where the
+    app's does, so the difference is structural, not incidental."""
+    bt_params = set(inspect.signature(bt_universe.classify).parameters)
+    app_params = set(inspect.signature(app_classify).parameters)
+    assert not any("prior" in p or "member" in p for p in bt_params)
+    assert "prior_members" in app_params
+
+    liquid = _uni_candidate(adj=lambda i: 100.0 + i)  # IDX member, ~Rp 100→158
+    first = bt_universe.classify("IDX", [liquid], _UNI_SIGNAL)
+    second = bt_universe.classify("IDX", [liquid], _UNI_SIGNAL)
+    assert first == second == ["AAA"]
+
+
+def test_a_liquid_trending_volatile_common_stock_is_a_member():
+    """A common stock over the SMA50, over the ADTV floor, with ADR ≥ 3.5% and,
+    on IDX, above Rp 100 is a member on both markets."""
+    idx = _uni_candidate(adj=lambda i: 100.0 + i)
+    assert bt_universe.classify("IDX", [idx], _UNI_SIGNAL) == ["AAA"]
+    us = _uni_candidate(adj=lambda i: 100.0 + i, volume=1_000_000)  # $100–158M/day
+    assert bt_universe.classify("US", [us], _UNI_SIGNAL) == ["AAA"]
+
+
+def test_each_gate_excludes_a_name_for_its_own_reason():
+    """Acceptance: a name failing each gate is excluded for that gate's own
+    reason — below the ADTV floor, below ADR20 3.5%, below its SMA50, and for IDX
+    below Rp 100 — and each failure is isolated: the failing gate is ``False`` and
+    the other three are ``True``."""
+    def bars_of(cand):
+        return [b for b in cand.bars if b.session < _UNI_SIGNAL]
+
+    # Below its SMA50: flat series, last close == SMA50, not strictly above.
+    below_sma = _uni_candidate(adj=100.0)
+    b = bars_of(below_sma)
+    assert not bt_universe.passes_trend_gate(b)
+    assert bt_universe.passes_volatility_gate(b)
+    assert bt_universe.passes_liquidity_gate(b, "IDX")
+    assert bt_universe.passes_price_gate(b, "IDX")
+    assert not bt_universe.is_member(below_sma, "IDX", _UNI_SIGNAL)
+
+    # Below ADR20 3.5%: a tight high/low range, everything else clears.
+    calm = _uni_candidate(adj=lambda i: 100.0 + i, hl=0.001)
+    b = bars_of(calm)
+    assert not bt_universe.passes_volatility_gate(b)
+    assert bt_universe.passes_trend_gate(b)
+    assert bt_universe.passes_liquidity_gate(b, "IDX")
+    assert not bt_universe.is_member(calm, "IDX", _UNI_SIGNAL)
+
+    # Below the ADTV floor: thin volume, everything else clears.
+    thin = _uni_candidate(adj=lambda i: 100.0 + i, volume=1_000)
+    b = bars_of(thin)
+    assert not bt_universe.passes_liquidity_gate(b, "IDX")
+    assert bt_universe.passes_trend_gate(b)
+    assert bt_universe.passes_volatility_gate(b)
+    assert not bt_universe.is_member(thin, "IDX", _UNI_SIGNAL)
+
+    # Below Rp 100 (IDX only): trends up but stays under 100; volume lifted so
+    # only the price gate is the decider.
+    penny = _uni_candidate(adj=lambda i: 40.0 + i * 0.8, volume=200_000_000)
+    b = bars_of(penny)
+    assert not bt_universe.passes_price_gate(b, "IDX")
+    assert bt_universe.passes_trend_gate(b)
+    assert bt_universe.passes_volatility_gate(b)
+    assert bt_universe.passes_liquidity_gate(b, "IDX")
+    assert not bt_universe.is_member(penny, "IDX", _UNI_SIGNAL)
+    # The same sub-Rp-100 name is a member on US, which has no price gate.
+    assert bt_universe.is_member(penny, "US", _UNI_SIGNAL)
+
+
+def test_the_floors_are_the_contracts_values_not_the_apps():
+    """Acceptance: both market floors are the contract's ($10M / Rp 10B), and the
+    app's ($20M / Rp 1B) are not consulted. A name whose ADTV sits between the two
+    US floors is a member — it clears $10M and would fail the app's $20M."""
+    floors = DEFAULT_CONTRACT.value(UNIVERSE_LIQUIDITY_FLOOR_KEY)
+    assert floors == {"US": 10_000_000.0, "IDX": 10_000_000_000.0}
+    assert floors["US"] < APP_LIQUIDITY_FLOOR["US"]  # 10M < the app's 20M
+    assert floors["IDX"] > APP_LIQUIDITY_FLOOR["IDX"]  # 10B > the app's 1B
+
+    # ADTV ≈ $15M: over the contract's $10M, under the app's $20M.
+    mid = _uni_candidate(adj=lambda i: 150.0 + i, volume=100_000)
+    dv = bt_universe.median_dollar_volume([b for b in mid.bars if b.session < _UNI_SIGNAL])
+    assert floors["US"] < dv < APP_LIQUIDITY_FLOOR["US"]
+    assert bt_universe.classify("US", [mid], _UNI_SIGNAL) == ["AAA"]
+
+
+def test_adtv_is_the_app_function_so_one_block_trade_cannot_lift_a_thin_name():
+    """Acceptance: ADTV is the 20-day median of unadjusted close × volume, reusing
+    the app's function verbatim, so one block trade cannot lift an illiquid name
+    over the floor — the mean would clear, the median does not."""
+    # The classifier's liquidity measure *is* the app's, not a re-implementation.
+    from screener.universe import median_dollar_volume as app_mdv
+
+    assert bt_universe.median_dollar_volume is app_mdv
+
+    quiet = _uni_bars(_UNI_CAL[:19], adj=100.0, volume=10_000)  # $1M/day each
+    block = Bar(_UNI_CAL[19], 100_000.0, 100_001.0, 99_999.0, 100_000.0, 100_000.0, 10_000)
+    bars = quiet + [block]  # one $1B block among nineteen $1M days
+    mean = sum(bar.dollar_volume for bar in bars) / len(bars)
+    assert mean >= 10_000_000.0  # the mean is fooled past the $10M floor
+    assert not bt_universe.passes_liquidity_gate(bars, "US")  # the median is not
+
+
+def test_every_gate_reads_only_bars_at_or_before_t_minus_1():
+    """Acceptance: every gate reads only bars at or before ``t−1``. A name that is
+    a clean member on the bars through ``t−1`` but whose session-``t`` bar would
+    fail the trend gate is still a member for a signal on ``t`` — the day-``t`` bar
+    is not knowable the night before, so it is not read."""
+    sessions = _UNI_CAL + [_UNI_SIGNAL]
+    # Rising through t−1 (member), then a crash on session t itself.
+    bars = _uni_bars(sessions, adj=lambda i: 100.0 + i)
+    bars[-1] = Bar(_UNI_SIGNAL, 1.0, 1.04, 0.96, 1.0, 1.0, 100_000_000)  # day-t crash
+    cand = bt_universe.Candidate("AAA", "Corp - Common Stock", bars)
+
+    # Signal on t: the crash bar (dated t) is excluded, so the name is a member.
+    assert bt_universe.is_member(cand, "IDX", _UNI_SIGNAL)
+    # Signal a day later: now the crash bar is at or before t−1 and is read, and
+    # the collapsed close drops below SMA50 — the name leaves.
+    assert not bt_universe.is_member(cand, "IDX", _UNI_SIGNAL + timedelta(days=1))
+
+
+def test_the_instrument_type_exclusion_is_reused_from_the_app():
+    """The app's instrument-type function is reused: a warrant, a preferred hidden
+    in the symbol, and a market index never enter, however liquid."""
+    warrant = _uni_candidate(symbol="WT", name="Acme Corp Warrant", adj=lambda i: 100.0 + i)
+    preferred = _uni_candidate(symbol="MET$E", name="MetLife Depositary Shares",
+                               adj=lambda i: 100.0 + i)
+    index = _uni_candidate(symbol="^JKSE", name="", adj=lambda i: 100.0 + i)
+    assert bt_universe.classify("IDX", [warrant, preferred, index], _UNI_SIGNAL) == []
+
+
+def test_the_app_classifier_still_returns_sticky_hysteretic_membership():
+    """Acceptance: the app's own universe classifier is untouched — it still reads
+    prior membership for both the hysteresis band and stickiness, proven here so a
+    change to the app's behaviour would fail beside the new classifier."""
+    floor = APP_LIQUIDITY_FLOOR["IDX"]
+    band_bars = _uni_bars(_UNI_CAL[:25], adj=900.0, volume=1_000_000)  # 0.9× the floor
+    band = AppCandidate(symbol="BND", name="Corp - Common Stock", resolved=True, bars=band_bars)
+    market = _UNI_CAL[:25]
+    # Hysteresis: out from empty (needs 1.0×), held in from prior membership (0.8×).
+    assert app_classify("IDX", [band], market, prior_members=set()) == []
+    assert app_classify("IDX", [band], market, prior_members={"BND"}) == ["BND"]
+    # Stickiness: an unresolved fetch carries yesterday's classification.
+    gone = AppCandidate(symbol="OLD", name="Corp - Common Stock", resolved=False, bars=[])
+    assert app_classify("IDX", [gone], market, prior_members={"OLD"}) == ["OLD"]
+    assert app_classify("IDX", [gone], market, prior_members=set()) == []
+    # Sanity: the app's floor is unchanged at Rp 1B, not the contract's Rp 10B.
+    assert floor == 1_000_000_000.0
+
+
+def test_the_adr_gap_below_the_rubric_floor_is_recorded_with_its_reason():
+    """Acceptance: the gap between the 3.5% gate and the rubric's 5% floor is
+    recorded with its reason. The gate is deliberately below the rubric's own
+    minimum, and the contract cell says why so nobody 'fixes' it to match."""
+    assert bt_universe.VOLATILITY_FLOOR == 0.035
+    assert bt_universe.VOLATILITY_FLOOR < RUBRIC_ADR_MIN  # 3.5% below the rubric's 5%
+    assert "3.5%" in DEFAULT_CONTRACT.value(UNIVERSE_VOLATILITY_GATE_KEY)
+    reason = DEFAULT_CONTRACT.cell(UNIVERSE_VOLATILITY_GAP_REASON_KEY).justification
+    assert "5%" in reason and "31%" in reason  # names the rubric floor and its cost
+    assert "rubric" in bt_universe.__doc__ and "31%" in bt_universe.__doc__
+
+
+def test_the_reintroduced_churn_is_recorded_as_a_known_difference():
+    """Acceptance: the boundary churn statelessness reintroduces is recorded as a
+    known difference from the app rather than fixed. The contract's statelessness
+    cell names the hysteresis band it drops and calls the churn nearly free at
+    signal level; the module docstring records it too."""
+    cell = DEFAULT_CONTRACT.cell(UNIVERSE_STATELESSNESS_KEY)
+    assert "hysteresis" in cell.justification
+    assert "churn" in cell.justification
+    doc = bt_universe.__doc__
+    assert "churn" in doc and "hysteresis" in doc and "known difference" in doc
+
+
+def test_the_gate_constants_match_the_contract_cells():
+    """The module's gate constants are the contract's Phase 0 values, pinned so
+    the code and the committed contract cannot silently disagree."""
+    assert DEFAULT_CONTRACT.value(UNIVERSE_TREND_GATE_KEY) == "close > SMA50"
+    assert bt_universe.TREND_WINDOW == 50
+    assert DEFAULT_CONTRACT.value(UNIVERSE_VOLATILITY_GATE_KEY) == "ADR20 >= 3.5%"
+    assert bt_universe.VOLATILITY_FLOOR == 0.035
+    assert DEFAULT_CONTRACT.value(UNIVERSE_IDX_PRICE_FLOOR_KEY) == 100.0

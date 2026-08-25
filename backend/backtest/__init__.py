@@ -28,6 +28,12 @@ from .contract import (
 )
 from .result import stamp_result
 
+# NB: the stateless universe classifier lives in ``backtest.universe`` and is
+# imported from there directly (``from backtest.universe import classify``). It
+# is deliberately *not* re-exported here: it reuses the app's
+# ``screener.universe`` functions, which pull in the duckdb-backed store layer,
+# and the contract (issue #184) must stay importable without that weight.
+
 __all__ = [
     "Cell",
     "RunContract",

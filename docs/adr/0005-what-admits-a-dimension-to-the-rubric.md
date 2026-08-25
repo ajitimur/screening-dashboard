@@ -89,7 +89,7 @@ fires on one detection in ten in **both** groups. So the process worked: a crite
 could argue with afterwards fired on a number nobody had seen when it was written. `Prior move`
 stayed at ×1, `RUBRIC_VERSION` stayed 3, and the slot stayed open.
 
-### Second registration: `Relative move` (#170) — pre-registered, unmeasured
+### Second registration: `Relative move` (#170) — measured, and undecided
 
 §3f (#169) measured the quantity `Prior move` gates on, directly, for the first time, and found
 it has real spread once expressed as a degree: `6m` median **+55.8%**, p25 +15.1 to p95 +370.7,
@@ -219,16 +219,74 @@ not a separate ticket because it only becomes real if this dimension is admitted
 refused the way `RS line` was, `Prior move` stays at ×1 and the gate keeps its record in the
 score.
 
-**It is inert until #171 runs.** §3f is executed trades against a same-name background, which is
+**It was inert until #171 ran.** §3f is executed trades against a same-name background, which is
 not a control group of rejected setups — the footing `RS line` was rightly refused on. Until the
-selection contrast exists there is no Δ, no pooled spread and no hit rate, and none of the four
-criteria can fire. #171's constraints attach: the contrast is measured under the detector the
+selection contrast existed there was no Δ, no pooled spread and no hit rate, and none of the four
+criteria could fire. #171's constraints attached: the contrast is measured under the detector the
 dimension would ship against (live v3, not the store's persisted v1), and it reproduces §5b's
 seven gaps as its control before anything new is trusted. Three bounds ride the result whatever
 it says: §2's coverage hole (§3f joined **70.2%** of his logged breakout longs to bars, skewed
 against the blown-up 2020–21 small-cap cohort), §9's absent control group on the *trade* side,
 and the regime bound below — which this candidate carries with full force, being index-relative
 by construction.
+
+#### The result (#171, findings §5e): **the criteria do not separate, and nothing ships**
+
+| Field | Taken | Not-taken | Δ | Pooled spread | Disagreement with `Prior move` |
+| --- | --- | --- | --- | --- | --- |
+| detector v1 | 91.3% (n=69) | 87.3% (n=14,354) | **+4.0** | 0.332 | 12.7% |
+| detector v3 (live) | 88.6% (n=140) | 84.9% (n=34,543) | **+3.6** | 0.357 | **15.1%** |
+
+Δ is **positive on both fields**, which is the one thing `RS line` never managed and the
+pre-registered evidence that the anchor was the mechanism behind its null. Criterion 4 does not
+fire. Criterion 3 does not fire.
+
+**Criteria 1 and 2 are the same number, and it landed on its own bound.** Disagreement with
+`Prior move` is exactly `1 − hit rate`, so the ~85% ceiling and the ~15% floor are one threshold
+read from two sides. Under v1 the not-taken hit rate is 87.3% and criterion 2 refuses the
+dimension. Under the live v3 — the field the ADR requires the verdict to be read on — it is
+**84.94%**, which is **0.06pp** inside the ceiling and **0.29 standard errors** from it (s.e.
+0.19pp at n=34,543). On the literal threshold criterion 1 admits it; on any reading that honours
+the tilde it does not.
+
+**This ADR declines to resolve that, and records why.** The ~15% was written down as "a
+judgement, not a measurement… the one magnitude in this design with nothing behind it," to be
+argued about *before* it decided anything. It has now decided something by six hundredths of a
+point, and the argument has not happened. Choosing a rounding here is choosing a verdict after
+seeing the number, which is the move the pre-registration clause exists to prevent — and the
+choice is not small: admission retires `Prior move`, forces `RUBRIC_VERSION = 4`, and changes the
+composition of every star ceiling frozen afterwards, which the consequences below call hard to
+reverse in the direction that matters.
+
+**A third outcome, added after the fact and labelled as such.** This ADR promised pass or fail on
+one variant, and the study returned exactly that until the deciding number landed on the bound.
+`scripts/relative_move_contrast.py` now returns `on_the_bound` when the not-taken hit rate sits
+within **one standard error** of the ceiling or the floor. It was written after the measurement
+and that is recorded here rather than smoothed over — but it moves no threshold, the four
+criteria fire exactly where they are written above, it refuses a pass and a fail alike, and its
+width is the measured number's own sampling error rather than a figure chosen for the occasion.
+A rule that only ever *declines* to resolve cannot be the mechanism by which a preferred answer
+arrives.
+
+**Nothing shipped.** `RUBRIC_VERSION` stays 3, `DIMENSIONS` is untouched, `Prior move` keeps its
+×1 and the decile gate keeps its record in the score. Had the dimension been admitted its weight
+would have been **×1**: Δ +3.6 ranks below `Tightness` (+13.5) and below `MA support` (+6.3), so
+the ordinal rule puts it with the ×1s.
+
+**The gap is not firm either, and that is the more useful half of the result.** Δ +3.6pp carries
+a standard error of **2.70pp** on a taken group of 140 — 1.35 s.e. from zero, before §2's
+coverage hole is allowed for at all. The mechanism is the one criterion 2 was written for: within
+a field the decile gate has already filtered, **89.2% of the not-taken detections are up over six
+months** and 88.5% over twelve, so a `6m`-relative grade has little left to say there however
+much it has to say inside his trade record. `Prior move`'s 100.0%/100.0% is the limiting case of
+the same fact. §3f could not see this, because it never looks at the field.
+
+**What is settled, and what a third candidate must answer first.** The index-relative family is
+not folded — a positive Δ on both fields is the opposite of the result that would have folded it,
+and the anchor distinction the registration argued for in advance held up. What is not settled is
+this threshold. **No third candidate should be registered until the ~15% has been argued on its
+own**, because the next one will meet the same bound and a threshold chosen after two dimensions
+have bounced off it is not a pre-registration.
 
 ## The regime bound every candidate carries (#169)
 
@@ -272,10 +330,10 @@ instrument that could retire it, since it is the only planned measurement outsid
 ## Consequences
 
 **None of the first four have happened.** They are what follows *if* a registered dimension is
-admitted, and nothing has been: `RS line` was refused on criterion 4 and `Relative move` is
-unmeasured until #171. They are written in the indicative because they were written before the
-first verdict, and are left that way — a consequence restated as a hope reads as a weaker
-commitment than it is.
+admitted, and nothing has been: `RS line` was refused on criterion 4, and `Relative move` was
+measured by #171 and landed on the threshold that decides it. They are written in the indicative
+because they were written before the first verdict, and are left that way — a consequence
+restated as a hope reads as a weaker commitment than it is.
 
 - **`Prior move` is retired and the rubric's floor goes with it.** The permanent 0.5★ that
   `score.py` describes — "``Prior move`` fires for every detection by construction (a permanent

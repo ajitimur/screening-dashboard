@@ -7,7 +7,10 @@ Two live in this module, in the order they were registered under
 - **RS line** (#160) — the ratio to the index across the detection's own base.
   Measured and **rejected** (findings §5d).
 - **Relative move** (#170) — the `6m` return relative to the index, compounded,
-  in ADR units. **Pre-registered, not yet measured**; #171 runs the contrast.
+  in ADR units. Measured by #171 and **not admitted** (findings §5e): the gap is
+  positive on both fields, but the not-taken hit rate landed 0.06pp inside the
+  ~85% ceiling that refuses it, and the study declined to read a verdict off six
+  hundredths of a point.
 
 They share a benchmark and a never-carried-forward rule and differ in the one
 thing §5d's post-mortem named as the mechanism behind its null: the **anchor**.
@@ -102,6 +105,22 @@ carries the *value* and the rubric owns the mapping (#154), and a row cannot be
 re-denominated retroactively. Persisting the relative move in ADR units now is
 what would let ADR 0004's grading question be asked later, on measured evidence,
 without re-scoring history.
+
+## The raw move, which is not a candidate and cannot become one
+
+:func:`move_adr` is the un-benchmarked sibling — §3f's raw column, the prior move
+itself before the index is netted out. #171's contrast carries it so the relative
+figure can be read against the thing it is relative to, and it turned out to
+carry the section's sharpest lesson: the `1w` gap reads +31.6pp at the detection's
+own session and −4.5pp through the session before, because a *taken* detection's
+session is the session he bought it on.
+
+It lives here rather than in the study script for one reason — it shares the ADR
+denominator, and therefore :func:`_adr_through`'s lookahead guard, with the
+registered dimension. It is **not** a registered candidate: ADR 0005 admits one
+pre-registered variant per registration, and promoting a raw column after seeing
+which of the two produced the larger gap is the magnitude-fitting the
+pre-registration clause exists to prevent.
 """
 
 from __future__ import annotations
@@ -215,6 +234,61 @@ RELATIVE_MOVE_LOOKBACK = "6m"
 RELATIVE_MOVE_CUT = 0.0
 
 
+def _adr_through(bars: list[Bar], as_of: date) -> float | None:
+    """The name's own ADR at ``as_of``, over the bars up to and including it.
+
+    The lookahead guard both ADR-denominated quantities in this module share, and
+    the reason there is one of it. :func:`~screener.indicators.adr` averages the
+    last 20 bars of whatever series it is handed, and :mod:`replay.field` hands
+    whole series in and never slices them to the session — safe for
+    :func:`rs_line`, which reads two named sessions exactly, and not safe for a
+    trailing average. Without the slice a 2019 session would be denominated by
+    2022's volatility, and no fixture whose range is constant could ever show it.
+
+    ``None`` under 20 bars through ``as_of``, and on a name with no range at all
+    (every bar ``high == low``), which would otherwise be a zero denominator.
+    """
+    through = bars[: bisect_right([b.session for b in bars], as_of)]
+    value = adr(through)
+    if value is None or value <= 0:
+        return None
+    return value
+
+
+def move_adr(
+    bars: list[Bar],
+    as_of: date,
+    *,
+    lookback: str = RELATIVE_MOVE_LOOKBACK,
+) -> float | None:
+    """The name's own ``lookback`` return, in ADR units. No benchmark.
+
+    §3f's raw column — the prior move itself, before the index is netted out —
+    carried by #171's selection contrast beside :func:`relative_move_adr` so the
+    relative figure can be read against the thing it is relative to. §3f found
+    QQQ takes about a third of the `6m` move, and a contrast reporting only the
+    net figure would leave that share invisible.
+
+    **This is not a candidate dimension and cannot become one.** ADR 0005 admits
+    one pre-registered variant per registration and `Relative move` is it;
+    promoting a raw column after seeing which of the two produced the larger gap
+    is exactly the magnitude-fitting the pre-registration clause exists to
+    prevent. It lives here rather than in the study script only because it shares
+    the ADR denominator — and so the slicing guard — with the registered
+    dimension, and that guard is worth having one copy of.
+
+    ``None`` — absent, not zero — under the same rules as
+    :func:`relative_move_adr`: no bar on or before the anchor, or no ADR.
+    """
+    name_return = calendar_return(bars, as_of, lookback)
+    if name_return is None:
+        return None
+    name_adr = _adr_through(bars, as_of)
+    if name_adr is None:
+        return None
+    return name_return / name_adr
+
+
 def relative_move_adr(
     bars: list[Bar],
     index_bars: list[Bar],
@@ -256,8 +330,8 @@ def relative_move_adr(
     index_return = calendar_return(index_bars, as_of, lookback)
     if name_return is None or index_return is None or index_return <= -1:
         return None
-    name_adr = adr(bars[: bisect_right([b.session for b in bars], as_of)])
-    if name_adr is None or name_adr <= 0:
+    name_adr = _adr_through(bars, as_of)
+    if name_adr is None:
         return None
     return ((1 + name_return) / (1 + index_return) - 1) / name_adr
 

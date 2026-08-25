@@ -60,6 +60,13 @@ denominators only, ~0.1% per session. Fixed separately in #162; rebuilding 4.7M
 rank rows here would run the study against a *different* field than §5b's,
 breaking the comparability the whole exercise depends on.
 
+**The field reconstruction is shared with the other candidate study.**
+:mod:`replay.candidate_field` holds the three read-only stages both need — the
+measured sessions, the in-memory rank recomputation the retention window forces
+(#141/#164), and the live-detector pass that persists nothing. Two copies of that
+workaround is one too many: a correction would have to land twice, and the run
+that missed the second copy would still print a table.
+
 Run as ``python scripts/rs_line_contrast.py --store data/replay.duckdb``.
 """
 
@@ -77,6 +84,11 @@ from pathlib import Path
 _BACKEND = Path(__file__).resolve().parent.parent / "backend"
 sys.path.insert(0, str(_BACKEND))
 
+from replay.candidate_field import (  # noqa: E402
+    live_detections,
+    measured_sessions,
+    session_ranks,
+)
 from replay.contrast import (  # noqa: E402
     CONTRAST_DIMENSIONS,
     contrast_dimensions,
@@ -88,65 +100,11 @@ from replay.reference import (  # noqa: E402
     classify,
     load_trades,
 )
-from screener.detection import DETECTOR_VERSION, detection_gate, detect  # noqa: E402
-from screener.ranks import rank_table  # noqa: E402
+from screener.detection import DETECTOR_VERSION  # noqa: E402
 from screener.relative_strength import base_start_session  # noqa: E402
 from screener.store import Store  # noqa: E402
 
 MARKET = "US"
-
-
-# -- the two fields -----------------------------------------------------------
-
-
-def _measured_sessions(store: Store, market: str) -> list[date]:
-    """The sessions the store holds detections for — §5b's own window.
-
-    Both contrasts run over exactly these, so the detector is the only thing that
-    moves between them. They are also the sessions the store retained ranks for,
-    which is why the persisted field stops at 505 of the chain's 947.
-    """
-    rows = store._cursor().execute(
-        "SELECT DISTINCT session FROM detections WHERE market = ? ORDER BY 1",
-        [market],
-    ).fetchall()
-    return [r[0] for r in rows]
-
-
-def _session_ranks(store: Store, market: str, session: date):
-    """The session's rank table, recomputed in memory over its persisted universe.
-
-    What :func:`replay.chain._replay_session` does on reuse, and for the same
-    reason: :meth:`screener.store.Store.append_ranks` prunes rows outside its
-    retention window as the chain advances, so the persisted table cannot be read
-    back for every measured session. :func:`screener.ranks.rank_table` is
-    deterministic over the same members' bars, so this reproduces what the chain
-    computed rather than approximating it.
-    """
-    members = store.universe(market, session)
-    return members, rank_table(
-        {s: store.bars(market, s) for s in members}, session
-    )
-
-
-def _v2_detections(store: Store, market: str, session: date, ranks) -> list:
-    """The session's detections under the **live** detector, computed not read.
-
-    :func:`screener.pipeline.rebuild_detections` is the app's own stage and this
-    is its loop exactly — every universe member, the decile gate deciding
-    eligibility, :func:`screener.detection.detect` on the gated ones — with the
-    single difference that the rows are *not* appended. The write is what is
-    omitted, never a gate.
-    """
-    gated = detection_gate(ranks)
-    out = []
-    for symbol in store.universe(market, session):
-        if symbol not in gated:
-            continue
-        found = detect(symbol, store.bars(market, symbol), session)
-        if found is not None:
-            out.append(found)
-    return out
 
 
 # -- the redundancy check -----------------------------------------------------
@@ -196,12 +154,12 @@ def collect(store, market, sessions, entries, *, live_detector: bool) -> Groups:
     taken, not_taken, total = [], [], 0
     t0 = time.time()
     for i, session in enumerate(sessions, start=1):
-        if live_detector:
-            _members, ranks = _session_ranks(store, market, session)
-            dets = _v2_detections(store, market, session, ranks)
-        else:
-            _members, ranks = _session_ranks(store, market, session)
-            dets = store.detections(market, session)
+        _members, ranks = session_ranks(store, market, session)
+        dets = (
+            live_detections(store, market, session, ranks)
+            if live_detector
+            else store.detections(market, session)
+        )
         total += len(dets)
 
         entered = entries.get(session, set())
@@ -314,7 +272,7 @@ def main(argv=None) -> int:
     print(f"trades: {len(trades)}  replayable: {len(replayable)}  "
           f"entry sessions: {len(entries)}")
 
-    sessions = _measured_sessions(store, market)
+    sessions = measured_sessions(store, market)
     if args.limit:
         sessions = sessions[: args.limit]
     print(f"measured sessions: {len(sessions)}  "

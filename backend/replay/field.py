@@ -42,7 +42,7 @@ from typing import Callable, Iterable, Mapping, Sequence
 from screener.detection import DETECTION_LOOKBACKS, Detection, detection_gate
 from screener.pipeline import rebuild_detections
 from screener.ranks import Rank
-from screener.relative_strength import rs_line_for
+from screener.relative_strength import relative_move_adr, rs_line_for
 from screener.score import DIMENSIONS, Dimension, star_score
 from screener.source import MARKET_INDEX
 from screener.store import Store
@@ -131,6 +131,18 @@ class ScoredDetection:
     It was measured and **not admitted** (findings §5d): a wrong-way gap, so
     criterion 4 refused it and the rubric never read it. The field still computes
     it, because that is what makes §5d reproducible rather than quotable.
+
+    ``relative_move`` is the **second** candidate (#170): the `6m` return
+    relative to :data:`~screener.source.MARKET_INDEX`, compounded, in ADR units
+    (:func:`screener.relative_strength.relative_move_adr`), measured by #171. It
+    rides as a **value**, and ``None`` means *absent* — the name had not listed
+    six months ago, or has no ADR — never zero, which is a real value sitting
+    exactly on the pre-registered cut. The boolean is derived at read time by
+    :func:`~screener.relative_strength.relative_move_hit`, so the rubric owns the
+    cut and the row owns the number: a stored row cannot be re-denominated
+    retroactively, and ADR 0004's later grading question is asked of the value.
+
+    Neither candidate is scored, and neither can move a star or a ``star_rank``.
     """
 
     symbol: str
@@ -140,6 +152,7 @@ class ScoredDetection:
     not_taken: bool
     taken: bool = False
     rs_line: bool = False
+    relative_move: float | None = None
 
 
 @dataclass(frozen=True)
@@ -197,6 +210,7 @@ def build_field(
     any_entry: bool = False,
     lookbacks: Sequence[str] = DETECTION_LOOKBACKS,
     rs_line_of: Mapping[str, bool] | None = None,
+    relative_move_of: Mapping[str, float | None] | None = None,
 ) -> list[ScoredDetection]:
     """Score each detection and sort into star order — the replayed candidate list.
 
@@ -218,13 +232,16 @@ def build_field(
     width that admitted it — a name admitted by a widened gate holds the prior-move
     point under that gate, and scoring it against the live gate would understate it.
 
-    ``rs_line_of`` maps symbol → the candidate dimension (#160),
-    computed by the caller because it needs a second symbol's bars. It rides on
-    each :class:`ScoredDetection` and is **never scored**: a symbol absent from it
-    is ``False``, and the star order is identical whether it is supplied or not.
+    ``rs_line_of`` maps symbol → the candidate dimension (#160), and
+    ``relative_move_of`` symbol → the second candidate's value (#170); both are
+    computed by the caller because both need a second symbol's bars. They ride on
+    each :class:`ScoredDetection` and are **never scored**: a symbol absent from
+    either reads ``False`` / ``None``, and the star order is identical whether
+    they are supplied or not.
     """
     entered = set(entered)
     rs_line_of = rs_line_of or {}
+    relative_move_of = relative_move_of or {}
     gated = detection_gate(ranks, lookbacks=lookbacks)
     scored = [
         (det, seven_dimension_score(det, prior_move=det.symbol in gated))
@@ -240,6 +257,7 @@ def build_field(
             not_taken=any_entry and det.symbol not in entered,
             taken=det.symbol in entered,
             rs_line=rs_line_of.get(det.symbol, False),
+            relative_move=relative_move_of.get(det.symbol),
         )
         for rank, (det, score) in enumerate(scored, start=1)
     ]
@@ -266,6 +284,35 @@ def session_rs_lines(
     index_bars = store.bars(market, MARKET_INDEX[market])
     return {
         det.symbol: rs_line_for(det, store.bars(market, det.symbol), index_bars)
+        for det in detections
+    }
+
+
+def session_relative_moves(
+    store: Store, market: str, detections: Iterable[Detection]
+) -> dict[str, float | None]:
+    """The `Relative move` value for each of a session's detections (#170).
+
+    The name's `6m` calendar return netted against
+    :data:`~screener.source.MARKET_INDEX`, compounded, denominated in the name's
+    own ADR (:func:`screener.relative_strength.relative_move_adr`). The sibling of
+    :func:`session_rs_lines`, and computed in the same place and for the same
+    reason: it needs a *second* symbol's bars, and :mod:`screener.score` is pure
+    and does no I/O.
+
+    Whole bar series are handed in, through the run-scoped cache as every other
+    stage does — and unlike the RS line, which reads two named sessions exactly,
+    the value here carries a trailing average. ``relative_move_adr`` slices the
+    ADR leg to the detection's own session itself, so no later bar reaches the
+    denominator; see its docstring for why that guard lives there rather than
+    here. A leg with no bar on or before its anchor yields ``None`` — absent, not
+    zero — and is never carried forward.
+    """
+    index_bars = store.bars(market, MARKET_INDEX[market])
+    return {
+        det.symbol: relative_move_adr(
+            store.bars(market, det.symbol), index_bars, det.session
+        )
         for det in detections
     }
 
@@ -347,6 +394,7 @@ def build_field_sessions(
         candidates = build_field(
             detections, sf.ranks, entered=entered, any_entry=bool(entered),
             rs_line_of=session_rs_lines(store, market, detections),
+            relative_move_of=session_relative_moves(store, market, detections),
         )
         fields.append(
             FieldSession(

@@ -7,7 +7,11 @@ Test 1e). This file is the working record; the findings document is what other w
 `score.py` is touched, and nothing here is proposed for the rubric yet.
 
 **Run:** `backend/.venv/bin/python .scratch/screening-dashboard/prototypes/prior-move-at-entry/prior_move_at_entry.py`
-(per-trade rows: `prior_move_at_entry.csv`, including the QQQ leg)
+(per-trade rows: `prior_move_at_entry.csv`, including the QQQ leg and base age)
+
+**Unit check:** `backend/.venv/bin/python -m pytest .scratch/screening-dashboard/prototypes/prior-move-at-entry/test_base_age.py`
+— pins the base-age definition against §3c's, since the two are written over different data
+structures.
 
 ## Why this did not exist already
 
@@ -57,10 +61,12 @@ on pure return rather than a risk-adjusted one (`ranks.py`).
 
 **2. The last week is flat, and that is the whole point.** Median 1w is +0.3% — statistically
 indistinguishable from the same names on an ordinary day (+0.1%), and 46% of entries are
-*down* on the week. He buys the quiet end of the base. This is independent support for the
+*down* on the week. He buys the quiet end of the base — and per trade, once joined to base age
+(#172, below), that reading holds for the 62.5% of entries breaking out of a 6-to-60-session
+structure and is *sharper* there than pooled. This is independent support for the
 `1w` exclusion from the detection gate that #149 measured and ADR 0003 records: a name
-top-decile on the week alone has momentum, not a prior move, and at his own entries the week
-carries no signal at all.
+top-decile on the week alone has momentum, not a prior move, and across the entries whose base
+is a real multi-week structure the week carries no signal at all.
 
 **3. The signal separates from the background at 1m and peaks at 6m.** In ADR units the
 entry-vs-ordinary gap is +0.02 (1w), +1.34 (1m), +5.25 (3m), **+12.4 (6m)**, +22.8 (12m). The
@@ -109,7 +115,9 @@ literature names.
 
 **The week is a coin flip against the index too.** Relative 1w median −0.3%, 48.1% beating —
 indistinguishable from the 49.1% an ordinary day scores. Third independent line now pointing at
-the same conclusion as the `1w` exclusion (#149, ADR 0003).
+the same conclusion as the `1w` exclusion (#149, ADR 0003). That pooled comparison turns out to
+have a confound — his entries sit on much younger bases than an ordinary day does — and it
+survives being matched on base age (#172, below).
 
 `^IXIC` reproduces QQQ to within 2 points on every row, so nothing here is a benchmark artefact.
 
@@ -117,6 +125,105 @@ On outcome, netting changes little: relative 12m top quartile 1.95R vs 0.61R bot
 (Spearman +0.019), relative 6m 2.16R vs 0.54R (+0.042), relative 1m still perverse
 (−0.037, best bucket is the *worst* relative month). Same weak signs as the raw table below —
 the tape was not what produced them, and it was not what hid them either.
+
+## Is the flat week actually the base? (#172)
+
+§3f read the +0.3% median `1w` as "he buys the quiet end of the base". That joins two facts
+measured on different denominators — §3c's base age on 649 rows, the `1w` return on 582 — and a
++0.3% median is equally consistent with weeks up 10% and down 10% that cancel. So base age is
+measured here, on the same evaluation session the returns use: **sessions from the highest high
+of the trailing 120**, §3c's D1 transcribed from `measure_base.py`, ties to the earliest high.
+The definition is pinned by `test_base_age.py` before it goes near the trade record, because two
+independently written paths to one definition is exactly where a transcription slips.
+
+**The four bands are #172's, not chosen after seeing the split.** ≤5 / 6–30 / 31–60 / >60 is the
+cut the issue named, and ≤5 is §3c's own reported band. This is not the pre-registration ADR 0002
+requires — no such document was filed, and nothing here is proposed for the rubric — but it does
+mean the bucket edges are not a degree of freedom that was spent on the result. The *grouping* of
+the two middle bands into a single "6–60" headline is post-hoc, and is a reading of the four
+measured bands rather than a fifth measurement.
+
+### The machinery cross-check passes
+
+| | n | median | p25 | p75 | ≤5 | 6–30 | 31–60 | >60 | censored |
+|---|---|---|---|---|---|---|---|---|---|
+| §3c (`measure_base.py`, 649 rows) | 649 | 24 | 11 | 63 | 12.0% | 42.4% | 19.3% | 26.3% | 2.8% |
+| here (this prototype, 582 rows) | 582 | **24.5** | **11** | **62** | **11.9%** | **42.3%** | **20.3%** | **25.6%** | **2.6%** |
+
+Two independently built row sets, two independently written measurement paths, agreeing on every
+column to within a point. This is the §3c-reproduces-§3b check run once more, and it holds.
+
+Highs are **raw**, as in §3c — not the `Adj` series the returns use — so a split inside the window
+would put the pivot at a pre-split price. That failure mode lands in the censored column, and the
+censored column agrees with §3c's, so it is not happening at a rate that matters.
+
+### The flat week is real where the base is, and the two tails are not flat
+
+| Base age | n | share | median `1w` % | 95% CI | down on the week | median ×ADR | ordinary day, same band |
+|---|---|---|---|---|---|---|---|
+| ≤5 | 69 | 11.9% | +1.61 | [−0.27, +3.73] | 43.5% | +0.33 | +3.42% |
+| 6–30 | 246 | 42.3% | **−0.04** | [−0.71, +0.40] | 50.4% | −0.01 | −0.35% |
+| 31–60 | 118 | 20.3% | **−0.28** | [−0.59, +0.88] | 51.7% | −0.05 | −1.27% |
+| >60 | 149 | 25.6% | +1.73 | [+0.87, +2.45] | 36.9% | +0.25 | −0.86% |
+
+(95% CI is a seeded percentile bootstrap, 5000 draws.)
+
+**The pooled +0.3% is not an average over mixed weeks — it is an average over mixed *bases*.** In
+the two bands that hold the modal entry, 6–30 and 31–60 sessions — **62.5% of entries** — the week
+is flatter than the pooled figure, not noisier: medians of −0.04% and −0.28%, both CIs straddling
+zero, and *more than half* the entries down on the week. That is the sharpest statement of §3f's
+finding available, and it is now a per-trade one.
+
+The two tails are the mixture, and they pull in the same direction — up:
+
+- **>60 sessions (25.6%)** is the only band significantly up on the week (+1.73%, CI clear of
+  zero, only 36.9% down). But look at what else those entries have: median `3m` of **−3.3%** and
+  `6m` of **+2.7%**, against +44.5% and +77.8% in the 6–30 band. A stale 120-session high means
+  there was no recent advance to base out of, and the entry week *is* the move. These are not
+  quiet ends of bases; they are a different setup wearing the same label.
+- **≤5 sessions (11.9%)** is up +1.61% but its CI straddles zero, and the number is partly
+  definitional: a base age of ≤5 means the trailing-120 high was made this week, which nearly
+  forces a strong week. The interesting part is how *weak* it is against that mechanism — ordinary
+  days at the same base age run +3.42% median, more than double.
+
+So the direction of the correction is the opposite of the one #172 worried about. Dropping the
+tails does not dissolve the flat week; it **sharpens** it. What needs narrowing is the scope, not
+the finding: the week is flat for entries breaking out of a 6-to-60-session structure, and the
+pooled +0.3% is dragged *above* zero by the quarter of entries whose base is older than the
+lookback can see.
+
+### The beat-rate survives a confound §3f had not controlled for
+
+His entries break out of much younger structures than an ordinary day sits in — base age median
+**24.5 at entry against 75 on an ordinary day** (p25 25, p75 108). So §3f's pooled comparison,
+48.1% against 49.1%, was comparing two populations with different base-age mixes. Re-scored inside
+each band, against ordinary days of the *same* base age:
+
+| Base age | n | median relative `1w` % | beats QQQ | 95% CI | ordinary n | ordinary beats | gap | 2 s.e. |
+|---|---|---|---|---|---|---|---|---|
+| ≤5 | 69 | +0.65 | 52.2% | [40.6, 63.8] | 67 | 76.1% | **−23.9** | 17.2 |
+| 6–30 | 246 | −0.69 | **42.7%** | [36.6, 49.2] | 94 | 39.4% | +3.3 | 12.1 |
+| 31–60 | 118 | +0.04 | 50.8% | [41.5, 60.2] | 77 | 44.2% | +6.7 | 14.6 |
+| >60 | 149 | +0.13 | 53.0% | [45.0, 61.1] | 341 | 47.5% | +5.5 | 9.8 |
+
+**Every gap in the three older bands is inside two standard errors.** Matching on base age was the
+obvious way this result could have fallen over, and it does not: there is still no week-before edge
+against the index anywhere it could be measured cleanly. The 6–30 band's own beat-rate is the one
+figure that clears its interval, and it clears it *downward* — 42.7% with a CI topping out at
+49.2%, i.e. his modal entry was, if anything, mildly **behind** the index over the prior week.
+
+The ≤5 band's −23.9 gap is the one real difference, and it is the mechanism reading back: a random
+day whose 120-session high is under a week old is a day inside a burst, and 76.1% of those beat the
+index. His own ≤5 entries manage 52.2%. Even when he buys something that just made a new high, he
+buys it far flatter than a typical such day.
+
+### What this settles, and what it does not
+
+It settles the join #172 asked for. The `1w` exclusion argument (#149, ADR 0003) can now be stated
+per trade rather than by inference across two denominators, and #170 can cite it — with the scope
+attached: **6-to-60-session bases, 62.5% of entries**. It does not license anything new; the
+>60 band is now visibly a different population from the rest of the record, and nothing here says
+what should be done about that.
 
 ## Does the size of the prior move predict the outcome?
 
@@ -147,6 +254,9 @@ the ADR 0005 criterion the binary dimension cannot meet.
 - The natural next step is a rubric proposal: a continuous `Prior move` graded on 6m or 12m
   return in ADR units, replacing the constant dimension ADR 0005 flags as retirable. That
   needs the pre-registration ADR 0002 requires, and this prototype is not it.
+- The >60-session band (26% of entries, flat `3m`, up on the week) now looks like a distinct
+  population rather than a tail of the same one. Whether it is a second setup, a mislabelling in
+  the trade log, or an artefact of the 120-session lookback is not answerable from these columns.
 - Coverage is 70% and skewed against the blown-up cohort. Any dimension proposal has to
   price that, in the way #141 and #149 price theirs.
 - IDX is untouched. The whole trade record is US, and the QQQ comparison is US-only by

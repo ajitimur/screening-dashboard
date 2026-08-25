@@ -1021,9 +1021,63 @@ ADR 0003 excludes `1w` from `detection_gate` on the reasoning that a name top-de
 alone is a momentum burst; #149 priced the exclusion on the gate sweep. His own trades say the same
 thing twice more, from outside that argument entirely: the `1w` return at his entries is +0.3% median
 with 46.4% of entries *down* on the week, and the `1w` beat-rate against `QQQ` is **48.1%** against an
-ordinary day's 49.1% — a coin flip on both panels. Nothing about the week before an entry
-distinguishes it from any other week. This is the confirmation a future proposal to re-admit `1w`
-has to answer, and it is recorded here so the proposal starts from it.
+ordinary day's 49.1% — a coin flip on both panels. This is the confirmation a future proposal to
+re-admit `1w` has to answer, and it is recorded here so the proposal starts from it.
+
+#### Joined to base age: the flat week is the base, for 62.5% of entries (#172)
+
+The reading above — "he buys the quiet end of the base" — held two facts side by side without joining
+them: §3c's base age on 649 rows, the `1w` return on 582. A +0.3% median is equally consistent with
+weeks up 10% and down 10% that cancel. So base age was measured on this prototype's own rows, on the
+same evaluation session the returns use — §3c's **D1**, sessions from the highest high of the trailing
+120, transcribed from `measure_base.py` and pinned by a unit check before use.
+
+> **Machinery cross-check.** D1 on this independently built 582-row set: median **24.5**, p25 **11**,
+> p75 **62**, censored **2.6%**, bands **11.9 / 42.3 / 20.3 / 25.6%**. §3c, on its own 649 rows:
+> 24, 11, 63, 2.8%, 12.0 / 42.4 / 19.3 / 26.3%. Every column agrees within a point. Two row sets, two
+> measurement paths.
+
+| Base age | n | share | median `1w` % | 95% CI | down on the week | ordinary day, same band |
+| --- | --- | --- | --- | --- | --- | --- |
+| ≤5 sessions | 69 | 11.9% | +1.61 | [−0.27, +3.73] | 43.5% | +3.42% |
+| 6–30 | 246 | 42.3% | **−0.04** | [−0.71, +0.40] | 50.4% | −0.35% |
+| 31–60 | 118 | 20.3% | **−0.28** | [−0.59, +0.88] | 51.7% | −1.27% |
+| >60 | 149 | 25.6% | +1.73 | [+0.87, +2.45] | 36.9% | −0.86% |
+
+The four bands are the ones #172 named before the split was run, and ≤5 is §3c's own reported band,
+so the edges are not a degree of freedom spent on the result. Reading the two middle bands together
+as "6–60" is post-hoc, and is a reading of the four measured bands rather than a fifth measurement.
+CIs are a seeded percentile bootstrap (5000 draws). **The pooled +0.3% is a mixture over bases, not
+over weeks.** In the two bands holding the modal entry — 6–30 and 31–60 sessions, **62.5% of
+entries** — the week is *flatter* than pooled, both CIs straddle zero, and more than half of entries
+are down on the week. The correction runs opposite to the one #172 anticipated: dropping the tails
+sharpens the finding rather than dissolving it.
+
+The tails are two different animals, both up on the week. The **>60 band** is the only one
+significantly positive (+1.73%, CI clear of zero) — and its `3m` median is **−3.3%** against +44.5%
+in the 6–30 band, its `6m` **+2.7%** against +77.8%. A stale 120-session high means no recent advance
+to base out of, and there the entry week *is* the move; these are a different setup under the same
+label. The **≤5 band** is partly definitional — a base age under a week means the trailing-120 high
+was just made — and what stands out is how weak it is against that mechanism: +1.61% where ordinary
+days at the same base age run +3.42%.
+
+**The beat-rate survives the confound this exposed.** His entries break out of far younger structures
+than an ordinary day sits in — base age median 24.5 against **75** — so §3f's 48.1%-vs-49.1% compared
+two different base-age mixes. Re-scored band by band against ordinary days of the same base age, the
+gaps are +3.3 (6–30), +6.7 (31–60) and +5.5 pp (>60), **every one inside two standard errors**
+(12.1, 14.6, 9.8). The one real difference is the ≤5 band at −23.9 pp (2 s.e. 17.2): a random day
+whose 120-session high is under a week old is a day inside a burst and beats the index 76.1% of the
+time, where his own ≤5 entries manage 52.2%. Even buying a fresh high, he buys it flatter than the
+day itself would suggest.
+
+So the sentence this section can now defend per trade, rather than by inference across two
+denominators, is the narrower one: **for entries breaking out of a 6-to-60-session structure, nothing
+about the prior week distinguishes it from any other week, and roughly half are down on it.** For the
+quarter of entries whose base is older than the lookback can see, the week is up — but so is nothing
+else about them, and that band is a population question this study has not otherwise asked.
+
+Measured by the same prototype (`prior_move_at_entry.py`, `report_base_age`); the base-age definition
+is unit-checked in `test_base_age.py`.
 
 #### Outcome, and what it does and does not license
 

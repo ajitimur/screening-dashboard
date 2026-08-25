@@ -28,6 +28,13 @@ Two things make the raw distribution readable:
   (no control group of passed-over setups exists), only whether the prior move
   belongs to the *entry* or merely to the *kind of stock he trades*.
 
+* **Joined to base age** (#172). §3f read the flat `1w` return at his entries as
+  "he buys the quiet end of the base", but that joins two facts measured on
+  different denominators — §3c's base age on 649 rows, the `1w` return on 582 —
+  and a +0.3% median is equally consistent with mixed weeks that cancel. Base
+  age is measured here on the same evaluation session, so the `1w` distribution
+  and its index beat-rate can be read *inside* each age band.
+
 Usage:
     backend/.venv/bin/python .scratch/screening-dashboard/prototypes/\
 prior-move-at-entry/prior_move_at_entry.py
@@ -63,6 +70,13 @@ QUARANTINE_BARS = 21
 
 SEED = 20260825
 
+# §3c's D1 window, transcribed: how far back a base is allowed to be looked for.
+# 120 sessions is ~6 months.
+BASE_LOOKBACK = 120
+
+# The buckets #172 asks for. Edges are inclusive on the right.
+AGE_BUCKETS = ((5, "<=5"), (30, "6-30"), (60, "31-60"), (10**9, ">60"))
+
 
 def anchor(as_of: date, lookback: str) -> date:
     """`screener.indicators.anchor_date`, transcribed. 1w is 7 calendar days;
@@ -73,6 +87,43 @@ def anchor(as_of: date, lookback: str) -> date:
     year, month = divmod(total, 12)
     day = min(as_of.day, monthrange(year, month + 1)[1])
     return date(year, month + 1, day)
+
+
+def base_age(frame: pd.DataFrame, as_of: pd.Timestamp) -> tuple[int | None, bool]:
+    """Sessions from the highest high of the trailing 120 to `as_of`.
+
+    §3c's D1, transcribed from `backend/replay/prototype-base-length/
+    measure_base.py`: a breakout is a move through overhead supply, so the high
+    that terminated the prior advance is the base's left edge. Ties go to the
+    *earliest* high — `max(range(...), key=...)` returns the first maximum, and
+    a structure tagged twice at the same price started at the first tag.
+
+    Returns `(age, censored)`. Censored means the pivot sits on the window's own
+    left edge, so the age is a floor: either the 120-session wall or, for a young
+    series, the first bar available.
+
+    Highs are **raw**, as in §3c — not the `Adj` series the returns use. A split
+    inside the window would put the pivot at a pre-split price and censor the
+    row; the censored share is reported for exactly that reason.
+    """
+    hist = frame.loc[frame.index <= as_of]
+    if hist.empty:
+        return None, False
+    eval_i = len(hist) - 1
+    avail = min(BASE_LOOKBACK, eval_i)
+    window = hist["High"].to_numpy(dtype=float)[eval_i - avail: eval_i + 1]
+    age = avail - int(np.argmax(window))
+    return age, age >= avail
+
+
+def age_bucket(age: float | None) -> str | None:
+    """#172's four bands, or `None` for a row whose base age is missing."""
+    if age is None or (isinstance(age, float) and np.isnan(age)):
+        return None
+    for edge, label in AGE_BUCKETS:
+        if age <= edge:
+            return label
+    return None
 
 
 def load_frames() -> tuple[dict[str, pd.DataFrame], dict[str, str]]:
@@ -174,10 +225,13 @@ def build(trades: list[dict], frames: dict[str, pd.DataFrame],
         if not m:
             skips["short history"] += 1
             continue
+        age, censored = base_age(frame, prior.index[-1])
         rows.append(dict(ticker=t["ticker"], date=entry_date.date(),
                          as_of=prior.index[-1], src=source.get(t["ticker"], "?"),
                          rr10sma=t.get("rr10sma"),
                          gain10sma_pct=t.get("gain10smaPct"),
+                         base_age=age, base_censored=censored,
+                         base_bucket=age_bucket(age),
                          **m))
     return pd.DataFrame(rows), skips
 
@@ -208,8 +262,11 @@ def background(entries: pd.DataFrame, frames: dict[str, pd.DataFrame]) -> pd.Dat
         for d in rng.choice(len(pool), size=min(len(dates), len(pool)), replace=False):
             m = prior_moves(frame, pool[int(d)])
             if m:
+                age, censored = base_age(frame, pool[int(d)])
                 rows.append(dict(ticker=ticker, date=pool[int(d)].date(),
-                                 as_of=pool[int(d)], **m))
+                                 as_of=pool[int(d)], base_age=age,
+                                 base_censored=censored,
+                                 base_bucket=age_bucket(age), **m))
     return pd.DataFrame(rows)
 
 
@@ -365,6 +422,107 @@ def report_benchmark(entries: pd.DataFrame, bg: pd.DataFrame,
         print(agg.round(2).to_string().replace("\n", "\n  "))
 
 
+BOOT = 5000
+
+
+def boot_ci(s: pd.Series, stat, seed: int = SEED) -> tuple[float, float]:
+    """Seeded percentile bootstrap, 95%. The bands run 69–246 rows, so a band's
+    median has to arrive with an interval or the eye reads noise as structure."""
+    v = s.dropna().to_numpy(dtype=float)
+    if len(v) < 10:
+        return float("nan"), float("nan")
+    rng = np.random.default_rng(seed)
+    draws = stat(v[rng.integers(0, len(v), size=(BOOT, len(v)))], axis=1)
+    return float(np.percentile(draws, 2.5)), float(np.percentile(draws, 97.5))
+
+
+def report_base_age(entries: pd.DataFrame, bg: pd.DataFrame, tag: str) -> None:
+    """#172: is the flat week *the base*, or an average over mixed weeks?
+
+    §3f found a +0.3% median `1w` return and read it as "he buys the quiet end
+    of the base". That reading needs the two facts joined per trade, which
+    nothing had done: a +0.3% median is equally consistent with a mix of weeks
+    up 10% and down 10%. So each row's base age is measured on the same
+    evaluation session the returns use, and the `1w` distribution and index
+    beat-rate are re-read inside each age band.
+
+    The background carries base age too. The pooled ordinary-day beat-rate
+    (49.1%) is the wrong comparator inside a band — an ordinary day in a young
+    structure is a different animal from one in a six-month base — so each band
+    is scored against ordinary days of *the same* base age.
+    """
+    labels = [lab for _, lab in AGE_BUCKETS]
+    e = entries.dropna(subset=["base_age"])
+    b = bg.dropna(subset=["base_age"])
+
+    print("\n\n== base age at entry (§3c's D1, rebuilt here) ==")
+    print("   sessions from the highest high of the trailing 120 to the "
+          "evaluation session.")
+    print("   §3c, on its own independently built 649 rows: median 24, p25 11, "
+          "p75 63,")
+    print("   12.0% <=5, 42.4% 6-30, 19.3% 31-60, 26.3% >60, 2.8% censored.")
+    q = e["base_age"].quantile([.25, .5, .75])
+    print(f"  here   n {len(e):4d} | median {e['base_age'].median():5.1f} "
+          f"| p25 {q[.25]:5.1f}  p75 {q[.75]:5.1f} "
+          f"| censored {e['base_censored'].mean() * 100:4.1f}%")
+    share = e["base_bucket"].value_counts(normalize=True) * 100
+    print("  bands: " + "  ".join(
+        f"{lab} {share.get(lab, 0.0):4.1f}%" for lab in labels))
+    bgq = b["base_age"].quantile([.25, .5, .75])
+    print(f"  ordinary days for contrast: median {b['base_age'].median():5.1f} "
+          f"| p25 {bgq[.25]:5.1f}  p75 {bgq[.75]:5.1f}")
+
+    print("\n== the 1w return at entry, split by base age ==")
+    print(f"  {'band':7s} {'n':>4s} {'median %':>9s} {'95% CI':>16s} "
+          f"{'mean %':>8s} {'p25':>7s} {'p75':>7s} {'down on wk':>11s} "
+          f"{'median xADR':>12s} | {'ordinary median %':>18s}")
+    for lab in labels:
+        s = e.loc[e["base_bucket"] == lab, "1w"].dropna()
+        sub = e[e["base_bucket"] == lab]
+        o = b.loc[b["base_bucket"] == lab, "1w"].dropna()
+        if s.empty:
+            continue
+        adru = (sub["1w"] / sub["adr"]).median()
+        lo, hi = boot_ci(s, np.median)
+        print(f"  {lab:7s} {len(s):4d} {s.median():9.2f} "
+              f"[{lo:6.2f},{hi:6.2f}] {s.mean():8.2f} "
+              f"{s.quantile(.25):7.1f} {s.quantile(.75):7.1f} "
+              f"{(s < 0).mean() * 100:10.1f}% {adru:12.3f} "
+              f"| {o.median() if len(o) else float('nan'):17.2f}")
+
+    print(f"\n== the 1w beat-rate against {tag.upper()}, split by base age ==")
+    print("   each band against ordinary days of the *same* base age, not "
+          "against the pooled 49.1%.")
+    print(f"  {'band':7s} {'n':>4s} {'rel 1w median %':>16s} "
+          f"{'beats':>7s} {'95% CI':>16s} {'ordinary n':>11s} "
+          f"{'ordinary beats':>15s} {'gap pp':>8s} {'gap 2se':>8s}")
+    for lab in labels:
+        s = e.loc[e["base_bucket"] == lab, "rel_1w"].dropna()
+        o = b.loc[b["base_bucket"] == lab, "rel_1w"].dropna()
+        if s.empty:
+            continue
+        beat = (s > 0).mean() * 100
+        obeat = (o > 0).mean() * 100 if len(o) else float("nan")
+        lo, hi = boot_ci(s > 0, np.mean)
+        # Two standard errors on the difference of two shares, at p = 0.5 —
+        # the widest case, so a gap inside this is noise on any reading.
+        se2 = 2 * 100 * np.sqrt(.25 / len(s) + .25 / max(len(o), 1))
+        print(f"  {lab:7s} {len(s):4d} {s.median():16.2f} {beat:6.1f}% "
+              f"[{lo * 100:6.1f},{hi * 100:6.1f}] {len(o):11d} "
+              f"{obeat:14.1f}% {beat - obeat:8.1f} {se2:8.1f}")
+
+    print("\n== every lookback's median, by base age (is the story the week, "
+          "or old structures?) ==")
+    print(f"  {'band':7s} {'n':>4s} " +
+          " ".join(f"{lb:>8s}" for lb in LOOKBACKS))
+    for lab in labels:
+        sub = e[e["base_bucket"] == lab]
+        if sub.empty:
+            continue
+        print(f"  {lab:7s} {len(sub):4d} " +
+              " ".join(f"{sub[lb].median():8.1f}" for lb in LOOKBACKS))
+
+
 def load_bench(symbol: str) -> pd.DataFrame:
     """One benchmark's adjusted series, straight from the store.
 
@@ -402,6 +560,7 @@ def main() -> None:
     entries_q.to_csv(out, index=False)
     report(entries_q, bg_q, len(trades), skips)
     report_benchmark(entries_q, bg_q, entries_i, "qqq")
+    report_base_age(entries_q, bg_q, "qqq")
     print(f"\nper-trade rows: {out}")
 
 

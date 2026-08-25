@@ -654,6 +654,43 @@ different reason (a stock up hard for one week has momentum, not a prior move). 
 trades now confirm it twice over, and that confirmation is recorded here because the idea of
 putting the week back in will come round again.
 
+### Is that flat week actually the base? Mostly, yes — but not for all of them
+
+An average of +0.3% doesn't prove much on its own. Weeks up 10% and weeks down 10% average
+out to about the same thing. So each trade was also measured for **how old the base was** —
+how many trading days back the stock's highest price of the last six months was. If the flat
+week is really the tail end of a base, it should still be flat once you sort the trades by
+how long that base had been forming.
+
+| How old the base was | Share of his buys | Typical week before he bought |
+| --- | --- | --- |
+| Under a week | 12% | +1.6% |
+| 1 to 6 weeks | **42%** | **0.0%** |
+| 6 weeks to 3 months | **20%** | **−0.3%** |
+| Over 3 months | 26% | +1.7% |
+
+**For the 63% in the middle — the ones with a real multi-week base — the week isn't just
+flat, it's flatter than the headline number, and slightly more than half were down on it.**
+That's the finding holding up, and holding up more sharply than before.
+
+The two ends are different. The "under a week" group is close to a definition: if the stock's
+six-month high was set this week, the week was obviously decent. (Even so, his buys in that
+group are up half as much as random days that look the same — he still picks the flatter ones.)
+The "over 3 months" group is the one worth flagging: those stocks are up 1.7% on the week, but
+they're also **down 3% over the past three months** where his other buys are up 45%. There was
+no recent run to go quiet after. Those aren't quiet bases; they're something else with the same
+name, and they're what pulls the headline +0.3% above zero.
+
+There was one honest way this could have fallen apart. His buys sit on much younger bases than
+a random day does (25 trading days versus 75), so the earlier "48% beat the market versus 49%
+on an ordinary day" comparison was quietly comparing two different kinds of day. Redone
+properly — each group against random days with bases of the *same* age — the differences are
+all small enough to be noise. The week before he buys still carries nothing.
+
+So the sentence to use going forward is the narrower one: **for stocks breaking out of a base
+between one week and three months old, which is most of what he buys, the prior week tells you
+nothing.**
+
 ### How much of it was just a bull market?
 
 Fair question. Almost all these trades are 2020 to 2022. So the same measurements were taken

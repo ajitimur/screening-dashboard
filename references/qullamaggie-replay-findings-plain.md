@@ -618,6 +618,93 @@ idea.
 
 ---
 
+## Test 1e — How big is the move he's buying, and how much of it was just the market?
+
+The app's first criterion is "a big prior move", and until now it was the one thing this
+study could say nothing about. Every setup the app finds has already passed that filter, so
+in the data it's a box that's always ticked. There's no variation to measure.
+
+So this test skips the filter and asks the plain question instead: on the day he buys, what
+has the stock already done? Over the past week, month, 3 months, 6 months and 12 months.
+582 of his 828 trades had the price history to answer it.
+
+### What he's buying
+
+| Over the past | Typical stock he buys | Same stocks on an ordinary day |
+| --- | --- | --- |
+| week | **+0.3%** | +0.1% |
+| month | **+7%** | −0.1% |
+| 3 months | **+24%** | −5% |
+| 6 months | **+56%** | −11% |
+| 12 months | **+119%** | +0.4% |
+
+Half his buys are bigger than those numbers, and the averages are about double the medians
+because a handful had already gone up 500% or more. "Big prior move" is not a figure of
+speech. He is buying stocks that already doubled.
+
+### The last week is flat, and that's the point
+
+Over the week before he buys, the typical stock is up 0.3%. Nearly half are down. He isn't
+chasing something that's ripping right now — he wants a stock that ran hard months ago and
+has gone quiet since, and he buys the quiet part.
+
+This matters beyond describing his habits. The app deliberately ignores the 1-week window
+when deciding which stocks are strong enough to look at, a decision made for a completely
+different reason (a stock up hard for one week has momentum, not a prior move). His own
+trades now confirm it twice over, and that confirmation is recorded here because the idea of
+putting the week back in will come round again.
+
+### How much of it was just a bull market?
+
+Fair question. Almost all these trades are 2020 to 2022. So the same measurements were taken
+on QQQ over the same windows on the same dates.
+
+| Over the past | His stock | QQQ | His stock, after subtracting QQQ | How often he beat QQQ | Ordinary days beat QQQ |
+| --- | --- | --- | --- | --- | --- |
+| week | +0.3% | +0.9% | **−0.3%** | 48% | 49% |
+| month | +7% | +4% | **+4%** | 63% | 47% |
+| 3 months | +24% | +8% | **+16%** | 73% | 38% |
+| 6 months | +56% | +17% | **+35%** | **74%** | 38% |
+| 12 months | +119% | +40% | **+60%** | 68% | 40% |
+
+The market took about a third of it. QQQ itself was up 40% over the year before his typical
+buy, and that's a real caveat, not a footnote. But after subtracting it his stocks are still
+up 60% over a year and 35% over six months more than the index — and **74% of his buys had
+been beating QQQ over the prior six months, against 38% for those same stocks on random
+ordinary days.** That 36-point gap is him choosing. It isn't the market lifting everything.
+
+One surprise: six months is his sharpest window against the market, not twelve. A quarter of
+his buys had actually *underperformed* QQQ over the full year. The pattern is closer to "ran
+hard in the last half year" than "best stock of the year".
+
+Running the same comparison against the Nasdaq Composite, which is the index the app actually
+uses, changes every number by less than two points. So none of this is an artefact of picking
+QQQ.
+
+### Does a bigger prior move mean a better trade?
+
+Barely, and which way depends on the window.
+
+| Bigger move over the past | Effect on the trade |
+| --- | --- |
+| month | Slightly **worse** (top quarter 0.97R, bottom quarter 1.98R) |
+| 6 months | Slightly better (2.16R vs 0.54R) |
+| 12 months | Slightly better (1.97R vs 0.67R) |
+
+The split makes mechanical sense and matches what the "extended" study found: a stock that
+just surged last month means you're buying far from support, so the stop is wide and the
+trade is dead on arrival even when you're right about the direction.
+
+All of these are weak, and a few huge winners carry them. **Nothing in the app was changed.**
+What the test does establish is that the "big prior move" idea has real, measurable spread
+once you stop treating it as a yes/no box — which is the thing it needs before it could ever
+become a real part of the scoring.
+
+One bound to carry forward: QQQ was down over the prior year on only 1.7% of his buy dates.
+This record contains almost no bear market. Anything built on it is built on one kind of tape.
+
+---
+
 ## Test 2 — Would his trades have appeared on the list he actually reads?
 
 Only **104 of 658** trades (15.8%) appeared in the app's field at all, and only
@@ -1039,7 +1126,15 @@ trade record contains no IDX trade.
   shows the underlying quantity becomes measurable once expressed as a *degree*
   rather than a *yes/no* — the same move proposed for quietness in Test 1b. The
   caveat attached there applies at full force: a 2020–21 market rewarded
-  distance-from-the-50-day almost everywhere.
+  distance-from-the-50-day almost everywhere. **The stand-in is no longer the only
+  route.** Test 1e measures the run-up itself — what the stock had actually done
+  over the past week, month, 3, 6 and 12 months, and how much of that was the
+  market — and finds plenty of variety in it (typically +56% over six months,
+  ranging from +15% at the quarter mark to +371% at the top twentieth). What
+  stays unmeasurable is the *filter*: Test 1e still only looks at trades he took,
+  so it can't say what the strength cut-off costs. The 2020–21 caveat is now
+  measured rather than removed — QQQ was down over the prior year on 1.7% of his
+  buy dates, so this record contains almost no bear market.
 - **It cannot speak to other setup types** (Episodic Pivot, Parabolic Short), to
   intraday entries, or to any stock in the missing-data list.
 

@@ -1,34 +1,34 @@
 {
-  "boardSize": 30,
-  "blindSpotCount": 92,
+  "board_size": 30,
+  "blind_spot_count": 92,
   "cells": [
     {
-      "detectorVersion": 1,
-      "detectorNote": "hard 1.5xADR cluster cut, pre-#154",
-      "clusterCut": 1.5,
+      "detector_version": 1,
+      "detector_note": "hard 1.5\u00d7ADR cluster cut, pre-#154",
+      "cluster_cut": 1.5,
       "lookbacks": [
         "1m",
         "3m",
         "6m"
       ],
-      "fieldSource": "truncated",
-      "measuredSessions": 821,
-      "sessionsWithDetections": 505,
-      "fieldDetections": 45600,
-      "detectionsPerSession": 55.54202192448234,
-      "detectionsPerContributingSession": 90.29702970297029,
+      "field_source": "truncated",
+      "measured_sessions": 821,
+      "sessions_with_detections": 505,
+      "field_detections": 45600,
+      "detections_per_session": 55.54202192448234,
+      "detections_per_contributing_session": 90.29702970297029,
       "placed": 656,
-      "inField": 104,
-      "evalFieldDetections": 14239,
-      "discriminationStars": 3.5,
-      "publishedRubric": 1,
-      "picksShare": 0.17307692307692307,
-      "fieldShare": 0.17824285413301497,
-      "edgePp": -0.5165931056091894,
-      "byRubric": [
+      "in_field": 104,
+      "eval_field_detections": 14239,
+      "discrimination_stars": 3.5,
+      "published_rubric": 1,
+      "picks_share": 0.17307692307692307,
+      "field_share": 0.17824285413301497,
+      "edge_pp": -0.5165931056091894,
+      "by_rubric": [
         {
-          "rubricVersion": 3,
-          "topThirty": 46,
+          "rubric_version": 3,
+          "top_thirty": 46,
           "picks": {
             "counts": {
               "1.0": 1,
@@ -57,8 +57,8 @@
           }
         },
         {
-          "rubricVersion": 2,
-          "topThirty": 45,
+          "rubric_version": 2,
+          "top_thirty": 45,
           "picks": {
             "counts": {
               "0.5": 3,
@@ -89,8 +89,8 @@
           }
         },
         {
-          "rubricVersion": 1,
-          "topThirty": 41,
+          "rubric_version": 1,
+          "top_thirty": 41,
           "picks": {
             "counts": {
               "0.5": 3,
@@ -125,32 +125,32 @@
       ]
     },
     {
-      "detectorVersion": 1,
-      "detectorNote": "hard 1.5xADR cluster cut, pre-#154",
-      "clusterCut": 1.5,
+      "detector_version": 1,
+      "detector_note": "hard 1.5\u00d7ADR cluster cut, pre-#154",
+      "cluster_cut": 1.5,
       "lookbacks": [
         "1m",
         "3m",
         "6m"
       ],
-      "fieldSource": "whole",
-      "measuredSessions": 821,
-      "sessionsWithDetections": 821,
-      "fieldDetections": 68654,
-      "detectionsPerSession": 83.62241169305724,
-      "detectionsPerContributingSession": 83.62241169305724,
+      "field_source": "whole",
+      "measured_sessions": 821,
+      "sessions_with_detections": 821,
+      "field_detections": 68654,
+      "detections_per_session": 83.62241169305724,
+      "detections_per_contributing_session": 83.62241169305724,
       "placed": 656,
-      "inField": 242,
-      "evalFieldDetections": 27116,
-      "discriminationStars": 3.5,
-      "publishedRubric": 1,
-      "picksShare": 0.17355371900826447,
-      "fieldShare": 0.19811181590205046,
-      "edgePp": -2.455809689378599,
-      "byRubric": [
+      "in_field": 242,
+      "eval_field_detections": 27116,
+      "discrimination_stars": 3.5,
+      "published_rubric": 1,
+      "picks_share": 0.17355371900826447,
+      "field_share": 0.19811181590205046,
+      "edge_pp": -2.455809689378599,
+      "by_rubric": [
         {
-          "rubricVersion": 3,
-          "topThirty": 114,
+          "rubric_version": 3,
+          "top_thirty": 114,
           "picks": {
             "counts": {
               "1.0": 1,
@@ -179,8 +179,8 @@
           }
         },
         {
-          "rubricVersion": 2,
-          "topThirty": 112,
+          "rubric_version": 2,
+          "top_thirty": 112,
           "picks": {
             "counts": {
               "0.5": 3,
@@ -211,8 +211,8 @@
           }
         },
         {
-          "rubricVersion": 1,
-          "topThirty": 95,
+          "rubric_version": 1,
+          "top_thirty": 95,
           "picks": {
             "counts": {
               "0.5": 3,
@@ -247,32 +247,32 @@
       ]
     },
     {
-      "detectorVersion": 2,
-      "detectorNote": "far-outlier guard at 3.0 (#145/#154)",
-      "clusterCut": 3.0,
+      "detector_version": 2,
+      "detector_note": "far-outlier guard at 3.0 (#145/#154)",
+      "cluster_cut": 3.0,
       "lookbacks": [
         "1m",
         "3m",
         "6m"
       ],
-      "fieldSource": "truncated",
-      "measuredSessions": 821,
-      "sessionsWithDetections": 505,
-      "fieldDetections": 101790,
-      "detectionsPerSession": 123.98294762484775,
-      "detectionsPerContributingSession": 201.56435643564356,
+      "field_source": "truncated",
+      "measured_sessions": 821,
+      "sessions_with_detections": 505,
+      "field_detections": 101790,
+      "detections_per_session": 123.98294762484775,
+      "detections_per_contributing_session": 201.56435643564356,
       "placed": 656,
-      "inField": 159,
-      "evalFieldDetections": 29096,
-      "discriminationStars": 3.5,
-      "publishedRubric": 1,
-      "picksShare": 0.1320754716981132,
-      "fieldShare": 0.11063376409128403,
-      "edgePp": 2.1441707606829175,
-      "byRubric": [
+      "in_field": 159,
+      "eval_field_detections": 29096,
+      "discrimination_stars": 3.5,
+      "published_rubric": 1,
+      "picks_share": 0.1320754716981132,
+      "field_share": 0.11063376409128403,
+      "edge_pp": 2.1441707606829175,
+      "by_rubric": [
         {
-          "rubricVersion": 3,
-          "topThirty": 45,
+          "rubric_version": 3,
+          "top_thirty": 45,
           "picks": {
             "counts": {
               "1.0": 3,
@@ -302,8 +302,8 @@
           }
         },
         {
-          "rubricVersion": 2,
-          "topThirty": 43,
+          "rubric_version": 2,
+          "top_thirty": 43,
           "picks": {
             "counts": {
               "0.5": 4,
@@ -334,8 +334,8 @@
           }
         },
         {
-          "rubricVersion": 1,
-          "topThirty": 31,
+          "rubric_version": 1,
+          "top_thirty": 31,
           "picks": {
             "counts": {
               "0.5": 4,
@@ -370,32 +370,32 @@
       ]
     },
     {
-      "detectorVersion": 2,
-      "detectorNote": "far-outlier guard at 3.0 (#145/#154)",
-      "clusterCut": 3.0,
+      "detector_version": 2,
+      "detector_note": "far-outlier guard at 3.0 (#145/#154)",
+      "cluster_cut": 3.0,
       "lookbacks": [
         "1m",
         "3m",
         "6m"
       ],
-      "fieldSource": "whole",
-      "measuredSessions": 821,
-      "sessionsWithDetections": 821,
-      "fieldDetections": 148223,
-      "detectionsPerSession": 180.53958587088917,
-      "detectionsPerContributingSession": 180.53958587088917,
+      "field_source": "whole",
+      "measured_sessions": 821,
+      "sessions_with_detections": 821,
+      "field_detections": 148223,
+      "detections_per_session": 180.53958587088917,
+      "detections_per_contributing_session": 180.53958587088917,
       "placed": 656,
-      "inField": 349,
-      "evalFieldDetections": 54399,
-      "discriminationStars": 3.5,
-      "publishedRubric": 1,
-      "picksShare": 0.14613180515759314,
-      "fieldShare": 0.12593981507012997,
-      "edgePp": 2.019199008746317,
-      "byRubric": [
+      "in_field": 349,
+      "eval_field_detections": 54399,
+      "discrimination_stars": 3.5,
+      "published_rubric": 1,
+      "picks_share": 0.14613180515759314,
+      "field_share": 0.12593981507012997,
+      "edge_pp": 2.019199008746317,
+      "by_rubric": [
         {
-          "rubricVersion": 3,
-          "topThirty": 110,
+          "rubric_version": 3,
+          "top_thirty": 110,
           "picks": {
             "counts": {
               "1.0": 4,
@@ -425,8 +425,8 @@
           }
         },
         {
-          "rubricVersion": 2,
-          "topThirty": 109,
+          "rubric_version": 2,
+          "top_thirty": 109,
           "picks": {
             "counts": {
               "0.5": 5,
@@ -457,8 +457,8 @@
           }
         },
         {
-          "rubricVersion": 1,
-          "topThirty": 78,
+          "rubric_version": 1,
+          "top_thirty": 78,
           "picks": {
             "counts": {
               "0.5": 5,
@@ -493,33 +493,33 @@
       ]
     },
     {
-      "detectorVersion": 3,
-      "detectorNote": "guard at 3.0, gate admits 12m (#149)",
-      "clusterCut": 3.0,
+      "detector_version": 3,
+      "detector_note": "guard at 3.0, gate admits 12m (#149)",
+      "cluster_cut": 3.0,
       "lookbacks": [
         "1m",
         "3m",
         "6m",
         "12m"
       ],
-      "fieldSource": "whole",
-      "measuredSessions": 821,
-      "sessionsWithDetections": 821,
-      "fieldDetections": 175546,
-      "detectionsPerSession": 213.81973203410476,
-      "detectionsPerContributingSession": 213.81973203410476,
+      "field_source": "whole",
+      "measured_sessions": 821,
+      "sessions_with_detections": 821,
+      "field_detections": 175546,
+      "detections_per_session": 213.81973203410476,
+      "detections_per_contributing_session": 213.81973203410476,
       "placed": 656,
-      "inField": 397,
-      "evalFieldDetections": 64070,
-      "discriminationStars": 3.5,
-      "publishedRubric": 1,
-      "picksShare": 0.13602015113350127,
-      "fieldShare": 0.11652879662868737,
-      "edgePp": 1.94913545048139,
-      "byRubric": [
+      "in_field": 397,
+      "eval_field_detections": 64070,
+      "discrimination_stars": 3.5,
+      "published_rubric": 1,
+      "picks_share": 0.13602015113350127,
+      "field_share": 0.11652879662868737,
+      "edge_pp": 1.94913545048139,
+      "by_rubric": [
         {
-          "rubricVersion": 3,
-          "topThirty": 103,
+          "rubric_version": 3,
+          "top_thirty": 103,
           "picks": {
             "counts": {
               "1.0": 6,
@@ -549,8 +549,8 @@
           }
         },
         {
-          "rubricVersion": 2,
-          "topThirty": 111,
+          "rubric_version": 2,
+          "top_thirty": 111,
           "picks": {
             "counts": {
               "0.5": 5,
@@ -581,8 +581,8 @@
           }
         },
         {
-          "rubricVersion": 1,
-          "topThirty": 73,
+          "rubric_version": 1,
+          "top_thirty": 73,
           "picks": {
             "counts": {
               "0.5": 5,
@@ -618,17 +618,27 @@
     }
   ],
   "steps": {
-    "retentionFix": {
+    "retention_fix": {
       "before": "detector v1, truncated field",
       "after": "detector v1, whole field",
-      "edgeBeforePp": -0.5165931056091894,
-      "edgeAfterPp": -2.455809689378599
+      "edge_before_pp": -0.5165931056091894,
+      "edge_after_pp": -2.455809689378599
     },
-    "detectorRestructure": {
+    "detector_restructure": {
       "before": "detector v1, whole field",
       "after": "detector v2, whole field",
-      "edgeBeforePp": -2.455809689378599,
-      "edgeAfterPp": 2.019199008746317
+      "edge_before_pp": -2.455809689378599,
+      "edge_after_pp": 2.019199008746317
     }
+  },
+  "deleted_sessions": {
+    "sessions": 316,
+    "picks_at_stars": 24,
+    "picks_total": 138,
+    "picks_share": 0.17391304347826086,
+    "field_at_stars": 2834,
+    "field_total": 12877,
+    "field_share": 0.22008231730993244,
+    "edge_pp": -4.616927383167157
   }
 }

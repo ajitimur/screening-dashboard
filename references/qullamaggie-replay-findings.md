@@ -1409,13 +1409,18 @@ detection pass by filtering it. Two identities make that sound rather than conve
 
 ### The grid — all rubric v1, the rubric §4's pair was published under
 
-| Detector | Field | `in_field` | Field, his eval sessions | Picks ≥3.5★ | Field ≥3.5★ | Gap |
-| --- | --- | --- | --- | --- | --- | --- |
-| v1 | truncated | 104/656 | 14,239 | 17.31% | 17.82% | **−0.52pp** (as published) |
-| v1 | whole | 242/656 | 27,116 | 17.36% | 19.81% | **−2.46pp** |
-| v2 | truncated | 159/656 | 29,096 | 13.21% | 11.06% | +2.14pp |
-| v2 | whole | 349/656 | 54,399 | 14.61% | 12.59% | +2.02pp |
-| v3 (live) | whole | 397/656 | 64,070 | 13.60% | 11.65% | +1.95pp |
+| Detector | Field | `in_field` | Field, his eval sessions | Detections / measured session | Picks ≥3.5★ | Field ≥3.5★ | Gap |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| v1 | truncated | 104/656 | 14,239 | 55.5 (90.3 per contributing) | 17.31% | 17.82% | **−0.52pp** (as published) |
+| v1 | whole | 242/656 | 27,116 | **83.6** | 17.36% | 19.81% | **−2.46pp** |
+| v2 | truncated | 159/656 | 29,096 | 124.0 (201.6 per contributing) | 13.21% | 11.06% | +2.14pp |
+| v2 | whole | 349/656 | 54,399 | **180.5** | 14.61% | 12.59% | +2.02pp |
+| v3 (live) | whole | 397/656 | 64,070 | 213.8 | 13.60% | 11.65% | +1.95pp |
+
+The per-session column carries both denominators, because the superseded 90.3 and 201.6 were
+taken over the 505 sessions that survived the retention rather than the 821 measured — the two
+truncated rows reproduce them exactly on that denominator, which is what identifies the
+superseded figures as arithmetic on a partial field rather than a different measurement.
 
 **The grid is checked against the record, not merely computed.** Four of the five cells have a
 committed figure to reproduce and every one of them reproduces to the digit: §4's own
@@ -1431,15 +1436,20 @@ first measurement of `in_field` under the width #149 adopted.
 picks do not move (+0.05pp); the **field's** share rises by 1.99pp. The gap goes from −0.52pp to
 **−2.46pp**.
 
-The mechanism is in *which* sessions were missing, and it is measurable directly. Retention
-pruned the older 316 sessions (2019-09-30 to 2020-12-29), and on those sessions alone the field
-reaches ≥3.5★ **22.01%** of the time (2,834 of 12,877) while his picks on them reach it
-**17.39%** (24 of 138). On the 505 retained sessions the two are 17.82% and 17.31%. So the
-population he was being compared against was **materially stronger on the sessions the bug
-deleted**, and his own picks were not — which is why cutting both sides on the same sessions
-still biased the comparison, and biased it in the rubric's favour. §4 was right to note that both
-sides were truncated together; that is not sufficient for the comparison to survive, and here it
-did not.
+The mechanism is in *which* sessions were missing, and the grid measures it rather than leaving
+it to be inferred — the **"what the deleted sessions held"** block of
+`references/discrimination_grid.txt` reports it with its counts:
+
+| On the 316 sessions the retention emptied | ≥3.5★ | Total | Share |
+| --- | --- | --- | --- |
+| His picks | 24 | 138 | **17.39%** |
+| The field | 2,834 | 12,877 | **22.01%** |
+
+On the 505 retained sessions the same two shares are 17.31% and 17.82%. So the population he
+was being compared against was **materially stronger on the sessions the bug deleted**, and his
+own picks were not. That is why cutting both sides on the same sessions still biased the
+comparison, and biased it in the rubric's favour. §4 was right that both sides were truncated
+together; that is not sufficient for the comparison to survive, and here it did not.
 
 **The detector restructure alone — on the whole field.** −2.46pp → **+2.02pp**. The whole of the
 edge #164 flagged is this step. It is also the mechanism §4a already named, arriving through the

@@ -4,7 +4,7 @@ the pair is quoted under rubric v1, the rubric §4's 17.3% / 17.8% was measured 
 
 == cells ==
 
-detector v1, truncated field  [hard 1.5xADR cluster cut, pre-#154]
+detector v1, truncated field  [hard 1.5×ADR cluster cut, pre-#154]
   gate:                 1m/3m/6m
   sessions with a field: 505/821
   field detections:      45600  (55.5 per measured session, 90.3 per contributing one)
@@ -14,7 +14,7 @@ detector v1, truncated field  [hard 1.5xADR cluster cut, pre-#154]
   rubric v2:  picks >= 3.5* 14.42%   field 8.83%   edge +5.59pp   top 30 45/656
   rubric v3:  picks >= 3.5* 15.38%   field 10.32%   edge +5.06pp   top 30 46/656
 
-detector v1, whole field  [hard 1.5xADR cluster cut, pre-#154]
+detector v1, whole field  [hard 1.5×ADR cluster cut, pre-#154]
   gate:                 1m/3m/6m
   sessions with a field: 821/821
   field detections:      68654  (83.6 per measured session, 83.6 per contributing one)
@@ -69,3 +69,14 @@ the detector restructure alone (#154)
   field >= 3.5*: 19.81%  ->  12.59%
   edge:              -2.46pp  ->  +2.02pp
   field detections:  68654  ->  148223
+
+== what the deleted sessions held ==
+
+  the 316 sessions the retention emptied, at rubric v1, detector v1:
+  picks >= 3.5*: 24/138 = 17.39%
+  field >= 3.5*: 2834/12877 = 22.01%
+  edge on the deleted sessions: -4.62pp
+
+  The bug deleted the sessions where the field was strongest relative to
+  his picks, so cutting both sides on the same sessions still biased the
+  comparison — and biased it in the rubric's favour.

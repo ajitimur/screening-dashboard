@@ -372,7 +372,7 @@ before reading any new figure:
 | Median 20-day ADR at entry eve | **6.08%** | Findings §3c |
 | Blind-spot tickers / trades, 2019–2022 | **92 / 172** (of 312 / 828) | Findings §2 |
 | Trades detected by the funnel (A1 detection recall) | **549 of 656 replayable** (83.7%; gate-invariant — the funnel evaluates every stage unconditionally, so #149's width does not move it. Detector v2/v3 geometry; the superseded pin under v1's hard cluster cut was 380 of 658) | Findings §3, §3b |
-| Trades that appeared in the replayed field (A2 `in_field`) | **397 of 656 replayable** (detector v3, the live gate; measured 2026-08-25 by `replay.discrimination_grid`. Superseded pins, each measured on a narrower population: 349 of 656 at detector v2, 159 and then 104 of 656 on the field the rank retention had truncated, and 104 of 658 before #139) | Findings §4b |
+| Trades that appeared in the replayed field (A2 `in_field`) | **349 of 656** at detector v2, and **397 of 656** at detector v3 (the live gate) — **anchor against the version the run is built at**. Both measured 2026-08-25 by `replay.discrimination_grid`; the v2 figure independently reproduces #164's committed run, the v3 figure is a **first measurement** and has no second one to agree with. Superseded pins, each measured on a narrower population: 159 and then 104 of 656 on the field the rank retention had truncated, and 104 of 658 before #139 | Findings §4b |
 
 These are the same reference set through a differently-built pipeline. Matching them says the
 new pipeline computes what the old one computed; a mismatch is a bug in the new store or the
@@ -387,6 +387,13 @@ count before it was measured on a field the two-year rank retention had silently
 of the 821 sessions. All three are re-pinned above, against the live detector, and every
 superseded pin is recorded beside them. An anchor quoted from a superseded pin fails for a
 reason that has nothing to do with the pipeline it is testing.
+
+**On the `in_field` row carrying two values.** It is stamped per detector version because the
+quantity *is* per detector version — the v2 → v3 gate widening admits 48 more of his trades to
+the field without any of them changing. Quoting one against a run built at the other is the
+same error the row itself used to make. The v3 value is the one a run built today anchors on,
+and it is flagged as a first measurement so a mismatch is investigated in both directions
+rather than charged straight to the new pipeline.
 
 **The two field rows are different anchors and were once conflated.** Until #165 this table
 carried one row labelled "trades detected by the funnel" whose *value* was A2's `in_field`. They

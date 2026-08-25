@@ -2808,15 +2808,16 @@ def test_the_truncated_field_drops_every_session_the_rank_retention_pruned():
         _grid_session(pruned, ranks, {"NOW": 1.0}),
         _grid_session(retained, ranks, {"NOW": 1.0}),
     ]
-    cell = lambda source: measure_cell(
-        swept,
-        DETECTORS[2],
-        source,
-        replayable=[],
-        calendar=[pruned, retained],
-        stored_rank_sessions={retained},
-        blind_spot_count=0,
-    )
+    def cell(source):
+        return measure_cell(
+            swept,
+            DETECTORS[2],
+            source,
+            replayable=[],
+            calendar=[pruned, retained],
+            stored_rank_sessions={retained},
+            blind_spot_count=0,
+        )
 
     whole, truncated = cell(FIELD_WHOLE), cell(FIELD_TRUNCATED)
 
@@ -2844,6 +2845,57 @@ def test_the_grid_reports_the_share_at_or_above_the_published_threshold():
         StarDistribution.from_stars([4.0, 3.5, 3.0, 2.0]), DISCRIMINATION_STARS
     ) == 0.5
     assert share_at_or_above(StarDistribution.from_stars([]), 3.5) is None
+
+
+def test_the_deleted_sessions_are_measured_not_derived_by_subtraction_downstream():
+    """The retention step's *mechanism* — the field was strongest exactly where the
+    bug deleted it — is what turns "the null hardens" from an assertion into an
+    explanation, so the grid measures the deleted sessions' own contribution and
+    emits the counts. A share quoted in prose that no committed artefact carries is
+    the same unreproducible figure this whole study exists to avoid."""
+    from replay.discrimination_grid import (
+        DETECTORS,
+        FIELD_WHOLE,
+        CellMeasurement,
+        PrunedComparison,
+        pruned_comparison,
+    )
+    from replay.placement import RubricStarDistributions, StarDistribution
+
+    def cell(picks, field, sessions):
+        return CellMeasurement(
+            detector=DETECTORS[1],
+            field_source=FIELD_WHOLE,
+            measured_sessions=10,
+            sessions_with_detections=sessions,
+            field_detections=0,
+            placed=0,
+            in_field=0,
+            eval_field_detections=0,
+            by_rubric=[
+                RubricStarDistributions(
+                    rubric_version=1,
+                    picks=StarDistribution.from_stars(picks),
+                    field=StarDistribution.from_stars(field),
+                )
+            ],
+        )
+
+    # The truncated cell is a strict subset of the whole one — same detections,
+    # same scoring, fewer sessions — so the difference is the deleted sessions.
+    truncated = cell(picks=[4.0, 2.0], field=[3.5, 1.0], sessions=4)
+    whole = cell(picks=[4.0, 2.0, 2.5], field=[3.5, 1.0, 4.0, 3.5], sessions=10)
+
+    pruned = pruned_comparison(truncated, whole)
+
+    assert isinstance(pruned, PrunedComparison)
+    assert pruned.sessions == 6
+    # One extra pick, scoring below the threshold; two extra field rows, both above.
+    assert (pruned.picks_at_stars, pruned.picks_total) == (0, 1)
+    assert (pruned.field_at_stars, pruned.field_total) == (2, 2)
+    assert pruned.picks_share == 0.0
+    assert pruned.field_share == 1.0
+    assert pruned.edge == -100.0
 
 
 def test_the_grid_never_mutates_the_live_detector_constants():

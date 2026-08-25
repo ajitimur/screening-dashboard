@@ -753,9 +753,10 @@ Only **104 of 658** trades (15.8%) appeared in the app's field at all, and only
 >
 > The reason is that the missing days weren't a random sample. The days that got
 > deleted were the *older* two-thirds, and on those days the general population of
-> setups scored unusually well — 22.0% of them reached 3.5+, against 17.8% on the
-> days that survived. His own picks scored the same on both (17.4% vs 17.3%). So
-> the bug was quietly comparing him against the *weaker* half of the record.
+> setups scored unusually well — 2,834 of 12,877, or **22.0%**, reached 3.5+,
+> against 17.8% on the days that survived. His own picks scored the same on both
+> (24 of 138, or 17.4%, against 17.3%). So the bug was quietly comparing him
+> against the *weaker* half of the record.
 
 **The headline result was negative, and it's the study's most consequential
 finding.** Under the scoring system live at the time, his hand-picked entries

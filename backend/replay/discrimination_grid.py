@@ -117,11 +117,30 @@ DISCRIMINATION_STARS = 3.5
 # one is the cross-run comparison the stamp exists to prevent.
 PUBLISHED_RUBRIC = 1
 
-# The two fields, named so a cell's provenance is legible without a comment.
-# ``truncated`` is the field as it stood when §4 was measured — the sessions the
-# rank retention had already pruned contributed nothing (#164).
-FIELD_TRUNCATED = "truncated"
-FIELD_WHOLE = "whole"
+
+@dataclass(frozen=True)
+class FieldSource:
+    """One of the two fields a cell is measured against, as the rule that builds it.
+
+    ``retained_only`` is the whole difference: the truncated field is the whole
+    field restricted to the sessions the store still holds ranks for, because a
+    pruned session gated against an empty rank table and dropped every member
+    (#164). Carried as a type rather than a string so the rule travels with the
+    name — the same reason the gate's width is a
+    :class:`replay.gate_sweep.GateVariant` and not a tuple of lookbacks.
+    """
+
+    name: str
+    retained_only: bool
+
+    def keeps(self, session: date, retained: set[date]) -> bool:
+        """Whether this field carries ``session`` at all."""
+        return session in retained if self.retained_only else True
+
+
+# The field as it stood when §4 was measured, and the field as it actually was.
+FIELD_TRUNCATED = FieldSource("truncated", retained_only=True)
+FIELD_WHOLE = FieldSource("whole", retained_only=False)
 FIELD_SOURCES = (FIELD_TRUNCATED, FIELD_WHOLE)
 
 
@@ -154,7 +173,7 @@ DETECTORS: Mapping[int, DetectorSpec] = {
         version=1,
         cluster_cut=1.5,
         lookbacks=GATE_AS_MEASURED,
-        note="hard 1.5xADR cluster cut, pre-#154",
+        note="hard 1.5×ADR cluster cut, pre-#154",
     ),
     2: DetectorSpec(
         version=2,
@@ -229,7 +248,7 @@ class CellMeasurement:
     """
 
     detector: DetectorSpec
-    field_source: str
+    field_source: FieldSource
     measured_sessions: int
     sessions_with_detections: int
     field_detections: int
@@ -288,7 +307,7 @@ class CellMeasurement:
 def _cell_fields(
     swept: Sequence[SweepSession],
     spec: DetectorSpec,
-    field_source: str,
+    field_source: FieldSource,
     *,
     entries: Mapping[date, set[str]],
     stored_rank_sessions: set[date],
@@ -307,7 +326,7 @@ def _cell_fields(
     """
     out: list[FieldSession] = []
     for s in swept:
-        if field_source == FIELD_TRUNCATED and s.session not in stored_rank_sessions:
+        if not field_source.keeps(s.session, stored_rank_sessions):
             continue
         gated = variant_gate(s.membership, _gate_of(spec))
         detections = under_detector(
@@ -345,7 +364,7 @@ def _gate_of(spec: DetectorSpec) -> GateVariant:
 def measure_cell(
     swept: Sequence[SweepSession],
     spec: DetectorSpec,
-    field_source: str,
+    field_source: FieldSource,
     *,
     replayable: Sequence[ExecutedTrade],
     calendar: Sequence[date],
@@ -392,6 +411,66 @@ def measure_cell(
 
 
 @dataclass(frozen=True)
+class PrunedComparison:
+    """His picks against the field on the sessions the retention deleted.
+
+    ``sessions`` is how many measured sessions the bug emptied. The four counts are
+    the ≥3.5★ hits and the totals on those sessions alone, picks and field, so both
+    shares are checkable arithmetic on the artefact rather than a quoted percentage.
+    """
+
+    sessions: int
+    picks_at_stars: int
+    picks_total: int
+    field_at_stars: int
+    field_total: int
+
+    @property
+    def picks_share(self) -> float | None:
+        return self.picks_at_stars / self.picks_total if self.picks_total else None
+
+    @property
+    def field_share(self) -> float | None:
+        return self.field_at_stars / self.field_total if self.field_total else None
+
+    @property
+    def edge(self) -> float | None:
+        """Picks minus field on the deleted sessions, in percentage points."""
+        if self.picks_share is None or self.field_share is None:
+            return None
+        return (self.picks_share - self.field_share) * 100
+
+
+def _at_stars(dist: StarDistribution) -> int:
+    """How many scores in ``dist`` sit at or above :data:`DISCRIMINATION_STARS`."""
+    return sum(n for s, n in dist.counts.items() if s >= DISCRIMINATION_STARS)
+
+
+def pruned_comparison(
+    truncated: CellMeasurement,
+    whole: CellMeasurement,
+    version: int = PUBLISHED_RUBRIC,
+) -> PrunedComparison | None:
+    """The deleted sessions' own contribution, as the difference of two cells.
+
+    Sound because the two cells differ in exactly one thing: which sessions carry a
+    field. Their star distributions are over the same detections scored the same
+    way, so subtracting the smaller from the larger leaves the pruned sessions and
+    nothing else.
+    """
+    lo, hi = truncated.rubric(version), whole.rubric(version)
+    if lo is None or hi is None:
+        return None
+    return PrunedComparison(
+        sessions=whole.sessions_with_detections - truncated.sessions_with_detections,
+        picks_at_stars=_at_stars(hi.picks) - _at_stars(lo.picks),
+        picks_total=hi.picks.total - lo.picks.total,
+        field_at_stars=_at_stars(hi.field) - _at_stars(lo.field),
+        field_total=hi.field.total - lo.field.total,
+    )
+
+
+@dataclass(frozen=True)
 class DiscriminationGrid:
     """Every cell, plus the two one-variable steps the whole exercise is for.
 
@@ -406,7 +485,7 @@ class DiscriminationGrid:
     board_size: int
     blind_spot_count: int
 
-    def cell(self, version: int, field_source: str) -> CellMeasurement | None:
+    def cell(self, version: int, field_source: FieldSource) -> CellMeasurement | None:
         """The cell at one (detector version, field) pair, if it was measured."""
         return next(
             (
@@ -430,6 +509,22 @@ class DiscriminationGrid:
     ) -> tuple[CellMeasurement | None, CellMeasurement | None]:
         """The detector restructure alone, on the whole field."""
         return self.cell(1, FIELD_WHOLE), self.cell(2, FIELD_WHOLE)
+
+    @property
+    def deleted_sessions(self) -> "PrunedComparison | None":
+        """What the sessions the bug deleted actually held.
+
+        The retention step says the field's ≥3.5★ share moves and his picks' does
+        not; this says *why*, and it is the load-bearing half of that reading, so it
+        is measured and emitted rather than left to be derived by subtraction at
+        each retelling. Computed as the whole cell minus the truncated one at the
+        detector §4 published under — the two cells differ in nothing else, so the
+        difference is exactly the pruned sessions' own contribution.
+        """
+        before, after = self.retention_step
+        if before is None or after is None:
+            return None
+        return pruned_comparison(before, after)
 
 
 def build_grid(
@@ -533,10 +628,10 @@ def _num(value: float | None) -> str:
 
 
 def _cell_label(cell: CellMeasurement) -> str:
-    return f"detector v{cell.detector.version}, {cell.field_source} field"
+    return f"detector v{cell.detector.version}, {cell.field_source.name} field"
 
 
-def _format_cell(cell: CellMeasurement) -> list[str]:
+def _format_cell(cell: CellMeasurement, board_size: int) -> list[str]:
     """One cell in full: how much field existed, and what the pair reads on it."""
     lines = [
         f"{_cell_label(cell)}  [{cell.detector.note}]",
@@ -560,7 +655,7 @@ def _format_cell(cell: CellMeasurement) -> list[str]:
             f"  picks >= {DISCRIMINATION_STARS}* {_pct(picks)}"
             f"   field {_pct(field)}"
             f"   edge {_pp(cell.edge(scored.rubric_version))}"
-            f"   top {BOARD_SIZE} {scored.top_thirty}/{cell.placed}"
+            f"   top {board_size} {scored.top_thirty}/{cell.placed}"
         )
     return lines
 
@@ -600,13 +695,35 @@ def format_report(grid: DiscriminationGrid) -> str:
         "",
     ]
     for cell in grid.cells:
-        lines += _format_cell(cell) + [""]
+        lines += _format_cell(cell, grid.board_size) + [""]
     lines += ["== the two one-variable steps ==", ""]
     lines += _format_step("the retention fix alone (#164)", grid.retention_step) + [""]
     lines += _format_step(
         "the detector restructure alone (#154)", grid.restructure_step
-    )
+    ) + [""]
+    lines += _format_pruned(grid.deleted_sessions)
     return "\n".join(lines)
+
+
+def _format_pruned(pruned: PrunedComparison | None) -> list[str]:
+    """What the deleted sessions held — the retention step's mechanism, measured."""
+    if pruned is None:
+        return ["== what the deleted sessions held ==", "", "  not measured"]
+    return [
+        "== what the deleted sessions held ==",
+        "",
+        f"  the {pruned.sessions} sessions the retention emptied, at rubric "
+        f"v{PUBLISHED_RUBRIC}, detector v1:",
+        f"  picks >= {DISCRIMINATION_STARS}*: {pruned.picks_at_stars}"
+        f"/{pruned.picks_total} = {_pct(pruned.picks_share)}",
+        f"  field >= {DISCRIMINATION_STARS}*: {pruned.field_at_stars}"
+        f"/{pruned.field_total} = {_pct(pruned.field_share)}",
+        f"  edge on the deleted sessions: {_pp(pruned.edge)}",
+        "",
+        "  The bug deleted the sessions where the field was strongest relative to",
+        "  his picks, so cutting both sides on the same sessions still biased the",
+        "  comparison — and biased it in the rubric's favour.",
+    ]
 
 
 def _distribution_dict(dist: StarDistribution) -> dict:
@@ -620,28 +737,30 @@ def _distribution_dict(dist: StarDistribution) -> dict:
 def _cell_dict(cell: CellMeasurement) -> dict:
     picks, field = cell.discrimination()
     return {
-        "detectorVersion": cell.detector.version,
-        "detectorNote": cell.detector.note,
-        "clusterCut": cell.detector.cluster_cut,
+        "detector_version": cell.detector.version,
+        "detector_note": cell.detector.note,
+        "cluster_cut": cell.detector.cluster_cut,
         "lookbacks": list(cell.detector.lookbacks),
-        "fieldSource": cell.field_source,
-        "measuredSessions": cell.measured_sessions,
-        "sessionsWithDetections": cell.sessions_with_detections,
-        "fieldDetections": cell.field_detections,
-        "detectionsPerSession": cell.detections_per_session,
-        "detectionsPerContributingSession": cell.detections_per_contributing_session,
+        "field_source": cell.field_source.name,
+        "measured_sessions": cell.measured_sessions,
+        "sessions_with_detections": cell.sessions_with_detections,
+        "field_detections": cell.field_detections,
+        "detections_per_session": cell.detections_per_session,
+        "detections_per_contributing_session": (
+            cell.detections_per_contributing_session
+        ),
         "placed": cell.placed,
-        "inField": cell.in_field,
-        "evalFieldDetections": cell.eval_field_detections,
-        "discriminationStars": DISCRIMINATION_STARS,
-        "publishedRubric": PUBLISHED_RUBRIC,
-        "picksShare": picks,
-        "fieldShare": field,
-        "edgePp": cell.edge(),
-        "byRubric": [
+        "in_field": cell.in_field,
+        "eval_field_detections": cell.eval_field_detections,
+        "discrimination_stars": DISCRIMINATION_STARS,
+        "published_rubric": PUBLISHED_RUBRIC,
+        "picks_share": picks,
+        "field_share": field,
+        "edge_pp": cell.edge(),
+        "by_rubric": [
             {
-                "rubricVersion": r.rubric_version,
-                "topThirty": r.top_thirty,
+                "rubric_version": r.rubric_version,
+                "top_thirty": r.top_thirty,
                 "picks": _distribution_dict(r.picks),
                 "field": _distribution_dict(r.field),
             }
@@ -650,25 +769,46 @@ def _cell_dict(cell: CellMeasurement) -> dict:
     }
 
 
-def grid_to_dict(grid: DiscriminationGrid) -> dict:
-    """The machine-readable grid: every cell and both steps."""
-    def step(pair):
-        before, after = pair
-        return {
-            "before": _cell_label(before) if before else None,
-            "after": _cell_label(after) if after else None,
-            "edgeBeforePp": before.edge() if before else None,
-            "edgeAfterPp": after.edge() if after else None,
-        }
-
+def _step_dict(
+    pair: tuple[CellMeasurement | None, CellMeasurement | None],
+) -> dict:
+    """One one-variable step, as the two cells it runs between and what moved."""
+    before, after = pair
     return {
-        "boardSize": grid.board_size,
-        "blindSpotCount": grid.blind_spot_count,
+        "before": _cell_label(before) if before else None,
+        "after": _cell_label(after) if after else None,
+        "edge_before_pp": before.edge() if before else None,
+        "edge_after_pp": after.edge() if after else None,
+    }
+
+
+def _pruned_dict(pruned: PrunedComparison | None) -> dict | None:
+    """The deleted sessions' own contribution, counts first so the shares check out."""
+    if pruned is None:
+        return None
+    return {
+        "sessions": pruned.sessions,
+        "picks_at_stars": pruned.picks_at_stars,
+        "picks_total": pruned.picks_total,
+        "picks_share": pruned.picks_share,
+        "field_at_stars": pruned.field_at_stars,
+        "field_total": pruned.field_total,
+        "field_share": pruned.field_share,
+        "edge_pp": pruned.edge,
+    }
+
+
+def grid_to_dict(grid: DiscriminationGrid) -> dict:
+    """The machine-readable grid: every cell, both steps, and the deleted sessions."""
+    return {
+        "board_size": grid.board_size,
+        "blind_spot_count": grid.blind_spot_count,
         "cells": [_cell_dict(c) for c in grid.cells],
         "steps": {
-            "retentionFix": step(grid.retention_step),
-            "detectorRestructure": step(grid.restructure_step),
+            "retention_fix": _step_dict(grid.retention_step),
+            "detector_restructure": _step_dict(grid.restructure_step),
         },
+        "deleted_sessions": _pruned_dict(grid.deleted_sessions),
     }
 
 

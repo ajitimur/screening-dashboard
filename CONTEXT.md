@@ -247,9 +247,11 @@ A dimension **under measurement**, not in the rubric: computed on every detectio
 replay, carried beside the star score, reported as a column of the **selection contrast**, and
 weighted by nothing. It is how ADR 0005's admission rule is exercised — a dimension earns a
 rubric slot on a measured non-zero gap with non-zero pooled spread, and until that measurement
-exists it must be unable to move a star, a sort or a board place. So it lives on the field
-member (`replay.field.ScoredDetection.rs_line`), never inside `SevenDimScore`, and nothing in
-`screener` scores it. **Pre-registered as one variant, pass or fail** — trying several and
+exists it must be unable to move a star, a sort or a board place. So it lives on a field member
+of its own (`RS line` on `replay.field.ScoredDetection.rs_line`), never inside `SevenDimScore`,
+and nothing in `screener` scores it. Two are registered — `RS line`, measured and rejected, and
+**Relative move**, whose definition exists but whose contrast (#171) has not been run, so it has
+no field member yet. **Pre-registered as one variant, pass or fail** — trying several and
 keeping the largest gap is magnitude-fitting (#128 Q2). A candidate that fails leaves its
 measurement behind and takes its wiring with it.
 _Avoid_: experimental dimension, provisional dimension (a **graded dimension** is live; this
@@ -268,7 +270,7 @@ was proposed for is still open, and **Relative move** is the second candidate fo
 
 **Relative move**:
 The `6m` return **relative to `MARKET_INDEX`**, compounded — `(1 + stock) / (1 + index) − 1` —
-divided by the name's own `ADR`. Hit when it is above zero: the name outran the index over six
+divided by the name's own `ADR`, taken at the session being scored and never past it. Hit when it is above zero: the name outran the index over six
 months. The second **candidate dimension** (#170), **pre-registered and not yet measured**;
 #171 runs the contrast that can judge it. Both legs read `calendar_return`, so the anchor is
 calendar-dated and resolves to the last bar on or before it, and a missing leg is **absent**,
@@ -277,7 +279,8 @@ scoring `False` and never carried forward. Named apart from `Prior move` on purp
 quantities. The cut sits at zero, which makes the boolean ADR-invariant; the units are there
 for the *value* a row would carry, so a later grading question can be asked without re-scoring
 history.
-_Avoid_: relative strength, RS (that is the rejected **RS line**), outperformance.
+_Avoid_: RS, outperformance. "Relative strength" names the *module* both candidates live
+in (`screener.relative_strength`) and nothing narrower — never the dimension.
 
 **Rubric version**:
 The stamp identifying which weights and mappings produced a star score (`score.RUBRIC_VERSION`,

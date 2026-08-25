@@ -93,9 +93,10 @@ stayed at ×1, `RUBRIC_VERSION` stayed 3, and the slot stayed open.
 
 §3f (#169) measured the quantity `Prior move` gates on, directly, for the first time, and found
 it has real spread once expressed as a degree: `6m` median **+55.8%**, p25 +15.1 to p95 +370.7,
-and **74.2%** of his entries beating `MARKET_INDEX` over six months against **37.8%** of the
-same names on an ordinary day. That is the limb this ADR requires and the binary dimension
-cannot reach — so the slot `RS line` failed to fill has a second candidate.
+and **74.2%** of his entries beating `QQQ` over six months against **37.8%** of the same names
+on an ordinary day — `^IXIC`, which is `MARKET_INDEX` and so the benchmark this dimension would
+actually use, reads **75.1%** on the same column. That is the limb this ADR requires and the
+binary dimension cannot reach — so the slot `RS line` failed to fill has a second candidate.
 
 **The dimension, as registered.** The name's `6m` calendar return **relative to
 `MARKET_INDEX`**, compounded, in **ADR units**:
@@ -120,11 +121,16 @@ hit   = value > 0
   at most one point on a rare edge, where *excluding* the name would let a data gap remove a
   candidate from the list. A name that had not listed six months ago is already absent from the
   `6m` lookback in the rank table, so this is the substrate's convention and not a new one.
-- **`ADR` is the name's own `SMA20(high/low − 1)`**, absent under 20 bars — and absent means
-  `False` by the rule above.
+- **`ADR` is the name's own `SMA20(high/low − 1)`, taken at the session being scored** and
+  never past it, absent under 20 bars — and absent means `False` by the rule above. The
+  denominator is where a lookahead would hide: the replay hands whole bar series in and never
+  slices them to the session, which is safe for `RS line` because it reads two named sessions
+  exactly, and is not safe for a trailing average. `relative_move_adr` does its own slicing.
 - **The benchmark is `MARKET_INDEX`** — `^IXIC` (US), `^JKSE` (IDX) — declined `^GSPC` for the
-  reason in the consequences below. §3f cross-checked `QQQ` against `^IXIC` and every row agreed
-  within two points, so the choice is not load-bearing for the result.
+  reason in the consequences below. §3f's headline columns are `QQQ` and its `^IXIC` check
+  reproduces every row within two points, so the switch of benchmark is not load-bearing for
+  the result — but every figure quoted here is `QQQ`'s unless it says otherwise, and the
+  contrast will be run against `^IXIC`.
 - **It is named `Relative move`, not `Prior move`.** `score.RUBRICS` re-scores a stored
   breakdown by dimension *name*, so reusing the label would make a v4 row mean one quantity and
   a v3 row another under the same key, and the paired A2 re-run (#136) would compare two
@@ -132,12 +138,12 @@ hit   = value > 0
   `screener.relative_strength.relative_move_adr`.
 
 **Why `6m`, fixed before the contrast exists.** Two figures §3f published: the beat-rate against
-the index is *higher* at `6m` (74.2%) than at `12m` (67.5%), and 26.0% of entries underperformed
-the index over the year; and while the entry-vs-ordinary gap in ADR units is larger at `12m`
-(+22.83 against **+12.41**), §3f records that column as the noisier one — an ordinary day's
-`12m` median is +0.4%, so it is set by a handful of ten-baggers, where `6m` sits against an ordinary
-day's −11.2%. One window. Trying three and keeping the widest gap is the magnitude-fitting this
-section exists to prevent.
+the index is *higher* at `6m` (74.2%) than at `12m` (67.5%; both `QQQ`), and 26.0% of entries
+underperformed the index over the year; and while the entry-vs-ordinary gap in ADR units is
+larger at `12m` (+22.83 against **+12.41**), §3f records that column as the noisier one — an
+ordinary day's `12m` median is +0.4%, so it is set by a handful of ten-baggers, where `6m` sits
+against an ordinary day's −11.2%. One window. Trying three and keeping the widest gap is the
+magnitude-fitting this section exists to prevent.
 
 **Why the cut sits at zero, and what the ADR units are for.** ADR is positive, so the
 denominator cannot flip a sign: **the boolean is ADR-invariant**, and "outran the index" is the
@@ -166,9 +172,11 @@ The four criteria, fixed in advance:
    replacing it (see the consequences). A hit rate strictly inside those bounds makes pooled
    spread non-zero by construction, so the original criterion 1's second clause is carried
    rather than dropped.
-2. **Δ positive, but disagreement with `Prior move` under ~15%** — do not ship. `Prior move` is
-   `True` on every detection, so disagreement with it is exactly `1 − hit rate`, and a dimension
-   firing on more than five names in six is the constant in a new costume: the decile gate
+2. **Δ positive, but disagreement with `Prior move` under ~15% on the not-taken group** — do not
+   ship. `Prior move` is `True` on every detection, so disagreement with it is exactly
+   `1 − hit rate`, read on the same group criteria 1 and 3 read. A dimension
+   firing on more than five names in six of the field he passed over is the constant in a new
+   costume: the decile gate
    already guarantees top-decile in one of four lookbacks, and a `6m`-relative grade may have
    little left to say *within* that population even though it has plenty within his trade
    record. §3f cannot see this — it never looks at the field — which is why #171 exists and why

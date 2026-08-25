@@ -238,17 +238,25 @@ def relative_move_adr(
     artefact rather than the name. The RS line's anchors are traded sessions by
     construction, which is why exactness was free there.
 
+    **The ADR leg is sliced to ``as_of`` before it is taken.**
+    :func:`~screener.indicators.adr` averages the last 20 bars of whatever series
+    it is handed, and :mod:`replay.field` hands whole series in and never slices
+    them to the session — a convention that is safe for :func:`rs_line` only
+    because that function reads two named sessions exactly. Without the slice a
+    2019 session would be denominated by 2022's volatility, and the study would
+    never see it: the leak is invisible in any fixture whose range is constant.
+
     ``None`` — **absent, not zero** — when either leg has no bar on or before its
     anchor (the name had not listed, the benchmark's series does not reach back)
-    or the name has fewer than 20 bars for an ADR. Callers score that ``False``
-    via :func:`relative_move_hit`; the value is never carried forward and never
-    excludes the name.
+    or the name has fewer than 20 bars through ``as_of`` for an ADR. Callers score
+    that ``False`` via :func:`relative_move_hit`; the value is never carried
+    forward and never excludes the name.
     """
     name_return = calendar_return(bars, as_of, lookback)
     index_return = calendar_return(index_bars, as_of, lookback)
     if name_return is None or index_return is None or index_return <= -1:
         return None
-    name_adr = adr(bars)
+    name_adr = adr(bars[: bisect_right([b.session for b in bars], as_of)])
     if name_adr is None or name_adr <= 0:
         return None
     return ((1 + name_return) / (1 + index_return) - 1) / name_adr

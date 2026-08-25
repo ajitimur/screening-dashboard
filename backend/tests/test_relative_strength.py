@@ -32,7 +32,7 @@ from screener.relative_strength import (
 CAL = [date(2021, 3, 1) + timedelta(days=i) for i in range(40)]
 # A calendar long enough to reach back a year, for the `Relative move` block
 # below. The RS line is measured over a base and never needs one.
-CAL6 = [date(2021, 1, 1) + timedelta(days=i) for i in range(400)]
+CAL_YEAR = [date(2021, 1, 1) + timedelta(days=i) for i in range(400)]
 
 
 def _bars(sessions, adj_closes):
@@ -255,7 +255,7 @@ def test_base_start_recovers_the_detectors_own_base_from_the_persisted_row():
 # The `6m` calendar return relative to ``MARKET_INDEX``, compounded, in ADR
 # units. Pre-registered in ADR 0005 and measured by #171; nothing scores it.
 
-_AS_OF = CAL6[-1]
+_AS_OF = CAL_YEAR[-1]
 _ANCHOR = anchor_date(_AS_OF, "6m")
 
 
@@ -275,15 +275,15 @@ def _step(sessions, before, after, *, adr_pct=0.05, anchor=None):
 
 
 def test_a_name_that_outran_the_index_over_6m_scores_positive():
-    name = _step(CAL6, 100.0, 200.0)
-    index = _step(CAL6, 100.0, 125.0)
+    name = _step(CAL_YEAR, 100.0, 200.0)
+    index = _step(CAL_YEAR, 100.0, 125.0)
     assert relative_move_adr(name, index, _AS_OF) > 0
     assert relative_move_hit(relative_move_adr(name, index, _AS_OF)) is True
 
 
 def test_a_name_that_lagged_the_index_over_6m_scores_negative():
-    name = _step(CAL6, 100.0, 110.0)
-    index = _step(CAL6, 100.0, 125.0)
+    name = _step(CAL_YEAR, 100.0, 110.0)
+    index = _step(CAL_YEAR, 100.0, 125.0)
     assert relative_move_adr(name, index, _AS_OF) < 0
     assert relative_move_hit(relative_move_adr(name, index, _AS_OF)) is False
 
@@ -295,8 +295,8 @@ def test_the_relative_move_is_compounded_not_subtracted():
     quantities, and only the second means "outran the market" (findings §3f).
     +100% against +25% is +60% relative, not +75pp.
     """
-    name = _step(CAL6, 100.0, 200.0, adr_pct=0.10)
-    index = _step(CAL6, 100.0, 125.0)
+    name = _step(CAL_YEAR, 100.0, 200.0, adr_pct=0.10)
+    index = _step(CAL_YEAR, 100.0, 125.0)
     assert relative_move_adr(name, index, _AS_OF) == pytest.approx(0.6 / 0.10)
 
 
@@ -307,9 +307,9 @@ def test_the_value_is_denominated_in_the_names_own_adr():
     a +60% relative advance means something different on a 5% ADR name than on a
     10% one.
     """
-    index = _step(CAL6, 100.0, 125.0)
-    quiet = _step(CAL6, 100.0, 200.0, adr_pct=0.05)
-    wild = _step(CAL6, 100.0, 200.0, adr_pct=0.10)
+    index = _step(CAL_YEAR, 100.0, 125.0)
+    quiet = _step(CAL_YEAR, 100.0, 200.0, adr_pct=0.05)
+    wild = _step(CAL_YEAR, 100.0, 200.0, adr_pct=0.10)
     assert relative_move_adr(quiet, index, _AS_OF) == pytest.approx(
         2 * relative_move_adr(wild, index, _AS_OF)
     )
@@ -323,13 +323,13 @@ def test_the_boolean_is_adr_invariant__the_cut_sits_at_zero():
     #128 Q2 forbids. The units buy the stored *value*, which is what a later
     grading question (ADR 0004) would be asked of — not the pass/fail.
     """
-    index = _step(CAL6, 100.0, 125.0)
+    index = _step(CAL_YEAR, 100.0, 125.0)
     for adr_pct in (0.01, 0.05, 0.50):
         assert relative_move_hit(
-            relative_move_adr(_step(CAL6, 100.0, 130.0, adr_pct=adr_pct), index, _AS_OF)
+            relative_move_adr(_step(CAL_YEAR, 100.0, 130.0, adr_pct=adr_pct), index, _AS_OF)
         ) is True
         assert relative_move_hit(
-            relative_move_adr(_step(CAL6, 100.0, 120.0, adr_pct=adr_pct), index, _AS_OF)
+            relative_move_adr(_step(CAL_YEAR, 100.0, 120.0, adr_pct=adr_pct), index, _AS_OF)
         ) is False
 
 
@@ -337,7 +337,7 @@ def test_matching_the_index_exactly_misses__the_rule_is_outran_not_kept_up():
     """A tie is measure-zero; the strictness is fixed so the definition has no
     ambiguity, and nothing rests on it. Contrast the RS line, whose ``>=`` was
     load-bearing because *non-decayed* was the whole concept there."""
-    both = _step(CAL6, 100.0, 125.0)
+    both = _step(CAL_YEAR, 100.0, 125.0)
     assert relative_move_adr(both, both, _AS_OF) == 0.0
     assert relative_move_hit(relative_move_adr(both, both, _AS_OF)) is False
 
@@ -350,23 +350,23 @@ def test_a_name_that_had_not_listed_6m_ago_is_absent_not_zero():
     point on an edge, where *excluding* the name would let a data gap remove a
     candidate from the list.
     """
-    young = _step(CAL6[-40:], 100.0, 200.0, anchor=CAL6[-40])
-    index = _step(CAL6, 100.0, 125.0)
+    young = _step(CAL_YEAR[-40:], 100.0, 200.0, anchor=CAL_YEAR[-40])
+    index = _step(CAL_YEAR, 100.0, 125.0)
     assert relative_move_adr(young, index, _AS_OF) is None
     assert relative_move_hit(None) is False
 
 
 def test_a_benchmark_with_no_bar_back_at_the_anchor_scores_absent():
-    name = _step(CAL6, 100.0, 200.0)
-    short_index = _step(CAL6[-40:], 100.0, 125.0, anchor=CAL6[-40])
+    name = _step(CAL_YEAR, 100.0, 200.0)
+    short_index = _step(CAL_YEAR[-40:], 100.0, 125.0, anchor=CAL_YEAR[-40])
     assert relative_move_adr(name, short_index, _AS_OF) is None
 
 
 def test_under_twenty_bars_there_is_no_adr_and_so_no_value():
     """ADR is ``SMA20(high/low − 1)`` and is ``None`` until 20 bars exist, so a
     name with a long enough price history but too few *bars* is absent too."""
-    sparse = [b for i, b in enumerate(_step(CAL6, 100.0, 200.0)) if i % 40 == 0]
-    index = _step(CAL6, 100.0, 125.0)
+    sparse = [b for i, b in enumerate(_step(CAL_YEAR, 100.0, 200.0)) if i % 40 == 0]
+    index = _step(CAL_YEAR, 100.0, 125.0)
     assert len(sparse) < 20
     assert relative_move_adr(sparse, index, _AS_OF) is None
 
@@ -379,7 +379,7 @@ def test_the_anchor_is_calendar_and_resolves_to_the_last_bar_on_or_before_it():
     artefact rather than on the name. The RS line's anchors are traded sessions
     by construction, so exactness was free there and is not here.
     """
-    traded = [s for s in CAL6 if s != _ANCHOR]
+    traded = [s for s in CAL_YEAR if s != _ANCHOR]
     name = _step(traded, 100.0, 200.0)
     index = _step(traded, 100.0, 125.0)
     assert _ANCHOR not in {b.session for b in name}
@@ -391,8 +391,8 @@ def test_the_window_is_a_parameter_so_the_study_can_carry_more_than_one():
     the `6m` one — :data:`RELATIVE_MOVE_LOOKBACK` — and the others are carried as
     lines on the contrast, not as candidate variants to choose between."""
     assert RELATIVE_MOVE_LOOKBACK == "6m"
-    name = _step(CAL6, 100.0, 200.0, anchor=anchor_date(_AS_OF, "12m"))
-    index = _step(CAL6, 100.0, 125.0, anchor=anchor_date(_AS_OF, "12m"))
+    name = _step(CAL_YEAR, 100.0, 200.0, anchor=anchor_date(_AS_OF, "12m"))
+    index = _step(CAL_YEAR, 100.0, 125.0, anchor=anchor_date(_AS_OF, "12m"))
     assert relative_move_adr(name, index, _AS_OF, lookback="12m") == pytest.approx(
         0.6 / 0.05
     )
@@ -403,8 +403,41 @@ def test_a_benchmark_that_lost_everything_is_absent_rather_than_a_divide_by_zero
     """A −100% index makes the compounding denominator zero. It cannot happen on
     real bars, and the guard is here so that if it ever does the dimension goes
     absent like every other missing leg rather than taking the caller down."""
-    name = _step(CAL6, 100.0, 200.0)
+    name = _step(CAL_YEAR, 100.0, 200.0)
     wiped = [Bar(b.session, b.open, b.high, b.low, b.close, 0.0, 1000)
              if b.session > _ANCHOR else b
-             for b in _step(CAL6, 100.0, 100.0)]
+             for b in _step(CAL_YEAR, 100.0, 100.0)]
     assert relative_move_adr(name, wiped, _AS_OF) is None
+
+
+def test_the_adr_leg_is_denominated_at_as_of_and_never_reads_past_it():
+    """The replay hands whole bar series in and never slices them to the session
+    (``replay.field``), which is only safe if the dimension does its own slicing.
+    ``adr`` averages the last 20 bars of whatever it is given, so without this a
+    2019 session would be denominated by 2022's volatility.
+    """
+    index = _step(CAL_YEAR, 100.0, 125.0)
+    quiet = _step(CAL_YEAR, 100.0, 200.0, adr_pct=0.05)
+    # The same name, its range blowing out *after* the session being scored.
+    later = [
+        b if b.session <= _AS_OF else Bar(
+            b.session, b.open, b.low * 2, b.low, b.close, b.adj_close, b.volume
+        )
+        for b in _step(CAL_YEAR + [_AS_OF + timedelta(days=i) for i in range(1, 40)],
+                       100.0, 200.0, adr_pct=0.05)
+    ]
+    assert relative_move_adr(later, index, _AS_OF) == pytest.approx(
+        relative_move_adr(quiet, index, _AS_OF)
+    )
+
+
+def test_a_name_with_no_range_at_all_is_absent_rather_than_a_divide_by_zero():
+    """``ADR`` is zero when every bar prints ``high == low``. Phantom bars are
+    already stripped at ingest, but a halted name that traded at one price is not
+    a phantom, and zero in the denominator would take the caller down."""
+    index = _step(CAL_YEAR, 100.0, 125.0)
+    rangeless = [
+        Bar(b.session, b.low, b.low, b.low, b.low, b.adj_close, 1000)
+        for b in _step(CAL_YEAR, 100.0, 200.0)
+    ]
+    assert relative_move_adr(rangeless, index, _AS_OF) is None

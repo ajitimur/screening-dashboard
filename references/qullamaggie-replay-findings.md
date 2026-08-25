@@ -1044,6 +1044,9 @@ same evaluation session the returns use — §3c's **D1**, sessions from the hig
 | 31–60 | 118 | 20.3% | **−0.28** | [−0.59, +0.88] | 51.7% | −1.27% |
 | >60 | 149 | 25.6% | +1.73 | [+0.87, +2.45] | 36.9% | −0.86% |
 
+The four bands are the ones #172 named before the split was run, and ≤5 is §3c's own reported band,
+so the edges are not a degree of freedom spent on the result. Reading the two middle bands together
+as "6–60" is post-hoc, and is a reading of the four measured bands rather than a fifth measurement.
 CIs are a seeded percentile bootstrap (5000 draws). **The pooled +0.3% is a mixture over bases, not
 over weeks.** In the two bands holding the modal entry — 6–30 and 31–60 sessions, **62.5% of
 entries** — the week is *flatter* than pooled, both CIs straddle zero, and more than half of entries

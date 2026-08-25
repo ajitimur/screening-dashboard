@@ -136,6 +136,13 @@ of the trailing 120**, §3c's D1 transcribed from `measure_base.py`, ties to the
 The definition is pinned by `test_base_age.py` before it goes near the trade record, because two
 independently written paths to one definition is exactly where a transcription slips.
 
+**The four bands are #172's, not chosen after seeing the split.** ≤5 / 6–30 / 31–60 / >60 is the
+cut the issue named, and ≤5 is §3c's own reported band. This is not the pre-registration ADR 0002
+requires — no such document was filed, and nothing here is proposed for the rubric — but it does
+mean the bucket edges are not a degree of freedom that was spent on the result. The *grouping* of
+the two middle bands into a single "6–60" headline is post-hoc, and is a reading of the four
+measured bands rather than a fifth measurement.
+
 ### The machinery cross-check passes
 
 | | n | median | p25 | p75 | ≤5 | 6–30 | 31–60 | >60 | censored |

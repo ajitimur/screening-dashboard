@@ -936,6 +936,123 @@ destroy the record of what was decided and why. `references/replay_study_report.
 
 ---
 
+### 3f. How big the prior move actually is, and how much of it was the tape (prototype, side-car)
+
+**Question.** `Prior move` is the one criterion this study has never been able to measure. Every
+detection clears the decile gate by construction, so the dimension reads 100% in every group the
+study can build, its spread is 0.000, and §5a/§5b can say nothing about it (§9 records this as a
+standing limitation). The only handle found so far was a *proxy* — distance above the SMA50 in ADR
+units, from the entry-to-MA study ([`qullamaggie-entry-ma-distance.md`](qullamaggie-entry-ma-distance.md)
+§5). The quantity the gate is nominally about — the raw `1w/1m/3m/6m/12m` return standing behind
+each entry — had never been taken at all.
+
+**Method.** 582 of 828 logged breakout longs (70.2%) joined to daily bars: `data/screener.duckdb`
+US `adj_close` first, the delisted remainder from the Yahoo cache the entry-to-MA study built.
+Returns use the rank table's own definition — calendar-anchored `adj_close` ratios, `anchor_date`
+transcribed from `screener/indicators.py` — measured **through the session strictly before entry**,
+since at a 09:42 median entry the entry day's return is not on screen at the click. Skips: 153 with
+no bar data, 77 whose logged fill fits no split ratio inside the entry day's range (the
+recycled-symbol guard), 16 under 25 bars of history. Benchmarks are `QQQ` and `^IXIC`
+(`MARKET_INDEX`), read on the name's own prior session; relative return is compounded,
+`(1 + stock) / (1 + index) − 1`, because over these horizons a percentage-point difference and a
+multiple are different quantities and only the second means "outran the market".
+
+Produced by a **throwaway prototype**, not by `replay.study`:
+`.scratch/screening-dashboard/prototypes/prior-move-at-entry/` (see that directory's `FINDINGS.md`).
+**Not** part of the reproducible study in §10 — the figures are checkable by re-running
+`prior_move_at_entry.py`. Preliminary in the sense of §6.
+
+> **Machinery cross-check.** The same-name background is §3d's device, re-implemented here: same
+> tickers, random ordinary days in the same window, one draw per entry, quarantined ±21 bars around
+> his own entries. It is not a control group of rejected setups, so nothing below is a precision
+> figure.
+
+#### The prior move is a 3-to-12-month object, and the last week is not part of it
+
+| Lookback | n | median % | mean % | p25 | p75 | p95 | negative | median ×ADR | ordinary day, median % |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `1w` | 582 | **0.3** | 1.2 | −2.6 | 4.0 | 13.9 | 46.4% | 0.06 | 0.1 |
+| `1m` | 582 | **7.0** | 17.1 | −1.7 | 20.2 | 84.5 | 28.2% | 1.32 | −0.1 |
+| `3m` | 576 | **23.8** | 51.3 | 3.6 | 63.8 | 227.9 | 21.2% | 4.14 | −5.1 |
+| `6m` | 567 | **55.8** | 105.4 | 15.1 | 124.0 | 370.7 | 16.8% | 10.60 | −11.2 |
+| `12m` | 531 | **119.3** | 233.1 | 29.1 | 254.7 | 904.1 | 16.0% | 22.91 | 0.4 |
+
+The median entry sits on a +56% six-month and +119% twelve-month advance, with means at roughly
+twice the medians — the right tail carries it, which is the shape the method predicts and the reason
+`ranks.py` ranks on pure return rather than a risk-adjusted one.
+
+Against the same-name background the entry-vs-ordinary gap in ADR units runs +0.02 (`1w`),
++1.34 (`1m`), +5.25 (`3m`), **+12.41 (`6m`)**, +22.83 (`12m`). The `12m` gap is larger but noisier:
+an ordinary day's `12m` median is +0.4%, so that column is set by a handful of ten-baggers.
+
+The move is also not a uniform requirement. 26.8% of entries are positive on all five lookbacks,
+35.1% on four, 9.1% on two or fewer, and **16.0% carry a negative twelve-month return** — which is
+what a percentile gate permits and an absolute one would not.
+
+#### QQQ takes about a third of it, and the selection survives
+
+| Lookback | stock median | `QQQ` median | relative median | beats `QQQ` | ordinary day beats `QQQ` | `^IXIC` check |
+| --- | --- | --- | --- | --- | --- | --- |
+| `1w` | +0.3% | +0.9% | **−0.3%** | 48.1% | 49.1% | 47.9% |
+| `1m` | +7.0% | +4.4% | **+4.3%** | 63.4% | 46.5% | 63.7% |
+| `3m` | +23.8% | +7.8% | **+15.6%** | 73.2% | 38.0% | 73.4% |
+| `6m` | +55.8% | +16.9% | **+35.0%** | **74.2%** | 37.8% | 75.1% |
+| `12m` | +119.3% | +39.7% | **+59.9%** | 67.5% | 40.2% | 69.4% |
+
+`QQQ` itself was up 39.7% median over the twelve months before his entries. Netting it out still
+leaves +59.9% median relative on `12m` and +35.0% on `6m`, and 74.2% of entries beating the index
+over six months against **37.8%** of the same names on an ordinary day. `^IXIC` reproduces every row
+within two points, so none of this is a benchmark artefact.
+
+**`6m` is the sharpest window against the index, not `12m`.** The raw `12m` number is larger but its
+beat-rate is *lower* (67.5% against 74.2%), and 26.0% of entries underperformed the index over the
+year. Read with the ADR-unit gaps above, `3m`–`6m` is where index-relative strength and his own
+selection agree most closely.
+
+#### The `1w` exclusion now has a third, independent line of evidence
+
+ADR 0003 excludes `1w` from `detection_gate` on the reasoning that a name top-decile in the last week
+alone is a momentum burst; #149 priced the exclusion on the gate sweep. His own trades say the same
+thing twice more, from outside that argument entirely: the `1w` return at his entries is +0.3% median
+with 46.4% of entries *down* on the week, and the `1w` beat-rate against `QQQ` is **48.1%** against an
+ordinary day's 49.1% — a coin flip on both panels. Nothing about the week before an entry
+distinguishes it from any other week. This is the confirmation a future proposal to re-admit `1w`
+has to answer, and it is recorded here so the proposal starts from it.
+
+#### Outcome, and what it does and does not license
+
+Quartiled within each lookback, scored on the logged 10sma exit. Spearman is Pearson on the ranks —
+scipy is not in the venv and a prototype is not a reason to add one.
+
+| Lookback | ρ(move, R) | Q1 mean R | Q2 | Q3 | Q4 |
+| --- | --- | --- | --- | --- | --- |
+| `1m` | **−0.073** | 1.98 | 0.84 | 0.44 | 0.97 |
+| `3m` | +0.059 | 0.60 | 1.07 | 0.24 | 2.38 |
+| `6m` | +0.037 | 0.43 | 1.11 | 0.68 | 2.16 |
+| `12m` | +0.016 | 0.67 | 0.87 | 1.08 | **1.97** |
+| relative `6m` | +0.042 | 0.54 | 1.11 | 0.57 | 2.16 |
+| relative `12m` | +0.019 | 0.61 | 0.71 | 1.33 | 1.95 |
+
+The signs split exactly as the entry-to-MA study's did, and by the same mechanism: a large *recent*
+move means an extended entry and a wide stop (§7 kills the trade), while a large *long-horizon* move
+is the advance being digested. Netting out the index changes almost nothing, so the tape neither
+produced these signs nor hid them.
+
+**No constant is touched, and none is licensed.** All six correlations are weak (|ρ| ≤ 0.073) and the
+quartile means are carried by a few large winners. These are cuts on executed trades only, with no
+control group, so §7/§9 stand unchanged. What the section establishes is narrower and is the point:
+**the quantity `Prior move` gates on has real, measurable spread once expressed continuously**, and
+the favourable direction is the long lookbacks. That is the limb ADR 0005 requires and the binary
+dimension cannot reach.
+
+**The regime bound, stated once so later work can cite it.** `QQQ` was negative over the trailing
+twelve months on **1.7%** of his entry dates. This record holds essentially no bear-market `12m`
+observations, so any index-relative dimension fitted on it is fitted to one regime. §8's caveat
+applies with full force, and #141/#149's pricing discipline applies to any dimension proposed from
+here.
+
+---
+
 ## 4. A2 — the full replay: field placement
 
 **Question.** Would the trade have appeared on the part of the star-ranked list the trader
@@ -1834,6 +1951,15 @@ own risk rather than assumed, that a dimension's null must be read against its s
 carry none of the figures. No number from this study is to be presented as an IDX
 expectation; the reference set contains no IDX trade.
 
+**The regime is now measured, not asserted.** §3f took the benchmark's own return over the same
+windows on the same entry dates: `QQQ` was up **39.7%** median over the trailing twelve months
+before his entries, and **negative on 1.7% of them**. Roughly ten observations of a falling
+year, out of 582. That is what "once-in-a-decade momentum regime" amounts to in this reference
+set, and it bounds every magnitude in this document — including the index-relative ones, which
+survive the subtraction but were never tested against a tape that fell. ADR 0005 carries the
+same bound for dimension proposals; `docs/out-of-sample-backtest-plan.md` is the only planned
+measurement outside this window.
+
 ## 9. What the study cannot say
 
 - It cannot claim the **ranking** is validated. A2 measured a flat null under the **v1**
@@ -1863,6 +1989,14 @@ expectation; the reference set contains no IDX trade.
   still unmeasurable here; it establishes that the underlying quantity is measurable once
   expressed continuously, and that its sign is favourable. The caveat attached there —
   a 2020–21 tape rewarded distance-from-50 nearly everywhere — applies with full force.
+  **The proxy is no longer the only route: §3f takes the quantity directly**, as the raw
+  `1w/1m/3m/6m/12m` return behind each entry and as a return relative to `QQQ`/`^IXIC`, and
+  finds real spread (`6m` median +55.8%, p25 +15.1 to p95 +370.7) with the same split of signs
+  — long lookbacks favourable, `1m` adverse. What stays unmeasurable is the **gate**: §3f is
+  still executed trades only, with a same-name background rather than a control group of
+  rejected setups, so it cannot price the decile cut itself. The 2020–21 caveat is now
+  bounded rather than removed — `QQQ` was negative over the trailing year on 1.7% of his entry
+  dates, so the record holds almost no bear-market `12m` observations.
 - It cannot speak to **Episodic Pivot** or **Parabolic Short** setups, to **intraday**
   entries, or to any name in the **blind-spot** list. The reference set is entirely US
   end-of-day breakouts, and the blind-spot hole is measured and documented, not filled.

@@ -78,6 +78,29 @@ Criterion 2's ~15% is a judgement, not a measurement, and is the one magnitude i
 without evidence behind it. It is stated here so that a later argument about it is an argument
 about a number on the record rather than a number nobody wrote down.
 
+## The regime bound every candidate carries (#169)
+
+Every contrast this ADR governs is measured on the same reference set: US breakout longs,
+2019-10 to 2022-11. §3f of the replay findings put a number on what that costs. Over the twelve
+months before his entries, **`QQQ` was negative on 1.7% of them** — roughly ten of 582 — and its
+own median trailing-year return on those dates was **+39.7%**.
+
+So the record holds almost no bear-market long-horizon observations. Two things follow, and a
+pre-registration is expected to state both rather than rediscover them:
+
+- **An index-relative dimension cannot be validated for a falling tape here.** It can be shown
+  to select his entries against a rising one. That is a weaker claim, and the weight assigned
+  from it inherits the weakness.
+- **Netting out the index bounds the caveat; it does not remove it.** §3f's relative figures
+  survive the subtraction — 74.2% of entries beating the index over `6m` against 37.8% of the
+  same names on ordinary days — which is evidence of selection rather than of tape. It is not
+  evidence that the selection works when the tape reverses, and a subtraction reads more
+  reassuring than it is.
+
+This bound sits alongside, and does not replace, the two the study already carries: §2's
+coverage hole and §9's absence of a control group. `docs/out-of-sample-backtest-plan.md` is the
+instrument that could retire it, since it is the only planned measurement outside this window.
+
 ## Considered options
 
 - **Admit dimensions on judgement, as before.** Rejected: that is the process that produced a

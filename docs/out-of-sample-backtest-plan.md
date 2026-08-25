@@ -228,6 +228,8 @@ detects must land *before* the denominator is built, or the run is stale on arri
 | **#149** — `DETECTION_LOOKBACKS` 3 → 5 | **Settled and landed.** 3→5 rejected; `12m` adopted alone, `1w` refused on evidence. The gate is now `("1m", "3m", "6m", "12m")` — **21.9%** of the universe, decile recall **68.3%**, detector v3. Build the denominator against **that** width (ADR 0003 amendment, findings §3e). | Phase 3 |
 | **#146**, **#147** — naming and the domain model | The run persists full `Detection` records and the write-up uses this vocabulary. Cheap now, a dead language later. | Phase 3 |
 | **#141** — price the marginal cluster widen | **Downstream, not blocking.** It falls back to field inflation because no false-positive rate exists; this backtest is what supplies one. | After |
+| **#162** — the replay ranked the benchmark as a candidate | **Landed as #180, and it binds this run.** `synthesize_instruments` tagged every symbol with bars as a candidate, so five references — `^IXIC`, `SPY`, `QQQ`, `IWM`, `DIA` — competed for rank, inflating the ranked population by five names in ~1,000. The fix binds **fresh builds only**: `replay.duckdb` was deliberately not rebuilt, so the shipped store still reproduces the contaminated field by design. This backtest *is* a fresh build, so its field is the corrected one and its percentile denominators sit ~0.5% off every published replay figure ([Phase 6](#phase-6--anchor-before-believing) carries the consequence) | Phase 3 |
+| **#170**, **#171** — the registered candidate dimensions | **Downstream, and this run is what they are waiting on.** `Relative move` was measured and left undecided: criteria 1 and 2 are the same number read from two sides, and it landed **0.06pp inside** a threshold ADR 0005 itself calls a judgement rather than a measurement. Nothing ships and no third candidate registers until that threshold is settled, which needs outcomes | After |
 
 **On the circularity.** #141 and #149 both reach for field-volume proxies precisely because
 precision is unmeasurable (findings §7, §9) — the gap this run closes. Running the backtest
@@ -239,6 +241,12 @@ rather than one it was waiting on. **#149 is settled too**, and the 27,323 detec
 its adopted width adds are exactly the population this run is meant to price: #149 could only
 record them as **volume carrying no verdict**, which is the honest limit of a study without a
 control group, and left the verdict to this one.
+
+**The freeze is reached.** Every ticket in the table above has landed and the tracker holds no
+open issue. The detector is at v3, the rubric at v3, and the anchors in
+[Phase 6](#phase-6--anchor-before-believing) are pinned against both. Phase 1 is unblocked, and
+the next change to `detection.py`, `ranks.py` or `score.py` restarts this paragraph — a
+dependency list is only closed until someone opens it.
 
 ---
 
@@ -301,6 +309,21 @@ follow-through companions, the rank table, and every detection with its full `De
 record and `star_score` breakdown. **These rows are the denominator** — the object this whole
 exercise exists to produce, and the input to every metric in Phase 5.
 
+**Persist the registered candidate dimensions beside the shipped ones.** ADR 0005 holds
+`Relative move`'s executable definition in `screener.relative_strength`, and its admission rule
+requires the contrast be measured under the detector the dimension would ship against — which is
+the detector this run replays. Storing the value per detection costs one column and makes the
+candidate priceable against outcomes without a second fourteen-year build; omitting it means
+re-running the chain to ask a question the chain was already in a position to answer.
+
+**A fresh build is not the shipped store's field.** #162 stopped `synthesize_instruments` from
+ranking the five references it had been treating as candidates, and that fix binds new builds
+only — `replay.duckdb` was left contaminated on purpose so published figures still read off the
+field they were measured on. This run inherits the corrected behaviour through
+`is_common_stock` and `REPLAY_REFERENCES`. Pin the exclusion against the enumeration the same
+way the seam test does, because an ETF ticker carries no mark that separates it from common
+stock and a blocklist rots in silence.
+
 The contract's universe is stateless and the app's regime reads only the index, so sessions
 no longer depend on each other. Run them forward in an unbroken sequence anyway, and let a
 gap fail loudly: a missing session is a data hole, and a backtest that quietly skips it
@@ -350,6 +373,13 @@ crash and a mania; a pooled fourteen-year number describes neither.
 - **Does the rubric rank?** Bucket outcomes by `star_score` decile. §4a found a gap that was
   in-sample by construction (the v2 weights were fitted to that separation) and marginal at
   p = 0.055. This is the out-of-sample test that claim has never had.
+- **Do the registered candidate dimensions predict, or only select?** ADR 0005 admits a
+  dimension on a selection contrast, because outcomes were unavailable. `RS line` was refused on
+  criterion 4; `Relative move` measured positive on both fields and then stalled 0.06pp inside a
+  threshold the ADR describes as the one magnitude in the design with nothing behind it. That
+  threshold cannot be settled by the contrast that keeps colliding with it — this run gives the
+  same dimensions an outcome variable, and a candidate that ranks outcomes is a different and
+  stronger claim than one that matches his selection.
 - **Does the app's regime condition the edge?** Expectancy per state, per market, with n
   shown — and the counterfactual the product actually needs: what sitting out `HOSTILE` would
   have cost or saved, and whether `CHOPPY` earns its "reduced". This is the payoff of treating
@@ -372,11 +402,11 @@ before reading any new figure:
 | Median 20-day ADR at entry eve | **6.08%** | Findings §3c |
 | Blind-spot tickers / trades, 2019–2022 | **92 / 172** (of 312 / 828) | Findings §2 |
 | Trades detected by the funnel (A1 detection recall) | **549 of 656 replayable** (83.7%; gate-invariant — the funnel evaluates every stage unconditionally, so #149's width does not move it. Detector v2/v3 geometry; the superseded pin under v1's hard cluster cut was 380 of 658) | Findings §3, §3b |
-| Trades that appeared in the replayed field (A2 `in_field`) | **349 of 656** at detector v2, and **397 of 656** at detector v3 (the live gate) — **anchor against the version the run is built at**. Both measured 2026-08-25 by `replay.discrimination_grid`; the v2 figure independently reproduces #164's committed run, the v3 figure is a **first measurement** and has no second one to agree with. Superseded pins, each measured on a narrower population: 159 and then 104 of 656 on the field the rank retention had truncated, and 104 of 658 before #139 | Findings §4b |
+| Trades that appeared in the replayed field (A2 `in_field`) | **349 of 656** at detector v2, and **397 of 656** at detector v3 (the live gate) — **anchor against the version the run is built at**. Both measured 2026-08-25 by `replay.discrimination_grid`; the v2 figure independently reproduces #164's committed run, the v3 figure is a **first measurement** and has no second one to agree with. Superseded pins, each measured on a narrower population: 159 and then 104 of 656 on the field the rank retention had truncated, and 104 of 658 before #139. **Both values were measured on the contaminated field** — see the tolerance below | Findings §4b |
 
 These are the same reference set through a differently-built pipeline. Matching them says the
 new pipeline computes what the old one computed; a mismatch is a bug in the new store or the
-new chain, and every downstream number inherits it.
+new chain, and every downstream number inherits it — with one measured exception, below.
 
 **Two kinds of anchor, and only one of them is stable.** The first three are geometry measured
 from his bars: they hold whatever the detector does, so they anchor the *store and the
@@ -394,6 +424,18 @@ the field without any of them changing. Quoting one against a run built at the o
 same error the row itself used to make. The v3 value is the one a run built today anchors on,
 and it is flagged as a first measurement so a mismatch is investigated in both directions
 rather than charged straight to the new pipeline.
+
+**The `in_field` rows carry a known tolerance, and it is not a bug.** Both were measured on
+`replay.duckdb`, whose `universe` and `ranks` rank five references — `^IXIC`, `SPY`, `QQQ`,
+`IWM`, `DIA` — as though they were candidates (#162). The store was deliberately left that way
+so published figures keep reading off the field that produced them, and the code fix binds fresh
+builds only. **This run is a fresh build, so it will not reproduce those two values exactly, and
+should not.** The direction is known and the size is bounded: percentile denominators shift by
+~0.5%, which moves decile membership at the margin and nothing else — no reference holds a
+single detection row, so the detected population itself is untouched. Treat a difference of a
+few trades on these two rows as the fix landing, and a difference large enough to change the
+sign of §4b's gap as the bug this table is looking for. Every other anchor here reproduces
+exactly or is a finding.
 
 **The two field rows are different anchors and were once conflated.** Until #165 this table
 carried one row labelled "trades detected by the funnel" whose *value* was A2's `in_field`. They

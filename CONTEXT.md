@@ -264,7 +264,20 @@ could only ever be computed in a caller (`screener.relative_strength`), never in
 The first **candidate dimension**, and **rejected** (findings §5d, #160): Δ −2.1pp, a wrong-way
 gap, on 11.2% disagreement with the break test it nearly restates. The live app does not
 compute it — only the replay and the study script do, so §5d stays reproducible. The slot it
-was proposed for is still open.
+was proposed for is still open, and **Relative move** is the second candidate for it.
+
+**Relative move**:
+The `6m` return **relative to `MARKET_INDEX`**, compounded — `(1 + stock) / (1 + index) − 1` —
+divided by the name's own `ADR`. Hit when it is above zero: the name outran the index over six
+months. The second **candidate dimension** (#170), **pre-registered and not yet measured**;
+#171 runs the contrast that can judge it. Both legs read `calendar_return`, so the anchor is
+calendar-dated and resolves to the last bar on or before it, and a missing leg is **absent**,
+scoring `False` and never carried forward. Named apart from `Prior move` on purpose — a
+**rubric version** re-scores a stored row by dimension name, so one label cannot mean two
+quantities. The cut sits at zero, which makes the boolean ADR-invariant; the units are there
+for the *value* a row would carry, so a later grading question can be asked without re-scoring
+history.
+_Avoid_: relative strength, RS (that is the rejected **RS line**), outperformance.
 
 **Rubric version**:
 The stamp identifying which weights and mappings produced a star score (`score.RUBRIC_VERSION`,

@@ -1,5 +1,33 @@
-"""The RS line: an index-relative **candidate dimension**, measured and **not
-admitted** (issue #160, findings §5d).
+"""Index-relative **candidate dimensions** — quantities under measurement for the
+rubric slot ``Prior move`` cannot earn, and scored by nothing here.
+
+Two live in this module, in the order they were registered under
+``docs/adr/0005-what-admits-a-dimension-to-the-rubric.md``:
+
+- **RS line** (#160) — the ratio to the index across the detection's own base.
+  Measured and **rejected** (findings §5d).
+- **Relative move** (#170) — the `6m` return relative to the index, compounded,
+  in ADR units. **Pre-registered, not yet measured**; #171 runs the contrast.
+
+They share a benchmark and a never-carried-forward rule and differ in the one
+thing §5d's post-mortem named as the mechanism behind its null: the **anchor**.
+The RS line measures from ``base_start``, a local high, over a median 12-session
+window; the relative move measures from a fixed calendar date that on the modal
+detection sits about five months before the base begins. That is what makes the
+second a different statistic rather than the first re-registered, and ADR 0005
+records what result would say the distinction did not matter.
+
+**Computed in a caller, never in :mod:`screener.score`.** The score module is
+pure and does no I/O, and that guarantee is worth keeping; both dimensions need a
+*second symbol's* bars, so either could only ever be a caller-supplied
+cross-sectional input like ``prior_move`` and ``sector_share``. The benchmark is
+:data:`~screener.source.MARKET_INDEX` as it stands — ``^IXIC`` (US), ``^JKSE``
+(IDX).
+
+Pure over clean, oldest-first ``list[Bar]`` series, so both are unit-tested
+without the network.
+
+## The RS line, and why it was refused
 
 ``RS = adj_close(name) / adj_close(index)``, hit when ``RS_today >=
 RS_at_base_start``. It was proposed for the rubric slot ``Prior move`` cannot
@@ -50,20 +78,30 @@ equivalent:
   the module deliberately departs from :func:`screener.indicators.calendar_return`,
   which reads the last bar on or before its anchor.
 
-**Computed in the caller, never in :mod:`screener.score`.** The score module is
-pure and does no I/O, and that guarantee is worth keeping; the RS line needs a
-*second symbol's* bars, which is why it could only ever have been a
-caller-supplied cross-sectional input like ``prior_move`` and ``sector_share``.
-The benchmark is :data:`~screener.source.MARKET_INDEX` as it stands — ``^IXIC``
-(US), ``^JKSE`` (IDX).
-
 **No schema change.** :class:`~screener.detection.Detection` persists ``base_len``
 and ``session``, and the bars table has no retention cap, so ``base_start`` — and
 with it the whole dimension — is recomputable from stored bars for any past
 session. The replay property in spec §7.5 survives intact.
 
-Pure over two clean, oldest-first ``list[Bar]`` series, so it is unit-tested
-without the network.
+## The relative move, and what is fixed about it in advance
+
+The registration is ADR 0005's; what lives here is the executable half of it, so
+that "the exact definition" is a thing #171 imports rather than a paragraph it
+re-reads. Three choices are load-bearing and each rules out a variant that looks
+equivalent:
+
+- **`6m`, chosen before the contrast exists** (:data:`RELATIVE_MOVE_LOOKBACK`).
+- **Compounded, not subtracted** — see :func:`relative_move_adr`.
+- **The cut sits at zero** (:data:`RELATIVE_MOVE_CUT`), which is also why the
+  boolean is ADR-invariant: the units buy the stored *value*, not the pass/fail.
+
+What the units are for is the part worth reading twice. ADR 0005 admits a
+dimension as a **boolean** — grading needs demonstrated signal, and a candidate
+has none by definition — so nothing here grades anything. But a breakdown row
+carries the *value* and the rubric owns the mapping (#154), and a row cannot be
+re-denominated retroactively. Persisting the relative move in ADR units now is
+what would let ADR 0004's grading question be asked later, on measured evidence,
+without re-scoring history.
 """
 
 from __future__ import annotations
@@ -73,6 +111,7 @@ from datetime import date
 
 from .bars import Bar
 from .detection import Detection
+from .indicators import adr, calendar_return
 
 
 def _adj_close_on(bars: list[Bar], when: date) -> float | None:
@@ -155,3 +194,75 @@ def rs_line_for(det: Detection, bars: list[Bar], index_bars: list[Bar]) -> bool:
     if base_start is None:
         return False
     return rs_line(bars, index_bars, base_start=base_start, as_of=det.session)
+
+
+# The window the `Relative move` candidate is registered over (#170). Six months,
+# fixed in advance on two figures §3f published before the registration: the
+# beat-rate against the index is *higher* at `6m` (74.2%) than at `12m` (67.5%),
+# and the `12m` ADR-unit gap, though larger, is the noisier column — §3f records
+# it as set by a handful of ten-baggers against an ordinary day's +0.4% median.
+# One window, no sweep: trying `3m`/`6m`/`12m` and keeping the widest gap is the
+# magnitude-fitting ADR 0005's pre-registration clause exists to prevent.
+RELATIVE_MOVE_LOOKBACK = "6m"
+
+# The pre-registered cut-point, in ADR units. **Zero, and it has to be.** ADR is
+# positive, so the denominator cannot flip a sign — the boolean is ADR-invariant
+# and "outran the index" is the whole rule, with no free parameter. Any non-zero
+# cut would be a magnitude read off the replay, which #128 Q2 forbids, and no
+# published bucket boundary supports one here: §3f denominates the *raw* returns
+# in ADR, not the relative ones, so even ADR 0004's "use the study's own bucket
+# edges" route is unavailable.
+RELATIVE_MOVE_CUT = 0.0
+
+
+def relative_move_adr(
+    bars: list[Bar],
+    index_bars: list[Bar],
+    as_of: date,
+    *,
+    lookback: str = RELATIVE_MOVE_LOOKBACK,
+) -> float | None:
+    """The name's ``lookback`` return relative to the benchmark, in ADR units.
+
+    ``(1 + r(name)) / (1 + r(index)) − 1``, divided by the name's own
+    :func:`~screener.indicators.adr`. Compounded rather than subtracted because
+    over these horizons a percentage-point difference and a multiple are
+    different quantities, and only the second means "outran the market"
+    (findings §3f).
+
+    Both legs are :func:`~screener.indicators.calendar_return` — the rank table's
+    own definition, calendar-anchored, resolving to the last bar **on or before**
+    the anchor. That is the one place this departs from :func:`rs_line`, and
+    deliberately: an anchor six calendar months back lands on a weekend or a
+    holiday about three days in ten, so an exact-bar rule would score a calendar
+    artefact rather than the name. The RS line's anchors are traded sessions by
+    construction, which is why exactness was free there.
+
+    ``None`` — **absent, not zero** — when either leg has no bar on or before its
+    anchor (the name had not listed, the benchmark's series does not reach back)
+    or the name has fewer than 20 bars for an ADR. Callers score that ``False``
+    via :func:`relative_move_hit`; the value is never carried forward and never
+    excludes the name.
+    """
+    name_return = calendar_return(bars, as_of, lookback)
+    index_return = calendar_return(index_bars, as_of, lookback)
+    if name_return is None or index_return is None or index_return <= -1:
+        return None
+    name_adr = adr(bars)
+    if name_adr is None or name_adr <= 0:
+        return None
+    return ((1 + name_return) / (1 + index_return) - 1) / name_adr
+
+
+def relative_move_hit(value: float | None) -> bool:
+    """The pre-registered boolean over :func:`relative_move_adr`'s value.
+
+    Strictly above :data:`RELATIVE_MOVE_CUT`. A tie is measure-zero and the
+    strictness is fixed only so the definition has no ambiguity — unlike
+    :func:`rs_line`, where ``>=`` is load-bearing because *non-decayed* is the
+    concept there. An absent value scores ``False``.
+
+    One site owns the cut, so the boolean the contrast reads and the value the
+    breakdown row would carry can never disagree about where the line is.
+    """
+    return value is not None and value > RELATIVE_MOVE_CUT

@@ -3373,7 +3373,12 @@ def _uni_bars(sessions, *, adj, close=None, hl=0.04, volume=100_000_000):
     out = []
     for i, s in enumerate(sessions):
         a = adj(i) if callable(adj) else adj
-        c = close(i) if callable(close) else (adj(i) if (close is None and callable(adj)) else (close if close is not None else a))
+        if close is None:
+            c = a  # no split: raw close tracks the adjusted close
+        elif callable(close):
+            c = close(i)
+        else:
+            c = close
         out.append(Bar(s, c, c * (1 + hl / 2), c * (1 - hl / 2), c, a, volume))
     return out
 

@@ -258,6 +258,16 @@ choice is not small: admission retires `Prior move`, forces `RUBRIC_VERSION = 4`
 composition of every star ceiling frozen afterwards, which the consequences below call hard to
 reverse in the direction that matters.
 
+**A third outcome, added after the fact and labelled as such.** This ADR promised pass or fail on
+one variant, and the study returned exactly that until the deciding number landed on the bound.
+`scripts/relative_move_contrast.py` now returns `on_the_bound` when the not-taken hit rate sits
+within **one standard error** of the ceiling or the floor. It was written after the measurement
+and that is recorded here rather than smoothed over — but it moves no threshold, the four
+criteria fire exactly where they are written above, it refuses a pass and a fail alike, and its
+width is the measured number's own sampling error rather than a figure chosen for the occasion.
+A rule that only ever *declines* to resolve cannot be the mechanism by which a preferred answer
+arrives.
+
 **Nothing shipped.** `RUBRIC_VERSION` stays 3, `DIMENSIONS` is untouched, `Prior move` keeps its
 ×1 and the decile gate keeps its record in the score. Had the dimension been admitted its weight
 would have been **×1**: Δ +3.6 ranks below `Tightness` (+13.5) and below `MA support` (+6.3), so

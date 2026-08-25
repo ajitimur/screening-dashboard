@@ -1953,9 +1953,12 @@ it.
 #### The harness reproduces §5b and §5d before it is trusted
 
 Over the store's **persisted** detections, all `detector_version = 1`, it returns **69 taken /
-14,354 not-taken** and reproduces every one of §5b's seven gaps and §5d's `RS line` figure, on
-both fields, to the tenth of a point. That is two independent harnesses now landing on the same
-table, and it is the reason anything below is worth reading.
+14,354 not-taken** and reproduces §5d's table exactly — every one of the seven rubric gaps on
+both fields, and `RS line`'s −5.8 / −2.1. That is two independent harnesses landing on the same
+numbers, and it is the reason anything below is worth reading.
+
+One digit differs from **§5b's** published table and it is §5b's own rounding: `ADR` is +29.31,
+which §5b printed as +29.4 and §5d as +29.3. Nothing else in either table moves.
 
 #### The two fields, and the seven rubric dimensions on each
 
@@ -2003,6 +2006,13 @@ number sitting on its own bound:
 4. **Δ negative → do not ship.** Does not fire on either field.
 
 **So the letter says ship and the tilde says do not, and this study is not entitled to choose.**
+The harness returns a third outcome, `on_the_bound`, and the machine-readable result records it
+rather than a pass or a fail. That rule was written **after** the measurement landed — it has to
+be said, because a rule written after the numbers is evidence about the threshold and not about
+the dimension. Three things keep it honest: it moves no threshold, the four criteria still fire
+exactly where ADR 0005 put them; it is symmetric, refusing a pass and a fail alike, so it cannot
+be the route by which a preferred answer arrives; and its width is the deciding number's own
+sampling error rather than a figure anybody picked.
 The margin is **0.29 standard errors** on the not-taken proportion (s.e. 0.19pp at n=34,543): the
 measured hit rate and the pre-registered ceiling are statistically the same number. ADR 0005
 recorded that threshold as "a judgement, not a measurement… the one magnitude in this design

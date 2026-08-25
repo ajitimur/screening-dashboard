@@ -348,7 +348,10 @@
     "verdict": {
       "dimension": "Relative move",
       "delta_pp": 3.9628402323848455,
+      "delta_standard_error_pp": 3.4034627537967883,
       "margin_to_ceiling_pp": -2.341507593702108,
+      "margin_to_ceiling_se": -8.436857363482279,
+      "not_taken_hit_rate_standard_error_pp": 0.2775331492312512,
       "taken_hit_rate": 0.9130434782608695,
       "not_taken_hit_rate": 0.8734150759370211,
       "disagreement_with_prior_move": 0.12658492406297894,
@@ -359,7 +362,7 @@
           "reason": "not-taken hit rate above the ceiling \u2014 the constant in a new costume; disagreement with `Prior move` is under the floor"
         }
       ],
-      "ships": false
+      "outcome": "do_not_ship"
     }
   },
   "v3": {
@@ -711,13 +714,21 @@
     "verdict": {
       "dimension": "Relative move",
       "delta_pp": 3.628024697995458,
+      "delta_standard_error_pp": 2.6958015160764446,
       "margin_to_ceiling_pp": 0.05659612656688795,
+      "margin_to_ceiling_se": 0.2941294458811531,
+      "not_taken_hit_rate_standard_error_pp": 0.19241911124313738,
       "taken_hit_rate": 0.8857142857142857,
       "not_taken_hit_rate": 0.8494340387343311,
       "disagreement_with_prior_move": 0.1505659612656689,
       "pooled_spread": 0.35748214462560157,
-      "criteria_fired": [],
-      "ships": true
+      "criteria_fired": [
+        {
+          "criterion": 1,
+          "reason": "delta positive and the not-taken hit rate inside both bounds \u2014 ship, at the weight its ordinal position implies"
+        }
+      ],
+      "outcome": "on_the_bound"
     }
   }
 }

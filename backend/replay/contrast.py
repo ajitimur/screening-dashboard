@@ -240,12 +240,22 @@ def contrast_dimensions(
     is **not** a registered candidate — #171's raw and other-window moves, which
     ADR 0005's one-variant clause puts permanently out of reach of the rubric.
     They are a caller's argument rather than a module-level tuple precisely so
-    that nothing can quietly promote one; a name given here shadows a rubric
-    dimension of the same name, which is why the study prefixes its columns.
+    that nothing can quietly promote one, and a name colliding with a registered
+    candidate raises rather than replacing it: a study that could redefine
+    ``Relative move`` under its own name is a study that could report a candidate
+    it had quietly respecified. A name shadowing a *rubric* dimension is left to
+    the caller, which is why the study prefixes its columns.
     """
     taken = list(taken)
     not_taken = list(not_taken)
-    all_readers = {**_CANDIDATE_READERS, **(readers or {})}
+    readers = readers or {}
+    clash = sorted(set(readers) & set(_CANDIDATE_READERS))
+    if clash:
+        raise ValueError(
+            f"reader(s) {clash} would redefine a registered candidate dimension; "
+            f"rename the study column"
+        )
+    all_readers = {**_CANDIDATE_READERS, **readers}
     contrasts: list[DimensionContrast] = []
     for name, weight in dimensions:
         taken_xs = _booleans(taken, name, all_readers)

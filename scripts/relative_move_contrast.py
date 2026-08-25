@@ -71,17 +71,17 @@ destroy the v1 check on the next run. :class:`~screener.store.Store` migrates on
 open and so cannot be handed a read-only connection; run this against a **working
 copy** of the store, which is belt and braces on the same guarantee.
 
-**The ranks are the chain's, not the store's** (#141/#164).
-``Store.append_ranks`` prunes outside its retention window as the chain advances,
-so the persisted table cannot serve the early sessions and a gate read off it
-would silently empty the field. They are recomputed in memory with
-:func:`screener.ranks.rank_table`, which is what the app's own field replay does.
+**The ranks are the chain's, not the store's** (#141/#164), and the three
+read-only stages that make that true are :mod:`replay.candidate_field`, shared
+with the `RS line` study — see that module for why they are not repeated here.
 
 **Criterion 2 needs no second measurement here.** `RS line`'s redundancy partner
 was price-at-a-new-high-over-base, which had to be computed. This dimension's
 partner is ``Prior move``, which is ``True`` on every detection by construction —
 so disagreement with it is exactly ``1 − hit rate``, read on the not-taken group,
-and it is reported from the contrast rather than recomputed.
+and it is reported from the contrast rather than recomputed. Which also means
+**criteria 1 and 2 are one threshold read from two sides**, and the #171 run put
+that one number on it; see :func:`verdict`.
 
 Run as ``python scripts/relative_move_contrast.py --store <copy of replay.duckdb>``.
 """
@@ -104,6 +104,11 @@ _BACKEND = Path(__file__).resolve().parent.parent / "backend"
 sys.path.insert(0, str(_BACKEND))
 
 from replay.caching_store import CachingStore  # noqa: E402
+from replay.candidate_field import (  # noqa: E402
+    live_detections,
+    measured_sessions,
+    session_ranks,
+)
 from replay.contrast import (  # noqa: E402
     CONTRAST_DIMENSIONS,
     contrast_dimensions,
@@ -119,13 +124,12 @@ from replay.reference import (  # noqa: E402
     classify,
     load_trades,
 )
-from screener.detection import DETECTOR_VERSION, detection_gate, detect  # noqa: E402
-from screener.ranks import rank_table  # noqa: E402
+from screener.detection import DETECTOR_VERSION  # noqa: E402
 from screener.relative_strength import (  # noqa: E402
-    RELATIVE_MOVE_CUT,
     RELATIVE_MOVE_LOOKBACK,
     move_adr,
     relative_move_adr,
+    relative_move_hit,
 )
 from screener.source import MARKET_INDEX  # noqa: E402
 from screener.store import Store  # noqa: E402
@@ -153,16 +157,16 @@ PRIOR_SESSION_SUFFIX = " (t-1)"
 class MoveValues:
     """The descriptive prior-move quantities for one detection, all in ADR units.
 
-    ``raw`` is the name's own calendar return; ``rel`` is the same return netted
-    against the benchmark, compounded. Keyed by the column heading, so the `1w`
-    control carries :data:`PRIOR_SESSION_SUFFIX` and is never confused with the
-    reading at the detection's own session. A ``None`` is **absent** — the name
-    had not listed that far back, or has no ADR — never zero, which is a real
-    value sitting exactly on the cut.
+    Keyed by the **column heading** the table prints — ``"raw 6m"``,
+    ``"rel 1w (t-1)"`` — built by :func:`column_heading` and by nothing else, so
+    the readers, the distributions and the printed table cannot key one thing
+    three ways.
+
+    A ``None`` is **absent** — the name had not listed that far back, or has no
+    ADR — never zero, which is a real value sitting exactly on the cut.
     """
 
-    raw: dict[str, float | None]
-    rel: dict[str, float | None]
+    by_column: dict[str, float | None]
 
 
 def prior_session(bars, session: date) -> date | None:
@@ -181,6 +185,42 @@ def prior_session(bars, session: date) -> date | None:
     return sessions[idx] if idx >= 0 else None
 
 
+def column_heading(leg: str, window: str, *, at_prior_session: bool = False) -> str:
+    """The one place a descriptive column's name is spelled.
+
+    Three sites need it — the readers, the value distributions and the printed
+    table — and a column whose heading is composed independently in each is a
+    column that can go missing from one of them silently.
+    """
+    return f"{leg} {window}" + (PRIOR_SESSION_SUFFIX if at_prior_session else "")
+
+
+def descriptive_legs() -> list[tuple[str, str, bool]]:
+    """Every descriptive column as ``(leg, window, at_prior_session)``, in table
+    order.
+
+    ``rel`` omits :data:`RELATIVE_MOVE_LOOKBACK` because that *is* the registered
+    dimension — listing it twice would invite reading the pair as a sweep with a
+    winner. Both legs carry the `1w` control.
+    """
+    out: list[tuple[str, str, bool]] = []
+    for leg in ("raw", "rel"):
+        for window in DESCRIPTIVE_WINDOWS:
+            if leg == "rel" and window == RELATIVE_MOVE_LOOKBACK:
+                continue
+            out.append((leg, window, False))
+        out.append((leg, PRIOR_SESSION_WINDOW, True))
+    return out
+
+
+def column_headings() -> list[str]:
+    """The descriptive column headings, in table order."""
+    return [
+        column_heading(leg, window, at_prior_session=at_prior)
+        for leg, window, at_prior in descriptive_legs()
+    ]
+
+
 def move_values(bars, index_bars, as_of: date) -> MoveValues:
     """Every descriptive column for one detection, from the same two series.
 
@@ -188,39 +228,18 @@ def move_values(bars, index_bars, as_of: date) -> MoveValues:
     put there by :func:`replay.field.session_relative_moves`, so that the number
     the contrast reads is the same number a shipped breakdown row would carry.
     """
-    raw = {w: move_adr(bars, as_of, lookback=w) for w in DESCRIPTIVE_WINDOWS}
-    rel = {
-        w: relative_move_adr(bars, index_bars, as_of, lookback=w)
-        for w in DESCRIPTIVE_WINDOWS
-        if w != RELATIVE_MOVE_LOOKBACK
-    }
     before = prior_session(bars, as_of)
-    key = PRIOR_SESSION_WINDOW + PRIOR_SESSION_SUFFIX
-    raw[key] = (
-        None if before is None
-        else move_adr(bars, before, lookback=PRIOR_SESSION_WINDOW)
-    )
-    rel[key] = (
-        None if before is None
-        else relative_move_adr(
-            bars, index_bars, before, lookback=PRIOR_SESSION_WINDOW
-        )
-    )
-    return MoveValues(raw=raw, rel=rel)
-
-
-def _column_windows(leg: str) -> list[str]:
-    """The column headings one leg contributes, in table order.
-
-    ``rel`` omits :data:`RELATIVE_MOVE_LOOKBACK` because that *is* the registered
-    dimension — listing it twice would invite reading the pair as a sweep with a
-    winner. Both legs carry the `1w` control.
-    """
-    windows = [
-        w for w in DESCRIPTIVE_WINDOWS
-        if not (leg == "rel" and w == RELATIVE_MOVE_LOOKBACK)
-    ]
-    return windows + [PRIOR_SESSION_WINDOW + PRIOR_SESSION_SUFFIX]
+    by_column: dict[str, float | None] = {}
+    for leg, window, at_prior in descriptive_legs():
+        when = before if at_prior else as_of
+        if when is None:
+            value = None
+        elif leg == "raw":
+            value = move_adr(bars, when, lookback=window)
+        else:
+            value = relative_move_adr(bars, index_bars, when, lookback=window)
+        by_column[column_heading(leg, window, at_prior_session=at_prior)] = value
+    return MoveValues(by_column=by_column)
 
 
 def descriptive_columns(
@@ -237,72 +256,18 @@ def descriptive_columns(
     names: list[tuple[str, int]] = []
     readers: dict[str, Callable[[ScoredDetection], bool]] = {}
 
-    def _reader(leg: str, window: str) -> Callable[[ScoredDetection], bool]:
+    def _reader(column: str) -> Callable[[ScoredDetection], bool]:
         def read(d: ScoredDetection) -> bool:
-            v = getattr(values[(d.symbol, d.detection.session)], leg)[window]
-            return v is not None and v > RELATIVE_MOVE_CUT
+            return relative_move_hit(
+                values[(d.symbol, d.detection.session)].by_column[column]
+            )
 
         return read
 
-    for leg in ("raw", "rel"):
-        for window in _column_windows(leg):
-            name = f"{leg} {window}"
-            names.append((name, 0))
-            readers[name] = _reader(leg, window)
+    for column in column_headings():
+        names.append((column, 0))
+        readers[column] = _reader(column)
     return tuple(names), readers
-
-
-# -- the two fields -----------------------------------------------------------
-
-
-def _measured_sessions(store: Store, market: str) -> list[date]:
-    """The sessions the store holds detections for — §5b's own window.
-
-    Both contrasts run over exactly these, so the detector is the only thing that
-    moves between them. They are also the sessions the store retained ranks for,
-    which is why the persisted field stops at 505 of the chain's 947.
-    """
-    rows = store._cursor().execute(
-        "SELECT DISTINCT session FROM detections WHERE market = ? ORDER BY 1",
-        [market],
-    ).fetchall()
-    return [r[0] for r in rows]
-
-
-def _session_ranks(store: Store, market: str, session: date):
-    """The session's rank table, recomputed in memory over its persisted universe.
-
-    What :func:`replay.chain._replay_session` does on reuse, and for the same
-    reason: :meth:`screener.store.Store.append_ranks` prunes rows outside its
-    retention window as the chain advances, so the persisted table cannot be read
-    back for every measured session (#141/#164). :func:`screener.ranks.rank_table`
-    is deterministic over the same members' bars, so this reproduces what the
-    chain computed rather than approximating it.
-    """
-    members = store.universe(market, session)
-    return members, rank_table(
-        {s: store.bars(market, s) for s in members}, session
-    )
-
-
-def _live_detections(store: Store, market: str, session: date, ranks) -> list:
-    """The session's detections under the **live** detector, computed not read.
-
-    :func:`screener.pipeline.rebuild_detections` is the app's own stage and this
-    is its loop exactly — every universe member, the decile gate deciding
-    eligibility, :func:`screener.detection.detect` on the gated ones — with the
-    single difference that the rows are *not* appended. The write is what is
-    omitted, never a gate.
-    """
-    gated = detection_gate(ranks)
-    out = []
-    for symbol in store.universe(market, session):
-        if symbol not in gated:
-            continue
-        found = detect(symbol, store.bars(market, symbol), session)
-        if found is not None:
-            out.append(found)
-    return out
 
 
 # -- the run ------------------------------------------------------------------
@@ -332,9 +297,9 @@ def collect(store, market, sessions, entries, *, live_detector: bool) -> Groups:
     label = f"v{DETECTOR_VERSION}" if live_detector else "v1"
     t0 = time.time()
     for i, session in enumerate(sessions, start=1):
-        _members, ranks = _session_ranks(store, market, session)
+        _members, ranks = session_ranks(store, market, session)
         dets = (
-            _live_detections(store, market, session, ranks)
+            live_detections(store, market, session, ranks)
             if live_detector
             else store.detections(market, session)
         )
@@ -418,18 +383,16 @@ def report(label: str, groups: Groups) -> dict:
         })
 
     values = {}
-    for leg in ("raw", "rel"):
-        for window in _column_windows(leg):
-            key = f"{leg} {window}"
-            values[key] = {
-                group: _distribution([
-                    getattr(groups.values[(d.symbol, d.detection.session)], leg)[window]
-                    for d in rows_of
-                ])
-                for group, rows_of in (
-                    ("taken", groups.taken), ("not_taken", groups.not_taken)
-                )
-            }
+    for column in column_headings():
+        values[column] = {
+            group: _distribution([
+                groups.values[(d.symbol, d.detection.session)].by_column[column]
+                for d in rows_of
+            ])
+            for group, rows_of in (
+                ("taken", groups.taken), ("not_taken", groups.not_taken)
+            )
+        }
     values[REGISTERED] = {
         group: _distribution([d.relative_move for d in rows_of])
         for group, rows_of in (
@@ -448,49 +411,102 @@ def report(label: str, groups: Groups) -> dict:
 
 # The bounds ADR 0005 fixed for the registered dimension, before any of this was
 # visible. Criterion 2's partner is ``Prior move``, ``True`` on every detection,
-# so disagreement with it is exactly ``1 − hit rate`` on the not-taken group —
-# which makes criteria 2 and 3 a two-sided bound on that one number.
+# so disagreement with it is exactly ``1 − hit rate`` on the not-taken group.
+# **Criteria 1 and 2 are therefore one threshold read from two sides**: criterion
+# 1's ~85% ceiling and criterion 2's ~15% disagreement floor are the same cut on
+# the same number, and whichever way it rounds, both go with it.
 HIT_RATE_FLOOR = 0.15
 HIT_RATE_CEILING = 0.85
+
+# The three outcomes this script can return. ``ON_THE_BOUND`` is the one ADR 0005
+# did not anticipate, and it exists because the run produced it: see
+# :func:`verdict`.
+SHIP = "ship"
+DO_NOT_SHIP = "do_not_ship"
+ON_THE_BOUND = "on_the_bound"
+
+
+def _standard_error(p: float, n: int) -> float:
+    """Sampling error of a proportion. Zero on an empty group."""
+    return (p * (1 - p) / n) ** 0.5 if n else 0.0
 
 
 def verdict(block: dict) -> dict:
     """The four pre-registered criteria, evaluated against the registered column.
 
     Written to fire mechanically: nothing here chooses which column to read, and
-    the thresholds are the ADR's, not this script's. The criteria are evaluated in
-    the order they were registered, and the **first that fires decides** — as it
-    did for `RS line`, where criterion 4 fired and criterion 2 stood ready.
+    the thresholds are the ADR's, not this script's. All four are evaluated and
+    every one that fires is recorded, rather than stopping at the first — for
+    `RS line`, criterion 4 fired and criterion 2 stood ready behind it, and the
+    fact that a second one would also have refused it was worth having.
+
+    **The third outcome, and why it is not a fifth criterion.** ADR 0005 promises
+    pass or fail on one variant, and this function returned exactly that until the
+    #171 run put the deciding number 0.06pp inside its own bound — 0.29 standard
+    errors, on a threshold the ADR records as "a judgement, not a measurement…
+    the one magnitude in this design with nothing behind it". So a hit rate within
+    **one standard error** of the ceiling or the floor returns
+    :data:`ON_THE_BOUND` rather than a verdict.
+
+    Three things keep that honest. It **moves no threshold**: the ADR's numbers
+    are untouched and the criteria still fire exactly where they did. It is
+    **symmetric**: it refuses a pass and a fail alike, so it cannot be the
+    mechanism by which a preferred answer arrives. And it is **stated as
+    post-hoc**, here and in the ADR, because it is — it was added after the
+    measurement landed on the bound, and a rule written after the numbers is
+    evidence about the threshold rather than about the dimension.
     """
     row = next(r for r in block["dimensions"] if r["dimension"] == REGISTERED)
     delta = row["delta_pp"]
     not_taken = row["not_taken_hit_rate"]
+    se = _standard_error(not_taken, row["not_taken_n"])
+
     fired = []
-    if delta <= 0:
-        fired.append((4, "delta negative — do not ship, and record it"))
-    if not_taken > HIT_RATE_CEILING:
+    if delta > 0 and HIT_RATE_FLOOR <= not_taken <= HIT_RATE_CEILING:
+        fired.append((1, "delta positive and the not-taken hit rate inside both "
+                         "bounds — ship, at the weight its ordinal position implies"))
+    if delta > 0 and not_taken > HIT_RATE_CEILING:
         fired.append((2, "not-taken hit rate above the ceiling — the constant in a "
                          "new costume; disagreement with `Prior move` is under the "
                          "floor"))
     if not_taken < HIT_RATE_FLOOR:
         fired.append((3, "not-taken hit rate under the floor — it discriminates "
                          "over a sliver of the field"))
-    ships = not fired
+    if delta <= 0:
+        fired.append((4, "delta negative — do not ship, and record it"))
+
+    on_the_bound = (
+        se > 0
+        and min(abs(not_taken - HIT_RATE_CEILING), abs(not_taken - HIT_RATE_FLOOR))
+        <= se
+    )
+    if on_the_bound:
+        outcome = ON_THE_BOUND
+    elif [n for n, _ in fired] == [1]:
+        outcome = SHIP
+    else:
+        outcome = DO_NOT_SHIP
+
     return {
         "dimension": REGISTERED,
         "delta_pp": delta,
-        # How far the not-taken hit rate sits from the bound that decides this,
-        # recorded because criteria 1 and 3 are the *same* number read from two
-        # sides — disagreement with `Prior move` is exactly ``1 - hit rate`` —
-        # and a verdict turning on a tenth of a point against a threshold ADR
-        # 0005 itself calls a judgement is a fact about the threshold.
+        "delta_standard_error_pp": 100 * (
+            _standard_error(row["taken_hit_rate"], row["taken_n"]) ** 2 + se ** 2
+        ) ** 0.5,
+        # How far the deciding number sits from the bound that decides it, in
+        # points and in its own sampling error. A verdict turning on a tenth of a
+        # point against a threshold ADR 0005 itself calls a judgement is a fact
+        # about the threshold, and it belongs in the machine-readable record and
+        # not only in the prose.
         "margin_to_ceiling_pp": (HIT_RATE_CEILING - not_taken) * 100,
+        "margin_to_ceiling_se": (HIT_RATE_CEILING - not_taken) / se if se else None,
+        "not_taken_hit_rate_standard_error_pp": se * 100,
         "taken_hit_rate": row["taken_hit_rate"],
         "not_taken_hit_rate": not_taken,
         "disagreement_with_prior_move": 1.0 - not_taken,
         "pooled_spread": row["pooled_spread"],
         "criteria_fired": [{"criterion": n, "reason": why} for n, why in fired],
-        "ships": ships,
+        "outcome": outcome,
     }
 
 
@@ -516,7 +532,7 @@ def main(argv=None) -> int:
     print(f"trades: {len(trades)}  replayable: {len(replayable)}  "
           f"entry sessions: {len(entries)}")
 
-    sessions = _measured_sessions(store, market)
+    sessions = measured_sessions(store, market)
     if args.limit:
         sessions = sessions[: args.limit]
     print(f"measured sessions: {len(sessions)}  "
@@ -537,7 +553,11 @@ def main(argv=None) -> int:
               f"{v['disagreement_with_prior_move']:.1%}")
         for fired in v["criteria_fired"]:
             print(f"  criterion {fired['criterion']} fires: {fired['reason']}")
-        print(f"  -> {'SHIP' if v['ships'] else 'DO NOT SHIP'}")
+        if v["outcome"] == ON_THE_BOUND:
+            print(f"  the deciding number sits "
+                  f"{abs(v['margin_to_ceiling_se']):.2f} standard errors from its "
+                  f"own bound — no verdict")
+        print(f"  -> {v['outcome'].replace('_', ' ').upper()}")
         results["v1" if not live else f"v{DETECTOR_VERSION}"] = block
 
     out = Path(args.out)

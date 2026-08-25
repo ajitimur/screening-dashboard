@@ -3041,3 +3041,19 @@ def test_a_study_column_is_read_through_a_supplied_reader_not_a_new_field():
     assert by_dim["raw 12m"].taken_hit_rate == 0.5
     assert by_dim["raw 12m"].not_taken_hit_rate == 0.0
     assert "raw 12m" not in dict(CANDIDATE_DIMENSIONS)
+
+
+def test_a_study_column_cannot_redefine_a_registered_candidate():
+    """The collision the ``readers`` seam has to refuse.
+
+    A study supplying a reader named ``Relative move`` would report a number under
+    a registered candidate's name while computing something of its own — the one
+    way this contrast can be wrong and look fine, which is the same failure the
+    :data:`CANDIDATES` comment describes for a mistyped dimension name.
+    """
+    with pytest.raises(ValueError, match="registered candidate"):
+        contrast_dimensions(
+            [_scored_det("P1", 6, taken=True)],
+            [_scored_det("N1", 6, not_taken=True)],
+            readers={"Relative move": lambda d: True},
+        )

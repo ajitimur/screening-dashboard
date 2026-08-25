@@ -1951,6 +1951,15 @@ own risk rather than assumed, that a dimension's null must be read against its s
 carry none of the figures. No number from this study is to be presented as an IDX
 expectation; the reference set contains no IDX trade.
 
+**The regime is now measured, not asserted.** §3f took the benchmark's own return over the same
+windows on the same entry dates: `QQQ` was up **39.7%** median over the trailing twelve months
+before his entries, and **negative on 1.7% of them**. Roughly ten observations of a falling
+year, out of 582. That is what "once-in-a-decade momentum regime" amounts to in this reference
+set, and it bounds every magnitude in this document — including the index-relative ones, which
+survive the subtraction but were never tested against a tape that fell. ADR 0005 carries the
+same bound for dimension proposals; `docs/out-of-sample-backtest-plan.md` is the only planned
+measurement outside this window.
+
 ## 9. What the study cannot say
 
 - It cannot claim the **ranking** is validated. A2 measured a flat null under the **v1**

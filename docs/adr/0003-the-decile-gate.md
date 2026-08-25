@@ -135,6 +135,34 @@ not see.
   width rather than reading the live constant, so the report that decided this can still be
   re-run after the decision moved that constant.
 
+### Confirmed twice more, from outside the sweep's argument (#169)
+
+The `1w` refusal above rests on one instrument: the gate sweep, which prices what the lookback
+recovers. §3f of the replay findings measured his entries themselves, and the week comes back
+empty on two further readings that share none of the sweep's machinery:
+
+| Reading | His entries | Same names, ordinary days |
+| --- | --- | --- |
+| `1w` return at entry (median) | **+0.3%** | +0.1% |
+| Entries *down* on the week | **46.4%** | — |
+| Beat `QQQ` over the trailing week | **48.1%** | 49.1% |
+
+n = 582 of 828 logged breakout longs, measured through the session before entry. The `6m`
+readings on the same panel are +55.8% and 74.2% against the background's 37.8%, so the panel
+plainly can separate a lookback that matters; `1w` is the window where it cannot.
+
+**What this adds and does not add.** It does not re-price the gate — recall, field inflation and
+the quality of recovered trades are the sweep's to measure, and the verdict above stands on
+those. What it adds is that the week carries no signal *at the entries themselves*, which is the
+premise §4.5's exclusion asserted and #149 could only test indirectly. Three independent lines
+now point the same way, and a future proposal to re-admit `1w` has to answer all three rather
+than the sweep alone.
+
+The bound: executed trades only, one regime, and a same-name background rather than a control
+group of rejected setups (findings §9). None of these figures is a precision measurement.
+
+---
+
 **Everything below this line is the reasoning as it stood before the sweep**, kept as the
 record of what was argued and on what. Where it calls 3→5 "the leading candidate", read this
 amendment.

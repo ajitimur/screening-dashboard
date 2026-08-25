@@ -76,6 +76,14 @@ _EXCLUDED_INSTRUMENT = re.compile(
 # (:func:`screener.source.provider_symbol`), not here.
 _PREFERRED_SERIES_MARK = "$"
 
+# A market index is a benchmark, never a rankable name (CONTEXT.md "Instrument";
+# spec §2, §4.9), and "^" is the only mark it carries — no "$", and a name that
+# reads as common stock or no name at all. Live, the role filter upstream keeps
+# it out; the replay has no roles to filter on, because its store holds bars and
+# not listings, so the symbol is all there is (#162). Rejecting it here is the
+# second layer for the live path and the only one the replay can reach.
+_INDEX_MARK = "^"
+
 
 @dataclass(frozen=True)
 class Candidate:
@@ -125,8 +133,12 @@ def is_common_stock(symbol: str, name: str) -> bool:
     depositary shares whose name does not (#105).
 
     An empty name is common stock: IDX carries no security name and the screener
-    already guarantees ``quoteType: EQUITY`` (D13). ADRs are kept.
+    already guarantees ``quoteType: EQUITY`` (D13). ADRs are kept. A market index
+    is not, on its symbol alone — an empty name would otherwise read ``^IXIC`` as
+    common stock (#162).
     """
+    if symbol.startswith(_INDEX_MARK):
+        return False
     if _PREFERRED_SERIES_MARK in symbol:
         return False
     return _EXCLUDED_INSTRUMENT.search(name) is None

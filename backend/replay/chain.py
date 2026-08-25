@@ -45,7 +45,7 @@ from screener.pipeline import rebuild_ranks
 from screener.ranks import Rank, rank_table
 from screener.source import Instrument
 from screener.store import Store
-from screener.universe import rebuild_universe
+from screener.universe import is_common_stock, rebuild_universe
 
 from .caching_store import CachingStore
 
@@ -103,19 +103,27 @@ class SessionField:
 
 
 def synthesize_instruments(store: Store, market: str = REPLAY_MARKET) -> list[Instrument]:
-    """One ``candidate`` :class:`Instrument` per symbol with bars in the store.
+    """One ``candidate`` :class:`Instrument` per rankable symbol with bars in the store.
 
     The app's enumeration returns today's listing snapshot, so it is useless for
     reconstructing a past field; the replay's instrument set is instead exactly
-    the names the store holds bars for (PRD "A2 replay chain"). Every synthesised
-    instrument is a candidate — references (indices, ETFs) are never rankable and
-    the reference set is all common-stock breakouts — and carries no security
-    name, which :func:`screener.universe.is_common_stock` reads as common stock
-    (the live pull already filtered instrument types before the bars were stored).
+    the names the store holds bars for (PRD "A2 replay chain"). Synthesised
+    instruments carry no security name, which
+    :func:`screener.universe.is_common_stock` reads as common stock (the live pull
+    already filtered instrument types before the bars were stored).
+
+    Not every symbol with bars is a candidate, though, and for a while this
+    function said otherwise (#162). :mod:`replay.store` copies bars filtered by
+    market and date, not by role, so the benchmark's bars are here too — and with
+    no role column and no name to read, the symbol is the only thing that can say
+    it is a benchmark. ``is_common_stock`` rejects the ``^`` prefix, so the filter
+    below is the same instrument-type rule the live path applies, run over the one
+    piece of identity the replay store kept.
     """
     return [
         Instrument(market=market, symbol=s, role="candidate")
         for s in store.symbols(market)
+        if is_common_stock(s, "")
     ]
 
 

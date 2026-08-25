@@ -1219,6 +1219,36 @@ def test_synthesize_instruments_one_candidate_per_symbol_with_bars(store: Store)
     assert all(i.market == "US" for i in instruments)
 
 
+def test_synthesize_instruments_excludes_the_market_index(store: Store):
+    """Issue #162. ``replay/store.py`` copies bars filtered by market and date,
+    not by role, so the benchmark's bars are in the replay store — and with no
+    role column and no security name to read, only the symbol can say it is not
+    a rankable name. Left in, ``^IXIC`` entered the universe and was ranked
+    against the single names it is the benchmark *for*."""
+    sessions = _calendar(3)
+    _seed_series(store, "AAA", sessions, [1_000] * 3)
+    _seed_series(store, "^IXIC", sessions, [1_000] * 3)
+
+    instruments = synthesize_instruments(store, "US")
+
+    assert [i.symbol for i in instruments] == ["AAA"]
+
+
+def test_the_replayed_field_never_ranks_the_benchmark(store: Store):
+    """The exclusion where it matters: through the whole chain, not just the
+    instrument list. The benchmark clears every liquidity and age gate the
+    universe applies, so nothing downstream would have kept it out."""
+    sessions = _calendar(22)
+    _seed_series(store, "AAA", sessions, [3_000_000] * 22)
+    _seed_series(store, "^IXIC", sessions, [3_000_000] * 22)
+
+    fields = replay_chain(store, "US", burn_in=0, blind_spot_tickers=[])
+
+    last = fields[-1]
+    assert "^IXIC" not in last.members
+    assert all(r.symbol != "^IXIC" for r in last.ranks)
+
+
 def test_burn_in_default_matches_the_prd_window():
     assert BURN_IN_SESSIONS == 126
 

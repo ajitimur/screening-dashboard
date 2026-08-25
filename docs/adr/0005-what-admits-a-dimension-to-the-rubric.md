@@ -381,7 +381,13 @@ restated as a hope reads as a weaker commitment than it is.
   rows, and 0 of 505 sessions above the 0.90 gate, global max percentile 0.8246 — so the
   contrast is clean and only percentile denominators shift, by ~0.1%. Fixed separately rather
   than before the study, because rebuilding 4.7M rank rows would run this contrast against a
-  different field than §5b did and break the comparability the ordinal rule depends on.
+  different field than §5b did and break the comparability the ordinal rule depends on. The
+  code fix has since landed (#162): `synthesize_instruments` filters the replay's synthesized
+  instruments through `is_common_stock`, which now rejects a `^`-prefixed symbol. **The store
+  was deliberately not rebuilt.** `replay.duckdb` still carries the contaminated `universe` and
+  `ranks`, so every figure above still reads off the field it was measured on, and the ~0.1%
+  denominator shift stands as stated. A rebuild remains available, and remains all-or-nothing:
+  it invalidates cross-study comparability until every replay-percentile figure moves with it.
 - **This is hard to reverse in the direction that matters.** Retiring a dimension changes the
   ceiling's composition and every digest frozen afterwards; re-admitting it later would need
   the evidence this ADR requires, which for `Prior move` can never exist.

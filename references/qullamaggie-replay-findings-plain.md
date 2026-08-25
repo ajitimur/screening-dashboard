@@ -731,17 +731,31 @@ Only **104 of 658** trades (15.8%) appeared in the app's field at all, and only
 > section were measured the same broken way and are understated too; they're left
 > as the historical record of what was believed at the time.
 >
-> **The scoring conclusion below is also in question, and hasn't been re-settled
-> here.** It compares his picks against the field on the same days, so both sides
-> were truncated together and the comparison isn't obviously broken — but the
-> percentages quoted were computed on the missing-two-thirds field. Recomputed on
-> the whole field with today's setup-finder, his picks score 3.5+ **14.6%** of the
-> time against the field's **12.6%** — a small edge *in his favour*, where the
-> published figures show him fractionally behind. Don't read that as a flip: two
-> things changed at once (the setup-finder rebuild and this fix), and untangling
-> them needs a deliberate re-run rather than the one number above. The point is
-> only that "the scoring can't tell his picks apart from anything else" now needs
-> re-checking rather than assuming.
+> **The scoring conclusion below was also in question. It has now been re-settled
+> — and it got *stronger*, not weaker.** It compares his picks against the field
+> on the same days, so both sides were truncated together and the comparison
+> wasn't obviously broken — but the percentages quoted were computed on the
+> missing-two-thirds field. Recomputed on the whole field with today's
+> setup-finder, his picks score 3.5+ **14.6%** of the time against the field's
+> **12.6%** — a small edge *in his favour*, where the published figures show him
+> fractionally behind. That looked like a flip, but two things had changed at once
+> (the setup-finder rebuild and this fix), so the number couldn't be read either
+> way.
+>
+> Those two changes have now been separated, by measuring the comparison four
+> ways — old setup-finder and new, each against the broken list and the whole one
+> (see "Untangling the two changes" below). **This fix alone doesn't help him. It
+> hurts him.** With the setup-finder held at the old version, fixing the list
+> moves his picks from 17.3% to 17.4% — no change — while the *field* moves from
+> 17.8% to **19.8%**. He goes from fractionally behind the field to clearly
+> behind it. The whole of the apparent edge came from the setup-finder rebuild,
+> not from this fix.
+>
+> The reason is that the missing days weren't a random sample. The days that got
+> deleted were the *older* two-thirds, and on those days the general population of
+> setups scored unusually well — 22.0% of them reached 3.5+, against 17.8% on the
+> days that survived. His own picks scored the same on both (17.4% vs 17.3%). So
+> the bug was quietly comparing him against the *weaker* half of the record.
 
 **The headline result was negative, and it's the study's most consequential
 finding.** Under the scoring system live at the time, his hand-picked entries
@@ -789,6 +803,47 @@ system found his picks".
 > ranking claim should be argued from it in either direction. Deliberately, **no
 > percentile or rank-position figure is ever produced** — those would look precise
 > while quietly flattering the system.
+
+### Untangling the two changes
+
+Two things moved between the published comparison and the one measured after the
+bug fix: the **setup-finder** was rebuilt (it now admits wider, less quiet bases
+instead of rejecting them), and the **list bug** was fixed. A number that moves
+when two things change tells you nothing about either. So the comparison was run
+four ways — each setup-finder against each list — plus the setup-finder live
+today. **The scoring is held at the old weights in every row**, because those are
+the weights the published 17.3 / 17.8 was measured with, and swapping them too
+would put a third moving part back into the table:
+
+| Setup-finder | List | His picks at 3.5+ | The field at 3.5+ | Gap |
+|---|---|---|---|---|
+| old | broken | 17.3% | 17.8% | **−0.5pp** (as published) |
+| old | whole | 17.4% | 19.8% | **−2.5pp** |
+| rebuilt | broken | 13.2% | 11.1% | +2.1pp |
+| rebuilt | whole | 14.6% | 12.6% | +2.0pp |
+| today's | whole | 13.6% | 11.7% | +2.0pp |
+
+Read down the first two rows and only the list changes. Read rows two and four
+and only the setup-finder changes.
+
+**The fix alone makes him look worse.** His own picks don't move at all; the
+field around him improves by two points. **The setup-finder rebuild is where the
+entire apparent edge comes from** — and it comes the same unflattering way the
+reweight did. The rebuild admits about 80,000 extra setups with wider bases, the
+old scoring marks those down, so the *field's* score collapses while his picks
+only dip. The field fell; his picks didn't rise.
+
+**So the headline negative result stands, and hardens.** On the complete record,
+scored the way it was scored when the claim was made, his hand-picked trades
+reach the top of the scale **less** often than the general population they came
+from — 17.4% against 19.8%. Nothing here lets "the scoring can't tell his picks
+apart" be dismissed as an artefact of the bug.
+
+**What today's app actually scores.** With today's setup-finder and today's
+weights, on the whole list: his picks 12.1%, the field 7.4% — a gap of +4.7pp,
+with 103 of his 656 trades landing inside the top 30. That's the honest current
+number, and it carries all three caveats above with it: it's circular, it's
+in-sample, and 29% of the field is still missing.
 
 ---
 

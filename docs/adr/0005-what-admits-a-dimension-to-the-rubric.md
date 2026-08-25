@@ -62,6 +62,8 @@ wrong-way. So a candidate dimension is pre-registered as **one** variant, chosen
 and the study returns pass or fail on that variant. Selecting among several candidate
 booleans by whichever produces the largest gap is magnitude-fitting, which #128 Q2 forbids.
 
+### First registration: `RS line` (#160) — **measured, and refused**
+
 The first dimension registered under this ADR is **`RS line`** (#160, with the rubric change in
 #161) — `RS = adj_close(name) /
 adj_close(index)`, hit when `RS_today >= RS_at_base_start` over the detection's own base — with
@@ -77,6 +79,156 @@ these four criteria fixed in advance:
 Criterion 2's ~15% is a judgement, not a measurement, and is the one magnitude in this design
 without evidence behind it. It is stated here so that a later argument about it is an argument
 about a number on the record rather than a number nobody wrote down.
+
+**The verdict was do not ship**, on criterion 4 (findings §5d): Δ **−5.8pp** under detector v1
+and **−2.1pp** under the live v3, with criterion 2 at 11.2% disagreement standing ready to
+refuse it had the sign come back the other way. The mechanism was the **anchor** — `base_start`
+is a local high under both of the detector's branches, so the rule asks a name to hold its
+ratio to the index measured *from a local maximum*, which almost nothing does. The dimension
+fires on one detection in ten in **both** groups. So the process worked: a criterion nobody
+could argue with afterwards fired on a number nobody had seen when it was written. `Prior move`
+stayed at ×1, `RUBRIC_VERSION` stayed 3, and the slot stayed open.
+
+### Second registration: `Relative move` (#170) — pre-registered, unmeasured
+
+§3f (#169) measured the quantity `Prior move` gates on, directly, for the first time, and found
+it has real spread once expressed as a degree: `6m` median **+55.8%**, p25 +15.1 to p95 +370.7,
+and **74.2%** of his entries beating `QQQ` over six months against **37.8%** of the same names
+on an ordinary day — `^IXIC`, which is `MARKET_INDEX` and so the benchmark this dimension would
+actually use, reads **75.1%** on the same column. That is the limb this ADR requires and the
+binary dimension cannot reach — so the slot `RS line` failed to fill has a second candidate.
+
+**The dimension, as registered.** The name's `6m` calendar return **relative to
+`MARKET_INDEX`**, compounded, in **ADR units**:
+
+```
+value = ((1 + r6m(name)) / (1 + r6m(index)) − 1) / ADR(name)
+hit   = value > 0
+```
+
+- **Compounded, not subtracted.** Over six months a percentage-point difference and a multiple
+  are different quantities, and only the second means "outran the market" (§3f's own wording,
+  and its own arithmetic).
+- **Both legs are `indicators.calendar_return`** — the rank table's own definition,
+  calendar-anchored through `anchor_date`, resolving to the **last bar on or before** the
+  anchor. This is the one place the dimension departs from `RS line`, which requires a bar
+  *exactly* on its anchor, and the departure is forced: an anchor six calendar months back
+  lands on a weekend or a holiday about three days in ten, so an exact rule would score a
+  calendar artefact rather than a name. `RS line`'s anchors are traded sessions by
+  construction, which is why exactness was free there.
+- **A missing bar on either leg scores `False`**, with the value **absent rather than zero**,
+  and is never carried forward. Same rule and same reason as `RS line`: scoring `False` costs
+  at most one point on a rare edge, where *excluding* the name would let a data gap remove a
+  candidate from the list. A name that had not listed six months ago is already absent from the
+  `6m` lookback in the rank table, so this is the substrate's convention and not a new one.
+- **`ADR` is the name's own `SMA20(high/low − 1)`, taken at the session being scored** and
+  never past it, absent under 20 bars — and absent means `False` by the rule above. The
+  denominator is where a lookahead would hide: the replay hands whole bar series in and never
+  slices them to the session, which is safe for `RS line` because it reads two named sessions
+  exactly, and is not safe for a trailing average. `relative_move_adr` does its own slicing.
+- **The benchmark is `MARKET_INDEX`** — `^IXIC` (US), `^JKSE` (IDX) — declined `^GSPC` for the
+  reason in the consequences below. §3f's headline columns are `QQQ` and its `^IXIC` check
+  reproduces every row within two points, so the switch of benchmark is not load-bearing for
+  the result — but every figure quoted here is `QQQ`'s unless it says otherwise, and the
+  contrast will be run against `^IXIC`.
+- **It is named `Relative move`, not `Prior move`.** `score.RUBRICS` re-scores a stored
+  breakdown by dimension *name*, so reusing the label would make a v4 row mean one quantity and
+  a v3 row another under the same key, and the paired A2 re-run (#136) would compare two
+  quantities while believing it compares two rubrics. The executable definition is
+  `screener.relative_strength.relative_move_adr`.
+
+**Why `6m`, fixed before the contrast exists.** Two figures §3f published: the beat-rate against
+the index is *higher* at `6m` (74.2%) than at `12m` (67.5%; both `QQQ`), and 26.0% of entries
+underperformed the index over the year; and while the entry-vs-ordinary gap in ADR units is
+larger at `12m` (+22.83 against **+12.41**), §3f records that column as the noisier one — an
+ordinary day's `12m` median is +0.4%, so it is set by a handful of ten-baggers, where `6m` sits
+against an ordinary day's −11.2%. One window. Trying three and keeping the widest gap is the
+magnitude-fitting this section exists to prevent.
+
+**Why the cut sits at zero, and what the ADR units are for.** ADR is positive, so the
+denominator cannot flip a sign: **the boolean is ADR-invariant**, and "outran the index" is the
+whole rule, with no free parameter — the property that made `RS line`'s definition honest, kept.
+Any non-zero ADR cut-point would be a magnitude read off the replay, which #128 Q2 forbids, and
+no published boundary supports one: §3f denominates the *raw* returns in ADR and the *relative*
+ones in percent, so even ADR 0004's "use the study's own bucket edges" route is unavailable
+here. The units therefore buy nothing at admission — they buy the **stored value**. This ADR
+admits a dimension as a boolean because grading needs demonstrated signal and a candidate has
+none; but a breakdown row carries the value while the rubric owns the mapping (#154), and a row
+cannot be re-denominated retroactively. Persisting ADR units now is what would let ADR 0004's
+grading question be asked later, on measured evidence, without re-scoring history. A tie scores
+`False`; that is measure-zero and is fixed only so the definition has no ambiguity.
+
+**The weight is not a number yet, and that is the rule rather than an omission.** Weights come
+from the *ordering* of the measured gaps. §5d republished that ordering under the live detector
+— ADR +26.4, Tightness +13.5, MA support +6.3, `Prior move` 0.0, Volume −0.3, Orderliness −5.9,
+Base length −7.8 — with ×2 held by the top two and ×1 by everything positive below. So: **×2 if
+the measured Δ outranks `Tightness`, ×1 otherwise.** That is an ordinal position, not a reading
+of a gap's value.
+
+The four criteria, fixed in advance:
+
+1. **Δ positive, and the not-taken hit rate between ~15% and ~85%** — ship, at the weight above,
+   as `RUBRIC_VERSION = 4`, and `Prior move` retires with the binding-lookback metadata
+   replacing it (see the consequences). A hit rate strictly inside those bounds makes pooled
+   spread non-zero by construction, so the original criterion 1's second clause is carried
+   rather than dropped.
+2. **Δ positive, but disagreement with `Prior move` under ~15% on the not-taken group** — do not
+   ship. `Prior move` is `True` on every detection, so disagreement with it is exactly
+   `1 − hit rate`, read on the same group criteria 1 and 3 read. A dimension
+   firing on more than five names in six of the field he passed over is the constant in a new
+   costume: the decile gate
+   already guarantees top-decile in one of four lookbacks, and a `6m`-relative grade may have
+   little left to say *within* that population even though it has plenty within his trade
+   record. §3f cannot see this — it never looks at the field — which is why #171 exists and why
+   this is the criterion most likely to fire.
+3. **The not-taken hit rate under ~15%** — do not ship. This **widens** criterion 3 as it was
+   written for `RS line` ("pooled spread 0.000"), and the widening is §5d's tuition: that
+   dimension had pooled spread **0.326** and still could not speak, because a rule firing on one
+   detection in ten measures its −2.1pp gap across a sliver of the field. Spread 0.000 is the
+   degenerate case of the two bounds — 0% here, 100% under criterion 2 — so nothing is lost by
+   stating it this way, and the rule gets harder to pass rather than easier.
+4. **Δ negative** — do not ship, and record it. **This is what kills it**, and it is the
+   pre-registered answer to the objection that `RS line` had this shape already.
+
+**What a negative gap would mean, said before the numbers.** `RS line`'s Δ is negative because
+he selects names whose strength against the index *decayed through the base* — and §5d's own
+post-mortem names the anchor as the mechanism. This dimension is anchored somewhere else: a
+fixed calendar date six months back, which on the modal detection (median base length 12) sits
+roughly five months before the base begins. It measures the advance, where `RS line` measures
+the consolidation of it. That is the argument, in advance, for why the two are different
+statistics. **If Δ comes back negative anyway, the anchor was not the mechanism** — and what is
+measured is that within an already-gated field he selects names with *less* index-relative
+strength than the ones he passed over. That folds the index-relative family, not just this
+variant, and **no third anchor may be proposed off the back of it**: choosing one after seeing
+two negatives is exactly the fitting this section forbids. The `Prior move` slot would then be
+closed by evidence rather than left open by default, which is a result worth having.
+
+**Two things this registration deliberately does not settle.** It says nothing about
+`detection_gate`, which stays a percentile union of four lookbacks — this is about the rubric
+only. And the boolean cannot duplicate the `ADR ×2` dimension, being ADR-invariant, but a later
+*graded* form would divide by the same quantity a ×2 dimension already scores; that is a
+question for the grading proposal ADR 0004 would govern, and it is recorded here so that
+proposal starts from it rather than discovering it.
+
+**If it ships, the decile gate leaves the score, and #161's answer is what brings it back.**
+`Prior move` is the only breakdown row recording that a name cleared the gate ADR 0003 is about
+— the one discarding ~40% of his real entries — so retiring it without a replacement loses that
+outright. The replacement is the **binding lookback name** (`"3m"`) as a non-scored field on the
+candidates payload, and **not** its percentile, for the reason the consequences give. This is
+not a separate ticket because it only becomes real if this dimension is admitted; if it is
+refused the way `RS line` was, `Prior move` stays at ×1 and the gate keeps its record in the
+score.
+
+**It is inert until #171 runs.** §3f is executed trades against a same-name background, which is
+not a control group of rejected setups — the footing `RS line` was rightly refused on. Until the
+selection contrast exists there is no Δ, no pooled spread and no hit rate, and none of the four
+criteria can fire. #171's constraints attach: the contrast is measured under the detector the
+dimension would ship against (live v3, not the store's persisted v1), and it reproduces §5b's
+seven gaps as its control before anything new is trusted. Three bounds ride the result whatever
+it says: §2's coverage hole (§3f joined **70.2%** of his logged breakout longs to bars, skewed
+against the blown-up 2020–21 small-cap cohort), §9's absent control group on the *trade* side,
+and the regime bound below — which this candidate carries with full force, being index-relative
+by construction.
 
 ## The regime bound every candidate carries (#169)
 
@@ -119,6 +271,12 @@ instrument that could retire it, since it is the only planned measurement outsid
 
 ## Consequences
 
+**None of the first four have happened.** They are what follows *if* a registered dimension is
+admitted, and nothing has been: `RS line` was refused on criterion 4 and `Relative move` is
+unmeasured until #171. They are written in the indicative because they were written before the
+first verdict, and are left that way — a consequence restated as a hope reads as a weaker
+commitment than it is.
+
 - **`Prior move` is retired and the rubric's floor goes with it.** The permanent 0.5★ that
   `score.py` describes — "``Prior move`` fires for every detection by construction (a permanent
   half-star floor)" — was that dimension. The real star range becomes **0.0–4.5**, and
@@ -131,11 +289,12 @@ instrument that could retire it, since it is the only planned measurement outsid
   the rubric." That constraint governs the replay rather than the live app, whose ranks have no
   such hole — but the margin is thin enough that the lookback's *name* is the honest thing to
   publish and the percentile is declined.
-- **A new dimension forces a rubric version.** `RS line` ships as `RUBRIC_VERSION = 4`, joining
-  the `RUBRIC_WEIGHTS` table so the paired re-run (#136) can score one field under v3 and v4 and
-  separate a rubric change from a field change. Digests written under v3 are not recomputed.
+- **A new dimension forces a rubric version.** An admitted dimension ships as
+  `RUBRIC_VERSION = 4`, joining the `RUBRIC_WEIGHTS` table so the paired re-run (#136)
+  can score one field under v3 and v4 and separate a rubric change from a field change.
+  Digests written under v3 are not recomputed.
 - **The new dimension is measured on US only and ships to IDX unmeasured.** The replay field is
-  US-only, so `RS line` is contrasted against `^IXIC` and never against `^JKSE`. §8 permits a
+  US-only, so a candidate is contrasted against `^IXIC` and never against `^JKSE`. §8 permits a
   weight *ordering* travelling to IDX as shape rather than magnitude, and `Tightness` and `ADR`
   already ride that precedent — but those were reweights of measured dimensions and this is a
   whole dimension, so the precedent is being stretched rather than applied. Recorded here
@@ -145,7 +304,11 @@ instrument that could retire it, since it is the only planned measurement outsid
   `^GSPC` was considered and declined: a second reference instrument per market means the
   scorer and `regime.py` disagree about what the market is, for reasons nobody will recall.
   Revisit only if the dimension is found to fire on sector lines.
-- **The contrast this rule reads must be re-run under `DETECTOR_VERSION = 2`.** §5b's published
+- **The contrast this rule reads must be re-run under the detector the dimension ships
+  against** — written as `DETECTOR_VERSION = 2` when this ADR was drafted, and already one
+  version stale by the time §5d ran it: #149 admitted `12m` to the detection gate
+  afterwards, so the live detector is **v3**. The requirement is the version the dimension
+  would ship against, not the number written here. §5b's published
   table — 69 taken against 14,354 not-taken — was measured under detector v1. #154's graded
   tightness grew the detector's population by **+111.3 detections per session (+123%)**, and
   while §3's detection row and §4's `in_field` anchor were re-pinned (104 → 159 of 656 — since

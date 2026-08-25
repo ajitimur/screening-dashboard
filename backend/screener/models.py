@@ -136,9 +136,6 @@ class LeaderRow(BaseModel):
     ship with two live controls and two dead ones. ``sector`` is ``None`` when the
     label was never fetched; ``dollar_volume`` is ``None`` when the name's bars
     could not supply it, the same guard the ADR column carries.
-
-    ``tier`` and ``rs_pctile`` are **phase-2**, typed nullable and returning
-    ``None`` until the cross-sectional tier banding lands in the run (spec §4.4).
     """
 
     symbol: str
@@ -150,10 +147,6 @@ class LeaderRow(BaseModel):
     # Phase-1 (spec §4.4): the sector label and §4.1 median-20d liquidity.
     sector: str | None
     dollar_volume: float | None
-    # Phase-2 (spec §4.4): the tier band (1%/2%/3%) and relative-strength
-    # percentile, both nullable until the run computes the banding.
-    tier: str | None = None
-    rs_pctile: float | None = None
 
 
 class Leader(BaseModel):

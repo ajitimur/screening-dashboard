@@ -107,8 +107,6 @@ export const leaderRow = builder<Schemas["LeaderRow"]>(() => ({
   adr: 0.05, // null when it cannot be computed
   sector: "Technology", // null when the label was never fetched
   dollar_volume: 1_000_000, // null when the name's bars cannot supply it
-  tier: null, // P2 — typed now, returned null
-  rs_pctile: null, // P2 — typed now, returned null
 }));
 
 export const leader = builder<Schemas["Leader"]>(() => ({

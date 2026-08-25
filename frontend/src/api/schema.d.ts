@@ -389,9 +389,6 @@ export interface components {
          *     ship with two live controls and two dead ones. ``sector`` is ``None`` when the
          *     label was never fetched; ``dollar_volume`` is ``None`` when the name's bars
          *     could not supply it, the same guard the ADR column carries.
-         *
-         *     ``tier`` and ``rs_pctile`` are **phase-2**, typed nullable and returning
-         *     ``None`` until the cross-sectional tier banding lands in the run (spec §4.4).
          */
         LeaderRow: {
             /** Adr */
@@ -404,16 +401,12 @@ export interface components {
             is_new: boolean;
             /** Raw Return */
             raw_return: number;
-            /** Rs Pctile */
-            rs_pctile?: number | null;
             /** Sector */
             sector: string | null;
             /** Surge */
             surge: boolean;
             /** Symbol */
             symbol: string;
-            /** Tier */
-            tier?: string | null;
         };
         /**
          * LeadersResponse

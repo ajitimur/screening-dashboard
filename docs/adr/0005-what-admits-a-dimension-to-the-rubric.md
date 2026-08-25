@@ -382,12 +382,22 @@ restated as a hope reads as a weaker commitment than it is.
   contrast is clean and only percentile denominators shift, by ~0.1%. Fixed separately rather
   than before the study, because rebuilding 4.7M rank rows would run this contrast against a
   different field than §5b did and break the comparability the ordinal rule depends on. The
-  code fix has since landed (#162): `synthesize_instruments` filters the replay's synthesized
-  instruments through `is_common_stock`, which now rejects a `^`-prefixed symbol. **The store
-  was deliberately not rebuilt.** `replay.duckdb` still carries the contaminated `universe` and
-  `ranks`, so every figure above still reads off the field it was measured on, and the ~0.1%
-  denominator shift stands as stated. A rebuild remains available, and remains all-or-nothing:
-  it invalidates cross-study comparability until every replay-percentile figure moves with it.
+  code fix has since landed (#162), and it found the contamination was wider than measured
+  here: `^IXIC` was not the only reference copied into the replay store. `SPY`, `QQQ`, `IWM`
+  and `DIA` — fetched as study benchmarks, `role="reference"` live — each carry the same 928
+  `universe` and 2,525 `ranks` rows, so the ranked population was inflated by **five** names in
+  ~1,000, not one. The direction and the order of magnitude of the correction are unchanged
+  (~0.5% rather than ~0.1%, still far below the granularity of any reported conclusion), and
+  the contrast stays clean: no reference holds a single detection row. `synthesize_instruments`
+  now excludes all five — the index on its `^` prefix, via `is_common_stock`; the ETFs by name,
+  via `REPLAY_REFERENCES`, because an ETF ticker carries no mark distinguishing it from common
+  stock. **The store was deliberately not rebuilt.** `replay.duckdb` still carries the
+  contaminated `universe` and `ranks`, so every figure above still reads off the field it was
+  measured on. The fix therefore binds only a *fresh* build: re-running the chain over the
+  shipped store reads membership back from the persisted `universe` (the run record is the
+  "already computed" marker), so it reproduces the contaminated field by design. A rebuild
+  remains available, and remains all-or-nothing: it invalidates cross-study comparability until
+  every replay-percentile figure moves with it.
 - **This is hard to reverse in the direction that matters.** Retiring a dimension changes the
   ceiling's composition and every digest frozen afterwards; re-admitting it later would need
   the evidence this ADR requires, which for `Prior move` can never exist.

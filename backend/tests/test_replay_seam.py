@@ -55,6 +55,7 @@ from replay.reference import (
 )
 from replay.chain import (
     BURN_IN_SESSIONS,
+    REPLAY_REFERENCES,
     GapError,
     replay_chain,
     synthesize_instruments,
@@ -1220,11 +1221,8 @@ def test_synthesize_instruments_one_candidate_per_symbol_with_bars(store: Store)
 
 
 def test_synthesize_instruments_excludes_the_market_index(store: Store):
-    """Issue #162. ``replay/store.py`` copies bars filtered by market and date,
-    not by role, so the benchmark's bars are in the replay store — and with no
-    role column and no security name to read, only the symbol can say it is not
-    a rankable name. Left in, ``^IXIC`` entered the universe and was ranked
-    against the single names it is the benchmark *for*."""
+    """Issue #162: the index reaches the replay store as bars, without the role
+    that would have held it out, so only its symbol can say it is a reference."""
     sessions = _calendar(3)
     _seed_series(store, "AAA", sessions, [1_000] * 3)
     _seed_series(store, "^IXIC", sessions, [1_000] * 3)
@@ -1234,15 +1232,37 @@ def test_synthesize_instruments_excludes_the_market_index(store: Store):
     assert [i.symbol for i in instruments] == ["AAA"]
 
 
+def test_synthesize_instruments_excludes_the_benchmark_etfs(store: Store):
+    """The index is not the only reference whose bars reached the replay store
+    (#162). ``SPY``, ``QQQ``, ``IWM`` and ``DIA`` were fetched as study
+    benchmarks, and an ETF carries no mark at all — no ``^``, no ``$``, a plain
+    four-letter symbol indistinguishable from common stock. Only naming them
+    keeps them out."""
+    sessions = _calendar(3)
+    for symbol in ["AAA", "SPY", "QQQ", "IWM", "DIA"]:
+        _seed_series(store, symbol, sessions, [1_000] * 3)
+
+    instruments = synthesize_instruments(store, "US")
+
+    assert [i.symbol for i in instruments] == ["AAA"]
+
+
+def test_the_replay_reference_set_names_every_reference_with_bars():
+    """The set is a blocklist, which rots silently — so it is pinned here against
+    what ``data/replay.duckdb`` actually holds, measured at the time of #162."""
+    assert REPLAY_REFERENCES == {"^IXIC", "SPY", "QQQ", "IWM", "DIA"}
+
+
 def test_the_replayed_field_never_ranks_the_benchmark(store: Store):
     """The exclusion where it matters: through the whole chain, not just the
-    instrument list. The benchmark clears every liquidity and age gate the
-    universe applies, so nothing downstream would have kept it out."""
+    instrument list. The index clears every liquidity and age gate the universe
+    applies, so nothing downstream would have kept it out — left in, ``^IXIC``
+    was ranked against the single names it is the benchmark *for*."""
     sessions = _calendar(22)
     _seed_series(store, "AAA", sessions, [3_000_000] * 22)
     _seed_series(store, "^IXIC", sessions, [3_000_000] * 22)
 
-    fields = replay_chain(store, "US", burn_in=0, blind_spot_tickers=[])
+    fields = replay_chain(store, "US", burn_in=0)
 
     last = fields[-1]
     assert "^IXIC" not in last.members

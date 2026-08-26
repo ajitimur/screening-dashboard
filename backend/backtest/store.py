@@ -45,7 +45,7 @@ import json
 import time
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Callable, Iterable, Literal
 
@@ -82,8 +82,15 @@ IDX_SUFFIX = ".JK"
 # stated 429 kept apart from an empty answer, #104); ``no_bars`` is the one this
 # layer adds — a symbol the source resolved but whose bars all fell to ingest
 # hygiene (every bar a zero-volume phantom, say), so it ends with no bars in the
-# store and must carry a row like any other absence.
-RefusalReason = Literal["unresolved", "throttled", "refused", "no_bars"]
+# store and must carry a row like any other absence. ``outside_window`` is the
+# same shape of absence one step later: a listing with real bars, none of them
+# inside the run's store window. Phase 2 reads this ledger as the survivorship
+# bound, and a listing that stopped trading before the run starts is not a hole in
+# the run's coverage — folding it into ``no_bars`` would inflate the bound with
+# names the run was never going to measure.
+RefusalReason = Literal[
+    "unresolved", "throttled", "refused", "no_bars", "outside_window"
+]
 
 
 def market_symbol(market: str, symbol: str) -> str:
@@ -209,7 +216,11 @@ def _refusal_reason(resolution: Resolution) -> RefusalReason:
 
 
 def _ingest_and_ledger(
-    store: Store, market: str, resolution: Resolution, now: datetime
+    store: Store,
+    market: str,
+    resolution: Resolution,
+    now: datetime,
+    start: date | None = None,
 ) -> Refusal | None:
     """Ingest one resolution and return the ledger row it earns, or ``None`` if it
     ended with bars in the store.
@@ -219,25 +230,42 @@ def _ingest_and_ledger(
     (``ON CONFLICT DO NOTHING``), so a resumed or repeated build re-fetches
     without duplicating a stored bar. A symbol that resolved but kept no clean
     bars is an absence like any other and earns a row.
+
+    ``start`` is the run's store window (``window.store_start``). It is applied
+    *here*, at ingest, rather than at the request, because the cold start is the
+    only request that surfaces a stated refusal — passing a ``start`` to the
+    source leaves ``period`` unset and collapses a refused listing into plain
+    silence (:meth:`Source.resolve`, issue #100). So the crawl keeps asking for
+    full history, keeps the ``refused`` reason meaningful, and drops the years
+    before the window on the way to disk.
     """
     if resolution.status != "resolved":
         return Refusal(resolution.symbol, _refusal_reason(resolution))
-    bars = clean_bars(parse_bars(resolution.bars), market, now)
-    if not bars:
+    clean = clean_bars(parse_bars(resolution.bars), market, now)
+    if not clean:
         return Refusal(resolution.symbol, "no_bars")
+    bars = [b for b in clean if b.session >= start] if start else clean
+    if not bars:
+        return Refusal(resolution.symbol, "outside_window")
     store.append_bars(market, resolution.symbol, bars)
     return None
 
 
-def coverage_path(out_path: str | Path) -> Path:
-    """Where a build commits its coverage: the store's path plus ``.coverage.json``.
+def coverage_path(out_path: str | Path, market: str) -> Path:
+    """Where a build commits its coverage: the store's path, the market, ``.json``.
 
     Derived from the store rather than passed separately, so the ledger cannot be
     written beside the wrong store or forgotten by a caller — the plan's Phase 1
     is done only when both counts are *committed*, not merely returned.
+
+    Keyed by market as well, because both markets fill **one** store — the store
+    is keyed ``(market, symbol)`` and Phase 3 wants one file to open — while
+    coverage is a per-market fact, summing to one market's enumeration. A path
+    derived from the store alone would have the second crawl silently overwrite
+    the first's ledger.
     """
     out = Path(out_path)
-    return out.with_name(out.name + ".coverage.json")
+    return out.with_name(f"{out.name}.coverage.{market}.json")
 
 
 class LiveStoreWriteRefused(ValueError):
@@ -289,6 +317,7 @@ def build_backtest_store(
     *,
     market: str,
     now: datetime,
+    start: date | None = None,
     workers: int = DEFAULT_RESOLVE_WORKERS,
     resume: bool = False,
     progress: Callable[[str], None] = emit_progress,
@@ -322,6 +351,13 @@ def build_backtest_store(
     Without that guard the claim rested on the caller: ``Store.open`` opens
     read-write, so the live path handed in here would have been written to.
     ``now`` must be timezone-aware for the finality rule.
+
+    ``start`` is the store window's first session (``window.store_start``). The
+    provider is still asked for full history — that is what keeps a stated
+    refusal distinguishable from silence — and the years before ``start`` are
+    dropped at ingest, so the store carries only what the run measures and a
+    listing whose whole history predates the window ledgers as ``outside_window``
+    rather than vanishing.
 
     ``resume`` skips symbols the store already holds bars for. It is opt-in
     because the two intents are not the same: resuming an interrupted crawl wants
@@ -365,7 +401,9 @@ def build_backtest_store(
             resolve_all(source, to_fetch, workers=workers), 1
         ):
             counts[resolution.status] += 1
-            ledger[resolution.symbol] = _ingest_and_ledger(store, market, resolution, now)
+            ledger[resolution.symbol] = _ingest_and_ledger(
+                store, market, resolution, now, start
+            )
             if done % PROGRESS_EVERY == 0 or done == total:
                 progress(
                     progress_line(
@@ -400,7 +438,9 @@ def build_backtest_store(
                 counts["unresolved"] -= 1
                 counts[resolution.status] += 1
                 revised += 1
-            ledger[resolution.symbol] = _ingest_and_ledger(store, market, resolution, now)
+            ledger[resolution.symbol] = _ingest_and_ledger(
+                store, market, resolution, now, start
+            )
             recovered += resolution.status == "resolved"
         if silent:
             progress(sweep_result_line(market, recovered, len(silent)))
@@ -432,5 +472,5 @@ def build_backtest_store(
     # Committed beside the store, not merely returned: a coverage that lives only
     # in a return value is recomputed on trust by whoever asks next, and Phase 1
     # is done only when both counts are committed.
-    coverage.write(coverage_path(out_path))
+    coverage.write(coverage_path(out_path, market))
     return coverage

@@ -4192,7 +4192,7 @@ def test_the_build_commits_its_coverage_beside_the_store(tmp_path):
         ["AAA", "BBB"], out, market="US", now=_BUILD_NOW,
     )
 
-    written = coverage_path(out)
+    written = coverage_path(out, "US")
     assert written.exists()
     assert BuildCoverage.load(written) == coverage
     assert json.loads(written.read_text())["enumerated"] == 2
@@ -4261,3 +4261,236 @@ def test_names_folded_by_deduplication_are_reported_not_silently_dropped(tmp_pat
     assert coverage.stored == ("AAA",)
     coverage.check()
     assert BuildCoverage.from_dict(coverage.to_dict()) == coverage
+
+
+# -- the full crawl: enumeration, store window and the runner (issue #187) ---
+#
+# Phase 1's second half. #186 built the fetch loop against an explicit
+# enumeration; this is what decides *which* symbols that enumeration holds, trims
+# the pull to the contract's store window, and drives both markets from one
+# command. The seam stays where #186 put it — a fake source client — so nothing
+# here reaches the network either.
+
+from backtest.crawl import (
+    CRAWL_START,
+    crawl_enumeration,
+    crawl_market,
+    main as crawl_main,
+)
+from backtest.store import live_store_path
+from screener.source import Instrument
+
+
+def test_the_crawl_enumerates_the_index_and_the_common_stock_candidates():
+    """The crawl fetches exactly the pipeline's fetch set (`screener.pipeline`
+    §"Shrink the fetch set", issue #99): the market's own index, because the
+    contract reads regime off it (`regime.source`), plus the candidates that can
+    enter a universe at all.
+
+    The other references are enumerated but no code path reads their bars, and a
+    non-common-stock candidate can never enter the universe — fetching either
+    spends the crawl's paced hours on bars nothing will ever ask for. Mirroring
+    the app's own filter is also what keeps the backtest's denominator the app's:
+    a second, looser fetch set would price names the product cannot trade.
+    """
+    instruments = [
+        Instrument(market="US", symbol="^IXIC", role="reference"),
+        Instrument(market="US", symbol="SPY", role="reference"),
+        Instrument(
+            market="US", symbol="AAPL", role="candidate",
+            name="Apple Inc. - Common Stock",
+        ),
+        Instrument(
+            market="US", symbol="ABCW", role="candidate", name="Some Fund - Warrant",
+        ),
+    ]
+
+    assert crawl_enumeration(instruments, "US") == ["^IXIC", "AAPL"]
+
+
+def test_the_idx_crawl_keeps_its_own_index_and_drops_the_us_one():
+    """The reference kept is the *market's* index, not a constant: IDX's regime
+    reads `^JKSE`, and a US index row appearing in an IDX enumeration is not the
+    thing that regime will read."""
+    instruments = [
+        Instrument(market="IDX", symbol="^JKSE", role="reference"),
+        Instrument(market="IDX", symbol="^IXIC", role="reference"),
+        Instrument(market="IDX", symbol="BBCA", role="candidate", name="BBCA"),
+    ]
+
+    assert crawl_enumeration(instruments, "IDX") == ["^JKSE", "BBCA"]
+
+
+def test_the_store_window_trims_bars_before_the_contracts_store_start(tmp_path):
+    """Bars before `window.store_start` never reach the store (contract cell
+    2011-01-01, PRD story 6).
+
+    The provider is asked for full history regardless — a cold start is the only
+    request that surfaces a stated refusal (`screener.source`, issue #100), so the
+    ledger's `refused` reason depends on asking for `period="max"`. The window is
+    therefore applied at ingest rather than at the request, which keeps the
+    refusal vocabulary intact and still leaves the store carrying only the years
+    the run measures.
+    """
+    source = _fetch_source(
+        {
+            "AAA": [
+                _bar_row(date(2009, 6, 1)),
+                _bar_row(date(2011, 1, 3)),
+                _bar_row(date(2015, 6, 1)),
+            ]
+        }
+    )
+    out = tmp_path / "bt.duckdb"
+
+    coverage = build_backtest_store(
+        source, ["AAA"], out, market="US", now=_BUILD_NOW, start=CRAWL_START,
+    )
+
+    store = Store.open(out)
+    try:
+        assert [b.session for b in store.bars("US", "AAA")] == [
+            date(2011, 1, 3),
+            date(2015, 6, 1),
+        ]
+    finally:
+        store.close()
+    assert coverage.stored == ("AAA",)
+
+
+def test_a_symbol_whose_whole_history_predates_the_window_is_a_refusal(tmp_path):
+    """A symbol that resolves but leaves no bars *inside* the window ends with no
+    bars in the store, so it earns a ledger row like any other absence — and the
+    row says `outside_window`, not `no_bars`.
+
+    The distinction is load-bearing for Phase 2, which reads this ledger as the
+    survivorship bound. `no_bars` means ingest hygiene threw everything away — a
+    symbol that quotes but never trades. `outside_window` means the listing has
+    real history that simply stopped before the run starts, which is not a hole in
+    the run's coverage at all. Folding the two would inflate the bound with names
+    the run was never going to measure.
+    """
+    coverage = build_backtest_store(
+        _fetch_source({"OLD": [_bar_row(date(2009, 6, 1))]}),
+        ["OLD"], tmp_path / "bt.duckdb", market="US", now=_BUILD_NOW,
+        start=CRAWL_START,
+    )
+
+    assert coverage.stored == ()
+    assert coverage.refusals == (Refusal("OLD", "outside_window"),)
+    coverage.check()
+
+
+def test_the_two_markets_coverages_survive_one_shared_store(tmp_path):
+    """Both markets fill one store, and each commits its own coverage file.
+
+    The store is keyed `(market, symbol)`, so one file holding both markets is
+    what Phase 3 wants to open. But coverage is a *per-market* fact — the
+    enumeration it sums to is one market's — so a single path derived from the
+    store alone would have the second market silently overwrite the first's
+    ledger, and Phase 2 would read a US bound off an IDX crawl.
+    """
+    out = tmp_path / "bt.duckdb"
+    us = build_backtest_store(
+        _fetch_source({"AAA": [_bar_row(date(2015, 6, 1))]}),
+        ["AAA"], out, market="US", now=_BUILD_NOW,
+    )
+    idx = build_backtest_store(
+        _fetch_source({"BBCA.JK": [_bar_row(date(2015, 6, 1))]}),
+        ["BBCA"], out, market="IDX", now=_BUILD_NOW,
+    )
+
+    assert coverage_path(out, "US") != coverage_path(out, "IDX")
+    assert BuildCoverage.load(coverage_path(out, "US")) == us
+    assert BuildCoverage.load(coverage_path(out, "IDX")) == idx
+
+
+def test_crawl_market_enumerates_then_fetches_the_window(tmp_path):
+    """`crawl_market` is the whole per-market job: enumerate through the source,
+    filter to the fetch set, then fill the store over the contract's window."""
+
+    class _EnumeratingClient(_FetchClient):
+        def enumerate(self, market):
+            return [
+                Instrument(market="US", symbol="^IXIC", role="reference"),
+                Instrument(market="US", symbol="SPY", role="reference"),
+                Instrument(
+                    market="US", symbol="AAPL", role="candidate",
+                    name="Apple Inc. - Common Stock",
+                ),
+            ]
+
+    client = _EnumeratingClient(
+        {
+            "^IXIC": [_bar_row(date(2010, 6, 1)), _bar_row(date(2015, 6, 1))],
+            "AAPL": [_bar_row(date(2015, 6, 1))],
+        }
+    )
+    out = tmp_path / "bt.duckdb"
+
+    coverage = crawl_market(
+        Source(client, backoff_base=0.0, sleep=lambda _s: None),
+        market="US", out_path=out, now=_BUILD_NOW, progress=lambda _line: None,
+    )
+
+    assert client.fetched == ["^IXIC", "AAPL"]  # SPY was never asked for
+    assert coverage.enumerated == 2
+    assert coverage.stored == ("AAPL", "^IXIC")
+    store = Store.open(out)
+    try:
+        assert [b.session for b in store.bars("US", "^IXIC")] == [date(2015, 6, 1)]
+    finally:
+        store.close()
+
+
+def test_the_crawl_cli_runs_both_markets_into_one_store(tmp_path):
+    """The runner's whole job in one command: both markets, one store, a coverage
+    file committed per market. The network is injected, so this drives the real
+    argument parsing and the real loop without a socket."""
+
+    class _BothMarketsClient(_FetchClient):
+        def enumerate(self, market):
+            if market == "US":
+                return [
+                    Instrument(
+                        market="US", symbol="AAA", role="candidate",
+                        name="A - Common Stock",
+                    )
+                ]
+            return [Instrument(market="IDX", symbol="BBCA", role="candidate", name="BBCA")]
+
+    client = _BothMarketsClient(
+        {"AAA": [_bar_row(date(2015, 6, 1))], "BBCA.JK": [_bar_row(date(2015, 6, 1))]}
+    )
+    out = tmp_path / "bt.duckdb"
+
+    exit_code = crawl_main(
+        ["--out", str(out)],
+        source_factory=lambda: Source(client, backoff_base=0.0, sleep=lambda _s: None),
+        now=_BUILD_NOW,
+    )
+
+    assert exit_code == 0
+    assert BuildCoverage.load(coverage_path(out, "US")).stored == ("AAA",)
+    assert BuildCoverage.load(coverage_path(out, "IDX")).stored == ("BBCA.JK",)
+
+
+def test_the_crawl_cli_refuses_the_live_store_before_it_fetches_anything():
+    """The guard runs before the first request, not after the crawl.
+
+    `refuse_live_store` already refuses at the store boundary (#186), but by then
+    a multi-hour US pull may have completed and be about to be written into live
+    history. The runner checks every destination up front, so the refusal costs
+    nothing and the mistake is caught while it is still cheap.
+    """
+
+    class _NeverAsked(_FetchClient):
+        def enumerate(self, market):  # pragma: no cover - the guard fires first
+            raise AssertionError("the crawl enumerated before checking its destination")
+
+    with pytest.raises(LiveStoreWriteRefused):
+        crawl_main(
+            ["--out", str(live_store_path())],
+            source_factory=lambda: Source(_NeverAsked({}), sleep=lambda _s: None),
+            now=_BUILD_NOW,
+        )

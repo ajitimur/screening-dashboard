@@ -264,6 +264,14 @@ crawl finishes and a burst stalls.
 none, the two counts sum to the enumeration, and both are committed. A symbol that is
 silently absent is survivorship bias entering through the back door.
 
+**Done** (2026-08-26, #187). `python -m backtest.crawl` filled `data/backtest.duckdb` with
+**US 5,495 stored + 3 refused = 5,498** and **IDX 839 stored + 0 refused = 839**, 2011-01-03
+through each market's latest complete session. The counts and the per-symbol ledgers are
+committed: [`references/backtest_store_coverage.md`](../references/backtest_store_coverage.md)
+and `data/backtest.duckdb.coverage.{US,IDX}.json`. Two numbers there are Phase 2's starting
+point — the US ledger's three absences, and IDX's **124-name gap (12.9%)** between the 838
+names Yahoo's screener enumerates and the 962 the exchange lists.
+
 ## Phase 2 — Bound the survivorship hole
 
 Treat this as a measurement with its own deliverable, ahead of any performance number.
@@ -273,7 +281,9 @@ tickers (29.5%)** and **172 of 828 trades (20.8%)** the store cannot cover, carr
 the trader's realised R** — names delisted, acquired or renamed inside four years. A 2012 start
 reaches further back, so expect worse. For IDX the research note measured the same hole from
 the other side: the Yahoo screener enumerates ~840 names against IDX's ~963 listed, and the
-missing ones are the suspended and delisted.
+missing ones are the suspended and delisted. Phase 1's crawl has since made that pair exact —
+**838 enumerated against 962 listed, a gap of 124 (12.9%)** on 2026-08-26 — and showed the
+gap is entirely upstream of the ledger, since every name the screener did enumerate resolved.
 
 **And the hole has a silent half.** §2's correction is the part to carry: eleven of those
 tickers *resolve today* but their bar history begins years after the entry they are paired

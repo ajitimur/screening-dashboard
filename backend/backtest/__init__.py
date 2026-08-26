@@ -19,7 +19,15 @@ travels with the results it produced (:func:`stamp_result`).
 
 Issue #185 lands the second: :mod:`backtest.universe`, the contract's stateless
 universe classifier. Issue #186 lands the third: :mod:`backtest.store`, the paced
-bar fetcher and its refusal ledger, whose names *are* re-exported below.
+bar fetcher and its refusal ledger, whose names *are* re-exported below. Issue
+#187 lands the fourth, :mod:`backtest.crawl` — the runner that points that
+fetcher at both markets over the contract's store window, and the command that
+produced the committed store.
+
+:mod:`backtest.crawl`'s names are not re-exported, for the same reason the
+universe's are not: ``main``, ``crawl_market`` and ``CRAWL_START`` say what they
+are only under the module qualifier. It is a runner, and its caller is a
+terminal.
 
 The universe's names are not re-exported, and the reason is naming rather than
 import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean

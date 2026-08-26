@@ -10839,15 +10839,21 @@ def test_a_month_the_store_never_covered_plots_as_a_hole_not_as_a_quiet_month(
     detections is a real zero; a month the window skipped entirely is a hole, and
     a yearly mean cannot tell them apart — it drops by a twelfth and reads as a
     slow year."""
-    # A window with a whole month missing from the middle of the calendar.
+    # January into February, then April into May: March is inside the window and
+    # has no session at all, and every session that exists detects nothing.
     dates = _daily(date(2020, 1, 1), 40) + _daily(date(2020, 4, 1), 40)
-    covered = {(d.year, d.month) for d in dates}
 
     points = detections_series(dates, Counter())
 
-    holes = {(p.year, p.month) for p in points if p.hole}
-    assert holes == {(2020, 3)} or (2020, 3) in holes
-    assert all((p.year, p.month) in covered for p in points if not p.hole)
+    assert {(p.year, p.month) for p in points if p.hole} == {(2020, 3)}
+    # Every other month is a measured zero, not a hole — the distinction a yearly
+    # mean cannot draw and the reason the series is plotted at all.
+    assert {(p.year, p.month) for p in points if not p.hole} == {
+        (2020, 1), (2020, 2), (2020, 4), (2020, 5)
+    }
+    assert all(p.detections == 0 for p in points)
+    assert all(p.per_session == 0.0 for p in points if not p.hole)
+    assert all(p.per_session is None for p in points if p.hole)
 
 
 # -- the anchors gate ----------------------------------------------------------

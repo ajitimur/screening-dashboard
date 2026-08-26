@@ -180,6 +180,22 @@ SWEEP_NOTE = (
     "exists; a swept result is reported with the count of variants tried"
 )
 
+# Where the survivorship bound rides (PRD Phase 2, issue #196). The key a market's
+# block carries it under, and what gets printed when nothing carries it.
+#
+# The bound is *attached* by :func:`backtest.survivorship.attach_bias_bound` rather
+# than computed here, because the size of the hole is measured against the bar store
+# and a reconstructed listing spine and this module reads neither — a metric that
+# reached for them would need a crawl to report a mean. But the printed page is
+# where the pair is either honoured or quietly broken, so the absence of a bound is
+# printed *as* the absence rather than left blank: a blank would read as "no bias",
+# which is the one reading Phase 2 exists to make impossible.
+BIAS_BOUND_KEY = "bias_bound"
+NO_BOUND_LINE = (
+    "  bias bound: not attached — this figure is survivor-biased by an unmeasured "
+    "amount (backtest.survivorship)"
+)
+
 
 # -- refusing a contract that has moved out from under the code ---------------
 
@@ -685,10 +701,21 @@ def _cell_line(cell: dict[str, Any], *, width: int = 22) -> str:
         # symbols to say", and those are different findings.
         else f"{boot['clusters']} {boot['cluster']}s — too thin for an interval"
     )
+    # The cell's own bound, where one was attached — every result carries it, not
+    # only the window figure a reader skims to. Compact and on the same line, for
+    # the reason the win rate is: a pair split from its figure is a pair somebody
+    # quotes half of.
+    bound = cell.get(BIAS_BOUND_KEY)
+    bounded = (
+        f"  bound {bound['pessimistic_r']:+.3f}R"
+        if bound and bound["pessimistic_r"] is not None
+        else ""
+    )
     return (
         f"  {cell['label']:<{width}} {cell['expectancy_r']:+.3f}R  "
         f"win {cell['win_rate']:.1%}  n={cell['closed']}  "
         f"med {dist['median']:+.2f} p90 {dist['p90']:+.2f} max {dist['max']:+.2f}  {ci}"
+        f"{bounded}"
     )
 
 
@@ -718,6 +745,10 @@ def format_metric(report: dict[str, Any]) -> str:
         ]
         lines.append("  windows")
         lines += [_cell_line(cell) for cell in body["windows"]]
+        # One line, and it is printed whether or not a bound was attached — the
+        # market's figures are never reachable without passing it.
+        bound = body.get(BIAS_BOUND_KEY)
+        lines.append(bound["line"] if bound else NO_BOUND_LINE)
     return "\n".join(lines)
 
 

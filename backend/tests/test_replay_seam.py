@@ -10429,3 +10429,717 @@ def test_the_arms_never_anchored_are_derived_once():
     place — applied to the complement as well as to the set."""
     assert MEASURED_NEVER_ANCHORED == (ARM_A,)
     assert set(MEASURED_NEVER_ANCHORED) | set(ANCHOR_ARMS) == set(ARM_SPECS)
+
+
+# -- bounding the survivorship hole (issue #196) --------------------------------
+#
+# Phase 2, and the measurement that gates believing any performance number. Four
+# claims are load-bearing here, and each one below would fail loudly if the code
+# drifted from it:
+#
+#   * **Coverage is decided by the bars, not by the symbol.** A ticker that
+#     resolves today and carries bars beginning after the session being replayed
+#     is a *recycled listing* — one company's session read against another
+#     company's bars. It is a blind spot, and `FUSE` is the name that proved a
+#     has-any-bars test gets it wrong (findings §2, #139).
+#   * **The spine is verified before it is depended on.** A listing spine that
+#     does not bracket the window cannot say a name was listed inside it, so the
+#     count built on it would be a number about the spine's own edges.
+#   * **The bound is a pair, never a single figure.** The headline and its
+#     pessimistic twin are computed together and printed on one line, because a
+#     survivor-biased number quoted alone is the failure this phase exists to
+#     prevent.
+#   * **The measured hole is read against findings §2's floor.** A 2012 start
+#     reaches further back than the reference study's four years, so a *smaller*
+#     hole is a reason for suspicion rather than a result.
+
+from backtest.crawl import NOT_COMMON_STOCK, UNREAD_REFERENCE, Enumeration
+from backtest.metric import NO_BOUND_LINE
+from backtest.survivorship import (
+    BARS_BEGIN_AFTER,
+    BARS_END_BEFORE,
+    COVERED,
+    FINDINGS_FLOOR,
+    FLOOR_SUSPICION_NOTE,
+    NO_BARS,
+    PESSIMISTIC_OUTCOME,
+    PESSIMISTIC_R,
+    SPINE_SOURCE,
+    Absence,
+    ListingSpine,
+    Snapshot,
+    SpineCoverageShortfall,
+    SpineCoverageUnverified,
+    BASIS_ENUMERATION,
+    SurvivorshipHole,
+    absences,
+    against_floor,
+    attach_bias_bound,
+    bias_bound,
+    bias_bound_line,
+    enumeration_gap,
+    format_survivorship,
+    hole_from_counts,
+    holes_by_market,
+    is_blind_spot,
+    missing_trade_count,
+    coverage_census,
+    fetch_spine,
+    parse_snapshot,
+    session_verdict,
+    span_of,
+    spine_path,
+    survivorship_report,
+    todays_roster,
+    window_population,
+)
+
+_WINDOW = (date(2012, 1, 1), date(2026, 8, 26))
+
+
+def _snap(as_of: date, *symbols: str, file: str = "nasdaqlisted.txt") -> Snapshot:
+    return Snapshot(as_of=as_of, file=file, symbols=tuple(symbols))
+
+
+def _listing_spine(*snapshots: Snapshot, market: str = "US") -> ListingSpine:
+    return ListingSpine(market=market, source=SPINE_SOURCE, snapshots=tuple(snapshots))
+
+
+def _bracketing(*snapshots: Snapshot) -> ListingSpine:
+    """A spine whose snapshots bracket the measured window at both ends.
+
+    Every absence test needs the brackets or the verification refuses it, and
+    repeating the two edge snapshots in each fixture would bury the one line that
+    differs between them.
+    """
+    edges = (
+        _snap(date(2011, 12, 1), "EDGE"),
+        _snap(date(2026, 9, 1), "EDGE"),
+    )
+    return _listing_spine(*edges, *snapshots)
+
+
+# -- coverage is a fact about the bars, not about the symbol -------------------
+
+
+def test_a_recycled_ticker_is_a_blind_spot_not_a_covered_name(store: Store):
+    """`FUSE`'s shape: the symbol resolves today and has bars, and they are the
+    wrong company's.
+
+    The store holds `RECY` from 2022 onward because the ticker was reassigned to an
+    unrelated listing. The session being replayed is in 2021, when the *original*
+    listing traded under it. A test that asks "does this symbol have bars?" answers
+    yes and replays one company's session against another company's series; the
+    test that asks "do the bars cover this session?" calls it what it is.
+    """
+    store.append_bars("US", "RECY", [_bar(d) for d in _daily(date(2022, 3, 7), 5)])
+
+    verdict = session_verdict(span_of(store, "US", "RECY"), date(2021, 1, 4))
+
+    assert verdict == BARS_BEGIN_AFTER
+    assert is_blind_spot(verdict)
+    # And the weaker question gives the wrong answer, which is why it is not asked.
+    assert store.bars("US", "RECY") != []
+
+
+def test_coverage_separates_the_three_ways_a_session_goes_uncovered(store: Store):
+    """Covered, never listed yet, listed and gone, and no bars at all.
+
+    Four verdicts rather than a boolean, because the three failures have different
+    causes — a recycled ticker, a delisting, and a name the crawl never reached —
+    and a report that collapsed them would name none of them.
+    """
+    store.append_bars("US", "MID", [_bar(d) for d in _daily(date(2020, 5, 4), 5)])
+    span = span_of(store, "US", "MID")
+
+    assert session_verdict(span, date(2020, 5, 6)) == COVERED
+    assert session_verdict(span, date(2020, 1, 2)) == BARS_BEGIN_AFTER
+    assert session_verdict(span, date(2021, 1, 4)) == BARS_END_BEFORE
+    assert session_verdict(span_of(store, "US", "ZZZ"), date(2020, 5, 6)) == NO_BARS
+    assert is_blind_spot(COVERED) is False
+
+
+# -- the spine is verified before it is depended on ----------------------------
+
+
+def test_a_spine_that_does_not_bracket_the_window_is_refused(store: Store):
+    """A spine whose oldest snapshot lands inside the window cannot say a name was
+    listed before it — every name would look like a 2015 listing.
+
+    Refused rather than reported as a caveat: the count is the deliverable, and a
+    count whose edges are the source's edges is a measurement of the source.
+    """
+    spine = _listing_spine(_snap(date(2015, 6, 1), "AAA"), _snap(date(2026, 8, 1), "AAA"))
+
+    with pytest.raises(SpineCoverageShortfall) as excinfo:
+        spine.verify(*_WINDOW)
+
+    assert "2012-01-01" in str(excinfo.value)
+
+
+def test_an_unverified_spine_cannot_be_counted_against(store: Store):
+    """The verification is a gate on the type, not a step a caller may skip.
+
+    `absences` takes a verified spine and nothing else, so "check the coverage
+    first" is enforced at the one place the spine is depended on rather than
+    remembered at each call site.
+    """
+    spine = _bracketing(_snap(date(2015, 6, 1), "AAA"))
+
+    with pytest.raises(SpineCoverageUnverified):
+        absences(spine, enumerated_today=["AAA"], window=_WINDOW)
+
+
+def test_a_verified_spine_reports_the_density_that_makes_the_count_a_floor(store: Store):
+    """Bracketing is refused when absent; density is *reported* when thin.
+
+    The two failures differ in kind. A spine that does not bracket the window gives
+    a wrong count; a spine that brackets it with annual snapshots gives a count that
+    is right about what it saw and blind to any name that listed and delisted
+    between two of them. The first is refused above; the second rides on the result
+    as the reason the number is a floor.
+    """
+    spine = _bracketing(_snap(date(2015, 6, 1), "AAA"))
+
+    verified = spine.verify(*_WINDOW)
+
+    assert verified.coverage.brackets_window is True
+    assert verified.coverage.snapshots == 3
+    # 2012 through 2026 with snapshots in 2011, 2015 and 2026: the silent years are
+    # named, not summarised into a single "sparse".
+    assert 2013 in verified.coverage.years_without_snapshot
+    assert 2015 not in verified.coverage.years_without_snapshot
+    assert verified.coverage.largest_gap_days > 365
+
+
+# -- the dated count -----------------------------------------------------------
+
+
+def test_the_count_is_names_listed_in_the_window_and_gone_from_todays_enumeration(
+    store: Store,
+):
+    """The deliverable: who is missing, and between which dates they were listed.
+
+    `GONE` was listed in 2013 and 2015 and is not enumerated today — the survivorship
+    hole. `ALIVE` is enumerated today, so it is not one however long it has been
+    listed. `LATER` is absent today too, but its only snapshot is after the window,
+    so it never traded inside the window and is not this window's hole.
+    """
+    spine = _bracketing(
+        _snap(date(2013, 2, 1), "GONE", "ALIVE"),
+        _snap(date(2015, 6, 1), "GONE", "ALIVE"),
+    )
+
+    found = absences(
+        spine.verify(*_WINDOW), enumerated_today=["ALIVE", "EDGE"], window=_WINDOW
+    )
+
+    assert found == (
+        Absence(
+            symbol="GONE",
+            market="US",
+            first_listed=date(2013, 2, 1),
+            last_listed=date(2015, 6, 1),
+            snapshots=2,
+        ),
+    )
+
+
+def test_a_name_listed_only_after_the_window_is_not_this_windows_hole(store: Store):
+    """The window is the claim's scope, and a name that never traded inside it is
+    absent from today's enumeration for reasons this run is not measuring."""
+    window = (date(2012, 1, 1), date(2014, 12, 31))
+    spine = _listing_spine(
+        _snap(date(2011, 12, 1), "EDGE"),
+        _snap(date(2014, 12, 1), "EDGE"),
+        _snap(date(2013, 1, 1), "INSIDE"),
+    )
+    # A later snapshot carrying a name that only ever appears after the window.
+    later = _listing_spine(*spine.snapshots, _snap(date(2016, 1, 1), "AFTER"))
+
+    found = absences(later.verify(*window), enumerated_today=["EDGE"], window=window)
+
+    assert [a.symbol for a in found] == ["INSIDE"]
+
+
+# -- the hole, and findings §2's floor -----------------------------------------
+
+
+def test_the_hole_counts_the_recycled_names_beside_the_absent_ones(store: Store):
+    """Survivorship here is delisting *plus* ticker recycling.
+
+    A recycled name is absent from no list — it resolves today, and the absence
+    count above cannot see it. It reaches the hole through the coverage verdict
+    instead, which is why the two counts are summed rather than either being taken
+    for the whole.
+    """
+    hole = hole_from_counts(
+        market="US", covered_names=800, absent_names=150, recycled_names=50
+    )
+
+    assert isinstance(hole, SurvivorshipHole)
+    assert hole.missing_names == 200
+    assert hole.total_names == 1000
+    assert hole.share == pytest.approx(0.2)
+
+
+def test_a_hole_smaller_than_the_reference_floor_is_flagged_as_suspicious(store: Store):
+    """findings §2 measured 92 of 312 tickers over four years. This run reaches
+    back to 2012, so it should find *more*.
+
+    A smaller number is reported with the suspicion attached rather than as a better
+    result, because the likeliest cause of a shrinking hole is a coverage test that
+    stopped asking the hard question.
+    """
+    thin = hole_from_counts(market="US", covered_names=990, absent_names=10,
+                            recycled_names=0)
+    fat = hole_from_counts(market="US", covered_names=600, absent_names=400,
+                           recycled_names=0)
+
+
+    assert against_floor(thin)["below_floor"] is True
+    assert FLOOR_SUSPICION_NOTE in against_floor(thin)["note"]
+    assert against_floor(fat)["below_floor"] is False
+    assert against_floor(fat)["floor_share"] == pytest.approx(
+        FINDINGS_FLOOR.tickers / FINDINGS_FLOOR.total_tickers
+    )
+
+
+def test_the_idx_gap_is_measured_from_the_enumeration_side(store: Store):
+    """IDX has no free dated listing spine, so its hole is measured where it *is*
+    visible: the provider enumerates fewer names than the exchange lists.
+
+    The exchange's own count and the date it was read both ride on the figure —
+    the screener's membership churns for live names on a scale of minutes, so an
+    undated 123 is a number nobody could reproduce.
+    """
+    enumeration = Enumeration(
+        market="IDX",
+        listed=840,
+        fetched=tuple(f"S{i}.JK" for i in range(840)),
+        excluded=(),
+        listed_by_exchange=962,
+        listed_by_exchange_source="idx.co.id Company Profiles, read 2026-08-26",
+    )
+
+    gap = enumeration_gap(enumeration)
+
+    assert gap.missing == 122
+    assert gap.share == pytest.approx(122 / 962)
+    assert "2026-08-26" in gap.source
+
+
+def test_an_enumeration_with_no_exchange_count_measures_no_gap(store: Store):
+    """US has no second listing count on the enumeration, and an absent count is
+    reported as absent rather than as a gap of zero — the two readings are opposite
+    findings."""
+    enumeration = Enumeration(market="US", listed=1, fetched=("AAA",), excluded=())
+
+    assert enumeration_gap(enumeration) is None
+
+
+# -- the bound: the headline and its pessimistic twin --------------------------
+
+
+def test_the_missing_population_is_scaled_off_the_covered_one(store: Store):
+    """A hole of one name in five means the observed trades are four-fifths of the
+    population, so the missing fifth is a quarter as many trades again.
+
+    Stated as arithmetic rather than assumed: the assumption is that a missing name
+    would have traded at the same rate as a covered one, which is conservative in
+    the wrong direction — the names that died were the volatile ones a momentum
+    screener surfaces most.
+    """
+    assert missing_trade_count(closed=800, hole_share=0.2) == 200
+    assert missing_trade_count(closed=0, hole_share=0.5) == 0
+    assert missing_trade_count(closed=100, hole_share=0.0) == 0
+
+
+def test_the_bound_is_the_gap_between_the_headline_and_its_pessimistic_twin(store):
+    """The deliverable: two numbers and the distance between them.
+
+    Ten trades at +1R with a hole of one in three: the twin carries five more trades
+    at a full stop, so the mean falls from +1R toward the pessimistic assignment and
+    the gap is what survivorship could be worth.
+    """
+    trades = [_mtrade(f"S{i}", 2015, 1.0) for i in range(10)]
+    cell = expectancy_cell(DEFAULT_CONTRACT, trades, market="US", label="2015")
+
+    bound = bias_bound(cell, market="US", hole_share=1 / 3)
+
+    assert bound.covered_trades == 10
+    assert bound.missing_trades == 5
+    assert bound.pessimistic_r < bound.headline_r
+    assert bound.gap_r == pytest.approx(bound.headline_r - bound.pessimistic_r)
+    # The twin is the mean over both populations, and it is checkable by hand.
+    cost = cell["cost_r"]
+    assert bound.pessimistic_r == pytest.approx(
+        (10 * (1.0 - cost) + 5 * (PESSIMISTIC_R - cost)) / 15
+    )
+    assert bound.pessimistic_outcome == PESSIMISTIC_OUTCOME
+
+
+def test_a_hole_of_nothing_leaves_the_headline_where_it_was(store):
+    """No missing population, no bound — and the pair is still printed, because a
+    bound of zero is a measurement and a missing bound is not."""
+    cell = expectancy_cell(
+        DEFAULT_CONTRACT, [_mtrade("AAA", 2015, 1.0)], market="US", label="2015"
+    )
+
+    bound = bias_bound(cell, market="US", hole_share=0.0)
+
+    assert bound.gap_r == pytest.approx(0.0)
+    assert bound.pessimistic_r == pytest.approx(bound.headline_r)
+    assert "0.000R" in bias_bound_line(bound)
+
+
+def test_the_bound_rides_on_every_result_as_one_line(store):
+    """The line is attached to the metric report itself and printed by the metric's
+    own formatter, so a reader cannot reach the headline without passing the bound.
+
+    Attached rather than recomputed inside the metric: the hole is measured against
+    the bar store and the listing spine, which the metric never reads, and a metric
+    that reached for them would need the network to report a mean.
+    """
+    report = metric_report(DEFAULT_CONTRACT, [_mtrade("AAA", 2015, 1.0)],
+                           markets=["US"])
+
+    bounded = attach_bias_bound(report, {"US": 0.25})
+
+    line = bounded["markets"][0]["bias_bound"]["line"]
+    assert "pessimistic" in line
+    assert line in format_metric(bounded)
+
+
+def test_an_unbounded_headline_says_so_where_the_bound_would_be(store):
+    """A metric printed with no bound attached is survivor-biased by an unmeasured
+    amount, and the page says that in the place a reader looks for the pair.
+
+    A blank there would read as "no bias", which is the one reading Phase 2 exists
+    to make impossible.
+    """
+    report = metric_report(DEFAULT_CONTRACT, [_mtrade("AAA", 2015, 1.0)],
+                           markets=["US"])
+
+    printed = format_metric(report)
+
+    assert NO_BOUND_LINE in printed
+
+
+# -- the report -----------------------------------------------------------------
+
+
+def test_the_survivorship_report_states_the_hole_against_the_floor(store: Store):
+    """Both deliverables in one stamped payload: the dated count, and the bound.
+
+    The floor is stated beside the measurement rather than left in the plan, so the
+    figure arrives already compared to the only prior measurement of the same thing.
+    """
+    spine = _bracketing(
+        _snap(date(2013, 2, 1), "GONE", "ALIVE"),
+        _snap(date(2015, 6, 1), "GONE", "ALIVE"),
+    )
+    hole = hole_from_counts(market="US", covered_names=1, absent_names=1,
+                            recycled_names=0)
+
+    report = survivorship_report(
+        DEFAULT_CONTRACT,
+        holes=[hole],
+        absent={"US": absences(spine.verify(*_WINDOW),
+                               enumerated_today=["ALIVE", "EDGE"], window=_WINDOW)},
+        coverage={"US": spine.verify(*_WINDOW).coverage},
+        gaps=[],
+    )
+
+    assert report["markets"][0]["hole"]["share"] == pytest.approx(0.5)
+    assert report["markets"][0]["versus_findings_floor"]["below_floor"] is False
+    assert report["markets"][0]["absences"][0]["symbol"] == "GONE"
+    assert report["markets"][0]["absences"][0]["last_listed"] == "2015-06-01"
+    printed = format_survivorship(report)
+    assert "GONE" in printed
+    assert SPINE_SOURCE in printed
+
+
+# -- reading the archive's own files -------------------------------------------
+
+_ARCHIVAL_2012 = """Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size
+GONE|Gone Industries Inc. - Common Stock|Q|N|N|100
+WRNT|Warrant Co - Warrant|S|N|N|100
+ZXZZT|NASDAQ TEST STOCK|G|Y|N|100
+File Creation Time: 0622201218:02|||||
+"""
+
+_MODERN = """ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol
+ALIVE|Alive Corp Common Stock|N|ALIVE|N|100|N|ALIVE
+File Creation Time: 0611202617:30|||||||
+"""
+
+# The live directory as served without a creation stamp, so its date can only come
+# from the caller's own today — which is the point of fetching it at all.
+_LIVE = """ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol
+ALIVE|Alive Corp Common Stock|N|ALIVE|N|100|N|ALIVE
+"""
+
+
+def test_the_spine_reads_an_archival_header_that_has_no_etf_column(store: Store):
+    """A 2012 `nasdaqlisted.txt` carries no ETF column, and the live parser raises on
+    it.
+
+    Parsed here rather than through `screener.source.parse_us_listings` for exactly
+    that reason. A spine that skipped the years it could not parse would report
+    those years' listings as never having existed — which is the shape of the error
+    this module was written to measure, arriving through the module itself.
+    """
+    snapshot = parse_snapshot(
+        _ARCHIVAL_2012, file="nasdaqlisted.txt", fallback=date(2012, 6, 23)
+    )
+
+    # The exchange's own stamp, not the archive's crawl date: the archive fetched
+    # this on the 23rd and the exchange wrote it on the 22nd.
+    assert snapshot.as_of == date(2012, 6, 22)
+    # The warrant and the test issue are not companies that later died.
+    assert snapshot.symbols == ("GONE",)
+
+
+def test_a_snapshot_with_no_creation_stamp_falls_back_to_the_crawl_date(store: Store):
+    """Dated by the archive when the file dates itself by nothing — a snapshot with
+    no date at all could not be placed in the window."""
+    text = "Symbol|Security Name|Test Issue\nAAA|Aaa Corp - Common Stock|N\n"
+
+    snapshot = parse_snapshot(text, file="nasdaqlisted.txt", fallback=date(2013, 4, 5))
+
+    assert snapshot.as_of == date(2013, 4, 5)
+    assert snapshot.symbols == ("AAA",)
+
+
+def test_the_spine_is_fetched_through_a_seam_and_a_dead_capture_is_skipped(store):
+    """The crawl is a data job; its one interesting branch is a capture the archive
+    cannot replay.
+
+    Skipped with the reason printed rather than aborting the spine: one unreplayable
+    capture out of seventy is a thinner spine, and a spine that refused to build
+    because of it would be no spine at all.
+    """
+    calls: list[str] = []
+    seen: list[str] = []
+
+    def get(url: str) -> str:
+        calls.append(url)
+        if "cdx" in url:
+            return json.dumps([["timestamp"], ["20120623141057"], ["20260611001021"]])
+        if not url.endswith("nasdaqlisted.txt"):
+            raise RuntimeError("no capture")
+        if "/20120623" in url:
+            return _ARCHIVAL_2012
+        if "web.archive.org" not in url:
+            return _LIVE  # the live directory, dated by the caller's today
+        return _MODERN
+
+    spine = fetch_spine(
+        files=("nasdaqlisted.txt", "otherlisted.txt"), get=get,
+        today=date(2026, 8, 26), progress=seen.append,
+    )
+
+    assert spine.source == SPINE_SOURCE
+    # Two archived captures and today's live roster, which is what brackets the far
+    # end: the archive's newest capture trails the present by months.
+    assert [s.as_of for s in spine.ordered()] == [
+        date(2012, 6, 22), date(2026, 6, 11), date(2026, 8, 26)
+    ]
+    # otherlisted's captures — two archived and the live one — all raised, and each
+    # is recorded on the spine rather than lost: a capture written off silently is
+    # a date the count would report as having held no listings.
+    assert sum("unread" in line for line in seen) == 3
+    assert [row[0] for row in spine.unread] == ["otherlisted.txt"] * 3
+    assert "no capture" in spine.unread[0][2]
+    assert spine.coverage(*_WINDOW).unread_captures == 3
+
+
+def test_a_recycled_name_never_counts_toward_the_covered_population(store: Store):
+    """A recycled ticker and a genuine IPO look identical in the bars, and only one
+    of them is a hole.
+
+    `RECY` was listed in 2013 and its bars begin in 2019: on the 2013 snapshot the
+    symbol was somebody else, so the run is blind there. `IPO` was never listed
+    before its bars start — the company did not exist, and a run with no bars for it
+    is right rather than blind. `LIVE` has been listed throughout. Only the spine
+    separates the first two, which is why it is what this reads.
+    """
+    store.append_bars("US", "LIVE", [_bar(d) for d in _daily(date(2012, 1, 3), 3)])
+    store.append_bars("US", "RECY", [_bar(d) for d in _daily(date(2019, 6, 3), 3)])
+    store.append_bars("US", "IPO", [_bar(d) for d in _daily(date(2019, 6, 3), 3)])
+    spine = _bracketing(
+        _snap(date(2013, 2, 1), "LIVE", "RECY", "SILENT"),
+        _snap(date(2020, 2, 1), "LIVE", "RECY", "IPO", "SILENT"),
+    ).verify(*_WINDOW)
+
+    census = coverage_census(
+        store, "US", ["LIVE", "RECY", "IPO", "SILENT"], spine=spine,
+        window_start=date(2012, 1, 1),
+    )
+
+    assert census.recycled == ("RECY",)
+    assert census.covered == ("IPO", "LIVE")
+    # `SILENT` is listed and the crawl asked about it and got nothing. It resolves,
+    # it can price nothing, and it belongs in the hole rather than the denominator —
+    # which is the difference between the two questions findings §2 had to switch
+    # between.
+    assert census.no_bars == ("SILENT",)
+
+
+def test_an_unmeasured_recycled_half_is_not_reported_as_none_of_them(store: Store):
+    """A market with no dated listing spine cannot tell a recycled ticker from an
+    IPO, and saying "0 recycled" would claim it did.
+
+    IDX is that market: no free source reconstructs a dated Jakarta roster, so its
+    absent count comes from the enumeration side and its recycled half is reported
+    unmeasured. The floor comparison carries that as a second reason the share is a
+    floor, so the figure is never read as a total.
+    """
+    idx = hole_from_counts(
+        market="IDX", covered_names=840, absent_names=122, recycled_names=None,
+        basis=BASIS_ENUMERATION,
+    )
+
+    assert idx.recycled_measured is False
+    assert idx.missing_names == 122
+    assert idx.to_dict()["recycled_names"] is None
+    assert "unmeasured" in against_floor(idx)["note"]
+    assert against_floor(idx)["recycled_measured"] is False
+
+
+def test_the_spine_round_trips_through_the_cache_beside_the_store(tmp_path):
+    """The spine is committed beside the store, for the reason the coverage ledger
+    is: a count whose inputs are re-downloaded on every read is a count that can
+    change without anyone changing anything.
+
+    The archive is also not a fixed corpus — a capture can be added or withdrawn
+    between two runs — so "re-fetch and recompute" is not reproduction.
+    """
+    spine = dataclasses.replace(
+        _bracketing(_snap(date(2015, 6, 1), "AAA", "BBB")),
+        unread=(("otherlisted.txt", "20140101000000", "ConnectionResetError: reset"),),
+    )
+    path = spine_path(tmp_path / "backtest.duckdb")
+
+    spine.write(path)
+
+    assert path.name == "backtest.duckdb.spine.json"
+    assert ListingSpine.load(path).ordered() == spine.ordered()
+    assert ListingSpine.load(path).unread == spine.unread
+
+
+def test_a_listed_etf_is_not_a_company_that_died(store: Store):
+    """"Absent from today's enumeration" means the provider does not list it, not
+    that the crawl declined to fetch it.
+
+    `fetch_set` drops references nothing reads — several thousand US ETFs — and they
+    are *listed* today. Counting them absent would report a live listing as a company
+    that died, on a scale that would swamp the real hole. The instrument-type slice is
+    a different case and stays dropped, because `parse_snapshot` narrows the spine by
+    the same rule, so a warrant is missing from both sides and cancels.
+    """
+    enumeration = Enumeration(
+        market="US",
+        listed=5,
+        fetched=("^IXIC", "ALIVE", "EDGE"),
+        excluded=(("SPY", UNREAD_REFERENCE), ("ALIVEW", NOT_COMMON_STOCK)),
+    )
+
+    roster = todays_roster(enumeration)
+
+    assert roster == {"^IXIC", "ALIVE", "EDGE", "SPY"}
+    # And the count run against it leaves the ETF alone while still finding the
+    # name that really left.
+    spine = _bracketing(_snap(date(2013, 2, 1), "ALIVE", "SPY", "GONE"))
+    found = absences(spine.verify(*_WINDOW), enumerated_today=roster, window=_WINDOW)
+    assert [a.symbol for a in found] == ["GONE"]
+
+
+def test_the_measured_hole_reaches_the_headline_without_hand_written_glue(store: Store):
+    """The two deliverables join inside the package, not at a call site.
+
+    `holes_by_market` is the join, and it is a function rather than a line somebody
+    writes later so the count and the bound cannot be wired to different markets —
+    the one way this pair goes wrong silently, since a mismatched bound still prints
+    a plausible number.
+    """
+    hole = hole_from_counts(market="US", covered_names=3, absent_names=1,
+                            recycled_names=0)
+    report = survivorship_report(
+        DEFAULT_CONTRACT, holes=[hole], absent={}, coverage={}, gaps=[]
+    )
+
+    shares = holes_by_market(report)
+
+    assert shares == {"US": 0.25}
+    bounded = attach_bias_bound(
+        metric_report(DEFAULT_CONTRACT, [_mtrade("AAA", 2015, 1.0)], markets=["US"]),
+        shares,
+    )
+    printed = format_metric(bounded)
+    assert NO_BOUND_LINE not in printed
+    # The per-year cell carries its own bound too, not only the window figure a
+    # reader skims to.
+    assert printed.count("bound") >= 2
+
+
+def test_the_share_is_counted_over_one_population_not_two(store: Store):
+    """Both halves come from the names the spine sighted inside the window.
+
+    The first version of this count did not do that — the absent names were counted
+    over the spine's whole roster and the covered names over today's *fetch set*,
+    5,498 against 20,923. A ratio of two different populations is not a share of
+    anything, and it read as a hole two-thirds larger than the one that is there.
+
+    A name sighted only outside the window is in neither half: it never traded in
+    the window this run measures.
+    """
+    spine = _bracketing(
+        _snap(date(2013, 2, 1), "GONE", "ALIVE"),
+    ).verify(*_WINDOW)
+
+    population = window_population(spine, _WINDOW)
+
+    # `EDGE` is sighted at 2011-12 *and* 2026-09, so it spans the window and counts.
+    assert sorted(population) == ["ALIVE", "EDGE", "GONE"]
+    narrow = (date(2014, 1, 1), date(2015, 1, 1))
+    assert sorted(window_population(spine, narrow)) == ["EDGE"]
+
+
+def test_a_name_listed_for_a_year_is_not_a_name_listed_for_fourteen(store: Store):
+    """The bound is scaled off time listed, not off name count.
+
+    40% of the absent US names were listed for under two years. Counting each of
+    them as one whole missing name credits an eighteen-month listing with as many
+    chances to throw a signal as one listed throughout, and the bound is a statement
+    about trades. So the share that feeds it is weighted by exposure, and the name
+    share stays beside it because that is the figure findings §2's 92-of-312 is
+    comparable to.
+    """
+    hole = hole_from_counts(
+        market="US", covered_names=1, absent_names=1, recycled_names=0,
+        covered_exposure_days=3650, missing_exposure_days=365,
+    )
+
+    assert hole.share == pytest.approx(0.5)
+    assert hole.exposure_share == pytest.approx(365 / 4015)
+    assert hole.to_dict()["exposure_weighted"] is True
+    # And the join hands the bound the weighted one.
+    report = survivorship_report(
+        DEFAULT_CONTRACT, holes=[hole], absent={}, coverage={}, gaps=[]
+    )
+    assert holes_by_market(report)["US"] == pytest.approx(365 / 4015)
+
+
+def test_an_unweighted_market_falls_back_to_the_name_share(store: Store):
+    """IDX has no dated spine, so it has no durations. A zero there would read as
+    "nothing missing" rather than "not weighted", so the name share stands in and
+    the output says which it is."""
+    idx = hole_from_counts(
+        market="IDX", covered_names=840, absent_names=122, recycled_names=None,
+        basis=BASIS_ENUMERATION,
+    )
+
+    assert idx.exposure_share == idx.share
+    assert idx.to_dict()["exposure_weighted"] is False

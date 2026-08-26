@@ -318,6 +318,38 @@ Two deliverables:
 **Done when** both the count and the bound are computed, and the write-up states the headline
 figure *and* its pessimistic twin together.
 
+**The source, and the two that were set aside** (2026-08-26, #196). The spine is the **Nasdaq
+Trader symbol directory** — `nasdaqlisted.txt` and `otherlisted.txt`, the same two files
+`screener.source.parse_us_listings` reads live — recovered at past dates from the Internet
+Archive, with today's live files as the final snapshot. Each capture is a dated, point-in-time
+roster carrying tickers, which is exactly the claim the count needs. Of the two candidates
+named above: **exchange delisting notices** reach EDGAR as Form 25 / 25-NSE and are complete
+back to 2001, but identify the issuer by CIK and company name with no ticker — and the
+delisted names are precisely the ones absent from every current CIK-to-ticker mapping;
+**index-constituent change histories** are dated and free and cover the S&P 500, which is the
+wrong population for a screener whose hole is in small caps.
+
+Two properties of the spine are checked, and they fail differently. **Bracketing is refused**:
+a spine that does not span the window reports every name as first listed at its own oldest
+capture, which is a measurement of the source's edges wearing the count's name. That refusal
+fired on the first live crawl — the archive's newest capture was 2026-06-11 against a window
+ending 2026-08-25 — which is why the live files are the final snapshot. **Density is reported**:
+the captures are roughly annual, so a name that listed *and* delisted between two of them
+appears in neither, and the count is a floor for that reason. Captures the archive will not
+replay are retried and then recorded rather than dropped, on the Phase 1 standard: a date
+silently skipped is a date whose listings the count reports as never having existed.
+
+**And the recycled half needs the spine, not the bars.** A first bar in 2019 says only "no bars
+before 2019", which is what a genuine 2019 IPO looks like — and an IPO is no survivorship hole
+at all: the company did not exist, and a run with no bars for it is right rather than blind.
+3,168 of the store's 5,495 US symbols have their first bar after 2012-01-01, so a bars-only
+rule would call 58% of the market recycled. What separates the two is the pair: the spine
+listed this symbol on a dated snapshot, and the store's bars for it begin after that date.
+
+**IDX has no spine**, since no free source reconstructs a dated Jakarta roster. Its hole is
+measured from the enumeration side instead, and its recycled half is reported *unmeasured*
+rather than zero — "we could not tell" and "there are none" are opposite findings.
+
 ## Phase 3 — Replay the field, point-in-time
 
 Reuse [`backend/replay/chain.py`](../backend/replay/chain.py) rather than writing a second

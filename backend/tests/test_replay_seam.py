@@ -5858,6 +5858,7 @@ from backtest.simulate import (
     ARMS,
     EXIT_SCALE,
     SCALE_MECHANIC,
+    TRAIL_LIVE_FROM_FILL,
     ExitLeg,
     arm_report,
     check_arm_mechanics,
@@ -6158,3 +6159,74 @@ def test_an_arm_the_contract_does_not_name_is_refused(store):
     bars = _sim_bars()
     with pytest.raises(ValueError):
         _arm(bars, _sim_detection(bars), "D")
+
+
+def test_the_trail_is_live_from_the_fill_and_the_contract_says_so(store):
+    """The third arbitrary mechanic, in the contract rather than in a comment.
+
+    On a scaling arm the trail watches from the fill, not from the scale day — so a
+    runner that rolls over before day 5 takes the *whole* position out and the scale
+    never happens. On a fast breakout that degenerates arm A into arm B, which is a
+    material claim about what arm A measures and exactly the kind of thing the
+    issue means by "the mechanics are contract, not code comments".
+    """
+    # Break, fill, then a slide that closes under the 10MA well before day 5.
+    closes = _SIM_FLAT + [110.0, 111.0, 99.0, 98.5, 98.0, 97.5, 97.2, 97.0]
+    bars = _sim_bars(closes)
+    det = _sim_detection(bars)
+
+    trade = _arm(bars, det, ARM_A)
+
+    (leg,) = trade.legs
+    assert leg.reason == EXIT_TRAIL
+    assert leg.weight == pytest.approx(1.0)
+    # Degenerate is the point: with the trail live from the fill, arm A took the
+    # same trade arm B did.
+    assert trade.legs == _arm(bars, det, ARM_B).legs
+
+    assert exit_plan(DEFAULT_CONTRACT, ARM_A).trail_live_from == TRAIL_LIVE_FROM_FILL
+    assert (
+        DEFAULT_CONTRACT.value(EXIT_ARM_A_KEY)["trail_live_from"]
+        == TRAIL_LIVE_FROM_FILL
+    )
+
+
+def test_a_trail_the_contract_starts_elsewhere_is_drift_not_a_reinterpretation(store):
+    """Varying the cell without varying the code would leave a run whose contract
+    and behaviour disagree while both look right — the same refusal the trail's own
+    fill mechanic already carries."""
+    elsewhere = RunContract(
+        contract_version=DEFAULT_CONTRACT.contract_version,
+        label=DEFAULT_CONTRACT.label,
+        cells=tuple(
+            Cell(
+                key=c.key,
+                value={**c.value, "trail_live_from": "scale_day"},
+                justification=c.justification,
+            )
+            if c.key == EXIT_ARM_A_KEY else c
+            for c in DEFAULT_CONTRACT.cells
+        ),
+    )
+    with pytest.raises(ContractDrift):
+        check_arm_mechanics(elsewhere, ARM_A)
+
+
+def test_an_arm_that_ran_and_traded_nothing_reports_zeros_rather_than_vanishing(store):
+    """An arm that triggered nothing is a measurement; an arm that never ran is not.
+
+    A report built from the arms *present in the trades* collapses the two into the
+    same output — a missing section — and there is no way to tell them apart after
+    the fact. So the report covers the arms that were run.
+    """
+    bars = _sim_bars()
+    trades = [_arm(bars, _sim_detection(bars), ARM_B)]
+
+    ran_all = simulate_report(DEFAULT_CONTRACT, trades)
+    ran_one = simulate_report(DEFAULT_CONTRACT, trades, arms=(ARM_B,))
+
+    assert [r["arm"] for r in ran_all["arms"]] == list(ARMS)
+    quiet = {r["arm"]: r for r in ran_all["arms"]}[ARM_C]
+    assert (quiet["trades"], quiet["closed"], quiet["total_r"]) == (0, 0, 0)
+    # And an arm that never ran is absent, which is the distinction being kept.
+    assert [r["arm"] for r in ran_one["arms"]] == [ARM_B]

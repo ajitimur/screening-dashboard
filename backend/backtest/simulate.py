@@ -148,20 +148,34 @@ ARM_B = "B"
 ARM_C = "C"
 ARMS = (ARM_A, ARM_B, ARM_C)
 
-# Which contract cell holds each arm's exit. The mapping is here rather than in the
-# contract because it is a fact about this code — the contract names the arms and
-# their numbers; this says which arm reads which cell.
-ARM_CELLS = {
-    ARM_A: EXIT_ARM_A_KEY,
-    ARM_B: EXIT_ARM_B_KEY,
-    ARM_C: EXIT_ARM_C_KEY,
-}
 
-# Arms B and C are directly comparable to the reference set's two simulated exits,
-# which is what keeps the reference anchors usable. Arm A has no counterpart there,
-# so it is measured and never anchored — a distinction that rides on the report
-# rather than living in a reader's memory.
-COMPARABLE_TO_REFERENCE = {ARM_A: False, ARM_B: True, ARM_C: True}
+@dataclass(frozen=True)
+class ArmSpec:
+    """What this module knows about an arm that the contract does not say.
+
+    Two things, kept together so a fourth arm is one entry rather than a hunt
+    through parallel tables:
+
+    - ``cell`` is which contract cell holds the arm's exit. The contract names the
+      arms and their numbers; which arm reads which cell is a fact about this code.
+    - ``comparable_to_reference`` is a fact about the **reference study**, not a
+      choice this run makes, which is why it is not a contract cell. Arms B and C
+      are directly comparable to the reference set's two simulated exits, which is
+      what keeps its anchors usable; arm A has no counterpart there, so it is
+      measured and never anchored. It rides on the report rather than living in a
+      reader's memory, because a figure whose comparability is remembered rather
+      than printed gets compared.
+    """
+
+    cell: str
+    comparable_to_reference: bool
+
+
+ARM_SPECS = {
+    ARM_A: ArmSpec(cell=EXIT_ARM_A_KEY, comparable_to_reference=False),
+    ARM_B: ArmSpec(cell=EXIT_ARM_B_KEY, comparable_to_reference=True),
+    ARM_C: ArmSpec(cell=EXIT_ARM_C_KEY, comparable_to_reference=True),
+}
 
 # The three ways a leg of a position can come off. Recorded on the leg rather than
 # inferred from its prices, because a trail fill that happens to land on the stop is
@@ -178,6 +192,14 @@ EXIT_SCALE = "scale"
 # (story 39). :func:`check_arm_mechanics` refuses a contract that says otherwise.
 TRAIL_MECHANIC = "close_through_ma_signals_fill_next_open"
 SCALE_MECHANIC = "close_of_nth_session_after_entry"
+
+# The third arbitrary mechanic, and the one that was nearly left as a code comment:
+# on a scaling arm the trail is live **from the fill**, not from the scale day. So a
+# runner that rolls over before day 5 takes the whole position out and the scale
+# never happens — which on a fast breakout degenerates arm A into arm B. Nothing
+# derives that reading either, so it is a contract cell (``trail_live_from``) like
+# the other two, and this is the only value implemented here.
+TRAIL_LIVE_FROM_FILL = "fill"
 
 # The band a trade's price scale must sit in to be trusted for absolute-price
 # comparisons, borrowed unchanged from the ``prototype-tightness`` spike (commit
@@ -232,11 +254,17 @@ class ExitPlan:
     of the ``scale_day``-th session after entry. A plan with ``scale_day`` of
     ``None`` is a pure trail, which is arms B and C — so the three arms are one
     mechanic parameterised, not three implementations to keep in agreement.
+
+    ``trail_live_from`` says when the trail starts watching. Only
+    :data:`TRAIL_LIVE_FROM_FILL` is implemented, and it matters only to a scaling
+    arm: it is what makes a runner that rolls over before the scale day take the
+    whole position out.
     """
 
     trail_ma: int
     scale_day: int | None = None
     scale_fraction: float = 0.0
+    trail_live_from: str = TRAIL_LIVE_FROM_FILL
 
 
 @dataclass(frozen=True)
@@ -297,9 +325,9 @@ class SimulatedTrade:
     def exit(self) -> Decision | None:
         """The decision that closed the trade, or ``None`` while it is still open.
 
-        The *last* leg, not the first: arm A's scale is a partial, and a trade whose
-        runner is still running has not exited. Reading the scale as the exit would
-        report half a trade as a whole one.
+        The *last* leg, not the first: arm A's scale takes off half a position, and
+        a trade whose runner is still running has not exited. Reading the scale as
+        the exit would report half a trade as a whole one.
         """
         return self.legs[-1].exit if self.closed else None
 
@@ -310,7 +338,12 @@ class SimulatedTrade:
 
     @property
     def exit_reason(self) -> str | None:
-        """Why the trade ended: :data:`EXIT_TRAIL` or :data:`EXIT_STOP`."""
+        """Why the trade ended: :data:`EXIT_TRAIL` or :data:`EXIT_STOP`.
+
+        Never :data:`EXIT_SCALE`, and not by filtering: a scale takes a *fraction*
+        of the position, so a trade whose last leg is a scale has not closed and
+        reports ``None`` here.
+        """
         return self.legs[-1].reason if self.closed else None
 
     @property
@@ -359,41 +392,51 @@ def exit_plan(contract: RunContract, arm: str) -> ExitPlan:
     produced no trades would report a clean zero, which is indistinguishable from a
     correctly-run arm that nothing triggered.
     """
-    if arm not in ARM_CELLS:
+    if arm not in ARM_SPECS:
         raise ValueError(
-            f"unknown exit arm {arm!r}; the contract names {sorted(ARM_CELLS)}"
+            f"unknown exit arm {arm!r}; the contract names {sorted(ARM_SPECS)}"
         )
-    cell = contract.value(ARM_CELLS[arm])
+    cell = contract.value(ARM_SPECS[arm].cell)
     scale_day = cell.get("scale_day")
     return ExitPlan(
         trail_ma=int(cell["trail_ma"]),
         scale_day=None if scale_day is None else int(scale_day),
         scale_fraction=float(cell.get("scale_fraction", 0.0)),
+        trail_live_from=str(cell.get("trail_live_from", TRAIL_LIVE_FROM_FILL)),
     )
 
 
 def check_arm_mechanics(contract: RunContract, arm: str) -> None:
     """Refuse a contract whose exit mechanics are not the ones implemented here.
 
-    Two things are checked, and the second only for an arm that scales. The trail
-    mechanic must be the one this module implements
-    (:func:`check_trail_mechanic`), and an arm with a scale day must still record
-    its mechanics as **arbitrary**. Both mechanics are arbitrary in fact; a contract
-    that has quietly dropped the admission describes a run whose exits look
-    principled, and a run whose exits look principled is one whose sweep nobody
-    thinks to do.
+    The trail mechanic must be the one this module implements
+    (:func:`check_trail_mechanic`). The rest applies only to an arm that scales,
+    and is two claims: the trail is live from the fill, and the arm still records
+    its mechanics as **arbitrary**. All three mechanics are arbitrary in fact; a
+    contract that has quietly dropped the admission describes a run whose exits
+    look principled, and a run whose exits look principled is one whose sweep
+    nobody thinks to do.
     """
     check_trail_mechanic(contract)
     plan = exit_plan(contract, arm)
     if plan.scale_day is None:
         return
-    cell = contract.value(ARM_CELLS[arm])
-    if cell.get("arbitrary_mechanics") is not True:
+    key = ARM_SPECS[arm].cell
+    if plan.trail_live_from != TRAIL_LIVE_FROM_FILL:
         raise ContractDrift(
-            f"contract {ARM_CELLS[arm]!r} scales at session {plan.scale_day} on the "
+            f"contract {key!r} says the trail is live from "
+            f"{plan.trail_live_from!r} but backtest.simulate implements "
+            f"{TRAIL_LIVE_FROM_FILL!r}; a trail that starts watching somewhere "
+            "else is a different arm recorded beside this one, not a "
+            "reinterpretation of it"
+        )
+    if contract.value(key).get("arbitrary_mechanics") is not True:
+        raise ContractDrift(
+            f"contract {key!r} scales at session {plan.scale_day} on the "
             f"{SCALE_MECHANIC!r} mechanic but does not record its mechanics as "
-            "arbitrary; neither the scale day nor the trail fill derives from "
-            "anything, and recording that is what lets a later run vary them"
+            "arbitrary; neither the scale day, nor the trail fill, nor the trail "
+            "being live from the fill derives from anything, and recording that "
+            "is what lets a later run vary them"
         )
 
 
@@ -649,7 +692,7 @@ def arm_report(
         "arm": arm,
         "trail_ma": plan.trail_ma,
         "trail_mechanic": TRAIL_MECHANIC,
-        "comparable_to_reference": COMPARABLE_TO_REFERENCE[arm],
+        "comparable_to_reference": ARM_SPECS[arm].comparable_to_reference,
         "trades": len(mine),
         "closed": len(closed),
         "open_at_end": len(mine) - len(closed),
@@ -664,7 +707,10 @@ def arm_report(
 
 
 def simulate_report(
-    contract: RunContract, trades: Sequence[SimulatedTrade]
+    contract: RunContract,
+    trades: Sequence[SimulatedTrade],
+    *,
+    arms: Sequence[str] = ARMS,
 ) -> dict[str, Any]:
     """Every arm's result as one stamped payload: the contract, the counts, the drops.
 
@@ -673,15 +719,21 @@ def simulate_report(
     *is* the finding and splitting it across payloads would make a reader
     reassemble it. Arms appear in :data:`ARMS` order, so the output is diff-stable.
 
+    ``arms`` is the arms that were **run**, not the arms that produced something. An
+    arm that ran and triggered nothing reports zeros; an arm that never ran is
+    absent. Reporting only the arms present in ``trades`` would collapse those two
+    into the same output, which is the confusion :func:`exit_plan` refuses an
+    unknown arm to avoid.
+
     Stamped through :func:`backtest.result.stamp_result` like every other figure the
     package emits, so the price-scale count travels with the result rather than in a
     commit message — and so two runs under different contracts are distinguishable
     from their serialised output alone.
     """
-    present = [arm for arm in ARMS if any(t.arm == arm for t in trades)]
+    ran = [arm for arm in ARMS if arm in arms]
     return stamp_result(
         contract,
-        {"arms": [arm_report(contract, arm, trades) for arm in present]},
+        {"arms": [arm_report(contract, arm, trades) for arm in ran]},
     )
 
 
@@ -697,15 +749,18 @@ def format_trades(report: dict[str, Any]) -> str:
     """
     lines: list[str] = []
     for body in report["arms"]:
-        exit_rule = f"{body['trail_ma']}MA trail"
-        if "scale_day" in body:
-            exit_rule = (
-                f"{body['scale_fraction']:.0%} at the close of session "
-                f"{body['scale_day']}, remainder on a {exit_rule}"
-            )
-        anchored = "" if body["comparable_to_reference"] else " — measured, not anchored"
+        trail = f"{body['trail_ma']}MA trail"
+        exit_rule = (
+            f"{body['scale_fraction']:.0%} at the close of session "
+            f"{body['scale_day']}, remainder on a {trail}"
+            if "scale_day" in body
+            else trail
+        )
+        anchor_note = (
+            "" if body["comparable_to_reference"] else " — measured, not anchored"
+        )
         lines += [
-            f"arm {body['arm']} — {exit_rule} ({body['trail_mechanic']}){anchored}",
+            f"arm {body['arm']} — {exit_rule} ({body['trail_mechanic']}){anchor_note}",
             f"  trades          {body['trades']}",
             f"  closed          {body['closed']}",
             f"  open at end     {body['open_at_end']}",
@@ -750,19 +805,20 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    arms = tuple(args.arm) if args.arm else ARMS
     store = Store.open(args.store)
     denominator = DenominatorStore.open(denominator_path(args.store))
     try:
         trades = simulate_market(
             store, denominator, args.market, DEFAULT_CONTRACT,
-            arms=tuple(args.arm) if args.arm else ARMS,
+            arms=arms,
             include_burn_in=args.include_burn_in,
         )
     finally:
         denominator.close()
         store.close()
 
-    report = simulate_report(DEFAULT_CONTRACT, trades)
+    report = simulate_report(DEFAULT_CONTRACT, trades, arms=arms)
     if args.out_json:
         Path(args.out_json).write_text(json.dumps(report, indent=1) + "\n")
     print(format_trades(report))

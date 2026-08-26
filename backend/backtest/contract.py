@@ -334,11 +334,21 @@ _CELLS: tuple[Cell, ...] = (
     ),
     Cell(
         EXIT_ARM_A_KEY,
-        {"scale_fraction": 0.5, "scale_day": 5, "trail_ma": 10, "arbitrary_mechanics": True},
+        {
+            "scale_fraction": 0.5,
+            "scale_day": 5,
+            "trail_ma": 10,
+            "trail_live_from": "fill",
+            "arbitrary_mechanics": True,
+        },
         "Arm A scales 50% off at the close of the fifth session after entry and "
         "trails the remainder on a 10MA — the trader's documented behaviour; its "
         "R is two position-weighted legs summed, and 'day 5' and the trail are "
-        "recorded as arbitrary (stories 34, 36, 37, 39).",
+        "recorded as arbitrary (stories 34, 36, 37, 39). The trail is live from "
+        "the fill rather than from the scale day, so a runner that rolls over "
+        "before day 5 takes the whole position and the scale never happens; that "
+        "is a third arbitrary choice and is recorded here rather than left in the "
+        "code, so a later run can sweep it (story 39).",
     ),
     Cell(
         EXIT_ARM_B_KEY,

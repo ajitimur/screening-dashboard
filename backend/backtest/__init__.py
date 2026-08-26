@@ -29,6 +29,22 @@ universe's are not: ``main``, ``crawl_market`` and ``CRAWL_START`` say what they
 are only under the module qualifier. It is a runner, and its caller is a
 terminal.
 
+Issue #188 lands the first end-to-end path through the machine: :mod:`backtest.chain`
+puts the contract's universe on the replay chain's own machinery,
+:mod:`backtest.denominator` holds the rows that come out — membership, the three
+regime columns, ranks, and every detection with its full record, its star-score
+breakdown and both candidate dimensions — and :mod:`backtest.run` is the run that
+produces them over one market and one window. Those rows are the denominator, and
+:func:`~backtest.run.run_denominator` is the one entry point.
+
+:mod:`backtest.run`'s names are **not** re-exported here, and for a mechanical
+reason rather than a naming one: that module is also the run's command
+(``python -m backtest.run``), and a package that imports it at package-import
+time makes the interpreter find it already in ``sys.modules`` before it executes
+it as ``__main__`` — which Python reports as a ``RuntimeWarning`` on every
+invocation of the documented command. So the entry point is reached as
+``backtest.run.run_denominator``.
+
 The universe's names are not re-exported, and the reason is naming rather than
 import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean
 something else one import away (:mod:`screener.universe`, :mod:`replay.reference`),
@@ -46,6 +62,7 @@ from .contract import (
     Cell,
     RunContract,
 )
+from .chain import backtest_chain, excluded_references, stateless_universe
 from .result import stamp_result
 from .store import (
     BuildCoverage,
@@ -58,6 +75,9 @@ from .store import (
 
 __all__ = [
     "Cell",
+    "backtest_chain",
+    "excluded_references",
+    "stateless_universe",
     "RunContract",
     "DEFAULT_CONTRACT",
     "DEFAULT_CONTRACT_JSON",

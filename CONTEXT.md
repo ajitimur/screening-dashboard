@@ -283,7 +283,11 @@ is not).
 `adj_close(name) / adj_close(index)`, hit when today's ratio is at or above the ratio at the
 detection's own `base_start` — non-decayed, **not** a new high, so merely matching the index
 passes. The benchmark is `MARKET_INDEX`; both legs read `adj_close`, and a missing bar on
-either scores `False` and is never carried forward. It needs a second symbol's bars, so it
+either makes the value **absent** (`None`) — the question was never asked, which is a
+different fact from asking it and getting no. The pre-registered boolean reads absence as a
+miss (`rs_line_hit`) and never carries it forward, exactly as §5d published; the **stored**
+row keeps the value, so a name whose benchmark had no bar is never confused with one that
+genuinely decayed. It needs a second symbol's bars, so it
 could only ever be computed in a caller (`screener.relative_strength`), never in `score.py`.
 The first **candidate dimension**, and **rejected** (findings §5d, #160): Δ −2.1pp, a wrong-way
 gap, on 11.2% disagreement with the break test it nearly restates. The live app does not
@@ -389,6 +393,31 @@ control group and no false-positive rate. Recall is never optimised on its own.
 The full candidate list reconstructed for one past session, from a cold-started forward
 chain of universe membership. The population an executed trade is ranked against. Always
 reported with its coverage against the blind-spot tickers.
+
+**Denominator**:
+Every setup the detector named over a replayed window, taken mechanically, whether anyone
+traded it or not (PRD #182, `backtest.denominator`). The reference study has the other
+half — 828 trades he **took** — which is why it can report no precision and no
+false-positive rate. Persisted per session: universe membership, the three regime columns,
+the rank table, and every detection with its full `Detection` record, its seven-dimension
+star-score breakdown and both candidate dimensions as values. It lives in a store of its
+own beside the bar store, because `Store.append_ranks` prunes outside the app's two-year
+retention and a fourteen-year denominator would finish holding the last two years of ranks
+and nothing else. **Burn-in sessions are persisted and flagged, never measured** — a
+warm-up session is a fact about the window, not a hole in it.
+_Avoid_: backtest results, the field — the denominator is the *population*, and what any
+later phase measures against.
+
+**Regime companions**:
+The two columns stored beside the regime state, and never read as its equals. **Breadth is
+descriptive only** and carries its survivorship warning in the row itself: it is the
+measure survivorship bias corrupts most directly, and worse in a reconstructed past than
+live, because the names missing from it are disproportionately the ones that later died.
+**Follow-through is unbiased** and the one regime signal the live app can never backfill —
+the app captures it forward nightly precisely because a survivorship-biased past cannot
+rebuild it, but the index series carries no survivorship hole, so a backtest reconstructs
+it legitimately across the whole window.
+_Avoid_: conditioning on breadth; it conditions on the **state**.
 
 **Not-taken detection**:
 A member of the replayed field on a session where he entered something else. Not a

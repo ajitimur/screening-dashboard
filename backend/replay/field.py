@@ -42,7 +42,7 @@ from typing import Callable, Iterable, Mapping, Sequence
 from screener.detection import DETECTION_LOOKBACKS, Detection, detection_gate
 from screener.pipeline import rebuild_detections
 from screener.ranks import Rank
-from screener.relative_strength import relative_move_adr, rs_line_for
+from screener.relative_strength import relative_move_adr, rs_line_value_for
 from screener.score import DIMENSIONS, Dimension, star_score
 from screener.source import MARKET_INDEX
 from screener.store import Store
@@ -121,7 +121,14 @@ class ScoredDetection:
 
     ``rs_line`` is the **candidate dimension** (#160): whether the name held its
     ratio to the benchmark across its own base
-    (:func:`screener.relative_strength.rs_line_for`). It sits beside the score
+    (:func:`screener.relative_strength.rs_line_value_for`). It rides as a **value**
+    like its sibling below, and ``None`` means *absent* — a price was missing at
+    one of the two anchors, or the base reaches back past the start of the series,
+    so the question was never asked. That is a different fact from asking it and
+    getting no, and a stored row that folded them together could not tell a name
+    whose benchmark had no bar from one that genuinely decayed. The boolean is
+    derived at read time by :func:`~screener.relative_strength.rs_line_hit`, the
+    same way the cut below is. It sits beside the score
     rather than inside it, because it is *not scored* — :data:`SevenDimScore`
     stays exactly the seven dimensions the rubric weighs, so a dimension under
     measurement can never quietly move a star or a ``star_rank`` while the
@@ -151,7 +158,7 @@ class ScoredDetection:
     star_rank: int
     not_taken: bool
     taken: bool = False
-    rs_line: bool = False
+    rs_line: bool | None = False
     relative_move: float | None = None
 
 
@@ -160,7 +167,11 @@ class FieldSession:
     """One session's replayed field: its universe members, the star-ranked
     candidates, and the coverage against the blind-spot tickers.
 
-    ``detections`` is the field in star order, highest score first. ``members`` is
+    ``burn_in`` is carried through from the chain's :class:`replay.chain.SessionField`
+    rather than assumed false, so a caller that asked the chain for its settling
+    sessions can persist their field and still exclude them from measurement
+    (PRD #182 story 76). ``detections`` is the field in star order, highest score
+    first. ``members`` is
     the session's whole universe (a member need not sit in a base). ``blind_spot_count``
     is the coverage figure every field-derived output must carry (user story 22),
     inherited from the chain's :class:`replay.chain.SessionField`.
@@ -209,7 +220,7 @@ def build_field(
     entered: Iterable[str] = (),
     any_entry: bool = False,
     lookbacks: Sequence[str] = DETECTION_LOOKBACKS,
-    rs_line_of: Mapping[str, bool] | None = None,
+    rs_line_of: Mapping[str, bool | None] | None = None,
     relative_move_of: Mapping[str, float | None] | None = None,
 ) -> list[ScoredDetection]:
     """Score each detection and sort into star order — the replayed candidate list.
@@ -265,7 +276,7 @@ def build_field(
 
 def session_rs_lines(
     store: Store, market: str, detections: Iterable[Detection]
-) -> dict[str, bool]:
+) -> dict[str, bool | None]:
     """The candidate RS-line dimension for each of a session's detections (#160).
 
     ``RS = adj_close(name) / adj_close(index)``, hit when today's ratio is at or
@@ -279,11 +290,12 @@ def session_rs_lines(
     does) and never slices to the session: :func:`screener.relative_strength.rs_line`
     reads the two named sessions *exactly*, both of which are on or before the
     detection's own, so no later bar can leak in. A benchmark with no bar on
-    either session scores ``False`` and is never carried forward.
+    either session yields ``None`` — absent, not a miss — and is never carried
+    forward; the reader turns absence into a miss where a boolean is wanted.
     """
     index_bars = store.bars(market, MARKET_INDEX[market])
     return {
-        det.symbol: rs_line_for(det, store.bars(market, det.symbol), index_bars)
+        det.symbol: rs_line_value_for(det, store.bars(market, det.symbol), index_bars)
         for det in detections
     }
 
@@ -399,7 +411,7 @@ def build_field_sessions(
         fields.append(
             FieldSession(
                 session=sf.session,
-                burn_in=False,
+                burn_in=sf.burn_in,
                 members=sf.members,
                 detections=candidates,
                 blind_spot_count=sf.blind_spot_count,

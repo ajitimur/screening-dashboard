@@ -65,6 +65,19 @@ reason is now doubled: it is a command in its own right
 documented command warn on every invocation. The entry point is reached as
 ``backtest.simulate.simulate_market``.
 
+Issue #193 lands the first of Phase 5: :mod:`backtest.figures`, the three figures the
+denominator was built to produce. Detections per session, the share that trigger, and
+the share that reach a favourable outcome — precision, which the reference study can
+report no value for at all because every result in it is conditioned on trades the
+trader took. Reported per market and per year and never pooled only, plotted across
+the window so a year whose count collapses is visible as the data hole it is, and every
+rate carrying the coverage count it was measured against.
+
+:mod:`backtest.figures`'s names are **not** re-exported here either, and for the same
+mechanical reason as :mod:`backtest.simulate`'s: it is a command
+(``python -m backtest.figures``) and it imports that module, so the entry point is
+reached as ``backtest.figures.figures_for_market``.
+
 The universe's names are not re-exported, and the reason is naming rather than
 import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean
 something else one import away (:mod:`screener.universe`, :mod:`replay.reference`),

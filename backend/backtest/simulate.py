@@ -36,11 +36,19 @@ of the figures the denominator exists to produce.
 
 The three arms, and why there are three
 ---------------------------------------
-Steps 1 to 4 are computed once and shared. The exit is the only per-arm step, so a
-difference between the arms' results is attributable to the exit alone — which is
+Steps 1 to 4 are computed once and shared, as an :class:`Entry` — one value the
+arms are handed rather than a stretch of code three arms happen to agree about. So
+a difference between the arms' results is attributable to the exit alone, which is
 the only thing running three of them can answer, and the reason
 ``test_the_three_arms_share_one_entry_and_one_stop`` asserts the sharing rather
 than trusting it.
+
+The entry also carries the answer a trade cannot give: **why** a detection produced
+nothing. :func:`simulate_arm` collapses every non-fill into ``None``, which is
+right for a simulator and useless for a figure — "the next session did not break"
+is a resolved miss and "the bars end here" is the window's edge, and
+:mod:`backtest.figures` has to tell them apart to report the share of detections
+that trigger at all (issue #193). See :data:`ENTRY_FILLED` and its neighbours.
 
 - **Arm A** is the trader's documented behaviour: 50% off at the close of the
   fifth session after entry, remainder on a 10MA trail. Its R is **two-legged**,
@@ -225,6 +233,46 @@ class Decision:
     price: float
 
 
+# The five ways an entry can end, and they are not interchangeable (issue #193).
+#
+# :func:`simulate_arm` collapses all four of the non-fills into ``None``, which is
+# right for a simulator — none of them is a trade — and useless for a figure. The
+# share of detections that trigger is one of the denominator's headline numbers,
+# and it has a *denominator*: only the detections something actually asked belong
+# in it.
+#
+# - :data:`ENTRY_FILLED` — it broke and the next session opened to fill it.
+# - :data:`ENTRY_NO_BREAK` — the deciding session closed under the trigger. A
+#   **resolved miss**, and the only one of these four that belongs in the trigger
+#   denominator.
+# - :data:`ENTRY_PENDING` — the bars end on the detection itself, so nothing has
+#   decided the break yet. The window's edge, not a failure.
+# - :data:`ENTRY_UNFILLED` — it broke, and the market never opened again. The
+#   window's edge again: a signal that never became a trade.
+# - :data:`ENTRY_UNDECIDABLE` — the detection's own session is not in the bars, or
+#   the ADR that denominates R is undefined. A fact about the store's coverage.
+#
+# Folding the three non-answers into the miss would deflate the trigger share by
+# however many detections the window happened to end on — in the direction that
+# makes the detector look worse, which is the direction nobody investigates.
+ENTRY_FILLED = "filled"
+ENTRY_NO_BREAK = "no_break"
+ENTRY_PENDING = "pending"
+ENTRY_UNFILLED = "unfilled"
+ENTRY_UNDECIDABLE = "undecidable"
+
+# The outcomes in which the detection's own trigger was actually traded through.
+# Both are a **trigger**; they differ in whether the window lasted long enough to
+# fill one.
+ENTRY_BROKE = (ENTRY_FILLED, ENTRY_UNFILLED)
+
+# The outcomes something asked and got an answer to. The trigger share's
+# denominator, and the reason it is a tuple here rather than a negation at each
+# call site: "which outcomes count" is one decision, and a second copy of it is a
+# second place for it to drift.
+ENTRY_DECIDED = (ENTRY_FILLED, ENTRY_NO_BREAK, ENTRY_UNFILLED)
+
+
 @dataclass(frozen=True)
 class ExitLeg:
     """One part of a position coming off, and the share of the position it was.
@@ -244,6 +292,136 @@ class ExitLeg:
     signal: Decision
     exit: Decision
     reason: str
+
+
+@dataclass(frozen=True)
+class Entry:
+    """Everything the three arms share, and why it did or did not become a trade.
+
+    Steps 1 to 4 of the mechanic — trigger, break, fill and stop — are computed
+    once and handed to every arm, which is the whole reason a difference between
+    the arms is attributable to the exit alone. Making that a **value** rather than
+    a stretch of :func:`simulate_arm` is what lets the sharing be a fact about the
+    code instead of three code paths that happen to agree
+    (``test_a_filled_entry_carries_the_prices_every_arm_shares``).
+
+    It also carries the answer :mod:`backtest.figures` needs and a trade cannot
+    give: :attr:`outcome` says *why* a detection produced nothing, and the four
+    non-fills mean four different things (see :data:`ENTRY_FILLED` and its
+    neighbours). Every price field is ``None`` on an outcome that never reached the
+    step that would have set it — absent, never a zero standing in for a price the
+    session did not have.
+    """
+
+    outcome: str
+    symbol: str
+    detection_session: date
+    trigger: Decision | None = None
+    break_signal: Decision | None = None
+    fill: Decision | None = None
+    stop_price: Decision | None = None
+    stop_width: float | None = None
+    price_scale: float | None = None
+
+    @property
+    def filled(self) -> bool:
+        """True when the entry became a position. The one outcome an arm can run."""
+        return self.outcome == ENTRY_FILLED
+
+    @property
+    def triggered(self) -> bool:
+        """True when the detection's own trigger was traded through.
+
+        Includes the break that never got a session to fill on: it triggered, and
+        the window ended. The two facts are different and only one of them is about
+        the detector.
+        """
+        return self.outcome in ENTRY_BROKE
+
+    @property
+    def decided(self) -> bool:
+        """True when something asked whether this detection would trigger.
+
+        The trigger share's denominator. A detection the bars end on has not failed
+        to trigger — nothing has asked it yet — and one whose session the store
+        never covered was never askable at all.
+        """
+        return self.outcome in ENTRY_DECIDED
+
+    @property
+    def price_scale_ok(self) -> bool:
+        """True when the entry's one absolute-price comparison sits in the band.
+
+        ``False`` where the scale is unknown, which is the safe direction: an
+        unmeasured comparison is not a verified one.
+        """
+        return (
+            self.price_scale is not None
+            and PRICE_SCALE_MIN <= self.price_scale <= PRICE_SCALE_MAX
+        )
+
+
+def entry(bars: Sequence[Bar], detection: Detection) -> Entry:
+    """The entry every arm shares, and the reason it did or did not fill.
+
+    Steps 1 to 4 of the module's mechanic, computed once: the detection's own
+    trigger, the break on the session after it, the fill at the next open, and the
+    detection's own stop. Nothing here depends on the arm, and nothing here reads a
+    bar after the session that decides it — every slice goes through
+    :func:`~backtest.chain.trailing_bars` or an index at or before the decision.
+
+    ``bars`` is the symbol's whole history; this function cuts it itself rather
+    than trusting the caller to have cut it, so a caller holding more bars than
+    existed at the time cannot change the answer.
+    """
+    idx = bar_index(bars, detection.session)
+    if idx is None:
+        return Entry(ENTRY_UNDECIDABLE, detection.symbol, detection.session)
+
+    # Everything that denominates the trade is measured at the detection's own
+    # session, on the bars that existed then.
+    at_decision = trailing_bars(bars, detection.session, ADR_WINDOW)
+    a = adr(at_decision)
+    if a is None or a <= 0:
+        return Entry(ENTRY_UNDECIDABLE, detection.symbol, detection.session)
+    stop_width = detection.stopw_adr * a * detection.trigger
+    if stop_width <= 0:
+        return Entry(ENTRY_UNDECIDABLE, detection.symbol, detection.session)
+
+    # The one absolute-price comparison the ADR geometry cannot make immune: a
+    # close persisted with the detection against the close on the bar it names.
+    bar_close = bars[idx].close
+    price_scale = detection.close / bar_close if bar_close else 0.0
+    trigger = Decision(session=detection.session, price=detection.trigger)
+    stop_price = Decision(session=detection.session, price=detection.stop_price)
+    partial = {
+        "symbol": detection.symbol,
+        "detection_session": detection.session,
+        "trigger": trigger,
+        "stop_price": stop_price,
+        "stop_width": stop_width,
+        "price_scale": price_scale,
+    }
+
+    # The break: the app's own definition, on the session after the detection.
+    if idx + 1 >= len(bars):
+        return Entry(ENTRY_PENDING, **partial)
+    break_bar = bars[idx + 1]
+    if break_bar.close <= detection.trigger:
+        return Entry(ENTRY_NO_BREAK, **partial)
+    break_signal = Decision(session=break_bar.session, price=break_bar.close)
+
+    # The fill: the next session's open. A break with no session after it is a
+    # signal that never became a trade.
+    if idx + 2 >= len(bars):
+        return Entry(ENTRY_UNFILLED, break_signal=break_signal, **partial)
+    fill_bar = bars[idx + 2]
+    return Entry(
+        ENTRY_FILLED,
+        break_signal=break_signal,
+        fill=Decision(session=fill_bar.session, price=fill_bar.open),
+        **partial,
+    )
 
 
 @dataclass(frozen=True)
@@ -487,56 +665,48 @@ def simulate_arm(
     or the market never opened again to fill it.
     """
     check_arm_mechanics(contract, arm)
+    return take_entry(bars, entry(bars, detection), market=market,
+                      contract=contract, arm=arm)
+
+
+def take_entry(
+    bars: Sequence[Bar],
+    e: Entry,
+    *,
+    market: str,
+    contract: RunContract,
+    arm: str,
+) -> SimulatedTrade | None:
+    """Run one arm's exit off an already-computed :class:`Entry`.
+
+    Split out from :func:`simulate_arm` so a caller that needs the entry's
+    :attr:`~Entry.outcome` *and* its trades — :mod:`backtest.figures`, counting
+    what triggered before measuring what paid — computes the shared entry once and
+    walks it out per arm, rather than re-deriving it three times and once more for
+    the count.
+
+    ``None`` when the entry never filled: there is no position to walk out.
+    """
+    if not e.filled:
+        return None
     plan = exit_plan(contract, arm)
-
-    idx = bar_index(bars, detection.session)
-    if idx is None:
-        return None
-
-    # Everything that denominates the trade is measured at the detection's own
-    # session, on the bars that existed then.
-    at_decision = trailing_bars(bars, detection.session, ADR_WINDOW)
-    a = adr(at_decision)
-    if a is None or a <= 0:
-        return None
-    stop_width = detection.stopw_adr * a * detection.trigger
-    if stop_width <= 0:
-        return None
-
-    # The one absolute-price comparison the ADR geometry cannot make immune: a
-    # close persisted with the detection against the close on the bar it names.
-    bar_close = bars[idx].close
-    price_scale = detection.close / bar_close if bar_close else 0.0
-
-    # The break: the app's own definition, on the session after the detection.
-    if idx + 1 >= len(bars):
-        return None
-    break_bar = bars[idx + 1]
-    if break_bar.close <= detection.trigger:
-        return None
-
-    # The fill: the next session's open. A break with no session after it is a
-    # signal that never became a trade.
-    if idx + 2 >= len(bars):
-        return None
-    fill_bar = bars[idx + 2]
-
-    stop_price = detection.stop_price
-    legs = _walk_out(bars, idx + 2, stop_price=stop_price, plan=plan)
-
+    # The fill's own index, re-derived rather than carried on the entry: it is a
+    # position in *this* caller's bars, and a value that travels can be read
+    # against a different series than the one it was measured in.
+    start = bar_index(bars, e.fill.session)
     return SimulatedTrade(
         market=market,
-        symbol=detection.symbol,
+        symbol=e.symbol,
         arm=arm,
-        detection_session=detection.session,
-        trigger=Decision(session=detection.session, price=detection.trigger),
-        break_signal=Decision(session=break_bar.session, price=break_bar.close),
-        entry=Decision(session=fill_bar.session, price=fill_bar.open),
-        stop_price=Decision(session=detection.session, price=stop_price),
-        stop_width=stop_width,
-        legs=legs,
-        price_scale=price_scale,
-        price_scale_ok=PRICE_SCALE_MIN <= price_scale <= PRICE_SCALE_MAX,
+        detection_session=e.detection_session,
+        trigger=e.trigger,
+        break_signal=e.break_signal,
+        entry=e.fill,
+        stop_price=e.stop_price,
+        stop_width=e.stop_width,
+        legs=_walk_out(bars, start, stop_price=e.stop_price.price, plan=plan),
+        price_scale=e.price_scale,
+        price_scale_ok=e.price_scale_ok,
     )
 
 
@@ -612,6 +782,81 @@ def _walk_out(
     return tuple(legs)
 
 
+@dataclass(frozen=True)
+class DetectionOutcome:
+    """What became of one persisted detection: its entry, and a trade per arm.
+
+    The unit :mod:`backtest.figures` counts in, and the reason it can count at all.
+    A list of trades answers "what paid"; it cannot answer "how many of the setups
+    the detector named ever triggered", because a detection that never broke left
+    no trade to be counted. Both questions are the denominator's, so the walk emits
+    the detection *and* its outcome rather than only the trades that survived it.
+
+    ``trades`` holds one entry per arm that produced a position and is **empty**
+    when the entry never filled — the arms cannot disagree about that, because they
+    share the entry.
+    """
+
+    session: date
+    detection: Detection
+    entry: Entry
+    trades: dict[str, SimulatedTrade]
+
+
+def walk_detections(
+    store: Store,
+    denominator: DenominatorStore,
+    market: str,
+    contract: RunContract,
+    *,
+    arms: Sequence[str] = ARMS,
+    include_burn_in: bool = False,
+) -> list[DetectionOutcome]:
+    """Every persisted detection in the window, with its entry and its trades.
+
+    The one pass over the denominator, shared by :func:`simulate_market` and by
+    :mod:`backtest.figures`. Two callers walking the same fourteen years
+    separately would read every symbol's whole history twice and — worse — could
+    disagree about which detections were in the window at all, which is exactly
+    the kind of divergence a rate reported beside a total makes invisible.
+
+    Burn-in sessions are excluded by default for the reason they are flagged at
+    all: a warm-up session is persisted and never measured (story 76).
+
+    Bars are read once per symbol rather than once per detection — a fourteen-year
+    run names the same symbol on hundreds of sessions, and re-reading its whole
+    history each time is the difference between minutes and hours.
+    """
+    for arm in arms:
+        check_arm_mechanics(contract, arm)
+    ran = [arm for arm in ARMS if arm in arms]
+    bars_by_symbol: dict[str, list[Bar]] = {}
+    out: list[DetectionOutcome] = []
+    for row in denominator.sessions(market):
+        if row.burn_in and not include_burn_in:
+            continue
+        for scored in denominator.detections(market, row.session):
+            detection = scored.detection
+            symbol = detection.symbol
+            if symbol not in bars_by_symbol:
+                bars_by_symbol[symbol] = store.bars(market, symbol)
+            bars = bars_by_symbol[symbol]
+            e = entry(bars, detection)
+            trades = {}
+            for arm in ran:
+                trade = take_entry(
+                    bars, e, market=market, contract=contract, arm=arm
+                )
+                if trade is not None:
+                    trades[arm] = trade
+            out.append(
+                DetectionOutcome(
+                    session=row.session, detection=detection, entry=e, trades=trades
+                )
+            )
+    return out
+
+
 def simulate_market(
     store: Store,
     denominator: DenominatorStore,
@@ -633,32 +878,20 @@ def simulate_market(
     a warm-up session is persisted and never measured (story 76), so a trade taken
     off one would be a result resting on an unsettled chain.
 
-    Bars are read once per symbol rather than once per detection — a fourteen-year
-    run names the same symbol on hundreds of sessions, and re-reading its whole
-    history each time is the difference between minutes and hours.
+    The trades :func:`walk_detections` produced, with the detections that produced
+    nothing dropped. Those detections are not noise — the share that never
+    triggered is one of the denominator's headline figures — so a caller that needs
+    them takes the walk itself rather than inferring them from what is missing here.
     """
-    for arm in arms:
-        check_arm_mechanics(contract, arm)
-    bars_by_symbol: dict[str, list[Bar]] = {}
-    trades: list[SimulatedTrade] = []
-    for row in denominator.sessions(market):
-        if row.burn_in and not include_burn_in:
-            continue
-        for scored in denominator.detections(market, row.session):
-            symbol = scored.detection.symbol
-            if symbol not in bars_by_symbol:
-                bars_by_symbol[symbol] = store.bars(market, symbol)
-            for arm in arms:
-                trade = simulate_arm(
-                    bars_by_symbol[symbol],
-                    scored.detection,
-                    market=market,
-                    contract=contract,
-                    arm=arm,
-                )
-                if trade is not None:
-                    trades.append(trade)
-    return trades
+    return [
+        outcome.trades[arm]
+        for outcome in walk_detections(
+            store, denominator, market, contract,
+            arms=arms, include_burn_in=include_burn_in,
+        )
+        for arm in ARMS
+        if arm in outcome.trades
+    ]
 
 
 def price_scale_drops(trades: Sequence[SimulatedTrade]) -> int:

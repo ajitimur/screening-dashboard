@@ -209,6 +209,9 @@ and is not reconstructed on this path, so it is absent rather than shown as zero
   had a denominator. This finding is a *selection* contrast, not an outcome one; #194
   asks whether a higher star score predicts a better **result**, which is a different and
   stronger question. Nothing here answers it, and this page is not a substitute for it.
+  It has since been run: [does the rubric rank, out of
+  sample?](backtest_score_ranking.md) reads **no evidence it ranks** in both markets, on a
+  denominator this page's anchor has not cleared.
 
 ### On the ship criterion
 

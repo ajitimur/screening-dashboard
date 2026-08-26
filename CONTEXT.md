@@ -283,7 +283,11 @@ is not).
 `adj_close(name) / adj_close(index)`, hit when today's ratio is at or above the ratio at the
 detection's own `base_start` — non-decayed, **not** a new high, so merely matching the index
 passes. The benchmark is `MARKET_INDEX`; both legs read `adj_close`, and a missing bar on
-either scores `False` and is never carried forward. It needs a second symbol's bars, so it
+either makes the value **absent** (`None`) — the question was never asked, which is a
+different fact from asking it and getting no. The pre-registered boolean reads absence as a
+miss (`rs_line_hit`) and never carries it forward, exactly as §5d published; the **stored**
+row keeps the value, so a name whose benchmark had no bar is never confused with one that
+genuinely decayed. It needs a second symbol's bars, so it
 could only ever be computed in a caller (`screener.relative_strength`), never in `score.py`.
 The first **candidate dimension**, and **rejected** (findings §5d, #160): Δ −2.1pp, a wrong-way
 gap, on 11.2% disagreement with the break test it nearly restates. The live app does not

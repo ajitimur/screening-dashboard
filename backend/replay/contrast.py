@@ -50,7 +50,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Callable, Iterable, Mapping, Sequence
 
-from screener.relative_strength import relative_move_hit
+from screener.relative_strength import relative_move_hit, rs_line_hit
 from screener.score import Dimension
 from screener.store import Store
 
@@ -175,7 +175,7 @@ class SelectionContrast:
 # lookup and report 0.0% instead of failing, which is the one way a contrast can
 # be wrong and look fine.
 CANDIDATES: tuple[tuple[str, int, Callable[[ScoredDetection], bool]], ...] = (
-    ("RS line", 0, lambda d: d.rs_line),
+    ("RS line", 0, lambda d: rs_line_hit(d.rs_line)),
     ("Relative move", 0, lambda d: relative_move_hit(d.relative_move)),
 )
 

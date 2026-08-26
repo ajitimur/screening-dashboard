@@ -1,9 +1,10 @@
-"""The denominator: every session's field, persisted (issue #188, PRD #182 Phase 3).
+"""The denominator store: every session's field, persisted (issue #188, PRD #182
+Phase 3).
 
-This is the object the whole exercise exists to produce. The reference study has a
-numerator — 828 trades a trader **took** — and no denominator, which is why it can
-report no precision and no false-positive rate. These rows are the other half:
-every name the universe admitted, every rank, every regime reading and every
+These rows are the object the whole exercise exists to produce. The reference
+study has a numerator — 828 trades a trader **took** — and no denominator, which
+is why it can report no precision and no false-positive rate. This is the other
+half: every name the universe admitted, every rank, every regime reading and every
 detection the detector named, whether anyone traded it or not.
 
 What is persisted, per session
@@ -14,6 +15,8 @@ What is persisted, per session
 - **Every detection**, with its full :class:`~screener.detection.Detection` record,
   its seven-dimension star-score breakdown, its star rank, and both registered
   candidate dimensions as values.
+
+This module owns the *rows*; :mod:`backtest.run` owns the run that produces them.
 
 Three regime columns, three different warranties
 ------------------------------------------------
@@ -50,37 +53,37 @@ Two reasons, and the second is the load-bearing one:
   ranks and nothing else. The rows here are never pruned. This is the same trap the
   reference study hit from the other side (:func:`replay.field._session_detections`).
 
-Every write is idempotent (``ON CONFLICT DO NOTHING``), so a re-run over the same
-store reproduces the same rows rather than duplicating or refusing them — which is
-what makes the run re-runnable rather than single-use (story 78).
+Re-runnable, and it says so rather than assuming it
+---------------------------------------------------
+Every write is ``ON CONFLICT DO NOTHING``, so a second run over the same store
+leaves an already-persisted session exactly as it was rather than duplicating it
+or refusing to proceed. On its own that is determinism by suppression: a re-run
+under a *different* contract, or after the detector moved, would keep the stale
+rows and still report a clean run. So the file carries a stamp
+(:meth:`DenominatorStore.stamp`) of the contract and detector version that first
+wrote it, and a run that does not match is refused — which is the same rule the
+package already commits to for results, that a contract change is a new run
+recorded beside the old one rather than a revision mistaken for the original.
 """
 
 from __future__ import annotations
 
-import argparse
 import dataclasses
-import json
-import sys
+import hashlib
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Callable, Sequence, TextIO
+from typing import Sequence
 
 import duckdb
 
-from replay.caching_store import CachingStore
-from replay.chain import SessionField
-from replay.field import FieldSession, ScoredDetection, SevenDimScore, build_field_sessions
-from screener.detection import Detection
+from replay.field import ScoredDetection, SevenDimScore
+from screener.detection import DETECTOR_VERSION, Detection
 from screener.ranks import Rank
-from screener.regime import RegimeState, breadth, index_broke_out, regime_state
+from screener.regime import RegimeState
 from screener.score import Dimension
-from screener.source import MARKET_INDEX
-from screener.store import Store
 
-from .chain import backtest_chain, excluded_references
-from .contract import DEFAULT_CONTRACT, RunContract
-from .result import stamp_result
+from .contract import RunContract
 
 # The warranty each regime companion carries, written into the row rather than
 # into a docstring. A column whose quality is recorded only in prose is a column
@@ -98,7 +101,23 @@ DETECTION_FIELDS: tuple[str, ...] = tuple(
     if f.name not in ("symbol", "session")
 )
 
+# The columns a detection row carries before its detection record begins.
+_FIELD_COLUMNS: tuple[str, ...] = (
+    "market", "session", "symbol", "star_rank", "stars", "points", "max_points",
+    "score_label", "rs_line", "relative_move",
+)
+
 _SCHEMA = """
+-- The stamp of the run that first wrote this file: which contract, and which
+-- detector. One row, and a later run that does not match it is refused rather
+-- than allowed to leave half its rows measured under a superseded rule.
+CREATE TABLE IF NOT EXISTS denominator_meta (
+    contract_version  TEXT    NOT NULL,
+    contract_label    TEXT    NOT NULL,
+    contract_digest   TEXT    NOT NULL,
+    detector_version  INTEGER NOT NULL
+);
+
 -- One row per replayed session: the counts, and the three regime columns.
 -- ``burn_in`` is the whole of the exclusion rule — a burn-in session is computed
 -- and persisted like any other and simply never measured (story 76), so the flag
@@ -144,14 +163,17 @@ CREATE TABLE IF NOT EXISTS denominator_ranks (
 
 -- Every detection, with its full record and its star position.
 --
--- ``relative_move`` is a **value, and NULL means absent** — the name had not
--- listed six months ago, or has no ADR — never zero, which is a real value
--- sitting exactly on the pre-registered cut (stories 70, 71). The cut belongs to
--- the rubric and is applied at read time
--- (:func:`screener.relative_strength.relative_move_hit`), so a stored row can
--- never be re-denominated retroactively (story 72). Neither candidate dimension
--- can move a star or a ``star_rank``: both are written from the field, which
--- computes them outside the score.
+-- **Both candidate dimensions are values, and NULL means absent** (stories 70,
+-- 71). For ``relative_move`` absent is "the name had not listed six months ago,
+-- or has no ADR", never zero — which is a real value sitting exactly on the
+-- pre-registered cut. For ``rs_line`` absent is "a price was missing at one of
+-- the two anchors, so the question was never asked", which is a different fact
+-- from asking it and getting no. Each boolean is derived at read time by the
+-- rubric's own reader (:func:`screener.relative_strength.relative_move_hit`,
+-- :func:`screener.relative_strength.rs_line_hit`), so a stored row can never be
+-- re-denominated retroactively (story 72). Neither can move a star or a
+-- ``star_rank``: both are written from the field, which computes them outside
+-- the score.
 CREATE TABLE IF NOT EXISTS denominator_detections (
     market             TEXT    NOT NULL,
     session            DATE    NOT NULL,
@@ -161,7 +183,7 @@ CREATE TABLE IF NOT EXISTS denominator_detections (
     points             INTEGER NOT NULL,
     max_points         INTEGER NOT NULL,
     score_label        TEXT    NOT NULL,
-    rs_line            BOOLEAN NOT NULL,
+    rs_line            BOOLEAN,
     relative_move      DOUBLE,
     detector_version   INTEGER NOT NULL,
     trigger            DOUBLE  NOT NULL,
@@ -208,6 +230,29 @@ CREATE TABLE IF NOT EXISTS denominator_score_breakdown (
 """
 
 
+def declared_columns() -> dict[str, dict[str, str]]:
+    """The shape :data:`_SCHEMA` describes: ``{table: {column: type}}``.
+
+    Read back out of a throwaway in-memory database rather than parsed out of the
+    DDL text, so the declaration and anything compared against it cannot drift
+    apart — the mechanism :func:`screener.store._declared_columns` established, and
+    the reason a test can pin the persisted record against the detector's own
+    dataclass without reaching into a store's private cursor.
+    """
+    con = duckdb.connect(":memory:")
+    try:
+        con.execute(_SCHEMA)
+        rows = con.execute(
+            "SELECT table_name, column_name, data_type FROM information_schema.columns"
+        ).fetchall()
+    finally:
+        con.close()
+    shape: dict[str, dict[str, str]] = {}
+    for table, column, data_type in rows:
+        shape.setdefault(table, {})[column] = data_type
+    return shape
+
+
 def denominator_path(store_path: str | Path) -> Path:
     """Where a run persists its denominator: the bar store's path plus a suffix.
 
@@ -217,6 +262,32 @@ def denominator_path(store_path: str | Path) -> Path:
     """
     out = Path(store_path)
     return out.with_name(out.name + ".denominator.duckdb")
+
+
+class RunStampMismatch(RuntimeError):
+    """A run's contract or detector differs from the one that wrote these rows.
+
+    Its own error, because the remedy is specific and nothing else here shares it:
+    a new contract or a moved detector is a **new run recorded beside the old
+    one**, so the answer is a new denominator file, never a second pass over this
+    one. Left unguarded, the idempotent writes below would keep every stale row
+    and still report a clean run.
+    """
+
+
+@dataclass(frozen=True)
+class RegimeReading:
+    """One session's whole regime observation — the three columns and their basis.
+
+    The type CONTEXT.md's **regime companions** entry names. They are computed
+    together, stored together and must be read apart, so they travel as one value
+    rather than as four positional primitives that a caller has to keep in order.
+    """
+
+    state: RegimeState | None
+    breadth: float | None
+    broke_out: bool | None
+    index_close: float | None
 
 
 @dataclass(frozen=True)
@@ -241,35 +312,45 @@ class SessionRow:
     breadth_basis: str = BREADTH_BASIS
     follow_through_basis: str = FOLLOW_THROUGH_BASIS
 
+    @staticmethod
+    def of(
+        market: str,
+        session: date,
+        *,
+        burn_in: bool,
+        members: int,
+        detections: int,
+        regime: RegimeReading,
+    ) -> "SessionRow":
+        """Assemble a header from a session's counts and its :class:`RegimeReading`."""
+        return SessionRow(
+            market=market,
+            session=session,
+            burn_in=burn_in,
+            members=members,
+            detections=detections,
+            regime_state=regime.state,
+            breadth=regime.breadth,
+            broke_out=regime.broke_out,
+            index_close=regime.index_close,
+        )
 
-def session_regime(
-    store: Store, market: str, session: date, members: Sequence[str]
-) -> tuple[RegimeState | None, float | None, bool | None, float | None]:
-    """The session's ``(state, breadth, broke_out, index_close)``.
 
-    All three read off the app's own :mod:`screener.regime` functions, unmodified,
-    over bars sliced to ``session`` — the same point-in-time slice every other
-    stage takes. The session a denominator row is keyed by is the evaluation
-    session: the night a decision is made for the session after it, so bars
-    *through* it are exactly what was knowable when the decision was taken.
+def _insert(table: str, columns: Sequence[str]) -> str:
+    """An ``INSERT`` naming every column it fills.
 
-    A market whose index has no bars in the store yields ``(None, breadth, None,
-    None)`` rather than raising: an absent index is a fact about the store's
-    coverage, and the run reports it as an undefined regime instead of stopping a
-    fourteen-year pass on a missing benchmark.
+    Named rather than positional, and that is the whole point: the detection row
+    is assembled from :data:`DETECTION_FIELDS`, which is derived from the
+    dataclass, so *reordering* ``Detection``'s fields would quietly write each
+    value into its neighbour's column wherever the types happen to agree — and go
+    on doing it for fourteen years. Naming the columns makes a reorder a no-op and
+    a rename a loud error.
     """
-    index_bars = [
-        b for b in store.bars(market, MARKET_INDEX[market]) if b.session <= session
-    ]
-    members_bars = {
-        symbol: [b for b in store.bars(market, symbol) if b.session <= session]
-        for symbol in members
-    }
+    names = ", ".join(columns)
+    placeholders = ", ".join(["?"] * len(columns))
     return (
-        regime_state(index_bars),
-        breadth(members_bars),
-        index_broke_out(index_bars),
-        index_bars[-1].adj_close if index_bars else None,
+        f"INSERT INTO {table} ({names}) VALUES ({placeholders}) "
+        "ON CONFLICT DO NOTHING"
     )
 
 
@@ -284,7 +365,8 @@ class DenominatorStore:
     Every write is ``ON CONFLICT DO NOTHING``. That is the shape re-runnability
     takes here: a session already persisted is left exactly as it was, so a second
     run over the same store neither duplicates a row nor refuses to proceed — and
-    a run that was interrupted resumes without a repair step.
+    a run that was interrupted resumes without a repair step. :meth:`stamp` is what
+    keeps that from becoming determinism by suppression.
     """
 
     def __init__(self, connection: duckdb.DuckDBPyConnection) -> None:
@@ -308,25 +390,56 @@ class DenominatorStore:
     def _cursor(self) -> duckdb.DuckDBPyConnection:
         return self._con.cursor()
 
+    # -- the run stamp --------------------------------------------------------
+
+    def stamp(self, contract: RunContract) -> None:
+        """Record — or re-check — which contract and detector wrote these rows.
+
+        Called before a run writes anything. On an empty file it records the
+        stamp; on a file that already carries one it compares, and raises
+        :class:`RunStampMismatch` on any difference. The digest is over the
+        contract's own serialised bytes, so a cell whose *value* moved is caught
+        even when the version string did not.
+        """
+        digest = hashlib.sha256(contract.to_json().encode()).hexdigest()
+        current = (
+            contract.contract_version, contract.label, digest, DETECTOR_VERSION,
+        )
+        rows = self._cursor().execute(
+            "SELECT contract_version, contract_label, contract_digest, "
+            "detector_version FROM denominator_meta"
+        ).fetchall()
+        if not rows:
+            self._cursor().execute(
+                "INSERT INTO denominator_meta VALUES (?, ?, ?, ?)", list(current)
+            )
+            return
+        stored = tuple(rows[0])
+        if stored != current:
+            raise RunStampMismatch(
+                f"this denominator was written under contract "
+                f"{stored[0]!r}/{stored[2][:12]} at detector v{stored[3]}, and this "
+                f"run is contract {current[0]!r}/{current[2][:12]} at detector "
+                f"v{current[3]}: a changed contract or detector is a new run "
+                "recorded beside the old one, so build a new denominator rather "
+                "than adding to this one"
+            )
+
     # -- writes ---------------------------------------------------------------
 
     def append_session(self, row: SessionRow) -> None:
         """Persist one session's header and its three regime readings."""
+        columns = tuple(f.name for f in dataclasses.fields(SessionRow))
         self._cursor().execute(
-            "INSERT INTO denominator_sessions VALUES "
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
-            [
-                row.market, row.session, row.burn_in, row.members, row.detections,
-                row.regime_state, row.breadth, row.breadth_basis,
-                row.broke_out, row.index_close, row.follow_through_basis,
-            ],
+            _insert("denominator_sessions", columns),
+            [getattr(row, name) for name in columns],
         )
 
     def append_universe(self, market: str, session: date, symbols: Sequence[str]) -> int:
         if not symbols:
             return 0
         self._cursor().executemany(
-            "INSERT INTO denominator_universe VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+            _insert("denominator_universe", ("market", "session", "symbol")),
             [[market, session, s] for s in symbols],
         )
         return len(symbols)
@@ -335,8 +448,10 @@ class DenominatorStore:
         if not rows:
             return 0
         self._cursor().executemany(
-            "INSERT INTO denominator_ranks VALUES (?, ?, ?, ?, ?, ?) "
-            "ON CONFLICT DO NOTHING",
+            _insert(
+                "denominator_ranks",
+                ("market", "session", "symbol", "lookback", "percentile", "raw_return"),
+            ),
             [
                 [market, session, r.symbol, r.lookback, r.percentile, r.raw_return]
                 for r in rows
@@ -356,10 +471,8 @@ class DenominatorStore:
         """
         if not rows:
             return 0
-        placeholders = ", ".join(["?"] * (10 + len(DETECTION_FIELDS)))
         self._cursor().executemany(
-            f"INSERT INTO denominator_detections VALUES ({placeholders}) "
-            "ON CONFLICT DO NOTHING",
+            _insert("denominator_detections", _FIELD_COLUMNS + DETECTION_FIELDS),
             [
                 [
                     market, session, d.symbol, d.star_rank, d.score.stars,
@@ -371,10 +484,14 @@ class DenominatorStore:
             ],
         )
         self._cursor().executemany(
-            "INSERT INTO denominator_score_breakdown VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
-            "ON CONFLICT DO NOTHING",
+            _insert(
+                "denominator_score_breakdown",
+                ("market", "session", "symbol", "position", "dimension", "weight",
+                 "hit", "value"),
+            ),
             [
-                [market, session, d.symbol, i, dim.dimension, dim.weight, dim.hit, dim.value]
+                [market, session, d.symbol, i, dim.dimension, dim.weight, dim.hit,
+                 dim.value]
                 for d in rows
                 for i, dim in enumerate(d.score.breakdown)
             ],
@@ -443,8 +560,16 @@ class DenominatorStore:
 
         The full detection record, the seven-dimension score with its breakdown,
         the star rank and both candidate dimensions — the row as it was written.
-        ``relative_move`` comes back ``None`` where it was absent, which is the
-        distinction the column exists to keep (story 71).
+        Each candidate comes back ``None`` where it was absent, which is the
+        distinction the two columns exist to keep (story 71).
+
+        ``not_taken`` and ``taken`` come back ``False``, and that is what was
+        written rather than a default standing in for a missing column: the
+        backtest takes every detection mechanically and has no executed trades at
+        all, so the field it builds carries no entry to be beside. The two flags
+        are the reference study's vocabulary (CONTEXT.md, **not-taken detection**),
+        and in a mechanical denominator there is no trader for a detection to be
+        not-taken *by*.
         """
         columns = ", ".join(DETECTION_FIELDS)
         rows = self._cursor().execute(
@@ -477,260 +602,3 @@ class DenominatorStore:
                 )
             )
         return out
-
-
-@dataclass(frozen=True)
-class DenominatorRun:
-    """What one replay of the denominator produced, as a committable value.
-
-    ``sessions`` is every persisted session's header, burn-in included and
-    flagged; ``measured`` and ``burn_in`` split it the way every later phase must.
-    ``references_excluded`` names the benchmarks the store held and the field
-    refused to rank, so the #162 exclusion is a reported fact about *this* run and
-    not only a property of the code that ran it (story 73).
-    """
-
-    market: str
-    contract: RunContract
-    sessions: tuple[SessionRow, ...]
-    references_excluded: tuple[str, ...]
-
-    @property
-    def measured(self) -> tuple[SessionRow, ...]:
-        """The measured sessions — the denominator proper."""
-        return tuple(s for s in self.sessions if not s.burn_in)
-
-    @property
-    def burn_in(self) -> tuple[SessionRow, ...]:
-        """The settling sessions: persisted, and never measured (story 76)."""
-        return tuple(s for s in self.sessions if s.burn_in)
-
-    @property
-    def detections_per_session(self) -> dict[date, int]:
-        """Detections per measured session — the count the run plots.
-
-        A count that collapses in a given year is a data hole, and it reads as a
-        quiet market until someone looks (story 77).
-        """
-        return {s.session: s.detections for s in self.measured}
-
-
-def run_denominator(
-    store: Store,
-    denominator: DenominatorStore,
-    market: str,
-    contract: RunContract = DEFAULT_CONTRACT,
-    *,
-    start: date | None = None,
-    end: date | None = None,
-    measured_start: date | None = None,
-    sessions: Sequence[date] | None = None,
-    progress: Callable[[int, int, date], None] | None = None,
-) -> DenominatorRun:
-    """Replay one market over a window and persist the denominator.
-
-    The single entry point for Phase 3: the contract's stateless universe, then
-    the chain, then the field, then rows on disk. Every session in the window is
-    computed and persisted; the burn-in ones are flagged and excluded from
-    measurement rather than skipped (story 76).
-
-    The run is deterministic and re-runnable over the same bar store. The chain
-    reuses a session it has already computed rather than recomputing it, the field
-    reuses persisted detections, and every denominator write is idempotent — so a
-    second run over the same pair of stores produces byte-identical rows (story
-    78). A gapped session sequence raises :class:`~replay.chain.GapError` rather
-    than running (story 75).
-
-    ``progress`` is called as ``progress(i, total, session)`` as the chain
-    advances, so a long pass reports rather than hanging silently.
-    """
-    store = CachingStore.wrap(store)
-    chain = backtest_chain(
-        store,
-        market,
-        contract,
-        start=start,
-        end=end,
-        measured_start=measured_start,
-        sessions=sessions,
-        progress=progress,
-    )
-    fields = build_field_sessions(store, market, chain)
-    rows = tuple(
-        _persist_session(store, denominator, market, sf, fs)
-        for sf, fs in zip(chain, fields)
-    )
-    return DenominatorRun(
-        market=market,
-        contract=contract,
-        sessions=rows,
-        references_excluded=tuple(excluded_references(store, market)),
-    )
-
-
-def _persist_session(
-    store: Store,
-    denominator: DenominatorStore,
-    market: str,
-    sf: SessionField,
-    fs: FieldSession,
-) -> SessionRow:
-    """Write one session's whole denominator and return its header row."""
-    state, share, broke, index_close = session_regime(store, market, sf.session, sf.members)
-    row = SessionRow(
-        market=market,
-        session=sf.session,
-        burn_in=sf.burn_in,
-        members=len(sf.members),
-        detections=len(fs.detections),
-        regime_state=state,
-        breadth=share,
-        broke_out=broke,
-        index_close=index_close,
-    )
-    denominator.append_session(row)
-    denominator.append_universe(market, sf.session, sf.members)
-    denominator.append_ranks(market, sf.session, sf.ranks)
-    denominator.append_detections(market, sf.session, fs.detections)
-    return row
-
-
-# -- serialisation ------------------------------------------------------------
-
-
-def _session_dict(row: SessionRow) -> dict:
-    return {
-        "session": row.session.isoformat(),
-        "burn_in": row.burn_in,
-        "members": row.members,
-        "detections": row.detections,
-        "regime_state": row.regime_state,
-        "breadth": row.breadth,
-        "breadth_basis": row.breadth_basis,
-        "broke_out": row.broke_out,
-        "index_close": row.index_close,
-        "follow_through_basis": row.follow_through_basis,
-    }
-
-
-def run_to_dict(run: DenominatorRun) -> dict:
-    """The run as a JSON-serialisable dict, stamped with the contract that produced it.
-
-    Every result the package emits carries its contract (:func:`backtest.stamp_result`),
-    so two runs under different contracts are distinguishable from their serialised
-    output alone.
-    """
-    return stamp_result(
-        run.contract,
-        {
-            "market": run.market,
-            "sessions_persisted": len(run.sessions),
-            "sessions_measured": len(run.measured),
-            "sessions_burn_in": len(run.burn_in),
-            "references_excluded": list(run.references_excluded),
-            "sessions": [_session_dict(r) for r in run.sessions],
-        },
-    )
-
-
-def write_results(run: DenominatorRun, path: str | Path) -> None:
-    out = Path(path)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(run_to_dict(run), indent=2) + "\n")
-
-
-def format_run(run: DenominatorRun) -> str:
-    """A short human-readable summary of what the run persisted."""
-    detections = sum(s.detections for s in run.measured)
-    measured = run.measured
-    lines = [
-        f"denominator — {run.market}",
-        f"  sessions persisted   {len(run.sessions)} "
-        f"({len(measured)} measured, {len(run.burn_in)} burn-in, excluded)",
-    ]
-    if measured:
-        lines.append(f"  window               {measured[0].session} .. {measured[-1].session}")
-        lines.append(
-            f"  detections           {detections} over {len(measured)} measured sessions "
-            f"({detections / len(measured):.1f} per session)"
-        )
-    lines.append(
-        f"  references unranked  {', '.join(run.references_excluded) or 'none in store'}"
-    )
-    lines.append(f"  breadth              {BREADTH_BASIS}")
-    lines.append(f"  follow-through       {FOLLOW_THROUGH_BASIS}")
-    return "\n".join(lines)
-
-
-# -- command-line entry point -------------------------------------------------
-
-
-def progress_printer(stream: TextIO) -> Callable[[int, int, date], None]:
-    """Print the chain's position every :data:`_PROGRESS_EVERY` sessions."""
-
-    def report(i: int, total: int, session: date) -> None:
-        if i % _PROGRESS_EVERY and i != total:
-            return
-        stream.write(f"[chain] {i}/{total} ({i / total:.0%})  {session}\n")
-        stream.flush()
-
-    return report
-
-
-_PROGRESS_EVERY = 20
-
-
-def main(argv: list[str] | None = None) -> int:
-    """Replay one market over a window and persist the denominator.
-
-    The command that reproduces the run::
-
-        python -m backtest.denominator --store data/backtest_us.duckdb \\
-            --market US --start 2011-01-01 --measured-start 2012-01-01 \\
-            --end 2012-06-30 --out-json references/backtest_denominator_us.json
-
-    The denominator is written beside the bar store
-    (:func:`denominator_path`) and the bar store is opened read-write only because
-    the chain persists its own reuse markers into it; no live history is touched.
-    """
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--store", required=True, help="path to the backtest bar store")
-    parser.add_argument("--market", required=True)
-    parser.add_argument("--start", type=date.fromisoformat, default=None,
-                        help="first session of the window (default: the contract's store start)")
-    parser.add_argument("--end", type=date.fromisoformat, default=None,
-                        help="last session of the window (default: the store's last session)")
-    parser.add_argument("--measured-start", type=date.fromisoformat, default=None,
-                        help="first measured session; earlier sessions are burn-in "
-                             "(default: the contract's measured start)")
-    parser.add_argument("--out-json", default=None,
-                        help="where to write the machine-readable run summary")
-    args = parser.parse_args(argv)
-
-    store = Store.open(args.store)
-    denominator = DenominatorStore.open(denominator_path(args.store))
-    try:
-        run = run_denominator(
-            store,
-            denominator,
-            args.market,
-            start=args.start,
-            end=args.end,
-            measured_start=args.measured_start,
-            progress=progress_printer(sys.stderr),
-        )
-    finally:
-        denominator.close()
-        store.close()
-
-    if args.out_json:
-        write_results(run, args.out_json)
-    print(format_run(run))
-    print(f"\nwrote {denominator_path(args.store)}")
-    if args.out_json:
-        print(f"wrote {args.out_json}")
-    return 0
-
-
-if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(main())

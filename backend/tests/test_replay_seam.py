@@ -4275,6 +4275,7 @@ def test_names_folded_by_deduplication_are_reported_not_silently_dropped(tmp_pat
 # ranges where the reference study's textbook base carries narrow ones.
 
 from backtest.chain import (
+    WindowNotCovered,
     burn_in_count,
     excluded_references,
     window_sessions,
@@ -4285,16 +4286,24 @@ from backtest.denominator import (
     DETECTION_FIELDS,
     FOLLOW_THROUGH_BASIS,
     DenominatorStore,
+    RunStampMismatch,
+    declared_columns,
     denominator_path,
+)
+from backtest.run import (
+    ContractDrift,
+    REGIME_TAIL,
+    check_detection_gate,
     main as denominator_main,
     run_denominator,
     run_to_dict,
+    session_regime,
 )
 from screener.detection import DETECTION_LOOKBACKS, DETECTOR_VERSION
-from screener.regime import regime_state
+from screener.regime import breadth, index_broke_out, regime_state
+from screener.relative_strength import rs_line_hit, rs_line_value_for
 from screener.score import DIMENSIONS
 from screener.store import RANK_RETENTION_YEARS
-from screener.universe import rebuild_universe
 
 
 def _wide_base_hlc():
@@ -4427,7 +4436,7 @@ def test_the_burn_in_is_the_window_before_the_measured_start():
 
     assert burn_in_count(dates, dates[4]) == 4
     assert burn_in_count(dates, dates[0]) == 0
-    assert burn_in_count(dates, None) == 0
+    assert burn_in_count(dates, dates[-1]) == len(dates) - 1
 
 
 def test_follow_through_is_reconstructed_across_the_window_and_marked_unbiased(
@@ -4674,23 +4683,22 @@ def test_the_denominator_ranks_outlive_the_app_stores_retention_window(store, de
     assert denominator.ranks("US", new) == rows
 
 
-def test_the_persisted_detection_record_cannot_fall_behind_the_detector(denominator):
+def test_the_persisted_detection_record_cannot_fall_behind_the_detector():
     """The record is written by name off the dataclass, so a field added to
     ``Detection`` and not to the denominator's schema fails here rather than being
     dropped on the floor — which is how a column goes missing from a fourteen-year
-    build and is noticed a year later."""
-    declared = {
-        r[0]
-        for r in denominator._cursor().execute(
-            "SELECT column_name FROM information_schema.columns "
-            "WHERE table_name = 'denominator_detections'"
-        ).fetchall()
-    }
+    build and is noticed a year later. Read through the schema's own declaration,
+    the way ``screener.store`` reads its own, so there is one description of the
+    shape and nothing to drift from it."""
+    declared = declared_columns()["denominator_detections"]
 
-    assert set(DETECTION_FIELDS) <= declared
+    assert set(DETECTION_FIELDS) <= set(declared)
     assert set(DETECTION_FIELDS) == {
         f.name for f in dataclasses.fields(Detection)
     } - {"symbol", "session"}
+    # Both candidate dimensions are nullable, because NULL is how each says absent.
+    assert declared["rs_line"] == "BOOLEAN"
+    assert declared["relative_move"] == "DOUBLE"
 
 
 def test_the_run_result_carries_the_contract_that_produced_it(store, denominator):
@@ -4772,3 +4780,139 @@ def test_the_denominator_cli_persists_and_reports_the_run(tmp_path, capsys):
     assert "5 measured" in printed
     assert BREADTH_BASIS in printed
     assert FOLLOW_THROUGH_BASIS in printed
+
+
+# -- what the #188 review found unguarded -------------------------------------
+
+
+def _contract_with(key: str, value) -> RunContract:
+    """``DEFAULT_CONTRACT`` with one cell's value replaced, justification kept."""
+    return dataclasses.replace(
+        DEFAULT_CONTRACT,
+        cells=tuple(
+            dataclasses.replace(c, value=value) if c.key == key else c
+            for c in DEFAULT_CONTRACT.cells
+        ),
+    )
+
+
+def test_a_window_the_store_cannot_reach_across_is_refused(store, denominator):
+    """The gap the chain's own check can never catch. `window_sessions` slices the
+    store's calendar, so a window built from it is gapless by construction — which
+    leaves the gap that actually happens in a fetched store unguarded: the crawl
+    stopped short, and the window quietly became whatever the bars covered. Every
+    count below it would then be computed correctly over the wrong window."""
+    dates = _seed_denominator_store(store)
+
+    with pytest.raises(WindowNotCovered):
+        run_denominator(
+            store, denominator, "US", DEFAULT_CONTRACT,
+            start=dates[0] - timedelta(days=1), end=dates[-1],
+            measured_start=dates[-5],
+        )
+    with pytest.raises(WindowNotCovered):
+        run_denominator(
+            store, denominator, "US", DEFAULT_CONTRACT,
+            start=dates[0], end=dates[-1] + timedelta(days=1),
+            measured_start=dates[-5],
+        )
+
+
+def test_a_re_run_under_a_different_contract_is_refused(store, denominator):
+    """Idempotent writes make a re-run safe and, on their own, make it dishonest:
+    a second pass under a changed contract would keep every stale row and still
+    report a clean run. A contract change is a new run recorded beside the old
+    one, so the file's stamp refuses it rather than mixing the two."""
+    dates = _seed_denominator_store(store)
+    _short_run(store, denominator, dates)
+
+    changed = dataclasses.replace(DEFAULT_CONTRACT, label="a second run")
+
+    with pytest.raises(RunStampMismatch):
+        run_denominator(
+            store, denominator, "US", changed,
+            start=dates[0], end=dates[-1], measured_start=dates[-5],
+        )
+    # The same contract is still welcome — that is the re-run the store supports.
+    again = _short_run(store, denominator, dates)
+    assert len(again.sessions) == len(dates)
+
+
+def test_a_gate_width_that_drifted_from_its_contract_stops_the_run():
+    """The run measures the detector as encoded, and the contract records what
+    that was. Unchecked, the two agreeing is a coincidence a test noticed once:
+    the run would go on building a denominator against whatever width the detector
+    happened to carry, and stamp the contract's claim onto the result."""
+    check_detection_gate(DEFAULT_CONTRACT)  # today they agree
+
+    drifted = _contract_with(DETECTION_GATE_KEY, ["1m", "3m", "6m"])
+
+    with pytest.raises(ContractDrift):
+        check_detection_gate(drifted)
+
+
+def test_the_bounded_regime_tail_reads_the_same_as_the_whole_series(store):
+    """The regime is read off a trailing slice rather than every bar ever stored,
+    because re-slicing each member's full history once per session is
+    O(sessions x members x bars) and does not finish the fourteen-year pass this
+    package exists to run. The saving is only legitimate if the answer is
+    identical, so it is pinned against the whole series here."""
+    dates = _seed_denominator_store(store)
+    session = dates[-1]
+    members = ["BASE"]
+
+    reading = session_regime(store, "US", session, members)
+
+    whole_index = [b for b in store.bars("US", MARKET_INDEX["US"]) if b.session <= session]
+    whole_members = {
+        s: [b for b in store.bars("US", s) if b.session <= session] for s in members
+    }
+    assert reading.state == regime_state(whole_index)
+    assert reading.breadth == breadth(whole_members)
+    assert reading.broke_out == index_broke_out(whole_index)
+    assert reading.index_close == whole_index[-1].adj_close
+    # And the slice really is bounded, or the assertions above prove nothing.
+    assert REGIME_TAIL < len(whole_index)
+
+
+def test_an_absent_rs_line_is_none_and_never_a_miss(denominator):
+    """The candidate rides as a value, like its sibling. A benchmark with no bar
+    at one of the two anchors means the question was never asked — a different
+    fact from asking it and getting no — and a stored row that folded them could
+    not tell a name whose index had no bars from one that genuinely decayed."""
+    det = _det("AAA", cluster_k=6)
+    bars = _bars_from_hlc(_daily(date(2019, 1, 1), 105 * 4), _wide_base_hlc() * 4)
+
+    # No benchmark bars at all: absent, not a decayed line.
+    assert rs_line_value_for(det, bars, []) is None
+    # The pre-registered boolean still reads absence as a miss, as #160 published.
+    assert rs_line_hit(None) is False
+
+    absent = ScoredDetection(
+        symbol="AAA", detection=det,
+        score=seven_dimension_score(det, prior_move=False),
+        star_rank=1, not_taken=False, rs_line=None, relative_move=None,
+    )
+    decayed = dataclasses.replace(
+        absent, symbol="BBB",
+        detection=dataclasses.replace(det, symbol="BBB"),
+        star_rank=2, rs_line=False,
+    )
+
+    denominator.append_detections("US", det.session, [absent, decayed])
+
+    stored = {d.symbol: d.rs_line for d in denominator.detections("US", det.session)}
+    assert stored["AAA"] is None
+    assert stored["BBB"] is False
+
+
+def test_the_detections_per_session_series_is_serialised(store, denominator):
+    """The count rides on the machine-readable result as a dated series, so a year
+    where it collapses is visible without re-deriving it from the rows."""
+    dates = _seed_denominator_store(store)
+    run = _short_run(store, denominator, dates)
+
+    series = run_to_dict(run)["detections_per_session"]
+
+    assert list(series) == [d.isoformat() for d in dates[-5:]]
+    assert set(series.values()) == {1}

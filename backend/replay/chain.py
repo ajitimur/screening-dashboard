@@ -212,7 +212,7 @@ def _check_no_gaps(sessions: Sequence[date], calendar: Sequence[date]) -> None:
 UniverseBuilder = Callable[[Store, str, date, list[Instrument]], list[str]]
 
 
-def app_universe(
+def rebuild_app_universe(
     store: Store, market: str, session: date, instruments: list[Instrument]
 ) -> list[str]:
     """The app's own universe, rebuilt and persisted — the chain's default.
@@ -233,7 +233,7 @@ def _replay_session(
     market: str,
     session: date,
     instruments: list[Instrument],
-    universe: UniverseBuilder = app_universe,
+    universe: UniverseBuilder = rebuild_app_universe,
 ) -> tuple[list[str], list[Rank]]:
     """Compute a session's universe and ranks, or reuse them if already persisted.
 
@@ -286,7 +286,7 @@ def replay_chain(
     blind_spot_tickers: Iterable[str] = (),
     burn_in: int = BURN_IN_SESSIONS,
     sessions: Sequence[date] | None = None,
-    universe: UniverseBuilder = app_universe,
+    universe: UniverseBuilder = rebuild_app_universe,
     include_burn_in: bool = False,
     progress: Callable[[int, int, date], None] | None = None,
 ) -> list[SessionField]:
@@ -311,7 +311,7 @@ def replay_chain(
     in order.
 
     ``universe`` is the membership seam: the default rebuilds the app's own sticky,
-    hysteretic universe (:func:`app_universe`), and the backtest passes the
+    hysteretic universe (:func:`rebuild_app_universe`), and the backtest passes the
     contract's stateless classifier instead (PRD #182 story 67). Everything else
     about the session — the ranks, the run-record reuse marker, the gap check — is
     identical whichever universe is replayed.

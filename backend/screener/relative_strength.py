@@ -150,19 +150,24 @@ def _adj_close_on(bars: list[Bar], when: date) -> float | None:
     return bars[idx].adj_close
 
 
-def rs_line(
+def rs_line_value(
     bars: list[Bar], index_bars: list[Bar], *, base_start: date, as_of: date
-) -> bool:
-    """Whether the name held its ratio to the benchmark across its base.
+) -> bool | None:
+    """The RS line as a **value**: ``True``, ``False``, or ``None`` for *absent*.
 
     ``bars`` is the name's series and ``index_bars`` the benchmark's, both clean
     and oldest-first; ``base_start`` and ``as_of`` are the base's first and last
-    sessions. True when ``adj_close(name)/adj_close(index)`` at ``as_of`` is at or
-    above the same ratio at ``base_start`` — *at or above*, so matching the index
-    is a hit (see the module docstring on why a new-high form is rejected).
+    sessions. ``True`` when ``adj_close(name)/adj_close(index)`` at ``as_of`` is at
+    or above the same ratio at ``base_start`` — *at or above*, so matching the
+    index is a hit (see the module docstring on why a new-high form is rejected).
 
-    ``False`` whenever any of the four prices is missing or non-positive: the
-    dimension is never carried forward and never excludes the name.
+    ``None`` whenever any of the four prices is missing or non-positive. That is
+    the whole reason this function exists beside :func:`rs_line`: the question was
+    never asked, which is a different fact from asking it and getting no. The
+    boolean form below folds the two together — correctly, for a rubric that must
+    never carry a dimension forward or exclude a name on it — but a *stored* row
+    that folded them could never tell a name whose benchmark had no bar from one
+    that genuinely decayed against it (PRD #182 stories 70, 71).
     """
     prices = (
         _adj_close_on(bars, base_start),
@@ -171,9 +176,36 @@ def rs_line(
         _adj_close_on(index_bars, as_of),
     )
     if any(p is None or p <= 0 for p in prices):
-        return False
+        return None
     name_start, index_start, name_now, index_now = prices  # type: ignore[misc]
     return name_now / index_now >= name_start / index_start
+
+
+def rs_line_hit(value: bool | None) -> bool:
+    """The boolean a reader takes from :func:`rs_line_value` — absent scores a miss.
+
+    The sibling of :func:`relative_move_hit`, and it exists for the same reason:
+    the row owns the value and the reader owns the verdict, so a stored row can
+    never be re-denominated retroactively. Absence scores ``False`` because the
+    dimension is never carried forward and never excludes a name.
+    """
+    return value is True
+
+
+def rs_line(
+    bars: list[Bar], index_bars: list[Bar], *, base_start: date, as_of: date
+) -> bool:
+    """Whether the name held its ratio to the benchmark across its base.
+
+    The pre-registered boolean form, unchanged since #160 measured and rejected
+    the dimension: :func:`rs_line_value` read through :func:`rs_line_hit`, so
+    ``False`` whenever any of the four prices is missing or non-positive. One
+    definition, two readings — the figures §5d published are the ones this still
+    returns.
+    """
+    return rs_line_hit(
+        rs_line_value(bars, index_bars, base_start=base_start, as_of=as_of)
+    )
 
 
 def base_start_session(
@@ -201,18 +233,30 @@ def base_start_session(
     return sessions[start]
 
 
-def rs_line_for(det: Detection, bars: list[Bar], index_bars: list[Bar]) -> bool:
-    """The RS line for one detection, over its own base.
+def rs_line_value_for(
+    det: Detection, bars: list[Bar], index_bars: list[Bar]
+) -> bool | None:
+    """The RS line **value** for one detection, over its own base.
 
     Resolves ``base_start`` off the detection's ``base_len`` and ``session``
-    (:func:`base_start_session`) and applies :func:`rs_line`. ``False`` when the
-    base reaches back past the start of the stored series — the same
-    never-carried-forward rule as a missing bar.
+    (:func:`base_start_session`) and applies :func:`rs_line_value`. ``None`` when
+    the base reaches back past the start of the stored series — absent for the
+    same reason a missing bar is: the question could not be asked.
     """
     base_start = base_start_session(bars, det.session, base_len=det.base_len)
     if base_start is None:
-        return False
-    return rs_line(bars, index_bars, base_start=base_start, as_of=det.session)
+        return None
+    return rs_line_value(bars, index_bars, base_start=base_start, as_of=det.session)
+
+
+def rs_line_for(det: Detection, bars: list[Bar], index_bars: list[Bar]) -> bool:
+    """The RS line for one detection, over its own base — the boolean form.
+
+    :func:`rs_line_value_for` read through :func:`rs_line_hit`, so ``False`` when
+    the base reaches back past the start of the stored series, the same
+    never-carried-forward rule as a missing bar.
+    """
+    return rs_line_hit(rs_line_value_for(det, bars, index_bars))
 
 
 # The window the `Relative move` candidate is registered over (#170). Six months,

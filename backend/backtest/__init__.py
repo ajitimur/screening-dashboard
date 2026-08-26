@@ -101,6 +101,122 @@ already keep :mod:`backtest.simulate` out: it is a command
 documented command warn on every invocation. The entry point is
 ``backtest.metric.metric_report``.
 
+Issue #192 lands Phase 5's most product-relevant cell: :mod:`backtest.posture`, which
+prices the two words the app already prints. "Sit out" for ``HOSTILE`` and "reduced"
+for ``CHOPPY`` ship in the product today on no measured basis; this module reports
+after-cost expectancy **per regime state, per market, with n on every cell**, computes
+what sitting out ``HOSTILE`` would have cost or saved, and answers ``CHOPPY``'s
+"reduced" against ``FRIENDLY``'s measured expectancy rather than against the word.
+
+It reads no bar either. The state comes from the reading :mod:`backtest.run` already
+persisted for each session, joined to each trade on its **detection session** — which
+is t−1, the night the candidate was listed with its posture beside it and two sessions
+before the fill. The per-cell arithmetic is :mod:`backtest.metric`'s own, so a posture
+cell and a headline cell cannot report the same trades differently.
+
+The load-bearing property is that regime **conditions and never filters**. The three
+states and an undefined bucket partition the trades, and the report accounts for the
+two declared non-regime exclusions — the other market and the other arms — rather than
+reducing the whole claim to one zero. What actually holds the promise sits upstream and
+is structural: :mod:`backtest.simulate` reads no regime column when it produces trades,
+pinned by a test that flips a persisted state and gets the same trades back.
+
+Both regime companions are reported and neither is conditioned on. Breadth carries its
+survivorship warning and can never be a cohort key —
+:func:`~backtest.posture.posture_cell` takes a state and refuses anything else — while
+follow-through is named plainly as **unbiased where breadth is not**, the one regime
+signal the live app can never backfill and this run reconstructs legitimately.
+
+:mod:`backtest.posture`'s names are **not** re-exported here, for the reasons that
+already keep :mod:`backtest.metric` out: it is a command (``python -m
+backtest.posture``) and it imports both that module and
+:class:`~backtest.run.ContractDrift`. The entry point is
+``backtest.posture.posture_report``.
+
+Issue #194 lands Phase 5's ranking cell: :mod:`backtest.ranking`, the out-of-sample
+test §4a's claim has never had. Outcomes bucketed by star-score decile, per market
+and per year, with n on every bucket and significance bootstrapped clustered by
+symbol. §4a asked whether the rubric separates his *picks* from the field, on the
+field the v2 weights had been fitted to — a fit statistic, and marginal at
+p = 0.055 even so. Here the outcome variable is R after costs, which no weight was
+fitted to and no detection's score could see, so §4a's figures ride on the payload
+with the reason they are not comparable rather than being left for a reader to line
+up. The score is coarse — seven dimensions of eight integral points — so a score
+value is never split across two buckets: the buckets collapse to fewer than ten and
+each names the decile positions it covers, which is the honest reading of a
+distribution most of which can sit on one score.
+
+:mod:`backtest.ranking`'s names are **not** re-exported here, for the reasons that
+already keep :mod:`backtest.metric` out: it is a command
+(``python -m backtest.ranking``) and it imports both that module and
+:class:`~backtest.run.ContractDrift`. The entry point is
+``backtest.ranking.ranking_report``.
+
+Issue #195 lands the second half of Phase 5's rubric question:
+:mod:`backtest.candidates`, which measures both registered candidate dimensions
+against **outcomes** rather than against the trader's selection. ADR 0005 admits a
+dimension on a selection contrast because that was the only instrument available
+when it was written; both registrations then failed on it — ``RS line`` refused for
+a wrong-way gap, ``Relative move`` positive on both fields and stalled 0.06pp
+inside a threshold the ADR itself calls a judgement. Here each candidate's cohort
+splits three ways, never two: hit and miss under the pre-registered cut applied at
+read time by the rubric's own reader, and **absent** where the question was never
+asked. That third group is load-bearing rather than tidy — ``Relative move``'s cut
+is zero, so an absence coerced to a number would land exactly on it — so absence
+carries its own n and enters no gap. The published selection figures ride on every
+candidate's cell under their own verdict key, because a dimension that ranks
+outcomes and one that matches a selection are two claims that can point opposite
+ways. Nothing here admits a dimension, and
+:func:`~backtest.candidates.check_not_admitted` makes that executable.
+
+:mod:`backtest.candidates`'s names are **not** re-exported here, for the reasons
+that already keep :mod:`backtest.ranking` out: it is a command
+(``python -m backtest.candidates``) and it imports both that module and
+:class:`~backtest.run.ContractDrift`. The entry point is
+``backtest.candidates.candidates_report``.
+
+Two small modules came out of that second measurement rather than being copied
+into it, because a second caller is what turns shared code into a module.
+:mod:`backtest.stats` holds the statistics more than one measurement needs — the
+tie rule, Spearman's rho, clustering by symbol, the clustered bootstrap over an
+arbitrary statistic, and the two places a report renders and counts an interval.
+It knows nothing about what is being measured, which is what lets one bootstrap
+serve a score band's gap and a candidate dimension's. :mod:`backtest.cohort` holds
+the join back to the persisted row: the detection index for a market, and the
+**total** join from simulated trades to the rows that produced them, whose refusal
+has to be the same in both callers because the argument for refusing is the same.
+:mod:`backtest.ranking` was where both lived when it was the only caller; leaving
+them there would have made it a measurement and the run's statistics library at
+once, changing for two reasons and imported by the module it should not own.
+
+Issue #197 lands Phase 6: :mod:`backtest.anchors`, the six committed figures this
+run reproduces before any new figure from it is read. Three are geometry measured
+from his bars — they hold whatever the detector does, so they anchor the store and
+the indicators and are checked first and reported apart; a failure there stops the
+check, because nothing downstream is worth investigating yet. Three move with
+coverage and with the gates, so each carries the detector version it was measured
+at and every superseded pin beside its live value. Detection recall and ``in_field``
+are kept as different quantities and can never be checked against each other — the
+conflation #165 fixed, made unrepresentable — and the ``in_field`` row's #162
+tolerance covers a few trades' worth of denominator shift but never a flip in the
+sign of §4b's gap. Anchoring is against arms B and C, derived from
+:data:`~backtest.simulate.ARM_SPECS` rather than restated: arm A has no counterpart
+in the reference set, so it is measured and never anchored.
+
+Nothing in it re-measures what already has a home. The anchors arrive as the
+existing measurement types — the funnel's :class:`~replay.funnel.StageRecall`, the
+grid's :class:`~replay.discrimination_grid.CellMeasurement`, the reference
+module's :class:`~replay.reference.ReferenceReport` — and a mismatch raises
+:class:`~replay.reference.DriftError`, the mechanism the study has failed loudly on
+since #114. The geometry is the one exception, and only because its committed
+figures came from a throwaway prototype rather than from a module anything can call.
+
+:mod:`backtest.anchors`'s names are **not** re-exported here, for the reasons that
+already keep :mod:`backtest.metric` out: it is a command
+(``python -m backtest.anchors``) and it imports :mod:`backtest.simulate`, which
+imports :class:`~backtest.run.ContractDrift`. The entry point is
+``backtest.anchors.check_anchors``.
+
 Issue #196 lands Phase 2, and it is deliberately *out* of phase order: it is a
 measurement that gates believing any of the numbers above it.
 :mod:`backtest.survivorship` measures how much of the fourteen-year population the

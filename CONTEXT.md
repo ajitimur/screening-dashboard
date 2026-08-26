@@ -263,8 +263,8 @@ dimension cannot discriminate, not that removing it is free.
 
 **Candidate dimension**:
 A dimension **under measurement**, not in the rubric: computed on every detection in the
-replay, carried beside the star score, reported as a column of the **selection contrast**, and
-weighted by nothing. It is how ADR 0005's admission rule is exercised — a dimension earns a
+replay, carried beside the star score, reported as a column of the **selection contrast** and —
+since #195 — as a cohort of the **candidate outcome test**, and weighted by nothing. It is how ADR 0005's admission rule is exercised — a dimension earns a
 rubric slot on a measured non-zero gap with non-zero pooled spread, and until that measurement
 exists it must be unable to move a star, a sort or a board place. So it lives on a field member
 of its own (`RS line` on `replay.field.ScoredDetection.rs_line`), never inside `SevenDimScore`,
@@ -528,8 +528,137 @@ in one name are not independent observations — a stock throwing three signals 
 fortnight contributes three correlated rows — so bootstrapping *rows* makes the effective
 sample larger than it is and flatters every p-value. Seeded, and the seed and resample
 count ride on every cell, because a significance figure that moved between two runs of the
-same data would be unreproducible with nothing in the output to show it.
+same data would be unreproducible with nothing in the output to show it. A statistic that is
+not a mean — a **score band** gap, a candidate's hit-minus-miss gap, a rank correlation — is
+resampled the same way through
+`backtest.stats.bootstrap_symbol_statistic`, on the metric's own seed and cluster floor, so
+two intervals in one report were never built differently. A draw the statistic cannot evaluate
+is counted as **undefined**, never as a zero, and past a tenth of the draws the interval is
+refused rather than read off the rest — which would condition on the statistic having been
+computable, and those are the confident draws.
 _Avoid_: bootstrapping the trades, resampling the rows — the row is not the unit.
+
+**Priced posture**:
+What a **regime** state's advice actually cost or earned (PRD #182, `backtest.posture`).
+The app prints "sit out" for `HOSTILE` and "reduced" for `CHOPPY` on no measured basis;
+this is the measurement — **after-cost expectancy per state, per market, with n on every
+cell** so a cell too thin to read is visible as thin rather than quoted as a result. It is
+only computable because regime **conditions and never filters**: every state got to trade,
+so removing one is arithmetic rather than a model. The three states and an **undefined**
+bucket *partition* the trades, and `excluded_by_regime` is computed from that partition
+rather than promised — a filter introduced upstream shows up as cells that stop adding up.
+The state is the app's own, read off each market's index on the **detection session**,
+which is t−1: the night the candidate was listed with its posture beside it, two sessions
+before the fill. `HOSTILE` is judged against **zero**, because its word instructs no trade
+at all; `CHOPPY` against **`FRIENDLY`**, because "reduced" claims the state is worse to
+trade rather than unprofitable. Both verdicts are the **interval's, never the mean's**, and
+`undecided` is a real answer — it says the run leaves the app's word as unfounded as it
+found it. Priced at **signal level**: sitting a state out frees no capital here, so the
+figure is what the posture costs, never what it might buy. Both **regime companions** are
+reported beside the cells and neither is conditioned on — breadth with its survivorship
+warning, follow-through named plainly as **unbiased where breadth is not**, because the
+index series carries no survivorship hole and this run is the better instrument for it.
+_Avoid_: regime filter, regime edge — and never condition a cell on **breadth**, which is
+the **regime companion** survivorship corrupts most.
+
+**Score band**:
+A contiguous run of star scores in the **out-of-sample ranking test**'s cut
+(`backtest.ranking.Band`), and the decile positions it covers. A score value is **atomic** —
+it never splits across two bands — because the replayed score is seven dimensions of eight
+*integral* points, so a distribution most of which sits on one score has no tenth to cut at,
+and splitting one would report a difference between two bands that is a difference in sort
+order and nothing else. The bands therefore **collapse to fewer than ten**, they **partition
+all ten decile positions** between them, and each says which ones fell inside it. Cut **once
+on a market's whole measured window** and over its **closed** trades only, then applied to
+every year — so a band names the same score in every row, and a trade still running never
+moved a boundary the measured population is read against.
+_Avoid_: score quintile; and do not call a band a **bucket** — the band is the score range,
+the bucket is that range *with the outcomes in it*.
+
+**Bucket**:
+One reported row of the **out-of-sample ranking test**: a **score band** together with the
+outcomes that landed in it — n taken, n closed, symbols, after-cost expectancy, win rate,
+R-distribution and clustered interval, in the same shape a **pre-registered metric** cell
+reports. A trade the cut holds no band for is counted in `outside_the_cut` rather than filed
+under the nearest edge, which would be a mislabel, or dropped, which would leave the buckets
+summing to less than the field. Only an **open** trade can be one, since the cut is taken over
+the closed ones.
+_Avoid_: decile bucket on its own — there are rarely ten of them.
+
+**Out-of-sample ranking test**:
+The measurement of whether a higher star score predicts a better result (PRD #182 story 93,
+`backtest.ranking`): outcomes bucketed by **score band**, per market and per year, with n on
+every bucket and the **clustered bootstrap** on both the top-minus-bottom gap and Spearman's
+rho. The verdict needs **both** intervals above zero — a gap can rest on one hot name at the
+top and a rho can be positive and negligible — and "no evidence it ranks" is never "the score
+does not rank". It is **not** findings §4a: that measured a rate of scores between his picks
+and the field, on the field v2's weights had been *fitted* to, at p = 0.055; this measures
+after-cost R by score band on trades nobody selected, so the outcome variable is independent
+of the weights. §4a's figures ride on the payload precisely so the two are never lined up as
+one.
+_Avoid_: the ranking result, the decile test; and never quote it against §4a's **+5.59pp**
+as though the two were comparable.
+
+**Candidate outcome test**:
+The measurement of whether a **candidate dimension** predicts, rather than only selects
+(PRD #182, #195, `backtest.candidates`): after-cost R on the mechanical denominator, split
+by the candidate's own pre-registered cut, **per market**, with the **clustered bootstrap**
+on the hit-minus-miss gap. It is not ADR 0005's admission instrument and admits nothing —
+that rule reads a **selection contrast**, and the two are a different claim about the same
+dimension: one says he picked names the dimension fires on, the other says those names paid.
+So §5d's and §5e's figures ride on every cell under their own verdict key and are never
+summed with this one's. The verdict is the **gap's alone**, because ADR 0005 admits a
+dimension as a boolean; the rank correlation against the stored value is reported beside it
+and excluded, since only `Relative move` persists a degree to run it on. "No evidence it
+predicts" is never "the dimension does not predict".
+_Avoid_: the outcome contrast, the candidate regression; and never quote a gap here against
+a selection Δ as though the two were readings of one thing.
+
+**Absent group**:
+The third group of the **candidate outcome test**: the detections whose candidate value the
+row carries as `NULL`, meaning the question was never asked — `Relative move` where the name
+had not listed six months back or has no ADR, `RS line` where a price was missing at one of
+its two anchors. Kept apart from a miss and given its own n, because `Relative move`'s cut
+sits at **zero**: an absence coerced to a number would land exactly on the boundary and let
+the strictness of a comparison decide a verdict nobody measured. It enters **no gap**. What a
+shipped boolean would do with it — the pre-registered readers score absent `False` — is
+reported separately as the `rubric_reading` and never sets the verdict, because "what would
+this boolean have done" is a different question from "does the quantity predict".
+_Avoid_: treating absent as a miss, or as a zero; a **candidate dimension** is never carried
+forward and never excludes a name.
+
+**Anchor**:
+A figure already committed to this repo that a rebuilt pipeline must reproduce before any
+new figure from it is read (PRD #182 Phase 6, `backtest.anchors`). Six of them, checked
+through the study's existing **drift** mechanism, which raises rather than logs. Two kinds,
+and only one is stable. A **geometry anchor** — median trailing 3-bar range 1.31 ADR,
+5-bar 1.86 ADR, 20-day ADR at entry eve 6.08% — is measured from his bars and holds
+whatever the detector does, so it anchors the *store and the indicators* and is checked
+**first**; a failure there stops the check, because nothing downstream is worth
+investigating yet. A **gate-dependent anchor** — coverage, **detection recall**,
+**`in_field`** — moves with coverage and with the gates, so it carries the detector version
+it was measured at and every **superseded pin** beside its live value. An anchor quoted
+from a superseded pin fails for a reason that has nothing to do with the pipeline it is
+testing. Anchoring is against **arms B and C** only: arm A has no counterpart in the
+reference set, so it is measured and never anchored.
+_Avoid_: benchmark, target — an anchor is reproduced or its divergence is written up, and
+neither is something to aim at.
+
+**Detection recall** vs **`in_field`**:
+Two different anchors, conflated once already (#165) and now different *quantities* in
+code. **Detection recall** asks whether the detector would have fired on his name at all —
+**gate-invariant**, because the funnel evaluates every stage unconditionally, and pinned
+exactly at 549 of 656. **`in_field`** asks whether the name reached that night's field, so
+it moves with every gate and coverage change: 397 of 656 at detector **v3**, and a **first
+measurement** with no second one agreeing with it. Only `in_field` carries a tolerance, and
+only for a named reason — the published value was measured on the store that ranks five
+references as candidates (#162), so a fresh build shifts percentile denominators by ~0.5%
+and a difference of a few trades is that fix landing. What the tolerance may **never**
+absorb is a flip in the sign of findings §4b's gap, which is the bug the whole table exists
+to find — and neither may a **written divergence**: every other anchor may be reproduced *or*
+explained in writing, and that one may only be reproduced.
+_Avoid_: "trades detected", which named one and valued the other; and never check a
+rebuilt pipeline against whichever of the two is nearer.
 
 **Not-taken detection**:
 A member of the replayed field on a session where he entered something else. Not a

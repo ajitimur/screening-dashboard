@@ -2843,14 +2843,23 @@ def test_the_rs_line_does_not_move_a_replayed_star():
 
 def test_build_field_defaults_the_candidate_dimension_to_absent():
     """A caller with no index bars to hand builds the same field as before, with
-    every candidate reading ``False`` rather than raising."""
+    every candidate reading **absent** rather than raising.
+
+    Absent and not ``False``, which is what this defaulted to until #195 needed the
+    distinction to hold end to end: a caller that never computed the dimension has
+    not measured a decayed RS line, and a row saying ``False`` would put the whole
+    field on the miss side of a measurement that reports the two apart. The
+    reachable path always supplies a real value (:func:`session_rs_lines` keys
+    every detection), so this is the default made honest rather than a bug fixed —
+    but the honest default is the one that cannot lie if that path ever changes.
+    """
     dets = [_det("AAA", 6), _det("BBB", 3)]
 
     without = build_field(dets, [])
     with_rs = build_field(dets, [], rs_line_of={"AAA": True})
 
-    assert {d.symbol: d.rs_line for d in without} == {"AAA": False, "BBB": False}
-    assert {d.symbol: d.rs_line for d in with_rs} == {"AAA": True, "BBB": False}
+    assert {d.symbol: d.rs_line for d in without} == {"AAA": None, "BBB": None}
+    assert {d.symbol: d.rs_line for d in with_rs} == {"AAA": True, "BBB": None}
     # Supplying it changes neither the order nor the scores.
     assert [d.symbol for d in without] == [d.symbol for d in with_rs]
     assert [d.score for d in without] == [d.score for d in with_rs]
@@ -4581,6 +4590,7 @@ from backtest.denominator import (
     DETECTION_FIELDS,
     FOLLOW_THROUGH_BASIS,
     DenominatorStore,
+    RegimeReading,
     RunStampMismatch,
     SessionRow,
     declared_columns,
@@ -6860,6 +6870,8 @@ def _seed_figure_name(
     *,
     burn_in: bool = False,
     detect: bool = True,
+    rs_line: bool | None = False,
+    relative_move: float | None = None,
 ) -> Detection:
     """One authored name: its bars in the bar store, its detection in the denominator.
 
@@ -6873,6 +6885,11 @@ def _seed_figure_name(
     ``detect=False`` seeds the sessions and no detection, which is how a year gets
     a full trading calendar and an empty field — the shape a collapsed count has
     when it is a data hole rather than a short year.
+
+    The two candidate values default to what a name with no benchmark history
+    carries — a miss on ``rs_line``, absent on ``relative_move`` — and are
+    overridable, because the candidate-outcome section below reads exactly those
+    two columns off the persisted row.
     """
     bars = _fig_bars(start, closes)
     store.append_bars(market, symbol, bars)
@@ -6891,7 +6908,8 @@ def _seed_figure_name(
             ScoredDetection(
                 symbol=symbol, detection=det,
                 score=seven_dimension_score(det, prior_move=False),
-                star_rank=1, not_taken=False, rs_line=False, relative_move=None,
+                star_rank=1, not_taken=False, rs_line=rs_line,
+                relative_move=relative_move,
             )
         ])
     return det
@@ -7527,6 +7545,2892 @@ def test_the_price_scale_count_rides_on_the_figures_it_qualifies(
     assert "price-scale flag would drop" in format_figures(report)
 
 
+# -- pricing the regime posture (issue #192) -----------------------------------
+#
+# Phase 5's most product-relevant cell. The app prints "sit out" for HOSTILE and
+# "reduced" for CHOPPY today, on no measured basis at all; this section is the
+# measurement. Regime is a **conditioning variable and never a filter**, so every
+# state trades and each one's expectancy is measured instead of assumed.
+#
+# Four claims are load-bearing, and each has a test that fails loudly on drift:
+#
+#   * **Nothing is excluded by regime.** Every trade lands in exactly one cell,
+#     including the ones whose state is undefined, and the cells add back up.
+#   * **The state is the app's own, read at t−1.** The detection session is the
+#     night the candidate was listed with its posture; the break comes the session
+#     after it. Reading the entry session instead would condition on a state
+#     nobody had yet.
+#   * **The postures are priced, not asserted.** The HOSTILE counterfactual is
+#     computed in R, and CHOPPY's "reduced" is answered against FRIENDLY's
+#     measured expectancy rather than against the word.
+#   * **Breadth is reported and never conditioned on.** It is the column
+#     survivorship corrupts most, and in a backtest the corruption is worse.
+
+from typing import get_args
+
+from backtest.contract import REGIME_ROLE_KEY, REGIME_SOURCE_KEY
+from backtest.posture import (
+    APP_STATES,
+    REGIME_ROLE,
+    REGIME_SOURCE,
+    REPORTED_STATES,
+    STATE_READ_AT,
+    STATE_UNDEFINED,
+    VERDICT_EARNED,
+    VERDICT_REFUTED,
+    VERDICT_TOO_THIN,
+    VERDICT_UNDECIDED,
+    RegimeSpine,
+    bootstrap_difference,
+    breadth_summary,
+    check_regime_role,
+    check_regime_source,
+    choppy_reduced,
+    follow_through_summary,
+    for_market,
+    format_posture,
+    hostile_counterfactual,
+    market_posture,
+    posture_cell,
+    posture_report,
+    spine_for_market,
+    state_of,
+)
+from screener.regime import RegimeState
+from screener.regime import posture as app_posture
+
+
+def _reading(state, *, breadth=0.5):
+    """One session's regime observation, authored rather than computed."""
+    return RegimeReading(
+        state=state, breadth=breadth, broke_out=None, index_close=100.0
+    )
+
+
+def _spine(market, states, *, breadth=0.5):
+    """A market's measured sessions and the state showing on each."""
+    return RegimeSpine(
+        market=market,
+        readings={
+            session: _reading(state, breadth=breadth)
+            for session, state in states.items()
+        },
+    )
+
+
+def _ptrade(symbol, session, r, *, market="US", arm=ARM_B):
+    """One arm-B trade, detected on ``session``, whose before-cost R is ``r``.
+
+    The entry sits **two sessions after** the detection, which is what the
+    simulator's own mechanic produces: the break comes on the session after the
+    detection and the fill on the open after that. The gap is what makes the
+    t−1 test meaningful — a fixture whose entry and detection shared a date could
+    not tell the two readings apart.
+    """
+    base = _mtrade(symbol, session.year, r, market=market, arm=arm,
+                   month=session.month)
+    return dataclasses.replace(
+        base,
+        detection_session=session,
+        entry=Decision(session=session + timedelta(days=2), price=base.entry.price),
+    )
+
+
+def _cohort(sessions, states, rs, *, market="US", prefix=""):
+    """Trades and a spine together: one symbol per R, so clusters are not one name."""
+    trades = [
+        _ptrade(f"{prefix}{i:02d}", session, r, market=market)
+        for i, (session, r) in enumerate(zip(sessions, rs))
+    ]
+    spine = _spine(market, dict(zip(sessions, states)))
+    return trades, spine
+
+
+def _sessions(year, n):
+    return [date(year, 3, 1) + timedelta(days=i) for i in range(n)]
+
+
+def test_the_regime_source_and_role_are_the_contracts_own(store):
+    """The state this module conditions on, and the role it plays, are read off the
+    contract rather than restated beside it.
+
+    A contract that made regime a filter while the code still measured every state
+    would leave a run whose contract and behaviour disagree while both look right —
+    and "nothing is excluded by regime" is precisely the claim the cell exists to
+    hold fixed.
+    """
+    assert REGIME_SOURCE == DEFAULT_CONTRACT.value(REGIME_SOURCE_KEY)
+    assert REGIME_ROLE == DEFAULT_CONTRACT.value(REGIME_ROLE_KEY)
+    check_regime_source(DEFAULT_CONTRACT)
+    check_regime_role(DEFAULT_CONTRACT)
+
+    filtered = RunContract(
+        contract_version=DEFAULT_CONTRACT.contract_version,
+        label=DEFAULT_CONTRACT.label,
+        cells=tuple(
+            Cell(key=c.key, value="filter_hostile_out",
+                 justification=c.justification)
+            if c.key == REGIME_ROLE_KEY else c
+            for c in DEFAULT_CONTRACT.cells
+        ),
+    )
+    with pytest.raises(ContractDrift):
+        check_regime_role(filtered)
+
+
+def test_the_state_is_the_one_showing_on_the_detection_session(store):
+    """t−1, which is what the detection session *is*.
+
+    The candidate is listed on the night of the detection with the posture the app
+    printed beside it; the break comes on the session after and the fill on the one
+    after that. Reading the state off the entry session would condition on a
+    reading nobody had when the trade was taken — look-ahead through the
+    conditioning variable rather than through the price.
+    """
+    detected = date(2016, 3, 1)
+    trade = _ptrade("AAA", detected, 1.0)
+    spine = _spine("US", {detected: "FRIENDLY", trade.entry.session: "HOSTILE"})
+
+    assert trade.entry.session != detected
+    assert state_of(spine, trade) == "FRIENDLY"
+    assert STATE_READ_AT == "detection_session"
+
+
+def test_a_trade_whose_session_has_no_state_is_undefined_and_still_counted(store):
+    """Below the regime's 25-bar warm-up the state is undefined, not defaulted — and
+    a trade taken there is still a trade.
+
+    Bucketing it into CHOPPY would invent a reading, and dropping it would be the
+    one thing this module promises never to do: regime excludes nothing.
+    """
+    warm = date(2012, 3, 1)
+    absent = date(2012, 3, 2)
+    trades = [_ptrade("AAA", warm, 1.0), _ptrade("BBB", absent, -1.0)]
+    spine = _spine("US", {warm: None})
+
+    assert state_of(spine, trades[0]) == STATE_UNDEFINED
+    assert state_of(spine, trades[1]) == STATE_UNDEFINED
+    body = market_posture(DEFAULT_CONTRACT, trades, spine)
+    undefined = next(
+        s for s in body["states"] if s["state"] == STATE_UNDEFINED
+    )
+    assert undefined["windows"][0]["trades"] == 2
+
+
+def test_every_trade_lands_in_exactly_one_cell_and_regime_excludes_nothing(store):
+    """The partition, checked as arithmetic rather than asserted in prose.
+
+    Three states and the undefined bucket cover every trade, and the counts add
+    back up to the total handed in. That sum is the whole of "nothing is excluded
+    by regime" — a filter anywhere upstream would show as cells that no longer
+    total.
+    """
+    sessions = _sessions(2016, 4)
+    trades, spine = _cohort(
+        sessions,
+        ["FRIENDLY", "CHOPPY", "HOSTILE", None],
+        [2.0, -1.0, 0.5, 1.0],
+    )
+    body = market_posture(DEFAULT_CONTRACT, trades, spine)
+
+    per_cell = {s["state"]: s["windows"][0]["trades"] for s in body["states"]}
+    assert per_cell == {
+        "FRIENDLY": 1, "CHOPPY": 1, "HOSTILE": 1, STATE_UNDEFINED: 1
+    }
+    assert sum(per_cell.values()) == len(trades)
+    assert body["conditioning"]["excluded_by_regime"] == 0
+    assert body["conditioning"]["trades"] == len(trades)
+    assert set(per_cell) == set(REPORTED_STATES)
+
+
+def test_a_state_with_no_trades_still_reports_its_zero(store):
+    """A state nobody traded in is a measurement, not an absent row.
+
+    An empty HOSTILE cell that simply vanished would read as a market that never
+    saw a hostile tape, which is a different and much stronger claim than one that
+    threw no signal there.
+    """
+    sessions = _sessions(2016, 2)
+    trades, spine = _cohort(sessions, ["FRIENDLY", "FRIENDLY"], [1.0, 2.0])
+    body = market_posture(DEFAULT_CONTRACT, trades, spine)
+
+    hostile = next(s for s in body["states"] if s["state"] == "HOSTILE")
+    assert hostile["windows"][0]["trades"] == 0
+    assert hostile["windows"][0]["expectancy_r"] is None
+
+
+def test_every_cell_shows_n_even_when_it_is_too_thin_to_read(store):
+    """n regardless, so a cell too thin to read is visible as thin rather than
+    quoted as a result.
+
+    Two symbols is below the bootstrap's cluster floor, so the cell reports no
+    interval — and says so where a reader looks for one.
+    """
+    sessions = _sessions(2016, 2)
+    trades, spine = _cohort(sessions, ["HOSTILE", "HOSTILE"], [3.0, 4.0])
+    body = market_posture(DEFAULT_CONTRACT, trades, spine)
+
+    hostile = next(s for s in body["states"] if s["state"] == "HOSTILE")
+    cell = hostile["windows"][0]
+    assert cell["trades"] == 2 and cell["closed"] == 2
+    assert cell["expectancy_r"] is not None
+    assert cell["bootstrap"]["ci_low"] is None
+    assert cell["bootstrap"]["suppressed"]
+
+    printed = format_posture(
+        posture_report(DEFAULT_CONTRACT, trades, {"US": spine}, markets=["US"])
+    )
+    assert "n=2" in printed
+    assert "too thin" in printed
+
+
+def test_the_states_report_the_2020_21_excluded_window_beside_the_full_one(store):
+    """That tape rewarded momentum nearly everywhere, and it is FRIENDLY it would
+    inflate — so a FRIENDLY expectancy that rests on it alone is a figure about the
+    tape and not about the state."""
+    mania = date(2020, 3, 1)
+    ordinary = date(2016, 3, 1)
+    trades = [_ptrade("AAA", mania, 5.0), _ptrade("BBB", ordinary, 1.0)]
+    spine = _spine("US", {mania: "FRIENDLY", ordinary: "FRIENDLY"})
+
+    body = market_posture(DEFAULT_CONTRACT, trades, spine)
+    friendly = next(s for s in body["states"] if s["state"] == "FRIENDLY")
+    full, excluded = friendly["windows"]
+
+    assert full["label"].endswith(FULL_WINDOW)
+    assert excluded["label"].endswith(EXCLUDED_YEARS_WINDOW)
+    assert full["trades"] == 2 and excluded["trades"] == 1
+    assert excluded["expectancy_r"] < full["expectancy_r"]
+    assert excluded["excluded_years"] == list(EXCLUDED_YEARS)
+
+
+def test_us_and_idx_never_pool_and_there_is_no_top_level_expectancy(store):
+    """findings §8 measured that magnitudes do not transfer between the markets, so
+    a pooled figure would be a number about neither — and the way to stop one being
+    quoted is for it never to have been computed."""
+    us_sessions = _sessions(2016, 2)
+    idx_sessions = _sessions(2017, 2)
+    us, us_spine = _cohort(us_sessions, ["HOSTILE"] * 2, [1.0, 2.0], prefix="U")
+    idx, idx_spine = _cohort(idx_sessions, ["HOSTILE"] * 2, [-1.0, -1.0],
+                             market="IDX", prefix="I")
+
+    report = posture_report(
+        DEFAULT_CONTRACT, us + idx,
+        {"US": us_spine, "IDX": idx_spine}, markets=["US", "IDX"],
+    )
+
+    assert [m["market"] for m in report["markets"]] == ["US", "IDX"]
+    assert "expectancy_r" not in report
+    # The cohort refusal is inherited, and it is structural: a cell cannot be
+    # built across two markets even by a caller that wants one.
+    with pytest.raises(ValueError):
+        posture_cell(DEFAULT_CONTRACT, us + idx, market="US", state="HOSTILE",
+                     label=FULL_WINDOW)
+
+
+def test_a_cell_cannot_be_conditioned_on_breadth(store):
+    """Breadth is descriptive and never a cohort key, and that is enforced where the
+    cohort is built rather than remembered at the call site.
+
+    It is the measure survivorship corrupts most directly, and in a backtest the
+    corruption is worse rather than better, because the missing names are
+    disproportionately the ones that later died.
+    """
+    trade = _ptrade("AAA", date(2016, 3, 1), 1.0)
+    with pytest.raises(ValueError):
+        posture_cell(DEFAULT_CONTRACT, [trade], market="US", state=0.42,
+                     label=FULL_WINDOW)
+    with pytest.raises(ValueError):
+        posture_cell(DEFAULT_CONTRACT, [trade], market="US",
+                     state="breadth_above_median", label=FULL_WINDOW)
+
+
+def test_breadth_is_reported_and_carries_its_survivorship_warning(store):
+    """Reported, because the plan asks for it; warned, because a breadth number
+    read as an equal of the state is the corruption arriving through the report."""
+    sessions = _sessions(2016, 3)
+    spine = _spine("US", dict(zip(sessions, ["FRIENDLY"] * 3)), breadth=0.4)
+
+    summary = breadth_summary(spine)
+    assert summary["sessions"] == 3
+    assert summary["median"] == pytest.approx(0.4)
+    assert summary["basis"] == BREADTH_BASIS
+    assert "survivorship" in summary["warning"]
+    assert summary["conditioned_on"] is False
+
+
+def test_the_hostile_counterfactual_prices_what_sitting_out_would_have_cost(store):
+    """The number the product actually needs, in R.
+
+    HOSTILE trades that made money mean the posture the app prints would have cost
+    the book exactly what they earned — and the counterfactual says so with a sign
+    rather than leaving a reader to infer it.
+    """
+    sessions = _sessions(2016, 4)
+    trades, spine = _cohort(
+        sessions, ["HOSTILE", "HOSTILE", "FRIENDLY", "FRIENDLY"],
+        [2.0, 3.0, 1.0, 1.0],
+    )
+    cf = hostile_counterfactual(DEFAULT_CONTRACT, trades, spine)
+
+    assert cf["posture"] == app_posture("HOSTILE") == "sit out"
+    assert cf["closed"] == 2
+    assert cf["total_r"] > 0
+    assert cf["delta_total_r"] == pytest.approx(-cf["total_r"])
+    assert cf["effect"] == "cost"
+    assert cf["book"]["all"]["closed"] == 4
+    assert cf["book"]["without_hostile"]["closed"] == 2
+
+
+def test_sitting_out_hostile_saves_when_the_state_lost_money(store):
+    """The other direction, and the one the app's word assumes: a HOSTILE book that
+    lost means sitting it out saves, and the saving is the loss it avoided."""
+    sessions = _sessions(2016, 4)
+    trades, spine = _cohort(
+        sessions, ["HOSTILE", "HOSTILE", "FRIENDLY", "FRIENDLY"],
+        [-1.0, -1.0, 2.0, 2.0],
+    )
+    cf = hostile_counterfactual(DEFAULT_CONTRACT, trades, spine)
+
+    assert cf["total_r"] < 0
+    assert cf["delta_total_r"] > 0
+    assert cf["effect"] == "saved"
+    assert cf["book"]["without_hostile"]["expectancy_r"] > (
+        cf["book"]["all"]["expectancy_r"]
+    )
+
+
+def test_sit_out_is_earned_only_where_hostile_expectancy_is_measurably_negative(
+    store
+):
+    """The verdict is the interval's, not the mean's.
+
+    A hostile cohort that lost across enough independent names earns the word; one
+    that made money refutes it; one whose interval straddles zero leaves it
+    undecided — which is still an answer, and the one the app has today.
+    """
+    losing_sessions = _sessions(2016, 8)
+    losing, losing_spine = _cohort(
+        losing_sessions, ["HOSTILE"] * 8, [-1.0] * 8, prefix="L"
+    )
+    assert hostile_counterfactual(
+        DEFAULT_CONTRACT, losing, losing_spine
+    )["verdict"] == VERDICT_EARNED
+
+    winning, winning_spine = _cohort(
+        losing_sessions, ["HOSTILE"] * 8, [3.0] * 8, prefix="W"
+    )
+    assert hostile_counterfactual(
+        DEFAULT_CONTRACT, winning, winning_spine
+    )["verdict"] == VERDICT_REFUTED
+
+    mixed_rs = [-3.0, 3.0, -2.5, 2.5, -2.0, 2.0, -1.0, 1.0]
+    mixed, mixed_spine = _cohort(
+        losing_sessions, ["HOSTILE"] * 8, mixed_rs, prefix="M"
+    )
+    assert hostile_counterfactual(
+        DEFAULT_CONTRACT, mixed, mixed_spine
+    )["verdict"] == VERDICT_UNDECIDED
+
+    thin, thin_spine = _cohort(
+        _sessions(2016, 2), ["HOSTILE"] * 2, [-1.0, -1.0], prefix="T"
+    )
+    assert hostile_counterfactual(
+        DEFAULT_CONTRACT, thin, thin_spine
+    )["verdict"] == VERDICT_TOO_THIN
+
+
+def test_choppy_earns_reduced_only_against_friendlys_measured_expectancy(store):
+    """'Reduced' is a *relative* posture, so it is judged against FRIENDLY rather
+    than against zero — the question is whether the state is worse to trade, not
+    whether it is unprofitable."""
+    sessions = _sessions(2016, 16)
+    states = ["CHOPPY"] * 8 + ["FRIENDLY"] * 8
+    earned, earned_spine = _cohort(
+        sessions, states, [-1.0] * 8 + [3.0] * 8, prefix="E"
+    )
+    verdict = choppy_reduced(DEFAULT_CONTRACT, earned, earned_spine)
+    assert verdict["posture"] == app_posture("CHOPPY") == "reduced"
+    assert verdict["verdict"] == VERDICT_EARNED
+    assert verdict["delta_expectancy_r"] < 0
+
+    flipped, flipped_spine = _cohort(
+        sessions, states, [3.0] * 8 + [-1.0] * 8, prefix="F"
+    )
+    assert choppy_reduced(
+        DEFAULT_CONTRACT, flipped, flipped_spine
+    )["verdict"] == VERDICT_REFUTED
+
+    thin, thin_spine = _cohort(
+        _sessions(2016, 4), ["CHOPPY", "CHOPPY", "FRIENDLY", "FRIENDLY"],
+        [-1.0, -1.0, 1.0, 1.0], prefix="T",
+    )
+    assert choppy_reduced(
+        DEFAULT_CONTRACT, thin, thin_spine
+    )["verdict"] == VERDICT_TOO_THIN
+
+
+def test_the_difference_bootstrap_resamples_both_sides_by_cluster(store):
+    """The difference of two means, with each side's clusters drawn whole.
+
+    Resampling rows would let one name's fortnight of signals arrive as several
+    independent observations on whichever side it sat, and would tighten the
+    interval around the very comparison the posture turns on.
+    """
+    low = [(-1.0,), (-1.0,), (-1.0,), (-1.0,), (-1.0,), (-1.0,)]
+    high = [(2.0,), (2.0,), (2.0,), (2.0,), (2.0,), (2.0,)]
+
+    boot = bootstrap_difference(low, high)
+    assert boot["difference"] == pytest.approx(-3.0)
+    assert boot["ci_high"] < 0
+    assert boot["clusters_a"] == 6 and boot["clusters_b"] == 6
+    assert boot["cluster"] == BOOTSTRAP_CLUSTER
+
+    thin = bootstrap_difference(low[:2], high)
+    assert thin["ci_low"] is None and thin["suppressed"]
+
+
+def test_the_posture_report_is_stamped_and_names_its_conditioning(store):
+    """The contract travels with the result, and the report says in its own body
+    that regime conditioned and never filtered."""
+    sessions = _sessions(2016, 2)
+    trades, spine = _cohort(sessions, ["HOSTILE", "FRIENDLY"], [1.0, 1.0])
+    report = posture_report(
+        DEFAULT_CONTRACT, trades, {"US": spine}, markets=["US"]
+    )
+
+    assert report["contract"] == DEFAULT_CONTRACT.to_dict()
+    assert report["regime_source"] == REGIME_SOURCE
+    assert report["regime_role"] == REGIME_ROLE
+    assert report["arm"] == PRIMARY_ARM
+    assert report["state_read_at"] == STATE_READ_AT
+
+
+def test_the_posture_is_arm_bs_and_refuses_another_arms_trades(store):
+    """The same refusal the headline carries, one level up: a posture priced on a
+    mix of arms would report a number no arm produced."""
+    trades = [
+        dataclasses.replace(
+            _ptrade("AAA", date(2016, 3, 1), 1.0), arm=ARM_A
+        )
+    ]
+    with pytest.raises(ValueError):
+        posture_cell(DEFAULT_CONTRACT, trades, market="US", state="HOSTILE",
+                     label=FULL_WINDOW)
+
+
+def test_the_printed_page_shows_every_state_with_its_n_and_both_verdicts(store):
+    """The page a reader actually quotes from. Every state appears with its count
+    whether or not it is readable, and the two postures the app prints are answered
+    on the page rather than left in the payload."""
+    sessions = _sessions(2016, 16)
+    states = ["CHOPPY"] * 8 + ["FRIENDLY"] * 8
+    trades, spine = _cohort(sessions, states, [-1.0] * 8 + [3.0] * 8)
+    printed = format_posture(
+        posture_report(DEFAULT_CONTRACT, trades, {"US": spine}, markets=["US"])
+    )
+
+    for state in REPORTED_STATES:
+        assert state in printed
+    assert "sit out" in printed and "reduced" in printed
+    assert "survivorship" in printed
+    assert "nothing is excluded by regime" in printed
+
+
+def test_the_spine_is_built_off_the_persisted_denominator_sessions(
+    store, denominator
+):
+    """The state comes from the rows the run already persisted, not from a second
+    reading of the index — one computation of the regime, stored once.
+
+    Burn-in sessions are out of the spine for the same reason they are out of the
+    trades: a warm-up session is persisted and never measured.
+    """
+    denominator.stamp(DEFAULT_CONTRACT)
+    measured = date(2016, 3, 2)
+    warm = date(2016, 3, 1)
+    for session, burn_in, state in ((warm, True, "FRIENDLY"),
+                                    (measured, False, "HOSTILE")):
+        denominator.append_session(
+            SessionRow.of(
+                "US", session, burn_in=burn_in, members=10, detections=1,
+                regime=RegimeReading(
+                    state=state, breadth=0.3, broke_out=None, index_close=99.0
+                ),
+            )
+        )
+
+    spine = spine_for_market(denominator, "US")
+
+    assert set(spine.readings) == {measured}
+    assert spine.readings[measured].state == "HOSTILE"
+    trade = _ptrade("AAA", measured, 1.0)
+    assert state_of(spine, trade) == "HOSTILE"
+
+
+def test_the_posture_joins_a_simulated_trade_to_a_persisted_reading(
+    store, denominator
+):
+    """The seam that matters: a trade the simulator produced, dated by a state the
+    run persisted.
+
+    Every other test here authors both sides so the arithmetic stays checkable;
+    this one proves the two actually join on the session they agree about. The
+    reading is persisted against the detection's own session — the night the
+    candidate was listed — and the trade's entry lands two sessions later, so a
+    join that reached for the entry instead would find no row at all and report a
+    real trade as undefined.
+    """
+    denominator.stamp(DEFAULT_CONTRACT)
+    bars = _sim_bars()
+    det = _sim_detection(bars)
+    trade = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
+    denominator.append_session(
+        SessionRow.of(
+            "US", det.session, burn_in=False, members=10, detections=1,
+            regime=RegimeReading(
+                state="HOSTILE", breadth=0.25, broke_out=None, index_close=99.0
+            ),
+        )
+    )
+
+    spine = spine_for_market(denominator, "US")
+    assert trade.entry.session > det.session
+    assert state_of(spine, trade) == "HOSTILE"
+
+    body = market_posture(DEFAULT_CONTRACT, [trade], spine)
+    hostile = next(s for s in body["states"] if s["state"] == "HOSTILE")
+    cell = hostile["windows"][0]
+
+    assert cell["closed"] == 1
+    assert cell["expectancy_r"] == pytest.approx(
+        trade.r_multiple - cost_r(trade, DEFAULT_CONTRACT)
+    )
+    assert body["conditioning"]["excluded_by_regime"] == 0
+    # The counterfactual is this one trade's, and it is the book's whole result:
+    # sitting out HOSTILE here leaves nothing behind.
+    cf = body["counterfactual"]
+    assert cf["book"]["without_hostile"]["closed"] == 0
+    assert cf["delta_total_r"] == pytest.approx(-cell["total_r"])
+
+
+def test_the_reported_states_are_the_apps_own_plus_the_undefined_bucket(store):
+    """The cells come from the app's own ``RegimeState``, not from a list retyped
+    here.
+
+    The module's whole claim is that it conditions on the state the product
+    actually shows. A hardcoded list would break that claim quietly: a fourth state
+    added to the app would fall into the undefined bucket and read as a warm-up
+    hole rather than as a state nobody had thought to report.
+    """
+    assert APP_STATES == get_args(RegimeState)
+    assert REPORTED_STATES == (*APP_STATES, STATE_UNDEFINED)
+    # The two words the module prices are states the app really has, so a rename
+    # in the app breaks this rather than silently emptying both counterfactuals.
+    assert {"HOSTILE", "CHOPPY", "FRIENDLY"} <= set(APP_STATES)
+    assert app_posture("HOSTILE") and app_posture("CHOPPY")
+
+
+def test_the_simulator_produces_the_same_trades_whatever_the_regime_said(
+    store, denominator
+):
+    """"Nothing is excluded by regime **anywhere in the run**", tested where the
+    claim actually lives.
+
+    The counts in `market_posture` cannot hold this promise: an upstream filter
+    would drop trades before that function ever saw them and every sum there would
+    still balance. What holds it is that the trade-producing path reads no regime
+    column at all — so flipping the persisted state from FRIENDLY to HOSTILE, the
+    two states whose postures would gate hardest, must return byte-identical
+    trades. If a regime gate were ever introduced upstream, this is the test that
+    fails.
+    """
+    denominator.stamp(DEFAULT_CONTRACT)
+    det = _seed_figure_name(store, denominator, "US", "AAA", date(2016, 1, 1),
+                            _FIG_FLAT + _FIG_WIN)
+    denominator._cursor().execute(
+        "UPDATE denominator_sessions SET regime_state = 'FRIENDLY'"
+    )
+    friendly = simulate_market(store, denominator, "US", DEFAULT_CONTRACT,
+                               arms=(PRIMARY_ARM,))
+    denominator._cursor().execute(
+        "UPDATE denominator_sessions SET regime_state = 'HOSTILE'"
+    )
+    hostile = simulate_market(store, denominator, "US", DEFAULT_CONTRACT,
+                              arms=(PRIMARY_ARM,))
+
+    assert friendly and friendly == hostile
+    assert det.session in {t.detection_session for t in friendly}
+
+    # And the two runs land in different cells, which is the whole point: the
+    # state changed what the trade is *reported under*, never whether it happened.
+    spine = spine_for_market(denominator, "US")
+    assert {state_of(spine, t) for t in hostile} == {"HOSTILE"}
+
+
+def test_the_conditioning_block_accounts_for_the_two_declared_exclusions(store):
+    """The exclusion accounting, which is narrower than it used to claim to be.
+
+    Two trades are set aside before any cell is built — one from the other market,
+    one from another arm — and both are counted and named. Neither is a regime
+    exclusion, and the point of naming them is that "nothing was excluded by
+    regime" is only worth reading beside the count of what *was* excluded and why.
+    """
+    session = date(2016, 3, 1)
+    mine = _ptrade("AAA", session, 1.0)
+    other_market = _ptrade("BBB", session, 1.0, market="IDX")
+    other_arm = dataclasses.replace(_ptrade("CCC", session, 1.0), arm=ARM_A)
+    spine = _spine("US", {session: "HOSTILE"})
+
+    body = market_posture(
+        DEFAULT_CONTRACT, [mine, other_market, other_arm], spine
+    )
+    cond = body["conditioning"]
+
+    assert cond["handed_in"] == 3
+    assert cond["excluded_other_markets"] == 1
+    assert cond["excluded_other_arms"] == 1
+    assert cond["trades"] == cond["in_cells"] == 1
+    assert cond["excluded_by_regime"] == 0
+    assert cond["partition_holds"] is True
+    assert "backtest.simulate" in cond["upstream_guarantee"]
+
+
+def test_a_counterfactual_called_directly_still_refuses_to_mix_arms(store):
+    """The market and arm narrowing lives in the counterfactuals too, not only in
+    the report above them.
+
+    A direct caller must not be able to average arm A into a verdict the report a
+    level up could not — the refusal is worth nothing if it only guards the path
+    that was already safe.
+    """
+    session = date(2016, 3, 1)
+    hostile = _ptrade("AAA", session, -2.0)
+    stray_arm = dataclasses.replace(_ptrade("BBB", session, 9.0), arm=ARM_A)
+    stray_market = _ptrade("CCC", session, 9.0, market="IDX")
+    spine = _spine("US", {session: "HOSTILE"})
+
+    cf = hostile_counterfactual(
+        DEFAULT_CONTRACT, [hostile, stray_arm, stray_market], spine
+    )
+    assert cf["closed"] == 1
+    assert cf["expectancy_r"] < 0  # the +9R strays never reached the cell
+
+    red = choppy_reduced(
+        DEFAULT_CONTRACT, [hostile, stray_arm, stray_market], spine
+    )
+    assert red["trades"] == 0 and red["trades_friendly"] == 0
+
+
+def test_the_reduced_verdict_carries_both_sides_win_rate_and_distribution(store):
+    """An expectancy never travels alone here, and a *difference* of two of them
+    least of all.
+
+    Two states with the same mean and different tails are not the same state to
+    trade, and a bare gap between two means cannot show which tail produced it —
+    which is exactly the question a sizing posture asks.
+    """
+    sessions = _sessions(2016, 16)
+    states = ["CHOPPY"] * 8 + ["FRIENDLY"] * 8
+    trades, spine = _cohort(sessions, states, [-1.0] * 8 + [3.0] * 8)
+
+    red = choppy_reduced(DEFAULT_CONTRACT, trades, spine)
+
+    assert red["shape"]["closed"] == 8 and red["shape_friendly"]["closed"] == 8
+    assert red["shape"]["win_rate"] == 0.0
+    assert red["shape_friendly"]["win_rate"] == 1.0
+    for side in (red["shape"], red["shape_friendly"]):
+        assert side["distribution"]["median"] is not None
+        assert side["distribution"]["p90"] is not None
+
+    printed = format_posture(
+        posture_report(DEFAULT_CONTRACT, trades, {"US": spine}, markets=["US"])
+    )
+    # The relative verdict is the line most easily misread as an absolute one, so
+    # both sides' n and win rate sit directly under it.
+    assert "CHOPPY n=8" in printed and "FRIENDLY n=8" in printed
+
+
+def test_follow_through_is_reported_and_named_unbiased_where_breadth_is_not(store):
+    """Breadth's companion, and the only regime signal for which this backtest is a
+    *better* instrument than the live app.
+
+    The app captures it forward nightly because a survivorship-biased past cannot
+    rebuild it; the index series carries no survivorship hole, so the run
+    reconstructs it legitimately. Reported — and still never conditioned on.
+    """
+    sessions = _sessions(2016, 4)
+    spine = RegimeSpine(
+        market="US",
+        readings={
+            s: RegimeReading(state="FRIENDLY", breadth=0.4, broke_out=broke,
+                             index_close=100.0)
+            for s, broke in zip(sessions, [True, False, False, None])
+        },
+    )
+
+    summary = follow_through_summary(spine)
+    assert summary["sessions"] == 3
+    assert summary["sessions_without_reading"] == 1
+    assert summary["breakouts"] == 1
+    assert summary["breakout_rate"] == pytest.approx(1 / 3)
+    assert summary["basis"] == FOLLOW_THROUGH_BASIS
+    assert summary["conditioned_on"] is False
+    assert "unbiased where breadth is not" in summary["note"]
+
+    trades, _ = _cohort(sessions, ["FRIENDLY"] * 4, [1.0] * 4)
+    printed = format_posture(
+        posture_report(DEFAULT_CONTRACT, trades, {"US": spine}, markets=["US"])
+    )
+    assert "follow-through (unbiased, never conditioned on)" in printed
+
+
+def test_a_spine_filed_under_the_wrong_market_is_refused(store):
+    """The market is the spine's own now, so a mapping whose key disagrees with the
+    spine it points at is the one remaining way to date one market's trades off
+    another market's index."""
+    spine = _spine("IDX", {date(2016, 3, 1): "HOSTILE"})
+    with pytest.raises(ValueError):
+        posture_report(DEFAULT_CONTRACT, [], {"US": spine}, markets=["US"])
+
+
+def test_the_report_says_why_the_states_are_not_also_cut_per_year(store):
+    """Three states crossed with fourteen years is mostly cells below the cluster
+    floor. That is a judgement, and it is recorded as one rather than left as a
+    silent omission a reader has to notice."""
+    sessions = _sessions(2016, 2)
+    trades, spine = _cohort(sessions, ["HOSTILE", "FRIENDLY"], [1.0, 1.0])
+    report = posture_report(
+        DEFAULT_CONTRACT, trades, {"US": spine}, markets=["US"]
+    )
+
+    assert "per year" in report["per_year"]
+    assert "2020–21" in report["per_year"]
+    # And the multiple-testing count the plan asks to be stated rather than assumed.
+    assert "nine views" in report["views"]
+    assert "nine views" in format_posture(report)
+
+
+# -- does the rubric rank, out of sample? (issue #194) -------------------------
+#
+# Phase 5's ranking cell, and the out-of-sample test §4a's claim has never had.
+# §4a asked whether the star score separates the trader's *picks* from the field,
+# on the same field the v2 weights had been fitted to — a fit statistic dressed as
+# a test, and marginal anyway at p = 0.055. Here the outcome variable is R, which
+# no weight was fitted to and which no detection's score could see. That is the
+# whole point of the measurement, and it is why the two figures are carried side
+# by side in the output rather than left for a reader to conflate.
+#
+# Three claims are load-bearing:
+#
+#   * **A tie never splits.** The replayed score is seven dimensions of eight
+#     integral points, so its distribution is coarse and true deciles do not
+#     exist. Every trade on the same score lands in the same bucket, the buckets
+#     collapse to fewer than ten, and the decile positions each one covers are
+#     named — a cut that split a tie would report two buckets differing by nothing
+#     but which rows the sort happened to put first.
+#   * **The score is the seven-dimension replayed one.** Never the app's nine
+#     points: ≥3.5★ is 7 of 8 here and 7 of 9 there, and a ceiling read off the
+#     wrong scale mislabels every band.
+#   * **Clustered by symbol, as everywhere else.** A name detected three times in
+#     a fortnight is one observation's worth of independence, not three.
+
+from backtest.stats import MAX_UNDEFINED_SHARE, bootstrap_symbol_statistic
+from backtest.ranking import (
+    APP_MAX_POINTS,
+    IN_SAMPLE_GAP,
+    SCORE_DIMENSIONS,
+    SCORE_LABEL,
+    SCORE_MAX_POINTS,
+    # Aliased: the posture section above imports its own verdict vocabulary into
+    # this same namespace, and two `VERDICT_TOO_THIN`s in one file is a shadow
+    # waiting to make one section's assertion silently test the other's constant.
+    VERDICT_NO_EVIDENCE as RANKING_NO_EVIDENCE,
+    VERDICT_RANKS as RANKING_RANKS,
+    VERDICT_TOO_THIN as RANKING_TOO_THIN,
+    Band,
+    ScoredTrade,
+    bands,
+    check_seven_dimension_score,
+    format_ranking,
+    market_ranking,
+    outcomes,
+    rank_correlation,
+    ranking_report,
+    scored_trades,
+    symbol_clusters,
+    top_minus_bottom,
+)
+
+
+def _score(points: int) -> SevenDimScore:
+    """A seven-dimension score worth exactly ``points``, out of eight.
+
+    The breakdown is not read by anything under test — the buckets are cut on the
+    total — so it is left empty rather than authored dimension by dimension, which
+    would make every fixture below an assertion about the rubric instead of about
+    the bucketing.
+    """
+    return SevenDimScore(
+        stars=points / 2,
+        points=points,
+        max_points=SEVEN_DIM_MAX_POINTS,
+        breakdown=[],
+        label=SEVEN_DIM_LABEL,
+    )
+
+
+def _rtrade(
+    symbol: str,
+    points: int,
+    r: float,
+    *,
+    year: int = 2016,
+    market: str = "US",
+    month: int = 3,
+    arm: str = ARM_B,
+    open_at_end: bool = False,
+) -> ScoredTrade:
+    """One arm-B trade at a known score and a known before-cost R.
+
+    Authored on :func:`_mtrade`, the metric section's own fixture, because the
+    ranking is arithmetic over the same trades priced the same way — a second
+    trade fixture here would be a second cost model nobody compared.
+    """
+    return ScoredTrade(
+        trade=_mtrade(
+            symbol, year, r, market=market, arm=arm, month=month,
+            open_at_end=open_at_end,
+        ),
+        score=_score(points),
+    )
+
+
+def _ladder(points_to_r: dict[int, float], *, per_score: int = 6) -> list[ScoredTrade]:
+    """A cohort with ``per_score`` distinct symbols on each score, each paying its
+    score's R. Enough symbols per band to clear the bootstrap's cluster floor."""
+    return [
+        _rtrade(f"S{points}_{i}", points, r)
+        for points, r in points_to_r.items()
+        for i in range(per_score)
+    ]
+
+
+def test_outcomes_are_bucketed_by_star_score_decile_with_n_on_every_bucket(store):
+    """The measurement itself: buckets in ascending score order, each carrying the
+    count behind it.
+
+    n rides on every bucket because a bucket's expectancy is unreadable without it
+    — one trade at +4R and six hundred at +0.1R print the same headline — and the
+    counts sum to the cohort, so no trade is silently dropped between the cut and
+    the report.
+    """
+    cohort = _ladder({2: -0.5, 4: 0.2, 6: 1.5})
+
+    body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
+
+    buckets = body["buckets"]
+    assert [b["low_points"] for b in buckets] == [2, 4, 6]
+    assert [b["closed"] for b in buckets] == [6, 6, 6]
+    assert sum(b["trades"] for b in buckets) == len(cohort)
+    assert [b["symbols"] for b in buckets] == [6, 6, 6]
+    # Ascending in score, and the expectancy follows it here by construction.
+    values = [b["expectancy_r"] for b in buckets]
+    assert values == sorted(values)
+
+
+def test_a_tie_never_splits_across_two_buckets(store):
+    """The replayed score is eight integral points, so true deciles do not exist.
+
+    A cut that split a tie would put two trades scoring identically in different
+    buckets and report a difference between them, which would be a difference in
+    sort order and nothing else. So a score value is atomic: the buckets collapse
+    to fewer than ten and each one names the decile positions it covers.
+    """
+    # 80% of the cohort on one score: no decile boundary can pass through it.
+    cohort = [_rtrade(f"L{i}", 3, 0.1) for i in range(80)]
+    cohort += [_rtrade(f"H{i}", 6, 2.0) for i in range(20)]
+
+    cut = bands(cohort)
+
+    assert all(isinstance(b, Band) for b in cut)
+    assert len(cut) < 10
+    assert [(b.low_points, b.high_points) for b in cut] == [(3, 3), (6, 6)]
+    # The band that swallowed eight deciles says so, rather than reporting as one.
+    assert cut[0].deciles == tuple(range(1, 9))
+    assert cut[1].deciles == (9, 10)
+
+
+def test_the_bucket_a_trade_lands_in_never_depends_on_the_order_it_arrived(store):
+    """Determinism, stated as the property the tie rule buys.
+
+    The cut is a function of the score distribution, so shuffling the cohort moves
+    nothing. A cut that read the incoming order would produce a different set of
+    buckets on a re-run of the same data, with nothing in the output to show it.
+    """
+    cohort = _ladder({1: -1.0, 3: 0.0, 5: 1.0, 7: 2.0})
+    shuffled = list(reversed(cohort))
+
+    assert bands(cohort) == bands(shuffled)
+    assert market_ranking(DEFAULT_CONTRACT, cohort, market="US") == market_ranking(
+        DEFAULT_CONTRACT, shuffled, market="US"
+    )
+
+
+def test_a_score_that_ranks_shows_a_positive_gap_and_a_positive_rho(store):
+    """The claim under test, in the shape that would confirm it.
+
+    The top band beats the bottom, the rank correlation between score and outcome
+    is positive, and both intervals sit above zero — which is the only combination
+    the verdict rule reads as "ranks".
+    """
+    cohort = _ladder({1: -1.0, 3: -0.2, 5: 0.6, 7: 1.8}, per_score=8)
+
+    body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
+
+    assert body["gap"]["value"] > 0
+    assert body["gap"]["bootstrap"]["ci_low"] > 0
+    assert body["spearman"]["rho"] > 0
+    assert body["spearman"]["bootstrap"]["ci_low"] > 0
+    assert body["verdict"] == RANKING_RANKS
+
+
+def test_a_score_that_does_not_rank_reports_no_evidence_rather_than_a_null_result(store):
+    """A rubric whose bands pay the same is the outcome §4a's claim risks.
+
+    The gap straddles zero, so the verdict says there is no evidence the score
+    ranks — not that it is proven flat, which is a stronger claim than a bootstrap
+    over one sample can license.
+
+    Every band draws the *same* spread of outcomes, so the score carries no
+    information about R and the true gap is zero. The spread inside a band is what
+    makes the interval an interval: a band whose every trade paid the same would
+    resample to a single number and print a certainty it has not earned.
+    """
+    spread = (-1.0, -1.0, -0.6, 0.3, 0.8, 2.2, -0.7, 1.1)
+    cohort = [
+        _rtrade(f"S{points}_{i}", points, r)
+        for points in (1, 3, 5, 7)
+        for i, r in enumerate(spread)
+    ]
+
+    body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
+
+    assert body["gap"]["bootstrap"]["ci_low"] < 0 < body["gap"]["bootstrap"]["ci_high"]
+    assert body["verdict"] == RANKING_NO_EVIDENCE
+    assert "no evidence" in format_ranking(
+        ranking_report(DEFAULT_CONTRACT, cohort, markets=("US",))
+    )
+
+
+def test_significance_is_clustered_by_symbol_not_by_row(store):
+    """One name detected twenty times is not twenty independent observations.
+
+    The same data bootstrapped by row and by symbol must not produce the same
+    interval: the clustered one is wider and its p-value higher, and that widening
+    *is* the correction. Run on the gap rather than on a mean, because the gap is
+    the statistic the verdict is read off.
+    """
+    # One hot name at the top band, twenty times over, beside four cold names in
+    # the same band; twenty distinct names at the bottom. By row the top band is
+    # its hot name's twenty rows and the gap is decisive. By symbol the whole
+    # result turns on whether that one name was drawn, and a third of the time it
+    # is not — which is what the interval has to show.
+    cohort = [_rtrade("HOT", 7, 3.0, month=1 + (i % 12)) for i in range(20)]
+    cohort += [_rtrade(f"T{i}", 7, -1.5) for i in range(4)]
+    cohort += [_rtrade(f"C{i}", 1, -1.0) for i in range(20)]
+    cut = bands(cohort)
+    clustered = symbol_clusters(cohort, DEFAULT_CONTRACT)
+
+    by_symbol = bootstrap_symbol_statistic(
+        clustered, lambda rows: top_minus_bottom(rows, cut)
+    )
+    by_row = bootstrap_symbol_statistic(
+        [(row,) for cluster in clustered for row in cluster],
+        lambda rows: top_minus_bottom(rows, cut),
+    )
+
+    assert by_symbol["clusters"] == 25
+    assert by_row["clusters"] == 44
+    assert (by_symbol["ci_high"] - by_symbol["ci_low"]) > (
+        by_row["ci_high"] - by_row["ci_low"]
+    )
+    assert by_symbol["p_value"] > by_row["p_value"]
+    assert by_symbol["cluster"] == BOOTSTRAP_CLUSTER
+
+
+def test_a_bucket_too_thin_to_bootstrap_says_so_and_still_reports_its_n(store):
+    """Per-year buckets are exactly where the symbol count goes thin.
+
+    A single symbol resampled two thousand times returns its own mean two thousand
+    times — a zero-width interval that prints as certainty from one observation.
+    So the interval is refused and the count is not: "too few symbols to say" and
+    "no result" are different findings.
+    """
+    cohort = [_rtrade("ONE", 6, 2.0, month=1 + i) for i in range(3)]
+    cohort += _ladder({2: -1.0}, per_score=6)
+
+    body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
+
+    top = body["buckets"][-1]
+    assert top["closed"] == 3
+    assert top["symbols"] == 1
+    assert top["bootstrap"]["ci_low"] is None
+    assert "too thin" in top["bootstrap"]["suppressed"]
+    assert body["verdict"] == RANKING_TOO_THIN
+    assert "too thin" in format_ranking(
+        ranking_report(DEFAULT_CONTRACT, cohort, markets=("US",))
+    )
+
+
+def test_every_year_of_the_measured_window_gets_a_row_on_the_same_bands(store):
+    """Per market *and* per year, and the bands are cut once on the market's whole
+    window.
+
+    Cutting per year would make "the top bucket" a different score band in every
+    row, so a year-on-year comparison would compare two different questions. The
+    years run from the contract's measured start, so a market that traded nothing
+    until later has its silent years on the page rather than missing from it.
+    """
+    cohort = _ladder({2: -0.5, 6: 1.5}, per_score=6)
+    cohort += [_rtrade(f"N{i}", 6, 1.0, year=2017) for i in range(6)]
+
+    body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
+
+    years = {y["year"]: y for y in body["years"]}
+    assert min(years) == int(DEFAULT_CONTRACT.value(WINDOW_MEASURED_START_KEY)[:4])
+    assert max(years) == 2017
+    window_bands = [b["band"] for b in body["buckets"]]
+    for year in years.values():
+        assert [b["band"] for b in year["buckets"]] == window_bands
+    # 2017 traded only the top band; the bottom band's row is a zero, not a gap.
+    assert [b["closed"] for b in years[2017]["buckets"]] == [0, 6]
+
+    # On the page a silent year is one line rather than a band per bucket: it
+    # stays visible — it is a measurement, and possibly a data hole — without
+    # burying the years that traded under fourteen empty ladders.
+    printed = format_ranking(
+        ranking_report(DEFAULT_CONTRACT, cohort, markets=("US",))
+    ).splitlines()
+    assert "    2013  no trades" in printed
+    assert sum(1 for line in printed if line.startswith("    2013")) == 1
+
+
+def test_us_and_idx_never_pool(store):
+    """findings §8 measured that magnitudes do not transfer, so a mean across the
+    two markets is a number about neither — and a bucket built from both would
+    hide it inside a band label that looked ordinary."""
+    with pytest.raises(ValueError):
+        market_ranking(
+            DEFAULT_CONTRACT,
+            [_rtrade("AAA", 6, 1.0), _rtrade("BBB.JK", 6, 1.0, market="IDX")],
+            market="US",
+        )
+
+
+def test_the_ranking_is_arm_bs_and_refuses_another_arm(store):
+    """Arm B is the pre-registered arm, and an arm A trade averaged into it would
+    report a figure no arm produced under arm B's name."""
+    with pytest.raises(ValueError):
+        market_ranking(
+            DEFAULT_CONTRACT,
+            [_rtrade("AAA", 6, 1.0), _rtrade("BBB", 6, 1.0, arm=ARM_A)],
+            market="US",
+        )
+
+
+def test_the_score_is_the_seven_dimension_one_and_the_apps_ceiling_is_named(store):
+    """≥3.5★ is 7 of 8 here and 7 of 9 in the app. A band read off the wrong
+    ceiling mislabels every bucket, so both scales ride on the output and the
+    replayed one is labelled wherever it is printed."""
+    report = ranking_report(
+        DEFAULT_CONTRACT, _ladder({2: -0.5, 6: 1.5}), markets=("US",)
+    )
+
+    score = report["score"]
+    assert score["label"] == SCORE_LABEL == SEVEN_DIM_LABEL
+    assert score["dimensions"] == SCORE_DIMENSIONS == 7
+    assert score["max_points"] == SCORE_MAX_POINTS == SEVEN_DIM_MAX_POINTS
+    assert score["app_max_points"] == APP_MAX_POINTS == SCORE_MAX_POINTS + 1
+    assert score["max_stars"] == 4.0
+    printed = format_ranking(report)
+    assert SEVEN_DIM_LABEL in printed
+    assert "not the app's" in printed
+
+
+def test_a_score_on_the_apps_nine_point_ceiling_is_drift_not_a_ninth_point(store):
+    """The replayed score drops `Sector` and totals out of eight. A nine-point row
+    arriving here means the field was scored by something else, and reading it as
+    a seven-dimension one would re-base every band silently."""
+    nine = SevenDimScore(
+        stars=4.5, points=9, max_points=9, breakdown=[], label="star score"
+    )
+
+    check_seven_dimension_score(_score(6))
+    with pytest.raises(ContractDrift):
+        check_seven_dimension_score(nine)
+
+
+def test_the_result_is_stated_against_4as_in_sample_gap(store):
+    """The two are not the same measurement and must not be read as one.
+
+    §4a's +5.59pp is a separation the v2 weights were *fitted* to, on the field
+    they were fitted on, at p = 0.055. This one's outcome variable is R, which no
+    weight ever saw. So §4a's figures ride on the payload with the reason they are
+    not comparable, rather than being left for a reader to line up.
+    """
+    report = ranking_report(
+        DEFAULT_CONTRACT, _ladder({2: -0.5, 6: 1.5}), markets=("US",)
+    )
+
+    prior = report["in_sample_reference"]
+    assert prior["gap_pp"] == IN_SAMPLE_GAP["gap_pp"] == 5.59
+    assert prior["p_value"] == 0.055
+    assert "§4a" in prior["source"]
+    assert "fitted" in prior["why_it_is_not_this_measurement"]
+    printed = format_ranking(report)
+    assert "§4a" in printed
+    assert "in-sample" in printed
+
+
+def test_a_trade_with_no_score_row_is_a_failure_rather_than_a_silent_drop(store):
+    """The join between a trade and the detection that produced it is total.
+
+    A trade whose detection row is missing is a broken denominator, and dropping
+    it quietly would shrink the cohort the ranking is measured on with nothing in
+    the output to show which trades left.
+    """
+    trade = _mtrade("AAA", 2016, 1.0)
+    index = {(trade.detection_session, "AAA"): _cdetection("AAA", trade.detection_session)}
+
+    assert [s.score.points for s in scored_trades([trade], index)] == [
+        _cdetection("AAA", trade.detection_session).score.points
+    ]
+    with pytest.raises(ValueError):
+        scored_trades([trade], {})
+
+
+def test_rho_reads_the_score_against_the_outcome_and_ties_are_averaged(store):
+    """The rank correlation is the statistic that answers "does a higher score
+    predict a better result" over the whole cohort rather than at its two edges.
+
+    Ties are the common case on an eight-point score, so they take the average
+    rank: a tie broken by arrival order would make rho depend on the sort.
+    """
+    rising = _ladder({1: -1.0, 3: 0.0, 5: 1.0, 7: 2.0}, per_score=3)
+    falling = _ladder({1: 2.0, 3: 1.0, 5: 0.0, 7: -1.0}, per_score=3)
+    rho = lambda cohort: rank_correlation(outcomes(cohort, DEFAULT_CONTRACT))
+
+    assert rho(rising) == pytest.approx(1.0)
+    assert rho(falling) == pytest.approx(-1.0)
+    # One score only: no variance in the ranks, so no correlation exists to report.
+    assert rho(_ladder({4: 1.0})) is None
+
+
+def test_the_cut_is_taken_over_outcomes_and_an_open_trade_moves_no_boundary(store):
+    """A trade still running has no R and contributes to no statistic in the report.
+
+    Letting it move a boundary would cut the measured population against a
+    distribution that includes one that pays nothing — and the open trades are not
+    a random sample of the field, since a name still running at the window's end is
+    one the trail never took out.
+    """
+    closed = [_rtrade(f"C{i}", 2, 0.5) for i in range(9)]
+    still_running = ScoredTrade(
+        trade=_mtrade("OPEN", 2016, 3.0, open_at_end=True), score=_score(7)
+    )
+
+    assert [(b.low_points, b.high_points) for b in bands(closed)] == [(2, 2)]
+    assert bands(closed + [still_running]) == bands(closed)
+
+    body = market_ranking(DEFAULT_CONTRACT, closed + [still_running], market="US")
+    only = body["buckets"][0]
+    assert only["trades"] == 9
+    assert only["closed"] == 9
+    assert only["share_of_closed"] == 1.0
+    # Its score is above every band the closed trades produced, so no bucket holds
+    # it. It is counted rather than dropped or filed under the nearest edge: the
+    # buckets have to add up to the field, and a 1.0★ band holding a 3.5★ trade
+    # would be a mislabel.
+    assert body["outside_the_cut"] == 1
+    assert sum(b["trades"] for b in body["buckets"]) + body["outside_the_cut"] == 10
+
+
+def test_an_interval_built_mostly_on_resamples_that_could_not_answer_is_refused(store):
+    """A resample is undefined exactly when it drew no symbol from an edge band.
+
+    Those are the draws carrying the most uncertainty about a gap resting on a thin
+    edge, so reading the interval off the rest conditions on the statistic having
+    been computable — which is a condition the confident draws satisfy. The remedy
+    is to refuse the interval, not to repair it: there is no honest value to
+    substitute, and zero is a measurement nobody made.
+    """
+    # One symbol alone in the top band: better than a third of resamples of 7
+    # symbols draw none of it, and the gap is undefined in every one of those.
+    cohort = [_rtrade("ONE", 6, 2.0, month=1 + i) for i in range(3)]
+    cohort += _ladder({2: -1.0}, per_score=6)
+    cut = bands(cohort)
+
+    boot = bootstrap_symbol_statistic(
+        symbol_clusters(cohort, DEFAULT_CONTRACT),
+        lambda rows: top_minus_bottom(rows, cut),
+    )
+
+    assert boot["clusters"] >= BOOTSTRAP_MIN_CLUSTERS
+    assert boot["undefined"] / boot["resamples"] > MAX_UNDEFINED_SHARE
+    assert (boot["ci_low"], boot["ci_high"], boot["p_value"]) == (None, None, None)
+    assert "could not be evaluated" in boot["suppressed"]
+
+    # And a cohort whose bands are always drawable gets its interval.
+    wide = _ladder({2: -1.0, 6: 2.0}, per_score=8)
+    wide_cut = bands(wide)
+    healthy = bootstrap_symbol_statistic(
+        symbol_clusters(wide, DEFAULT_CONTRACT),
+        lambda rows: top_minus_bottom(rows, wide_cut),
+    )
+    assert healthy["undefined"] == 0
+    assert healthy["ci_low"] is not None
+
+
+def test_the_bands_partition_the_ten_decile_positions_exactly(store):
+    """Each band carries the decile boundaries that fall inside it, and between them
+    the bands account for all ten.
+
+    A band holding 49% carries the four boundaries below it and the fifth belongs to
+    its neighbour — so a band's decile span says where its share sits rather than
+    rounding that share, and no decile position goes unreported.
+    """
+    for cohort in (
+        _ladder({1: -1.0, 3: 0.0, 5: 1.0, 7: 2.0}),
+        [_rtrade(f"L{i}", 3, 0.1) for i in range(49)]
+        + [_rtrade(f"H{i}", 6, 2.0) for i in range(51)],
+        _ladder({4: 1.0}),
+    ):
+        covered = [d for band in bands(cohort) for d in band.deciles]
+        assert covered == list(range(1, 11))
+
+
+def test_the_count_of_intervals_the_report_states_rides_on_it(store):
+    """Every year of every market gets its own gap, rho and verdict, so a report
+    over fourteen years makes scores of significance statements at nominal alpha and
+    some come up positive by construction. A budget a reader has to infer from the
+    length of the page is a budget nobody is keeping."""
+    report = ranking_report(
+        DEFAULT_CONTRACT, _ladder({2: -0.5, 6: 1.5}, per_score=8), markets=("US",)
+    )
+
+    budget = report["multiple_testing"]
+    assert budget["intervals_reported"] > 1
+    assert budget["alpha_is_nominal"] is True
+    assert "sweep" in budget["note"]
+    # A suppressed cell states nothing, so it is not in the count of claims made.
+    stated = sum(
+        1
+        for market in report["markets"]
+        for slice_body in [market, *market["years"]]
+        for cell in [*slice_body["buckets"], slice_body["gap"],
+                     slice_body["spearman"]]
+        if cell["bootstrap"]["ci_low"] is not None
+    )
+    assert budget["intervals_reported"] == stated
+
+
+def test_the_ranking_report_is_stamped_and_serialises(store):
+    """Like every figure the package emits: the contract rides on it, and two runs
+    under different contracts differ in their output alone."""
+    report = ranking_report(
+        DEFAULT_CONTRACT, _ladder({2: -0.5, 6: 1.5}), markets=("US", "IDX")
+    )
+
+    assert report[CONTRACT_KEY] == DEFAULT_CONTRACT.to_dict()
+    assert [m["market"] for m in report["markets"]] == ["US", "IDX"]
+    assert json.loads(json.dumps(report)) == report
+
+
+def test_the_ranking_runs_off_the_denominator_end_to_end(store, denominator):
+    """The seam that matters: persisted detections, their scores, and the trades
+    the simulator took off them, joined by the session they were decided on."""
+    det = _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                            _FIG_FLAT + _FIG_WIN)
+    trades = simulate_market(
+        store, denominator, "US", DEFAULT_CONTRACT, arms=(ARM_B,)
+    )
+    scores = detection_index(denominator, "US")
+
+    cohort = scored_trades(trades, scores)
+
+    assert [s.trade.symbol for s in cohort] == ["AAA"]
+    assert cohort[0].score.points == seven_dimension_score(
+        det, prior_move=False
+    ).points
+    body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
+    assert sum(b["trades"] for b in body["buckets"]) == 1
+
+
+# -- do the registered candidates predict, or only select? (issue #195) --------
+#
+# ADR 0005 admits a dimension on a **selection contrast** — taken detections
+# against not-taken ones, no outcome variable — because when it was written no
+# outcome variable existed. Both registered candidates were measured on that
+# instrument and neither shipped: `RS line` refused on criterion 4 for a wrong-way
+# gap (findings §5d), `Relative move` positive on both fields and then stalled
+# 0.06pp inside the one threshold the ADR itself calls a judgement (§5e).
+#
+# This section gives the same two dimensions an **outcome** variable. Four claims
+# are load-bearing, and each is an acceptance criterion of #195:
+#
+#   * **Both registered candidates, per market.** The list is derived from
+#     `replay.contrast.CANDIDATES` rather than typed here, so a registration this
+#     module cannot read is drift rather than a silently missing column.
+#   * **The cut is applied at read time**, off the value the persisted row
+#     carries, by the rubric's own reader. No row is re-denominated retroactively.
+#   * **Absence is absence.** `relative_move` is `None` when the name had not
+#     listed six months back — and zero is a real value sitting exactly on the
+#     pre-registered cut, so a coerced absence would be a hit-or-miss verdict
+#     nobody measured. It gets its own group, its own n, and it enters no gap.
+#   * **The outcome claim is never merged with the selection contrast.** They are
+#     two different claims about one dimension, and a reader who lines them up as
+#     one has read a stronger claim than either supports.
+#
+# Nothing here admits a dimension. `check_not_admitted` makes that executable
+# rather than a sentence in a docstring.
+
+from backtest.candidates import (
+    ADMISSION_NOTE,
+    CANDIDATES_UNDER_TEST,
+    GROUP_ABSENT,
+    GROUP_HIT,
+    GROUP_MISS,
+    GROUPS,
+    SELECTION_CONTRAST,
+    VALUE_BOOLEAN,
+    VALUE_GRADED,
+    VERDICT_RULE as VERDICT_RULE_CANDIDATES,
+    # Aliased for the reason the ranking section aliases its own: three verdict
+    # vocabularies now live in this namespace, and an unqualified
+    # `VERDICT_TOO_THIN` would let one section's assertion test another's
+    # constant.
+    VERDICT_NO_EVIDENCE as CANDIDATE_NO_EVIDENCE,
+    VERDICT_PREDICTS as CANDIDATE_PREDICTS,
+    VERDICT_TOO_THIN as CANDIDATE_TOO_THIN,
+    DetectedTrade,
+    candidate_trades,
+    candidates_report,
+    check_not_admitted,
+    check_registry,
+    format_candidates,
+    group_of,
+    market_candidate,
+    named_candidate,
+    outcome_gap,
+    outcomes as candidate_outcomes,
+    rubric_reading_gap,
+    split,
+    value_correlation,
+)
+from backtest.cohort import detection_index
+from backtest.stats import spearman
+from replay.contrast import CANDIDATE_DIMENSIONS
+
+
+_RS_LINE = "RS line"
+_RELATIVE_MOVE = "Relative move"
+
+
+def _cdetection(
+    symbol: str,
+    session: date,
+    *,
+    rs_line: bool | None = None,
+    relative_move: float | None = None,
+) -> ScoredDetection:
+    """A persisted detection row carrying nothing but its two candidate values.
+
+    The detector record and the score are the fixture's filler — this section
+    measures what the candidate columns predict, and authoring a geometry to reach
+    them would put the detector's behaviour inside a test about outcomes.
+    """
+    det = Detection(
+        symbol=symbol, session=session, detector_version=DETECTOR_VERSION,
+        trigger=10.0, stop=9.0, stopw_adr=1.0,
+        base_len=10, move_gain=0.5, adr=0.05, close=9.5, cluster_k=3,
+        cluster_high=10.0, cluster_low=9.0, cluster_range_adr=1.0,
+        range_3bar_adr=1.0, line_ok=True, touch_zones=2, overshoot_adr=0.1,
+        slope=0.0, line_end=9.5, base_low=9.0, churn_l=0.2, sma20_rising=True,
+        dryup=0.8,
+    )
+    return ScoredDetection(
+        symbol=symbol,
+        detection=det,
+        score=SevenDimScore(
+            stars=2.0, points=4, max_points=SEVEN_DIM_MAX_POINTS,
+            breakdown=[], label=SEVEN_DIM_LABEL,
+        ),
+        star_rank=1,
+        not_taken=False,
+        rs_line=rs_line,
+        relative_move=relative_move,
+    )
+
+
+def _ctrade(
+    symbol: str,
+    r: float,
+    *,
+    rs_line: bool | None = None,
+    relative_move: float | None = None,
+    year: int = 2016,
+    month: int = 3,
+    market: str = "US",
+    arm: str = ARM_B,
+) -> DetectedTrade:
+    """One arm-B trade beside the persisted row that produced it.
+
+    Authored on :func:`_mtrade`, the metric section's own fixture, for the reason
+    the ranking section gives: the measurement is arithmetic over trades priced the
+    metric's way, and a second trade fixture would be a second cost model.
+    """
+    trade = _mtrade(symbol, year, r, market=market, arm=arm, month=month)
+    return DetectedTrade(
+        trade=trade,
+        detection=_cdetection(
+            symbol, trade.detection_session,
+            rs_line=rs_line, relative_move=relative_move,
+        ),
+    )
+
+
+def _ccohort(
+    hits: dict[str, float],
+    misses: dict[str, float],
+    absent: dict[str, float] | None = None,
+    *,
+    market: str = "US",
+) -> list[DetectedTrade]:
+    """A cohort split three ways on ``Relative move``'s stored value.
+
+    A hit is a positive value, a miss a negative one, and an absent row carries
+    ``None`` — never 0.0, which is a real value sitting exactly on the cut and is
+    the confusion this whole section exists to prevent.
+    """
+    rows = [_ctrade(s, r, relative_move=+1.5, market=market)
+            for s, r in hits.items()]
+    rows += [_ctrade(s, r, relative_move=-1.5, market=market)
+             for s, r in misses.items()]
+    rows += [_ctrade(s, r, relative_move=None, market=market)
+             for s, r in (absent or {}).items()]
+    return rows
+
+
+def _spread(prefix: str, r: float, n: int) -> dict[str, float]:
+    """``n`` distinct symbols all paying ``r`` — enough clusters to bootstrap."""
+    return {f"{prefix}{i}": r for i in range(n)}
+
+
+def _cbody(
+    cohort: list[DetectedTrade], name: str, *, market: str = "US"
+) -> dict[str, Any]:
+    """One candidate's cell over one market — the shape most tests below read."""
+    return market_candidate(
+        DEFAULT_CONTRACT, named_candidate(name), cohort, market=market
+    )
+
+
+def _cfind(report: dict[str, Any], market: str, name: str) -> dict[str, Any]:
+    """One candidate's cell out of a whole report."""
+    body = next(m for m in report["markets"] if m["market"] == market)
+    return next(c for c in body["candidates"] if c["candidate"] == name)
+
+
+def test_both_registered_candidates_are_measured_against_outcomes_per_market():
+    """#195's first criterion, and the reason the list is derived rather than typed.
+
+    The candidates under test are exactly the ones ADR 0005 has registered, read
+    off `replay.contrast.CANDIDATES`. A module holding its own list would keep
+    measuring a retired candidate, or quietly miss a third one, with nothing in the
+    output to say so.
+    """
+    assert [c.name for c in CANDIDATES_UNDER_TEST] == [
+        name for name, _weight in CANDIDATE_DIMENSIONS
+    ]
+    assert {c.name for c in CANDIDATES_UNDER_TEST} == {_RS_LINE, _RELATIVE_MOVE}
+
+    report = candidates_report(
+        DEFAULT_CONTRACT,
+        _ccohort(_spread("H", 1.0, 6), _spread("M", -0.2, 6)),
+        markets=("US", "IDX"),
+    )
+
+    assert [m["market"] for m in report["markets"]] == ["US", "IDX"]
+    for body in report["markets"]:
+        assert [c["candidate"] for c in body["candidates"]] == [
+            _RS_LINE, _RELATIVE_MOVE
+        ]
+
+
+def test_a_registration_this_module_cannot_read_is_drift_not_a_missing_column():
+    """A third candidate registered upstream must stop this measurement, loudly.
+
+    The registry here supplies what `CANDIDATES` does not — how to read the
+    **value** off the row, and what absence means for it — so a name it has never
+    heard of cannot be measured. Reporting the two it knows and dropping the third
+    would answer #195's "both registered candidates" with a number that had quietly
+    stopped meaning it.
+    """
+    with pytest.raises(ContractDrift, match="Third candidate"):
+        check_registry((("Third candidate", 0, lambda d: True),))
+
+
+def test_the_cut_is_applied_at_read_time_off_the_value_the_row_carries():
+    """#195's second criterion: the row owns the value, the reader owns the verdict.
+
+    Two rows on either side of the pre-registered cut land in different groups
+    while carrying their stored values unchanged — so a later argument about where
+    the cut belongs re-reads these rows rather than re-denominating them.
+    """
+    candidate = named_candidate(_RELATIVE_MOVE)
+    above = _cdetection("AAA", date(2016, 3, 1), relative_move=+0.25)
+    below = _cdetection("BBB", date(2016, 3, 1), relative_move=-0.25)
+
+    assert group_of(candidate, above) == GROUP_HIT
+    assert group_of(candidate, below) == GROUP_MISS
+    # The value is untouched by the reading: the cut is a question asked of the
+    # row, never a rewrite of it.
+    assert candidate.value(above) == +0.25
+    assert candidate.value(below) == -0.25
+
+
+def test_absence_is_its_own_group_and_never_a_value_sitting_on_the_cut():
+    """#195's third criterion, and the one with a trap under it.
+
+    ``Relative move``'s cut is **zero**. So an absent value coerced to 0.0 would
+    not merely be a guess — it would land exactly on the boundary, and the
+    strictness of the comparison would decide a verdict nobody measured. Absence
+    therefore gets its own group, and a row in it enters no gap.
+    """
+    candidate = named_candidate(_RELATIVE_MOVE)
+    missing = _cdetection("AAA", date(2016, 3, 1), relative_move=None)
+
+    assert group_of(candidate, missing) == GROUP_ABSENT
+    assert candidate.value(missing) is None
+
+    cohort = _ccohort(
+        _spread("H", 1.0, 6), _spread("M", -0.2, 6), _spread("Z", 9.9, 6)
+    )
+    groups = split(candidate, cohort)
+
+    assert sorted(groups) == sorted(GROUPS)
+    assert [len(groups[g]) for g in (GROUP_HIT, GROUP_MISS, GROUP_ABSENT)] == [6, 6, 6]
+    # The absent rows pay +9.9R and move the gap by nothing at all.
+    rows = candidate_outcomes(candidate, cohort, DEFAULT_CONTRACT)
+    asked = [row for row in rows if row.group != GROUP_ABSENT]
+    assert outcome_gap(rows) == outcome_gap(asked)
+
+
+def test_every_trade_lands_in_exactly_one_group_and_the_counts_add_up():
+    """The three groups partition the cohort, so nothing leaves between the split
+    and the report — and the absent count is reported rather than inferred from a
+    subtraction a reader has to perform."""
+    cohort = _ccohort(
+        _spread("H", 1.0, 6), _spread("M", -0.2, 5), _spread("Z", 0.4, 4)
+    )
+
+    body = _cbody(cohort, _RELATIVE_MOVE)
+
+    counts = {g: body["groups"][g]["trades"] for g in GROUPS}
+    assert counts == {GROUP_HIT: 6, GROUP_MISS: 5, GROUP_ABSENT: 4}
+    assert sum(counts.values()) == len(cohort) == body["trades"]
+
+
+def test_the_rubric_reading_folds_absence_into_the_miss_side_and_says_which():
+    """What the dimension would do **as shipped**, reported and never conflated.
+
+    The pre-registered readers score an absent value ``False``
+    (:func:`~screener.relative_strength.relative_move_hit`), so a shipped boolean
+    would put those rows on the miss side. That reading is worth having — it is the
+    one a rubric would actually apply — but it answers a different question from
+    "does the measured quantity predict", so it rides beside the primary gap under
+    its own name and never sets the verdict.
+    """
+    # The absent rows pay well, so folding them into the miss side must move the
+    # secondary gap and leave the primary one exactly where it was.
+    cohort = _ccohort(
+        _spread("H", 1.0, 6), _spread("M", -1.0, 6), _spread("Z", 3.0, 6)
+    )
+    candidate = named_candidate(_RELATIVE_MOVE)
+    rows = candidate_outcomes(candidate, cohort, DEFAULT_CONTRACT)
+
+    body = _cbody(cohort, _RELATIVE_MOVE)
+
+    assert body["gap"]["value"] == pytest.approx(outcome_gap(rows))
+    assert body["rubric_reading"]["value"] == pytest.approx(rubric_reading_gap(rows))
+    assert body["gap"]["value"] > body["rubric_reading"]["value"]
+    assert "absent" in body["rubric_reading"]["reads_absence_as"]
+    # And it is explicitly outside the verdict.
+    assert body["rubric_reading"]["enters_the_verdict"] is False
+
+
+def test_a_candidate_that_predicts_shows_a_gap_whose_interval_clears_zero():
+    """The claim under test, in the shape that would confirm it: the hit group
+    out-earns the miss group and the clustered interval sits entirely above zero."""
+    cohort = _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8))
+
+    body = _cbody(cohort, _RELATIVE_MOVE)
+
+    assert body["gap"]["value"] > 0
+    assert body["gap"]["bootstrap"]["ci_low"] > 0
+    assert body["verdict"] == CANDIDATE_PREDICTS
+
+
+def test_a_candidate_that_does_not_predict_reports_no_evidence_not_a_null_result():
+    """"No evidence it predicts" is never "the dimension does not predict".
+
+    One sample cannot license the second, and the vocabulary is where that
+    discipline lives — a report saying "no" would be a claim this run has no
+    standing to make.
+    """
+    cohort = _ccohort(_spread("H", 0.1, 8), _spread("M", 0.1, 8))
+
+    body = _cbody(cohort, _RELATIVE_MOVE)
+
+    assert body["verdict"] == CANDIDATE_NO_EVIDENCE
+    assert "never" in VERDICT_RULE_CANDIDATES
+    ci_low = body["gap"]["bootstrap"]["ci_low"]
+    assert ci_low is None or ci_low <= 0
+
+
+def test_a_side_too_thin_to_bootstrap_says_so_and_still_reports_its_n():
+    """A gap is taken **between** two sides, so a thin one makes it unreadable
+    however wide the other is. The n stays on the page: a thin cell is visible as
+    thin rather than absent."""
+    cohort = _ccohort(_spread("H", 2.0, 8), {"M0": -1.0, "M1": -1.0})
+
+    body = _cbody(cohort, _RELATIVE_MOVE)
+
+    assert body["verdict"] == CANDIDATE_TOO_THIN
+    assert body["groups"][GROUP_MISS]["closed"] == 2
+    assert body["groups"][GROUP_MISS]["bootstrap"]["suppressed"] is not None
+
+
+def test_significance_is_clustered_by_symbol_never_by_row():
+    """One name signalling repeatedly is one observation's worth of independence.
+
+    Two cohorts with the same rows and different symbol counts must not produce the
+    same interval — bootstrapping rows would make the second look as firm as the
+    first.
+    """
+    spread = _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8))
+    one_name = [
+        _ctrade("SAME", 2.0, relative_move=+1.5, month=1 + i) for i in range(8)
+    ] + [
+        _ctrade("OTHER", -1.0, relative_move=-1.5, month=1 + i) for i in range(8)
+    ]
+
+    wide = _cbody(spread, _RELATIVE_MOVE)
+    narrow = _cbody(one_name, _RELATIVE_MOVE)
+
+    assert wide["gap"]["bootstrap"]["clusters"] == 16
+    assert narrow["gap"]["bootstrap"]["clusters"] == 2
+    assert narrow["gap"]["bootstrap"]["suppressed"] is not None
+    assert narrow["verdict"] == CANDIDATE_TOO_THIN
+
+
+def test_the_stored_value_is_correlated_with_the_outcome_where_one_exists():
+    """The grading question ADR 0004 would ask later, asked here on the stored value.
+
+    ``Relative move`` persists a real number in ADR units, so the degree can be
+    ranked against the outcome. This is the statement the boolean cannot make, and
+    it runs over the rows where the value **exists** — an absent row is not a low
+    one.
+    """
+    cohort = [
+        _ctrade("A", -1.0, relative_move=-2.0),
+        _ctrade("B", 0.0, relative_move=-0.5),
+        _ctrade("C", 1.0, relative_move=+0.5),
+        _ctrade("D", 2.0, relative_move=+2.0),
+        _ctrade("E", 9.9, relative_move=None),
+    ]
+    candidate = named_candidate(_RELATIVE_MOVE)
+    rows = candidate_outcomes(candidate, cohort, DEFAULT_CONTRACT)
+
+    rho = value_correlation(rows)
+
+    assert rho == pytest.approx(1.0)
+    # The absent row is excluded rather than ranked at the bottom: it pays the
+    # most, and ranking it anywhere would move the figure.
+    assert rho == pytest.approx(
+        spearman(
+            [-2.0, -0.5, 0.5, 2.0], [r.r for r in rows if r.value is not None]
+        )
+    )
+
+
+def test_a_candidate_storing_only_a_boolean_reports_no_correlation_and_why():
+    """``RS line`` persists a boolean, not a degree.
+
+    So there is no value to rank, and the cell says that rather than printing a
+    correlation between a verdict and an outcome — which would be the gap again
+    under a second name, and would read as a second piece of evidence.
+    """
+    cohort = [
+        _ctrade("A", -1.0, rs_line=False),
+        _ctrade("B", 2.0, rs_line=True),
+    ]
+
+    body = _cbody(cohort, _RS_LINE)
+
+    assert named_candidate(_RS_LINE).value_kind == VALUE_BOOLEAN
+    assert named_candidate(_RELATIVE_MOVE).value_kind == VALUE_GRADED
+    assert body["value_correlation"]["rho"] is None
+    assert "boolean" in body["value_correlation"]["unavailable"]
+
+
+def test_the_verdict_is_the_gaps_and_the_correlation_is_stated_beside_it():
+    """One statistic decides, and the rule says which.
+
+    The gap is the claim ADR 0005 would act on — the dimension is admitted as a
+    boolean — so it is the gap's interval that reads the verdict. The correlation
+    is a statement about a *graded* form nothing has proposed, and only one of the
+    two candidates even has a value to compute it on; letting it into the verdict
+    would make the rule mean different things for the two dimensions.
+    """
+    cohort = _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8))
+
+    body = _cbody(cohort, _RELATIVE_MOVE)
+
+    assert body["verdict"] == CANDIDATE_PREDICTS
+    assert body["value_correlation"]["enters_the_verdict"] is False
+    assert "gap" in VERDICT_RULE_CANDIDATES
+
+
+def test_the_outcome_claim_is_reported_separately_from_the_selection_contrast():
+    """#195's fourth criterion: two claims about one dimension, never merged.
+
+    The published selection figures ride on the payload — the instrument, the Δ,
+    and the verdict ADR 0005 reached on it — beside a sentence saying why the two
+    cannot be added up. They are not the same claim: one says the trader picked
+    these names, the other says the names paid.
+    """
+    report = candidates_report(
+        DEFAULT_CONTRACT,
+        _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8)),
+        markets=("US",),
+    )
+
+    body = _cfind(report, "US", _RELATIVE_MOVE)
+    prior = body["selection_contrast"]
+
+    assert prior["instrument"] == "selection contrast"
+    assert prior["delta_pp"] == pytest.approx(3.6)
+    assert prior["adr_0005_verdict"] == "not admitted"
+    assert "different claim" in report["selection_contrast_note"]
+    # The two verdicts are separate keys, and neither is derived from the other.
+    assert body["verdict"] != prior["adr_0005_verdict"]
+    assert "selection" in format_candidates(report)
+
+
+def test_the_published_selection_figures_are_the_ones_5d_and_5e_measured():
+    """Quoted from the findings rather than recomputed, and pinned so a typo here
+    cannot rewrite a published result on its way onto this payload."""
+    assert SELECTION_CONTRAST[_RS_LINE]["delta_pp"] == pytest.approx(-2.1)
+    assert SELECTION_CONTRAST[_RS_LINE]["source"].endswith("§5d")
+    assert SELECTION_CONTRAST[_RELATIVE_MOVE]["delta_pp"] == pytest.approx(3.6)
+    assert SELECTION_CONTRAST[_RELATIVE_MOVE][
+        "not_taken_hit_rate"
+    ] == pytest.approx(0.8494)
+    assert SELECTION_CONTRAST[_RELATIVE_MOVE]["source"].endswith("§5e")
+
+
+def test_nothing_here_admits_a_dimension_to_the_rubric():
+    """#195's fifth criterion, made executable rather than promised in prose.
+
+    A candidate that had entered `screener.score.DIMENSIONS` would mean this
+    measurement was reporting on a live rubric row, which is a different thing
+    entirely — so it is refused at the door, and the payload states that admission
+    is ADR 0005's instrument and not this one's.
+    """
+    check_not_admitted()
+    assert all(weight == 0 for _name, weight in CANDIDATE_DIMENSIONS)
+    live = {name for name, _weight in DIMENSIONS}
+    assert live.isdisjoint({c.name for c in CANDIDATES_UNDER_TEST})
+
+    report = candidates_report(
+        DEFAULT_CONTRACT, _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8))
+    )
+
+    assert report["admission"] == ADMISSION_NOTE
+    assert "admits no dimension" in ADMISSION_NOTE
+
+
+def test_a_candidate_that_had_entered_the_rubric_is_refused():
+    """The other half of the same guard: the check has to be able to fire."""
+    with pytest.raises(ContractDrift, match="Relative move"):
+        check_not_admitted(dimensions=(("Relative move", 1),))
+
+
+def test_us_and_idx_never_pool_and_there_is_no_top_level_gap():
+    """Findings §8 measured that magnitudes do not transfer, so the way to stop a
+    pooled figure being quoted is for it never to have been computed."""
+    cohort = _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8))
+    cohort += _ccohort(_spread("J", 2.0, 8), _spread("K", -1.0, 8), market="IDX")
+
+    report = candidates_report(DEFAULT_CONTRACT, cohort, markets=("US", "IDX"))
+
+    assert "gap" not in report
+    assert "verdict" not in report
+    assert _cfind(report, "US", _RELATIVE_MOVE)["groups"][GROUP_HIT]["symbols"] == 8
+    assert _cfind(report, "IDX", _RELATIVE_MOVE)["groups"][GROUP_HIT]["symbols"] == 8
+
+
+def test_the_measurement_is_arm_bs_and_refuses_another_arms_trades():
+    """The pre-registered arm, for the reason the ranking gives: a cohort of arm A
+    trades under this banner would price a dimension against a result no headline
+    names."""
+    cohort = _ccohort(_spread("H", 2.0, 6), _spread("M", -1.0, 6))
+    cohort.append(_ctrade("X", 1.0, relative_move=+1.0, arm=ARM_A))
+
+    with pytest.raises(ValueError, match="arm"):
+        _cbody(cohort, _RELATIVE_MOVE)
+
+
+def test_a_market_that_produced_no_trade_reports_its_zeros_rather_than_vanishing():
+    """A silent market is a measurement — and possibly a data hole. An absent row
+    and a market nobody measured are indistinguishable after the fact."""
+    report = candidates_report(
+        DEFAULT_CONTRACT,
+        _ccohort(_spread("H", 2.0, 6), _spread("M", -1.0, 6)),
+        markets=("US", "IDX"),
+    )
+
+    idx = _cfind(report, "IDX", _RELATIVE_MOVE)
+    assert idx["trades"] == 0
+    assert idx["verdict"] == CANDIDATE_TOO_THIN
+    assert all(idx["groups"][g]["trades"] == 0 for g in GROUPS)
+
+
+def test_the_report_says_why_it_is_not_also_cut_per_year():
+    """The ranking reports per year and this does not, so the difference is stated
+    rather than left as an omission a reader has to notice."""
+    report = candidates_report(
+        DEFAULT_CONTRACT, _ccohort(_spread("H", 2.0, 6), _spread("M", -1.0, 6))
+    )
+
+    assert "per year" in report["not_cut_per_year"]
+    assert report["multiple_testing"]["intervals_reported"] >= 1
+
+
+def test_the_count_of_intervals_the_candidate_report_states_rides_on_it():
+    """Every group, gap and correlation is a claim at nominal alpha, so the budget
+    is counted rather than left for a reader to infer from the page's length."""
+    report = candidates_report(
+        DEFAULT_CONTRACT,
+        _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8)),
+        markets=("US",),
+    )
+
+    counted = 0
+    for body in report["markets"]:
+        for cell in body["candidates"]:
+            counted += sum(
+                1 for g in GROUPS
+                if cell["groups"][g]["bootstrap"]["ci_low"] is not None
+            )
+            counted += sum(
+                1
+                for key in ("gap", "rubric_reading", "value_correlation")
+                if cell[key]["bootstrap"]["ci_low"] is not None
+            )
+    assert report["multiple_testing"]["intervals_reported"] == counted
+
+
+def test_a_trade_with_no_persisted_detection_row_is_a_failure_not_a_drop():
+    """The join from trade to row is **total** or the denominator is broken.
+
+    Dropping an unmatched trade would shrink the cohort with nothing in the output
+    to say which trades left, and the ones most likely to go missing are not a
+    random sample.
+    """
+    with pytest.raises(ValueError, match="AAA"):
+        candidate_trades([_mtrade("AAA", 2016, 1.0)], {})
+
+
+def test_the_candidates_report_is_stamped_and_serialises():
+    """Stamped with the contract that produced it, like every other result in the
+    run, and JSON-clean so it can be committed beside them."""
+    report = candidates_report(
+        DEFAULT_CONTRACT, _ccohort(_spread("H", 2.0, 6), _spread("M", -1.0, 6))
+    )
+
+    assert report[CONTRACT_KEY] == DEFAULT_CONTRACT.to_dict()
+    assert json.loads(json.dumps(report)) == report
+
+
+def test_the_printed_page_shows_every_group_with_its_n_and_both_claims():
+    """A group's expectancy without its count is unreadable — six trades and six
+    hundred print the same number — and the selection contrast prints above the
+    outcome figures so a reader meets the older claim before the newer one."""
+    report = candidates_report(
+        DEFAULT_CONTRACT,
+        _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8), _spread("Z", 0.1, 3)),
+        markets=("US",),
+    )
+
+    page = format_candidates(report)
+
+    assert _RELATIVE_MOVE in page and _RS_LINE in page
+    assert "n=8" in page
+    assert "absent" in page
+    assert page.index("selection") < page.index("gap")
+
+
+def test_the_candidate_measurement_runs_off_the_denominator_end_to_end(
+    store, denominator
+):
+    """The seam that matters: persisted candidate values, the trades the simulator
+    took off the same detections, joined by the session they were decided on."""
+    _seed_figure_name(
+        store, denominator, "US", "AAA", date(2020, 1, 1), _FIG_FLAT + _FIG_WIN,
+        relative_move=+1.25,
+    )
+    trades = simulate_market(
+        store, denominator, "US", DEFAULT_CONTRACT, arms=(ARM_B,)
+    )
+
+    cohort = candidate_trades(trades, detection_index(denominator, "US"))
+
+    assert [c.trade.symbol for c in cohort] == ["AAA"]
+    assert cohort[0].detection.relative_move == pytest.approx(1.25)
+    body = _cbody(cohort, _RELATIVE_MOVE)
+    assert body["groups"][GROUP_HIT]["trades"] == 1
+
+
+def test_a_row_that_never_computed_the_dimension_reads_absent_not_a_miss():
+    """The absence guard, followed one step further back than `group_of`.
+
+    `group_of` reads absence off the stored value, so its claim is only as good as
+    what the field wrote. A `ScoredDetection` built without the dimension computed
+    at all defaults its value to **absent** rather than to `False` — until #195
+    `rs_line` defaulted to `False`, which would have put a field nobody measured
+    entirely on the miss side of a measurement whose whole subject is telling the
+    two apart.
+    """
+    plain = build_field([_det("AAA", 6)], [])[0]
+
+    assert plain.rs_line is None
+    assert plain.relative_move is None
+    assert group_of(named_candidate(_RS_LINE), plain) == GROUP_ABSENT
+    assert group_of(named_candidate(_RELATIVE_MOVE), plain) == GROUP_ABSENT
+
+
+def test_the_page_says_what_adr_0005_recorded_not_only_that_nothing_shipped():
+    """"Not admitted" covers two different findings.
+
+    `RS line` was refused on a wrong-way gap; `Relative move` landed on its own
+    bound and the criteria failed to separate. A page printing only "not admitted"
+    would flatten a refusal and an unresolved threshold into one word, and the
+    second is the reason #195 exists.
+    """
+    report = candidates_report(
+        DEFAULT_CONTRACT,
+        _ccohort(_spread("H", 2.0, 6), _spread("M", -1.0, 6)),
+        markets=("US",),
+    )
+
+    page = format_candidates(report)
+
+    assert "criterion 4" in page
+    assert "on_the_bound" in page
+    assert (
+        _cfind(report, "US", _RELATIVE_MOVE)["selection_contrast"]["recorded_as"]
+        != _cfind(report, "US", _RS_LINE)["selection_contrast"]["recorded_as"]
+    )
+
+# -- anchor before believing (issue #197) --------------------------------------
+#
+# Phase 6's table, and the two things it exists to prevent. The run overlaps
+# ground the reference study already measured, so it reproduces those figures
+# before any new figure from it is read — a mismatch is a bug in the new store or
+# the new chain, and every downstream number inherits it.
+#
+# Four claims are load-bearing:
+#
+#   * **Geometry first, and apart.** The three medians are measured from his bars
+#     and hold whatever the detector does. If they fail, the gate-dependent
+#     anchors are not read at all: nothing downstream is worth investigating yet.
+#   * **Every anchor carries its detector stamp and its superseded pins.** An
+#     anchor quoted from a stale pin fails for a reason that has nothing to do
+#     with the pipeline it is testing, and `in_field` at v2 is a different number
+#     from `in_field` at v3.
+#   * **Detection recall and `in_field` are different quantities** — the
+#     conflation #165 fixed, made unrepresentable rather than merely documented.
+#   * **The #162 tolerance covers a few trades, never a sign flip.** A fresh build
+#     shifts percentile denominators by ~0.5%; a difference that changes the sign
+#     of §4b's gap is the bug the table is looking for.
+
+from backtest.anchors import (
+    ANCHOR_ARMS,
+    ANCHORS,
+    ANCHORS_BY_KEY,
+    CONTAMINATION_TRADES,
+    GATE_DEPENDENT,
+    GATE_DEPENDENT_ANCHORS,
+    GEOMETRY,
+    GEOMETRY_ANCHORS,
+    QUANTITY_DETECTION_RECALL,
+    QUANTITY_IN_FIELD,
+    AnchorReport,
+    GeometrySample,
+    Measurement,
+    anchors_report,
+    check_anchors,
+    check_geometry,
+    coverage_measurement,
+    format_anchors,
+    geometry_measurements,
+    in_field_measurement,
+    measure_geometry,
+    recall_measurement,
+    trailing_range_adr,
+)
+from backtest.anchors import main as anchors_main
+from backtest.simulate import ARM_A, ARM_B, ARM_C
+from replay.funnel import StageRecall
+from replay.discrimination_grid import (
+    DETECTORS,
+    FIELD_TRUNCATED,
+    FIELD_WHOLE,
+    CellMeasurement,
+)
+from replay.placement import RubricStarDistributions, StarDistribution
+from replay.reference import REFERENCE_FIGURES
+from screener.detection import DETECTOR_VERSION, range_3bar_adr
+from screener.indicators import adr as _adr_of
+
+
+def _geometry_measurements(
+    *, three: float = 1.31, five: float = 1.86, adr: float = 0.0608
+) -> list[Measurement]:
+    """The three geometry measurements, at their committed values by default."""
+    return [
+        Measurement(anchor="median_range_3bar_adr", quantity="bar-geometry",
+                    values={"median": three}),
+        Measurement(anchor="median_range_5bar_adr", quantity="bar-geometry",
+                    values={"median": five}),
+        Measurement(anchor="median_adr_at_entry_eve", quantity="bar-geometry",
+                    values={"median": adr}),
+    ]
+
+
+def _coverage_measurement(**overrides) -> Measurement:
+    values = {
+        "blind_spot_tickers": REFERENCE_FIGURES["blind_spot_tickers"],
+        "blind_spot_trades": REFERENCE_FIGURES["blind_spot_trades"],
+        "distinct_tickers": REFERENCE_FIGURES["distinct_tickers"],
+        "total_rows": REFERENCE_FIGURES["total_rows"],
+        "rows_with_outcomes": REFERENCE_FIGURES["rows_with_outcomes"],
+        "blind_spot_r_share": REFERENCE_FIGURES["blind_spot_r_share"],
+    }
+    values.update(overrides)
+    return Measurement(anchor="coverage_blind_spot",
+                       quantity="reference-coverage", values=values)
+
+
+def _recall(passed: int = 549, total: int = 656) -> StageRecall:
+    return StageRecall(stage=STAGE_DETECTION, passed=passed, total=total,
+                       passed_ex_continuation=passed, total_ex_continuation=total)
+
+
+def _cell(
+    *,
+    version: int = 3,
+    in_field: int = 397,
+    picks_share: float = 0.1360,
+    field_share: float = 0.1165,
+    field_source=FIELD_WHOLE,
+) -> CellMeasurement:
+    """A grid cell whose ≥3.5★ shares land on the pair §4b's v3 row reports.
+
+    The shares are built as histograms rather than stored as rates, because
+    ``CellMeasurement.edge`` reads them off the distributions and a cell carrying
+    a rate the histogram does not support would test nothing.
+    """
+    def dist(share: float, n: int = 10_000) -> StarDistribution:
+        hits = round(share * n)
+        return StarDistribution.from_stars([4.0] * hits + [1.0] * (n - hits))
+
+    return CellMeasurement(
+        detector=DETECTORS[version],
+        field_source=field_source,
+        measured_sessions=821,
+        sessions_with_detections=821,
+        field_detections=64_070,
+        placed=in_field,
+        in_field=in_field,
+        eval_field_detections=64_070,
+        by_rubric=[
+            RubricStarDistributions(
+                rubric_version=1,
+                picks=dist(picks_share),
+                field=dist(field_share),
+                top_thirty=103,
+            )
+        ],
+    )
+
+
+def _all_measurements(**kwargs) -> list[Measurement]:
+    """Every anchor's measurement, all at their committed values by default."""
+    return [
+        *_geometry_measurements(**kwargs.pop("geometry", {})),
+        _coverage_measurement(**kwargs.pop("coverage", {})),
+        recall_measurement(_recall(**kwargs.pop("recall", {}))),
+        in_field_measurement(
+            _cell(**kwargs.pop("cell", {})), replayable=kwargs.pop("replayable", 656)
+        ),
+    ]
+
+
+# -- the table itself ----------------------------------------------------------
+
+
+def test_the_table_holds_six_anchors_with_the_three_geometry_ones_first():
+    """The plan's order is a claim about what is worth reading when: geometry
+    anchors the store and the indicators, so it is checked before anything that
+    depends on a gate."""
+    assert len(ANCHORS) == 6
+    assert [a.key for a in ANCHORS[:3]] == [a.key for a in GEOMETRY_ANCHORS]
+    assert {a.kind for a in GEOMETRY_ANCHORS} == {GEOMETRY}
+    assert {a.kind for a in GATE_DEPENDENT_ANCHORS} == {GATE_DEPENDENT}
+    assert [a.committed["median"] for a in GEOMETRY_ANCHORS] == [1.31, 1.86, 0.0608]
+
+
+def test_every_anchor_is_stamped_with_the_detector_version_it_was_measured_at():
+    """Ticket criterion: a figure whose version is absent gets compared against a
+    run built at another one, which is exactly how the `in_field` row went wrong."""
+    stamps = {a.key: a.detector_stamp for a in ANCHORS}
+
+    # Geometry holds whatever the detector does, and says so rather than going
+    # unstamped — an empty stamp reads as "not recorded".
+    for anchor in GEOMETRY_ANCHORS:
+        assert stamps[anchor.key] == "detector-independent (bar geometry)"
+    # Gate-invariant, and measured under both versions' geometry.
+    assert ANCHORS_BY_KEY["detection_recall"].measured_at == (2, 3)
+    assert ANCHORS_BY_KEY["detection_recall"].holds_at(2)
+    # Per version, because the quantity is per version.
+    assert ANCHORS_BY_KEY["in_field"].measured_at == (3,)
+    assert not ANCHORS_BY_KEY["in_field"].holds_at(2)
+    assert stamps["in_field"] == "detector v3"
+
+
+def test_the_in_field_anchor_is_taken_at_the_live_detector_and_flagged_first():
+    """397 of 656 at v3 is a first measurement with no second one agreeing with
+    it, so a mismatch is investigated in both directions rather than charged
+    straight to the new pipeline."""
+    anchor = ANCHORS_BY_KEY["in_field"]
+
+    assert anchor.committed["in_field"] == 397
+    assert anchor.committed["of"] == 656
+    assert anchor.measured_at == (DETECTOR_VERSION,)
+    assert anchor.first_measurement is True
+    assert not ANCHORS_BY_KEY["detection_recall"].first_measurement
+
+
+def test_every_superseded_pin_is_recorded_beside_its_live_value():
+    """An anchor quoted from a stale pin fails for a reason unrelated to the
+    pipeline it is testing, so each superseded figure sits on the anchor with what
+    moved it — not in a comment and not in the plan alone."""
+    in_field = ANCHORS_BY_KEY["in_field"]
+    values = [p.value for p in in_field.superseded]
+
+    assert "349 of 656 at detector v2" in values
+    assert any("159 of 656" in v for v in values)
+    assert any("104 of 656" in v for v in values)
+    assert any("104 of 658" in v for v in values)
+    assert all(p.why for p in in_field.superseded)
+    # The other two gate-dependent rows have moved too, and carry their own.
+    assert any("380 of 658" in p.value
+               for p in ANCHORS_BY_KEY["detection_recall"].superseded)
+    assert ANCHORS_BY_KEY["coverage_blind_spot"].superseded
+
+
+def test_the_coverage_anchor_reads_the_reference_modules_own_pins():
+    """No second definition of the coverage figures: this table and
+    ``replay.reference.assert_matches_reference`` check the same numbers, so they
+    cannot come to disagree about what was committed."""
+    committed = ANCHORS_BY_KEY["coverage_blind_spot"].committed
+
+    assert committed["blind_spot_tickers"] == REFERENCE_FIGURES["blind_spot_tickers"]
+    assert committed["blind_spot_trades"] == REFERENCE_FIGURES["blind_spot_trades"]
+    assert committed["distinct_tickers"] == REFERENCE_FIGURES["distinct_tickers"]
+    assert committed["total_rows"] == REFERENCE_FIGURES["total_rows"]
+
+
+def test_the_field_rows_carry_the_reference_contamination_tolerance():
+    """Both `in_field` values were measured on the store that ranks five
+    references as candidates; the tolerance is that fix landing, and it says so."""
+    anchor = ANCHORS_BY_KEY["in_field"]
+
+    assert anchor.tolerance["in_field"] == CONTAMINATION_TRADES
+    assert "#162" in (anchor.tolerance_reason or "")
+    # Recorded on both field rows: the live v3 value and the superseded v2 one.
+    assert any("v2" in p.value for p in anchor.superseded)
+    # The denominator is not inside the tolerance — a changed replayable
+    # population is coverage drift, which the coverage anchor owns.
+    assert anchor.tolerance["of"] == 0
+
+
+# -- the check -----------------------------------------------------------------
+
+
+def test_the_six_anchors_check_through_the_drift_mechanism_and_report_apart():
+    """The happy path: every anchor at its committed value, geometry reported in
+    its own group ahead of the gate-dependent three."""
+    report = check_anchors(_all_measurements())
+
+    assert [c.anchor.key for c in report.geometry] == [
+        "median_range_3bar_adr", "median_range_5bar_adr", "median_adr_at_entry_eve",
+    ]
+    assert [c.anchor.key for c in report.gate_dependent] == [
+        "coverage_blind_spot", "detection_recall", "in_field",
+    ]
+    assert all(c.matched for c in report.checks)
+    assert report.passes
+
+
+def test_a_geometry_failure_stops_before_the_gate_dependent_anchors_are_read():
+    """If the store's own geometry does not reproduce, no figure measured over
+    that store is worth investigating yet — so the check says so and stops."""
+    measurements = [
+        *_geometry_measurements(three=1.31, five=2.60, adr=0.0608),
+        _coverage_measurement(),
+        recall_measurement(_recall()),
+        in_field_measurement(_cell(), replayable=656),
+    ]
+
+    with pytest.raises(DriftError) as excinfo:
+        check_anchors(measurements)
+
+    message = str(excinfo.value)
+    assert "median_range_5bar_adr" in message
+    assert "gate-dependent" in message and "not read" in message
+    # The gate-dependent anchors are absent from the failure entirely: reporting
+    # them here would invite investigating a number that cannot be trusted.
+    assert "in_field" not in message
+
+
+def test_a_gate_dependent_mismatch_fails_loudly_with_both_figures():
+    """The drift mechanism the study has used since #114: a mismatch raises rather
+    than logging, and names what came back against what was committed."""
+    with pytest.raises(DriftError) as excinfo:
+        check_anchors(_all_measurements(recall={"passed": 500}))
+
+    assert "detection_recall" in str(excinfo.value)
+    assert "500" in str(excinfo.value) and "549" in str(excinfo.value)
+
+
+def test_detection_recall_admits_no_tolerance():
+    """It is gate-invariant and exact: the funnel evaluates every stage
+    unconditionally, so nothing about a fresh build moves it by a trade."""
+    assert ANCHORS_BY_KEY["detection_recall"].tolerance == {"passed": 0, "of": 0}
+
+    with pytest.raises(DriftError):
+        check_anchors(_all_measurements(recall={"passed": 548}))
+
+
+def test_the_contamination_tolerance_absorbs_a_few_trades_on_the_field_row():
+    """A fresh build shifts percentile denominators by ~0.5%, which moves decile
+    membership at the margin. That is the fix landing, not a bug."""
+    report = check_anchors(
+        _all_measurements(cell={"in_field": 397 - CONTAMINATION_TRADES})
+    )
+
+    check = next(c for c in report.gate_dependent if c.anchor.key == "in_field")
+    assert check.matched
+    assert report.passes
+
+
+def test_a_field_difference_past_the_contamination_band_fails():
+    """The tolerance is bounded by what the denominator shift can do; past it the
+    difference is not a denominator shift."""
+    with pytest.raises(DriftError) as excinfo:
+        check_anchors(
+            _all_measurements(cell={"in_field": 397 - CONTAMINATION_TRADES - 1})
+        )
+
+    assert "in_field" in str(excinfo.value)
+
+
+def test_a_sign_flip_in_the_gap_fails_inside_the_trade_tolerance():
+    """The one thing the tolerance may not absorb. The trade count is well inside
+    the band, and the anchor fails anyway, because a gap that changes sign is the
+    bug this table exists to find."""
+    with pytest.raises(DriftError) as excinfo:
+        check_anchors(
+            _all_measurements(
+                cell={"in_field": 396, "picks_share": 0.1165, "field_share": 0.1360}
+            )
+        )
+
+    message = str(excinfo.value)
+    assert "gap_pp" in message
+    assert "sign" in message and "tolerance does not cover" in message
+
+
+def test_the_gaps_magnitude_is_free_to_move():
+    """Only the sign is anchored. The gap is a rate on two populations a fresh
+    build re-derives, so pinning its magnitude would fail every honest run."""
+    report = check_anchors(
+        _all_measurements(cell={"picks_share": 0.30, "field_share": 0.10})
+    )
+
+    gap = next(
+        c for a in report.gate_dependent if a.anchor.key == "in_field"
+        for c in a.components if c.name == "gap_pp"
+    )
+    assert gap.measured == pytest.approx(20.0)
+    assert gap.matched and not gap.sign_flipped
+
+
+def test_detection_recall_and_in_field_cannot_be_checked_against_each_other():
+    """The conflation #165 fixed, made unrepresentable. Offering the funnel's
+    recall as the field-membership measurement fails at the seam rather than
+    failing an anchor that should have passed."""
+    recall = recall_measurement(_recall())
+    misfiled = dataclasses.replace(recall, anchor="in_field")
+
+    with pytest.raises(DriftError) as excinfo:
+        check_anchors([
+            *_geometry_measurements(), _coverage_measurement(),
+            recall, misfiled,
+        ])
+
+    message = str(excinfo.value)
+    assert "different quantities" in message and "#165" in message
+    assert QUANTITY_IN_FIELD in message and QUANTITY_DETECTION_RECALL in message
+
+
+def test_the_two_field_measurements_come_from_two_different_types():
+    """Structural, not documentary: recall is read off the funnel's detection
+    stage and `in_field` off a grid cell, so neither adapter can produce the
+    other's measurement."""
+    assert recall_measurement(_recall()).quantity == QUANTITY_DETECTION_RECALL
+    assert (
+        in_field_measurement(_cell(), replayable=656).quantity == QUANTITY_IN_FIELD
+    )
+    with pytest.raises(DriftError):
+        recall_measurement(dataclasses.replace(_recall(), stage="liquidity"))
+
+
+def test_in_field_is_anchored_on_the_whole_field_only():
+    """Every figure over the truncated field is superseded: the two-year rank
+    retention emptied 316 of 821 sessions, and #164 measured what that did."""
+    with pytest.raises(DriftError) as excinfo:
+        in_field_measurement(
+            _cell(field_source=FIELD_TRUNCATED), replayable=656
+        )
+
+    assert "whole field" in str(excinfo.value)
+
+
+def test_a_field_measurement_from_another_detector_version_is_refused():
+    """397 is v3's number. A run built at v3 checked against a v2 cell — or the
+    reverse — fails an anchor it should pass, which is the error the per-version
+    stamp exists to prevent."""
+    with pytest.raises(DriftError) as excinfo:
+        check_anchors(_all_measurements(cell={"version": 2, "in_field": 349}))
+
+    assert "v2" in str(excinfo.value) and "built at" in str(excinfo.value)
+
+    # And the anchor itself refuses to be quoted at a version it never measured.
+    with pytest.raises(DriftError) as excinfo:
+        check_anchors(_all_measurements(), detector_version=2)
+
+    assert "no committed value at detector v2" in str(excinfo.value)
+
+
+def test_an_anchor_with_no_measurement_fails_rather_than_vanishing():
+    """A partially anchored run is not an anchored run, and an anchor that is
+    silently absent from the report reads as one that passed."""
+    with pytest.raises(DriftError) as excinfo:
+        check_anchors([*_geometry_measurements(), _coverage_measurement(),
+                       recall_measurement(_recall())])
+
+    assert "in_field" in str(excinfo.value) and "no measurement" in str(excinfo.value)
+
+
+def test_a_median_that_could_not_be_computed_fails_rather_than_passing():
+    """An empty sample yields no median, which is a failure of the store — never
+    an anchor quietly skipped."""
+    empty = GeometrySample(
+        n=0, median_range_3bar_adr=None, median_range_5bar_adr=None,
+        median_adr_at_entry_eve=None, without_bars=828, short_history=0,
+        no_prior_session=0,
+    )
+
+    with pytest.raises(DriftError) as excinfo:
+        check_anchors([
+            *geometry_measurements(empty), _coverage_measurement(),
+            recall_measurement(_recall()),
+            in_field_measurement(_cell(), replayable=656),
+        ])
+
+    assert "median_range_3bar_adr" in str(excinfo.value)
+
+
+def test_a_divergence_written_up_is_recorded_and_never_prints_as_a_match():
+    """The plan's "reproduce it, or explain the divergence in writing". A cause
+    lets the run proceed; the anchor still reports as diverged, so the write-up
+    cannot be mistaken for a reproduction."""
+    report = check_anchors(
+        _all_measurements(recall={"passed": 500}),
+        explained={"detection_recall": "the crawl resolves 3 names the replay "
+                                       "store never held; listed in the write-up"},
+    )
+
+    check = next(c for c in report.gate_dependent
+                 if c.anchor.key == "detection_recall")
+    assert not check.matched
+    assert check.explained and check.passes
+    assert check.verdict == "diverged (explained)"
+    assert report.passes
+
+
+def test_an_explanation_for_an_anchor_that_does_not_exist_is_refused():
+    """A typo in an anchor key would otherwise silently explain nothing while
+    reading as though it had explained something."""
+    with pytest.raises(DriftError):
+        check_anchors(_all_measurements(), explained={"in-field": "typo"})
+
+
+# -- arms B and C --------------------------------------------------------------
+
+
+def test_anchoring_uses_arms_b_and_c_only():
+    """Arm A has no counterpart in the reference set, so it is measured and never
+    anchored — and the fact is derived from the arm table, not restated here."""
+    assert ANCHOR_ARMS == (ARM_B, ARM_C)
+    assert ARM_A not in ANCHOR_ARMS
+
+    with pytest.raises(DriftError) as excinfo:
+        check_anchors(_all_measurements(), arms=(ARM_A,))
+
+    assert "no counterpart in the reference set" in str(excinfo.value)
+
+
+def test_a_measurement_tagged_with_arm_a_is_refused():
+    """The refusal reaches the measurement too: an anchor taken on arm A would be
+    an anchor against an exit the reference set never simulated."""
+    recall = recall_measurement(_recall(), arm=ARM_A)
+
+    with pytest.raises(DriftError) as excinfo:
+        check_anchors([
+            *_geometry_measurements(), _coverage_measurement(), recall,
+            in_field_measurement(_cell(), replayable=656),
+        ])
+
+    assert "arm 'A'" in str(excinfo.value)
+
+
+def test_an_arm_b_measurement_anchors_normally():
+    report = check_anchors([
+        *_geometry_measurements(), _coverage_measurement(),
+        recall_measurement(_recall(), arm=ARM_B),
+        in_field_measurement(_cell(), replayable=656, arm=ARM_B),
+    ])
+
+    assert report.passes
+    assert report.arms == ANCHOR_ARMS
+
+
+# -- the geometry, measured off the store --------------------------------------
+
+
+def _anchor_session(index: int) -> date:
+    return date(2020, 1, 1) + timedelta(days=index)
+
+
+def _geometry_bars(n: int = 40, *, spike_last: bool = False) -> list[Bar]:
+    """A quiet series of identical-shaped bars, optionally with a wild last one.
+
+    Every bar has the same 2% high/low span, so ADR and the trailing ranges are
+    hand-checkable, and the last bar is the *entry* session — a measurement that
+    read it instead of the eve would move by an order of magnitude.
+    """
+    bars = []
+    for i in range(n):
+        high, low = 102.0, 100.0
+        if spike_last and i == n - 1:
+            high, low = 300.0, 50.0
+        bars.append(
+            Bar(session=_anchor_session(i), open=101.0, high=high, low=low,
+                close=101.0, adj_close=101.0, volume=1_000_000)
+        )
+    return bars
+
+
+def test_the_five_bar_ruler_agrees_with_the_detectors_own_at_three_bars():
+    """There is no second definition of the trailing range: the k-generic ruler
+    here reduces to ``screener.detection.range_3bar_adr`` at k = 3, so the two
+    cannot drift into disagreeing about the same number."""
+    bars = _geometry_bars(30)
+    # A ragged tail, so the identity is tested on a series where k actually
+    # changes the answer rather than on flat bars where every k agrees.
+    bars[-1] = dataclasses.replace(bars[-1], high=110.0, low=99.0)
+    bars[-3] = dataclasses.replace(bars[-3], high=104.0, low=95.0)
+
+    idx = len(bars) - 1
+    adr_abs = _adr_of(bars) * bars[idx].close
+    theirs = range_3bar_adr(
+        [b.high for b in bars], [b.low for b in bars], idx, adr_abs
+    )
+
+    assert trailing_range_adr(bars, idx, 3) == pytest.approx(theirs)
+    # And k = 5 is at least as wide, which is the property that makes k = 3 the
+    # tightest window the cluster scan can see.
+    assert trailing_range_adr(bars, idx, 5) >= trailing_range_adr(bars, idx, 3)
+
+
+def test_the_geometry_is_measured_at_the_evaluation_session_not_the_entry(store):
+    """Point-in-time, like every other value entering a decision: the entry
+    session's own bar is ahead of the night the app would have had to name the
+    stock, so it never enters the anchor."""
+    bars = _geometry_bars(40, spike_last=True)
+    store.append_bars("US", "AAA", bars)
+    trades = parse_trades([_trade_record("AAA", bars[-1].session.isoformat())])
+
+    measured = measure_geometry(store, trades, market="US")
+
+    eve_index = len(bars) - 2
+    expected_3 = trailing_range_adr(bars, eve_index, 3)
+    assert measured.n == 1
+    assert measured.median_range_3bar_adr == pytest.approx(expected_3)
+    assert measured.median_adr_at_entry_eve == pytest.approx(_adr_of(bars[:-1]))
+    # The spike would have trebled it, which is what makes this test worth having.
+    assert trailing_range_adr(bars, len(bars) - 1, 3) > 3 * expected_3
+
+
+def test_a_trade_contributes_to_all_three_medians_or_to_none(store):
+    """The three figures are taken over one sample, so a divergence between them
+    can never be a difference in who was included."""
+    store.append_bars("US", "AAA", _geometry_bars(40))
+    store.append_bars("US", "SHORT", _geometry_bars(5))
+    entry = _anchor_session(39).isoformat()
+    trades = parse_trades([
+        _trade_record("AAA", entry),
+        _trade_record("SHORT", entry),
+        _trade_record("GONE", entry),
+    ])
+
+    measured = measure_geometry(store, trades, market="US")
+
+    assert measured.n == 1
+    assert measured.without_bars == 1     # GONE: the survivorship hole
+    assert measured.short_history == 1    # SHORT: fewer than 20 bars at the eve
+    assert measured.median_range_5bar_adr is not None
+
+
+def test_the_geometry_sample_size_rides_on_the_report(store):
+    """A median over a silently halved sample prints as a plausible number, so how
+    many trades stood behind it travels with it."""
+    store.append_bars("US", "AAA", _geometry_bars(40))
+    entry = _anchor_session(39).isoformat()
+    trades = parse_trades([_trade_record("AAA", entry), _trade_record("GONE", entry)])
+    measured = measure_geometry(store, trades, market="US")
+
+    report = check_anchors(
+        [
+            *geometry_measurements(
+                dataclasses.replace(
+                    measured,
+                    median_range_3bar_adr=1.31,
+                    median_range_5bar_adr=1.86,
+                    median_adr_at_entry_eve=0.0608,
+                )
+            ),
+            _coverage_measurement(),
+            recall_measurement(_recall()),
+            in_field_measurement(_cell(), replayable=656),
+        ],
+        sample=measured,
+    )
+    body = anchors_report(DEFAULT_CONTRACT, report)
+
+    assert body["geometry_sample"]["n"] == 1
+    assert body["geometry_sample"]["without_bars"] == 1
+
+
+def test_coverage_is_measured_off_the_reference_report(store):
+    """The coverage anchor reads the same report ``replay.reference`` builds — one
+    classification of the reference set, not a second one that could disagree."""
+    store.append_bars("US", "AAA", _geometry_bars(40))
+    entry = _anchor_session(39).isoformat()
+    trades = parse_trades([_trade_record("AAA", entry), _trade_record("GONE", entry)])
+
+    measurement = coverage_measurement(build_report(trades, store, market="US"))
+
+    assert measurement.values["blind_spot_tickers"] == 1
+    assert measurement.values["total_rows"] == 2
+
+
+# -- the result, and the command ------------------------------------------------
+
+
+def test_the_anchor_report_is_stamped_and_serialises():
+    """Like every figure the package emits: the contract rides on it, and the two
+    groups stay separate keys rather than one list a reader has to sort."""
+    report = check_anchors(_all_measurements())
+    body = anchors_report(DEFAULT_CONTRACT, report)
+
+    assert body[CONTRACT_KEY] == DEFAULT_CONTRACT.to_dict()
+    assert [c["anchor"] for c in body["geometry"]] == [
+        a.key for a in GEOMETRY_ANCHORS
+    ]
+    assert [c["anchor"] for c in body["gate_dependent"]] == [
+        a.key for a in GATE_DEPENDENT_ANCHORS
+    ]
+    assert body["arms_anchored"] == list(ANCHOR_ARMS)
+    assert body["arms_measured_never_anchored"] == [ARM_A]
+    assert json.loads(json.dumps(body)) == body
+
+
+def test_the_stamp_and_the_pins_ride_on_the_serialised_result():
+    """A report a reader can check without the plan open beside it."""
+    body = anchors_report(DEFAULT_CONTRACT, check_anchors(_all_measurements()))
+    in_field = next(c for c in body["gate_dependent"] if c["anchor"] == "in_field")
+
+    assert in_field["detector_stamp"] == "detector v3"
+    assert in_field["first_measurement"] is True
+    assert "#162" in in_field["tolerance_reason"]
+    assert len(in_field["superseded"]) == 4
+
+
+def test_the_printed_report_separates_the_two_kinds_of_anchor():
+    text = format_anchors(check_anchors(_all_measurements()))
+
+    assert "geometry — measured from his bars" in text
+    assert "gate-dependent — these move" in text
+    assert text.index("geometry — measured") < text.index("gate-dependent — these")
+    assert "measured, never anchored" in text
+
+
+def test_an_unchecked_gate_dependent_group_is_reported_as_unchecked():
+    """A run anchored on four of six is not anchored, and an empty section reads
+    as three passes unless it says otherwise."""
+    report = AnchorReport(
+        detector_version=DETECTOR_VERSION,
+        arms=ANCHOR_ARMS,
+        geometry=check_geometry(_geometry_measurements()),
+        gate_dependent=(),
+        geometry_only=True,
+    )
+
+    assert not report.passes
+    assert "NOT CHECKED" in format_anchors(report)
+
+
+def _anchor_cli_store(tmp_path) -> tuple[Path, Path]:
+    """A one-name store and a reference set whose geometry lands on the anchors.
+
+    The store is written to disk because the command opens one; the bars are
+    scaled so the three medians sit exactly on their committed values, which is
+    what lets the command's *pass* path be exercised without a 649-trade fixture.
+    """
+    path = tmp_path / "backtest_anchor.duckdb"
+    store = Store.open(path)
+    store.append_bars("US", "AAA", _geometry_bars(40))
+    store.close()
+
+    reference = tmp_path / "trades.json"
+    reference.write_text(
+        json.dumps([_trade_record("AAA", _anchor_session(39).isoformat())])
+    )
+    return path, reference
+
+
+def test_the_command_refuses_to_report_a_run_anchored_on_four_of_six(
+    tmp_path, capsys
+):
+    """Without the run's own field measurements the two gate-dependent field
+    anchors are not checked, and a report that printed the four it *could* check
+    would read as an anchored run. It says what it did not check, and fails."""
+    path, reference = _anchor_cli_store(tmp_path)
+
+    code = anchors_main([
+        "--store", str(path), "--reference", str(reference),
+    ])
+
+    assert code == 1
+    printed = capsys.readouterr().out
+    assert "NOT CHECKED" in printed
+    assert "the run is not anchored" in printed
+    # The geometry it did check is still reported — that is the point of running
+    # it at all before the field pass exists.
+    assert "Median trailing 3-bar range" in printed
+
+
+def test_the_command_writes_a_stamped_result_when_every_anchor_is_offered(
+    tmp_path, capsys
+):
+    """The whole Phase 6 path: geometry and coverage measured off the store, the
+    two field anchors read from the run's own pass, the result stamped."""
+    path, reference = _anchor_cli_store(tmp_path)
+    field = tmp_path / "field.json"
+    field.write_text(json.dumps({
+        "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
+        "in_field": {"in_field": 395, "of": 656, "gap_pp": 1.9,
+                     "field": "whole", "detector_version": 3},
+    }))
+    out_json = tmp_path / "anchors.json"
+
+    code = anchors_main([
+        "--store", str(path), "--reference", str(reference),
+        "--field-measurements", str(field),
+        "--out-json", str(out_json),
+        # The one-name fixture cannot reproduce his 649-trade medians or the
+        # 828-row coverage, so those divergences are written up — which is the
+        # other half of "reproduce it, or explain it".
+        "--explain", "median_range_3bar_adr=one-name fixture",
+        "--explain", "median_range_5bar_adr=one-name fixture",
+        "--explain", "median_adr_at_entry_eve=one-name fixture",
+        "--explain", "coverage_blind_spot=one-name fixture",
+    ])
+
+    assert code == 0
+    written = json.loads(out_json.read_text())
+    assert written[CONTRACT_KEY] == DEFAULT_CONTRACT.to_dict()
+    in_field = next(
+        c for c in written["gate_dependent"] if c["anchor"] == "in_field"
+    )
+    assert in_field["verdict"] == "match"       # 395 is inside the #162 band
+    assert written["passes"] is True
+    geometry = written["geometry"][0]
+    assert geometry["verdict"] == "diverged (explained)"
+    assert capsys.readouterr().out.count("diverged (explained)") >= 1
+
+
+def test_the_command_fails_on_a_field_anchor_from_the_wrong_version(tmp_path):
+    """The failure the per-version stamp exists to catch, through the command:
+    v2's 349 quoted at a run built on v3."""
+    path, reference = _anchor_cli_store(tmp_path)
+    field = tmp_path / "field.json"
+    field.write_text(json.dumps({
+        "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
+        "in_field": {"in_field": 349, "of": 656, "gap_pp": 2.02,
+                     "field": "whole", "detector_version": 2},
+    }))
+
+    code = anchors_main([
+        "--store", str(path), "--reference", str(reference),
+        "--field-measurements", str(field),
+        "--explain", "median_range_3bar_adr=one-name fixture",
+        "--explain", "median_range_5bar_adr=one-name fixture",
+        "--explain", "median_adr_at_entry_eve=one-name fixture",
+        "--explain", "coverage_blind_spot=one-name fixture",
+    ])
+
+    assert code == 1
+
+
+# -- what the #197 review found unguarded --------------------------------------
+
+from backtest.anchors import MEASURED_NEVER_ANCHORED
+from backtest.simulate import ARM_SPECS
+from replay.reference import R_SHARE_TOL
+
+
+def test_a_sign_flip_cannot_be_waived_by_writing_it_up():
+    """The one failure this table exists to find, and the one no cause excuses.
+    Every other divergence may be explained in writing; a flip in the sign of
+    §4b's gap must stop the run and be investigated in the pipeline, or the anchor
+    is waivable by a free-text argument and guards nothing."""
+    flipped = _all_measurements(
+        cell={"in_field": 396, "picks_share": 0.1165, "field_share": 0.1360}
+    )
+
+    with pytest.raises(DriftError) as excinfo:
+        check_anchors(flipped, explained={"in_field": "a plausible-sounding cause"})
+
+    assert "sign" in str(excinfo.value)
+    # The same explain path *does* carry an ordinary divergence, so the refusal is
+    # specific to the sign rather than the write-up being broken.
+    assert check_anchors(
+        _all_measurements(recall={"passed": 500}),
+        explained={"detection_recall": "a written cause"},
+    ).passes
+
+
+def test_the_command_enforces_the_same_two_gates_its_adapters_do(tmp_path, capsys):
+    """The file path is the one the documented reproduction command uses, so the
+    conflation guard has to hold there too: a field row that does not name the
+    whole field, or a recall row that does not name the detection stage, is
+    refused rather than believed."""
+    path, reference = _anchor_cli_store(tmp_path)
+    explain = [
+        "--explain", "median_range_3bar_adr=one-name fixture",
+        "--explain", "median_range_5bar_adr=one-name fixture",
+        "--explain", "median_adr_at_entry_eve=one-name fixture",
+        "--explain", "coverage_blind_spot=one-name fixture",
+    ]
+
+    truncated = tmp_path / "truncated.json"
+    truncated.write_text(json.dumps({
+        "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
+        "in_field": {"in_field": 397, "of": 656, "gap_pp": 1.95,
+                     "field": "truncated", "detector_version": 3},
+    }))
+    assert anchors_main(["--store", str(path), "--reference", str(reference),
+                         "--field-measurements", str(truncated), *explain]) == 1
+    assert "whole field" in capsys.readouterr().out
+
+    wrong_stage = tmp_path / "stage.json"
+    wrong_stage.write_text(json.dumps({
+        "detection_recall": {"passed": 549, "of": 656, "stage": "liquidity"},
+        "in_field": {"in_field": 397, "of": 656, "gap_pp": 1.95,
+                     "field": "whole", "detector_version": 3},
+    }))
+    assert anchors_main(["--store", str(path), "--reference", str(reference),
+                         "--field-measurements", str(wrong_stage), *explain]) == 1
+    assert "detection stage" in capsys.readouterr().out
+
+
+def test_the_coverage_anchor_is_no_weaker_than_the_reference_assertion():
+    """It checks all five of the reference module's pins, the realised-R share
+    included. A run reproducing the counts while moving the share would have
+    changed *which* trades are missing, and a coverage check that passed it would
+    be weaker than the one this repo already had."""
+    anchor = ANCHORS_BY_KEY["coverage_blind_spot"]
+
+    assert set(anchor.committed) == set(REFERENCE_FIGURES)
+    assert anchor.committed["blind_spot_r_share"] == (
+        REFERENCE_FIGURES["blind_spot_r_share"]
+    )
+    # Pinned to the reference module's own band, not to a second one.
+    assert anchor.tolerance["blind_spot_r_share"] == R_SHARE_TOL
+
+    with pytest.raises(DriftError):
+        check_anchors(_all_measurements(coverage={"blind_spot_r_share": 0.25}))
+
+
+def test_the_contamination_tolerance_is_recorded_on_the_superseded_field_row_too():
+    """Both `in_field` values were measured on the contaminated field, so the v2
+    pin says so: a run built at v2 anchors on it under the same band, and a reader
+    who found the note only on the live row would think the pin was clean."""
+    v2 = next(
+        p for p in ANCHORS_BY_KEY["in_field"].superseded
+        if "at detector v2" in p.value
+    )
+
+    assert "#162" in v2.why
+    assert "contaminated field" in v2.why
+
+
+def test_the_arms_never_anchored_are_derived_once():
+    """The module's own rule — an arm's comparability is one fact, read in one
+    place — applied to the complement as well as to the set."""
+    assert MEASURED_NEVER_ANCHORED == (ARM_A,)
+    assert set(MEASURED_NEVER_ANCHORED) | set(ANCHOR_ARMS) == set(ARM_SPECS)
+
+
 # -- bounding the survivorship hole (issue #196) --------------------------------
 #
 # Phase 2, and the measurement that gates believing any performance number. Four
@@ -7597,7 +10501,7 @@ def _snap(as_of: date, *symbols: str, file: str = "nasdaqlisted.txt") -> Snapsho
     return Snapshot(as_of=as_of, file=file, symbols=tuple(symbols))
 
 
-def _spine(*snapshots: Snapshot, market: str = "US") -> ListingSpine:
+def _listing_spine(*snapshots: Snapshot, market: str = "US") -> ListingSpine:
     return ListingSpine(market=market, source=SPINE_SOURCE, snapshots=tuple(snapshots))
 
 
@@ -7612,7 +10516,7 @@ def _bracketing(*snapshots: Snapshot) -> ListingSpine:
         _snap(date(2011, 12, 1), "EDGE"),
         _snap(date(2026, 9, 1), "EDGE"),
     )
-    return _spine(*edges, *snapshots)
+    return _listing_spine(*edges, *snapshots)
 
 
 # -- coverage is a fact about the bars, not about the symbol -------------------
@@ -7665,7 +10569,7 @@ def test_a_spine_that_does_not_bracket_the_window_is_refused(store: Store):
     Refused rather than reported as a caveat: the count is the deliverable, and a
     count whose edges are the source's edges is a measurement of the source.
     """
-    spine = _spine(_snap(date(2015, 6, 1), "AAA"), _snap(date(2026, 8, 1), "AAA"))
+    spine = _listing_spine(_snap(date(2015, 6, 1), "AAA"), _snap(date(2026, 8, 1), "AAA"))
 
     with pytest.raises(SpineCoverageShortfall) as excinfo:
         spine.verify(*_WINDOW)
@@ -7745,13 +10649,13 @@ def test_a_name_listed_only_after_the_window_is_not_this_windows_hole(store: Sto
     """The window is the claim's scope, and a name that never traded inside it is
     absent from today's enumeration for reasons this run is not measuring."""
     window = (date(2012, 1, 1), date(2014, 12, 31))
-    spine = _spine(
+    spine = _listing_spine(
         _snap(date(2011, 12, 1), "EDGE"),
         _snap(date(2014, 12, 1), "EDGE"),
         _snap(date(2013, 1, 1), "INSIDE"),
     )
     # A later snapshot carrying a name that only ever appears after the window.
-    later = _spine(*spine.snapshots, _snap(date(2016, 1, 1), "AFTER"))
+    later = _listing_spine(*spine.snapshots, _snap(date(2016, 1, 1), "AFTER"))
 
     found = absences(later.verify(*window), enumerated_today=["EDGE"], window=window)
 

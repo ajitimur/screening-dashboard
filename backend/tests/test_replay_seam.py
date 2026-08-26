@@ -9759,6 +9759,7 @@ def test_the_arms_never_anchored_are_derived_once():
 
 from backtest.full_run import (
     AnchorOutcome,
+    explained_anchors,
     failed_anchors,
     read_anchor_report,
     LATEST_COMPLETE_SESSION,
@@ -10208,7 +10209,11 @@ def test_a_divergence_with_a_written_cause_settles_the_anchors(store, denominato
     run = run_full(store, denominator, _fixture_contract(dates), anchors=explained)
 
     assert run.settled is True
-    assert full_run_report(run)["anchors_settled"] is True
+    body = full_run_report(run)["anchors"]
+    assert body["settled"] is True
+    # The payload names *which* anchor did not reproduce, not merely that the
+    # run was allowed to proceed.
+    assert body["diverged_with_cause"] == ["median_range_3bar_adr"]
     # Recorded as a divergence, never reported as a match.
     check = next(c for c in explained.checks if c.anchor.key == "median_range_3bar_adr")
     assert check.verdict == "diverged (explained)"

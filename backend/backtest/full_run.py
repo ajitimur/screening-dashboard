@@ -1,4 +1,6 @@
-"""The full run — both markets, fourteen years (issue #198, PRD #182 Phase 3 at full scope).
+"""The full run — both markets, fourteen years (issue #198).
+
+PRD #182 Phase 3, at full scope.
 
 Phase 3 replayed one market over a short window to prove the machine ran
 (:mod:`backtest.run`). This is the same machine at the scope the plan actually
@@ -54,7 +56,12 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Callable, Sequence, TextIO
 
-from backtest.anchors import SETTLED_VERDICTS, AnchorReport, format_anchors
+from backtest.anchors import (
+    SETTLED_VERDICTS,
+    VERDICT_EXPLAINED,
+    AnchorReport,
+    format_anchors,
+)
 from backtest.chain import WindowNotCovered
 from backtest.contract import (
     DEFAULT_CONTRACT,
@@ -104,6 +111,7 @@ class AnchorOutcome:
 
     passes: bool
     failed: tuple[str, ...] = ()
+    explained: tuple[str, ...] = ()
     geometry_only: bool = False
 
 
@@ -117,6 +125,19 @@ def failed_anchors(anchors: AnchorReport | AnchorOutcome) -> tuple[str, ...]:
     if isinstance(anchors, AnchorOutcome):
         return anchors.failed
     return tuple(c.anchor.key for c in anchors.checks if not c.passes)
+
+
+def explained_anchors(anchors: AnchorReport | AnchorOutcome) -> tuple[str, ...]:
+    """The keys of the anchors that diverged and carry a written cause.
+
+    Reported beside every result the run emits. "The anchors are settled" is a
+    tautology in a payload that could not have been built otherwise; *which*
+    anchors did not reproduce is the fact a later reader needs, and it is the
+    difference between the plan's two ways of passing.
+    """
+    if isinstance(anchors, AnchorOutcome):
+        return anchors.explained
+    return tuple(c.anchor.key for c in anchors.checks if c.explained)
 
 
 class MarketNotRun(KeyError):
@@ -195,7 +216,8 @@ def store_window_start(
     if first - boundary > LONGEST_CLOSURE:
         raise WindowNotCovered(
             f"the contract's {market} store window opens {boundary} but the "
-            f"store's first session on or after it is {first}, {(first - boundary).days} "
+            f"store's first session on or after it is {first}, "
+            f"{(first - boundary).days} "
             f"days later — too far to be a closure, so the crawl never fetched "
             "that history and the burn-in would be computed over the wrong window"
         )
@@ -395,7 +417,10 @@ def full_run_report(run: FullRun) -> dict[str, Any]:
         run.contract,
         {
             "markets": list(run.markets),
-            "anchors_settled": True,
+            "anchors": {
+                "settled": True,
+                "diverged_with_cause": list(explained_anchors(run.anchors)),
+            },
             "per_market": {
                 r.market: {
                     "market": r.market,
@@ -546,6 +571,11 @@ def read_anchor_report(path: str | Path) -> AnchorOutcome:
         for c in checks
         if c.get("verdict") not in SETTLED_VERDICTS
     )
+    explained = tuple(
+        c.get("anchor", "?")
+        for c in checks
+        if c.get("verdict") == VERDICT_EXPLAINED
+    )
     return AnchorOutcome(
         passes=(
             bool(body.get("passes"))
@@ -554,6 +584,7 @@ def read_anchor_report(path: str | Path) -> AnchorOutcome:
             and bool(checks)
         ),
         failed=failed,
+        explained=explained,
         geometry_only=bool(body.get("geometry_only")),
     )
 

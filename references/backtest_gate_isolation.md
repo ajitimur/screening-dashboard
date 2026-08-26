@@ -183,6 +183,14 @@ respect, and would invalidate this run's persisted denominator. It is recorded s
 revisits the floor knows the 1.5pp clearance does not buy the spread the docstring claims
 for it.
 
+That reading is US-only, because this whole page is. `ADR_FLOOR` is the one gate the contract
+does not set per market, so [does the 3.5% ADR floor suit IDX?](backtest_idx_adr_floor.md)
+asks the same question on the other one. Its answer is that the floor should stay where it is
+and stay shared: inside its own measured window the IDX field clears the 5% dimension 84.36%
+of the time against the US's 84.92%. It also records why an IDX `in_field` figure will never
+exist as things stand — his trade record is US-only, so on IDX there are no picks to contrast
+the field against.
+
 The seven-dimension replayed score is what these rows report: `Sector` is cross-sectional
 and is not reconstructed on this path, so it is absent rather than shown as zero.
 

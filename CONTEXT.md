@@ -390,6 +390,31 @@ The full candidate list reconstructed for one past session, from a cold-started 
 chain of universe membership. The population an executed trade is ranked against. Always
 reported with its coverage against the blind-spot tickers.
 
+**Denominator**:
+Every setup the detector named over a replayed window, taken mechanically, whether anyone
+traded it or not (PRD #182, `backtest.denominator`). The reference study has the other
+half — 828 trades he **took** — which is why it can report no precision and no
+false-positive rate. Persisted per session: universe membership, the three regime columns,
+the rank table, and every detection with its full `Detection` record, its seven-dimension
+star-score breakdown and both candidate dimensions as values. It lives in a store of its
+own beside the bar store, because `Store.append_ranks` prunes outside the app's two-year
+retention and a fourteen-year denominator would finish holding the last two years of ranks
+and nothing else. **Burn-in sessions are persisted and flagged, never measured** — a
+warm-up session is a fact about the window, not a hole in it.
+_Avoid_: backtest results, the field — the denominator is the *population*, and what any
+later phase measures against.
+
+**Regime companions**:
+The two columns stored beside the regime state, and never read as its equals. **Breadth is
+descriptive only** and carries its survivorship warning in the row itself: it is the
+measure survivorship bias corrupts most directly, and worse in a reconstructed past than
+live, because the names missing from it are disproportionately the ones that later died.
+**Follow-through is unbiased** and the one regime signal the live app can never backfill —
+the app captures it forward nightly precisely because a survivorship-biased past cannot
+rebuild it, but the index series carries no survivorship hole, so a backtest reconstructs
+it legitimately across the whole window.
+_Avoid_: conditioning on breadth; it conditions on the **state**.
+
 **Not-taken detection**:
 A member of the replayed field on a session where he entered something else. Not a
 declined setup — he may never have seen it — so it is a comparison group, never a

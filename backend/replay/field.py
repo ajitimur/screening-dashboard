@@ -160,7 +160,11 @@ class FieldSession:
     """One session's replayed field: its universe members, the star-ranked
     candidates, and the coverage against the blind-spot tickers.
 
-    ``detections`` is the field in star order, highest score first. ``members`` is
+    ``burn_in`` is carried through from the chain's :class:`replay.chain.SessionField`
+    rather than assumed false, so a caller that asked the chain for its settling
+    sessions can persist their field and still exclude them from measurement
+    (PRD #182 story 76). ``detections`` is the field in star order, highest score
+    first. ``members`` is
     the session's whole universe (a member need not sit in a base). ``blind_spot_count``
     is the coverage figure every field-derived output must carry (user story 22),
     inherited from the chain's :class:`replay.chain.SessionField`.
@@ -399,7 +403,7 @@ def build_field_sessions(
         fields.append(
             FieldSession(
                 session=sf.session,
-                burn_in=False,
+                burn_in=sf.burn_in,
                 members=sf.members,
                 detections=candidates,
                 blind_spot_count=sf.blind_spot_count,

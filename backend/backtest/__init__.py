@@ -152,6 +152,43 @@ already keep :mod:`backtest.metric` out: it is a command
 :class:`~backtest.run.ContractDrift`. The entry point is
 ``backtest.ranking.ranking_report``.
 
+Issue #195 lands the second half of Phase 5's rubric question:
+:mod:`backtest.candidates`, which measures both registered candidate dimensions
+against **outcomes** rather than against the trader's selection. ADR 0005 admits a
+dimension on a selection contrast because that was the only instrument available
+when it was written; both registrations then failed on it — ``RS line`` refused for
+a wrong-way gap, ``Relative move`` positive on both fields and stalled 0.06pp
+inside a threshold the ADR itself calls a judgement. Here each candidate's cohort
+splits three ways, never two: hit and miss under the pre-registered cut applied at
+read time by the rubric's own reader, and **absent** where the question was never
+asked. That third group is load-bearing rather than tidy — ``Relative move``'s cut
+is zero, so an absence coerced to a number would land exactly on it — so absence
+carries its own n and enters no gap. The published selection figures ride on every
+candidate's cell under their own verdict key, because a dimension that ranks
+outcomes and one that matches a selection are two claims that can point opposite
+ways. Nothing here admits a dimension, and
+:func:`~backtest.candidates.check_not_admitted` makes that executable.
+
+:mod:`backtest.candidates`'s names are **not** re-exported here, for the reasons
+that already keep :mod:`backtest.ranking` out: it is a command
+(``python -m backtest.candidates``) and it imports both that module and
+:class:`~backtest.run.ContractDrift`. The entry point is
+``backtest.candidates.candidates_report``.
+
+Two small modules came out of that second measurement rather than being copied
+into it, because a second caller is what turns shared code into a module.
+:mod:`backtest.stats` holds the statistics more than one measurement needs — the
+tie rule, Spearman's rho, clustering by symbol, the clustered bootstrap over an
+arbitrary statistic, and the two places a report renders and counts an interval.
+It knows nothing about what is being measured, which is what lets one bootstrap
+serve a score band's gap and a candidate dimension's. :mod:`backtest.cohort` holds
+the join back to the persisted row: the detection index for a market, and the
+**total** join from simulated trades to the rows that produced them, whose refusal
+has to be the same in both callers because the argument for refusing is the same.
+:mod:`backtest.ranking` was where both lived when it was the only caller; leaving
+them there would have made it a measurement and the run's statistics library at
+once, changing for two reasons and imported by the module it should not own.
+
 Issue #197 lands Phase 6: :mod:`backtest.anchors`, the six committed figures this
 run reproduces before any new figure from it is read. Three are geometry measured
 from his bars — they hold whatever the detector does, so they anchor the store and

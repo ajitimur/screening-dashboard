@@ -158,7 +158,7 @@ class ScoredDetection:
     star_rank: int
     not_taken: bool
     taken: bool = False
-    rs_line: bool | None = False
+    rs_line: bool | None = None
     relative_move: float | None = None
 
 
@@ -267,7 +267,7 @@ def build_field(
             star_rank=rank,
             not_taken=any_entry and det.symbol not in entered,
             taken=det.symbol in entered,
-            rs_line=rs_line_of.get(det.symbol, False),
+            rs_line=rs_line_of.get(det.symbol),
             relative_move=relative_move_of.get(det.symbol),
         )
         for rank, (det, score) in enumerate(scored, start=1)

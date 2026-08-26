@@ -263,8 +263,8 @@ dimension cannot discriminate, not that removing it is free.
 
 **Candidate dimension**:
 A dimension **under measurement**, not in the rubric: computed on every detection in the
-replay, carried beside the star score, reported as a column of the **selection contrast**, and
-weighted by nothing. It is how ADR 0005's admission rule is exercised — a dimension earns a
+replay, carried beside the star score, reported as a column of the **selection contrast** and —
+since #195 — as a cohort of the **candidate outcome test**, and weighted by nothing. It is how ADR 0005's admission rule is exercised — a dimension earns a
 rubric slot on a measured non-zero gap with non-zero pooled spread, and until that measurement
 exists it must be unable to move a star, a sort or a board place. So it lives on a field member
 of its own (`RS line` on `replay.field.ScoredDetection.rs_line`), never inside `SevenDimScore`,
@@ -529,9 +529,13 @@ fortnight contributes three correlated rows — so bootstrapping *rows* makes th
 sample larger than it is and flatters every p-value. Seeded, and the seed and resample
 count ride on every cell, because a significance figure that moved between two runs of the
 same data would be unreproducible with nothing in the output to show it. A statistic that is
-not a mean — a **score band** gap, a rank correlation — is resampled the same way through
-`backtest.ranking.bootstrap_symbol_statistic`, on the metric's own seed and cluster floor, so
-two intervals in one report were never built differently.
+not a mean — a **score band** gap, a candidate's hit-minus-miss gap, a rank correlation — is
+resampled the same way through
+`backtest.stats.bootstrap_symbol_statistic`, on the metric's own seed and cluster floor, so
+two intervals in one report were never built differently. A draw the statistic cannot evaluate
+is counted as **undefined**, never as a zero, and past a tenth of the draws the interval is
+refused rather than read off the rest — which would condition on the statistic having been
+computable, and those are the confident draws.
 _Avoid_: bootstrapping the trades, resampling the rows — the row is not the unit.
 
 **Priced posture**:
@@ -594,6 +598,34 @@ of the weights. §4a's figures ride on the payload precisely so the two are neve
 one.
 _Avoid_: the ranking result, the decile test; and never quote it against §4a's **+5.59pp**
 as though the two were comparable.
+
+**Candidate outcome test**:
+The measurement of whether a **candidate dimension** predicts, rather than only selects
+(PRD #182, #195, `backtest.candidates`): after-cost R on the mechanical denominator, split
+by the candidate's own pre-registered cut, **per market**, with the **clustered bootstrap**
+on the hit-minus-miss gap. It is not ADR 0005's admission instrument and admits nothing —
+that rule reads a **selection contrast**, and the two are a different claim about the same
+dimension: one says he picked names the dimension fires on, the other says those names paid.
+So §5d's and §5e's figures ride on every cell under their own verdict key and are never
+summed with this one's. The verdict is the **gap's alone**, because ADR 0005 admits a
+dimension as a boolean; the rank correlation against the stored value is reported beside it
+and excluded, since only `Relative move` persists a degree to run it on. "No evidence it
+predicts" is never "the dimension does not predict".
+_Avoid_: the outcome contrast, the candidate regression; and never quote a gap here against
+a selection Δ as though the two were readings of one thing.
+
+**Absent group**:
+The third group of the **candidate outcome test**: the detections whose candidate value the
+row carries as `NULL`, meaning the question was never asked — `Relative move` where the name
+had not listed six months back or has no ADR, `RS line` where a price was missing at one of
+its two anchors. Kept apart from a miss and given its own n, because `Relative move`'s cut
+sits at **zero**: an absence coerced to a number would land exactly on the boundary and let
+the strictness of a comparison decide a verdict nobody measured. It enters **no gap**. What a
+shipped boolean would do with it — the pre-registered readers score absent `False` — is
+reported separately as the `rubric_reading` and never sets the verdict, because "what would
+this boolean have done" is a different question from "does the quantity predict".
+_Avoid_: treating absent as a miss, or as a zero; a **candidate dimension** is never carried
+forward and never excludes a name.
 
 **Anchor**:
 A figure already committed to this repo that a rebuilt pipeline must reproduce before any

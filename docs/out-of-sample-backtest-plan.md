@@ -265,12 +265,21 @@ none, the two counts sum to the enumeration, and both are committed. A symbol th
 silently absent is survivorship bias entering through the back door.
 
 **Done** (2026-08-26, #187). `python -m backtest.crawl` filled `data/backtest.duckdb` with
-**US 5,495 stored + 3 refused = 5,498** and **IDX 839 stored + 0 refused = 839**, 2011-01-03
-through each market's latest complete session. The counts and the per-symbol ledgers are
-committed: [`references/backtest_store_coverage.md`](../references/backtest_store_coverage.md)
-and `data/backtest.duckdb.coverage.{US,IDX}.json`. Two numbers there are Phase 2's starting
-point — the US ledger's three absences, and IDX's **124-name gap (12.9%)** between the 838
-names Yahoo's screener enumerates and the 962 the exchange lists.
+**US 5,495 stored + 3 refused = 5,498 crawled of 13,141 listed** and **IDX 840 stored + 0
+refused = 840**, 2011-01-03 through each market's latest complete session, 15.1M bars.
+Each market commits two records, because a name can be missing either by refusing to answer
+or by never being asked: `data/backtest.duckdb.enumeration.{US,IDX}.json` accounts for the
+narrowing, `…coverage.{US,IDX}.json` for the fetch. Between them every listed name carries
+one verdict. Written up in
+[`references/backtest_store_coverage.md`](../references/backtest_store_coverage.md).
+
+Three findings there are Phase 2's starting point: the US ledger's three absences; IDX's
+**123-name gap (12.8%)** between the 839 candidates Yahoo's screener lists and the 962 the
+exchange does; and the evidence that this gap is a *snapshot of a churning membership* rather
+than a roster — the screener dropped `SOHO.JK`, a live name still trading as of the latest
+session, from its listing inside seventeen minutes. That strengthens the case for
+reconstructing the listing spine from a second source below rather than trusting one
+enumeration.
 
 ## Phase 2 — Bound the survivorship hole
 
@@ -282,8 +291,11 @@ the trader's realised R** — names delisted, acquired or renamed inside four ye
 reaches further back, so expect worse. For IDX the research note measured the same hole from
 the other side: the Yahoo screener enumerates ~840 names against IDX's ~963 listed, and the
 missing ones are the suspended and delisted. Phase 1's crawl has since made that pair exact —
-**838 enumerated against 962 listed, a gap of 124 (12.9%)** on 2026-08-26 — and showed the
+**839 enumerated against 962 listed, a gap of 123 (12.8%)** on 2026-08-26 — and showed the
 gap is entirely upstream of the ledger, since every name the screener did enumerate resolved.
+It also showed the screener's membership churns for *live* names on a scale of minutes, so
+treat 123 as a noisy snapshot: the count below has to come from the listing spine, not from
+differencing one enumeration against the exchange.
 
 **And the hole has a silent half.** §2's correction is the part to carry: eleven of those
 tickers *resolve today* but their bar history begins years after the entry they are paired

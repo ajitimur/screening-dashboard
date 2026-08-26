@@ -220,6 +220,7 @@ def _ingest_and_ledger(
     market: str,
     resolution: Resolution,
     now: datetime,
+    *,
     start: date | None = None,
 ) -> Refusal | None:
     """Ingest one resolution and return the ledger row it earns, or ``None`` if it
@@ -244,7 +245,7 @@ def _ingest_and_ledger(
     clean = clean_bars(parse_bars(resolution.bars), market, now)
     if not clean:
         return Refusal(resolution.symbol, "no_bars")
-    bars = [b for b in clean if b.session >= start] if start else clean
+    bars = clean if start is None else [b for b in clean if b.session >= start]
     if not bars:
         return Refusal(resolution.symbol, "outside_window")
     store.append_bars(market, resolution.symbol, bars)
@@ -402,7 +403,7 @@ def build_backtest_store(
         ):
             counts[resolution.status] += 1
             ledger[resolution.symbol] = _ingest_and_ledger(
-                store, market, resolution, now, start
+                store, market, resolution, now, start=start
             )
             if done % PROGRESS_EVERY == 0 or done == total:
                 progress(
@@ -439,7 +440,7 @@ def build_backtest_store(
                 counts[resolution.status] += 1
                 revised += 1
             ledger[resolution.symbol] = _ingest_and_ledger(
-                store, market, resolution, now, start
+                store, market, resolution, now, start=start
             )
             recovered += resolution.status == "resolved"
         if silent:

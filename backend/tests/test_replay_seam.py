@@ -4273,25 +4273,29 @@ def test_names_folded_by_deduplication_are_reported_not_silently_dropped(tmp_pat
 
 from backtest.crawl import (
     CRAWL_START,
-    crawl_enumeration,
+    NOT_COMMON_STOCK,
+    UNREAD_REFERENCE,
+    Enumeration,
     crawl_market,
+    enumeration_path,
     main as crawl_main,
+    narrow,
 )
 from backtest.store import live_store_path
+from screener.pipeline import fetch_set
 from screener.source import Instrument
 
 
-def test_the_crawl_enumerates_the_index_and_the_common_stock_candidates():
-    """The crawl fetches exactly the pipeline's fetch set (`screener.pipeline`
-    §"Shrink the fetch set", issue #99): the market's own index, because the
-    contract reads regime off it (`regime.source`), plus the candidates that can
-    enter a universe at all.
+def test_the_crawl_fetches_the_apps_own_fetch_set_not_a_second_one():
+    """The crawl narrows the provider's listing with `screener.pipeline.fetch_set`
+    itself — the *same* callable the nightly pull uses (issue #99), not a copy of
+    its rule.
 
-    The other references are enumerated but no code path reads their bars, and a
-    non-common-stock candidate can never enter the universe — fetching either
-    spends the crawl's paced hours on bars nothing will ever ask for. Mirroring
-    the app's own filter is also what keeps the backtest's denominator the app's:
-    a second, looser fetch set would price names the product cannot trade.
+    The backtest's denominator is meant to be the app's: a looser fetch set here
+    would price names the product cannot trade, and a stricter one would measure
+    a market the app doesn't screen. Two copies of the rule would be two things to
+    keep in lockstep, with nothing to fail if they drifted — so the test pins the
+    call, not the behaviour.
     """
     instruments = [
         Instrument(market="US", symbol="^IXIC", role="reference"),
@@ -4305,20 +4309,62 @@ def test_the_crawl_enumerates_the_index_and_the_common_stock_candidates():
         ),
     ]
 
-    assert crawl_enumeration(instruments, "US") == ["^IXIC", "AAPL"]
+    enumeration = narrow(instruments, "US")
+
+    assert enumeration.fetched == tuple(fetch_set(instruments, "US"))
+    assert enumeration.fetched == ("^IXIC", "AAPL")
+
+
+def test_every_listed_name_the_crawl_drops_is_recorded_with_its_rule():
+    """The names the crawl never asks about are committed too, with why.
+
+    The coverage ledger accounts for every symbol the crawl was *handed*, but the
+    narrowing happens before that — on US it discards 7,643 of 13,141 — and the
+    ledger cannot see what it never asked about. Left there, the plan's own
+    standard ("a symbol that is silently absent is survivorship bias entering
+    through the back door") would hold for the fetch set and quietly fail for the
+    listing. Between the two files every listed name gets exactly one verdict.
+    """
+    instruments = [
+        Instrument(market="US", symbol="^IXIC", role="reference"),
+        Instrument(market="US", symbol="SPY", role="reference"),
+        Instrument(
+            market="US", symbol="ABCW", role="candidate", name="Some Fund - Warrant",
+        ),
+    ]
+
+    enumeration = narrow(instruments, "US")
+
+    assert enumeration.listed == 3
+    assert enumeration.excluded == (
+        ("SPY", UNREAD_REFERENCE),
+        ("ABCW", NOT_COMMON_STOCK),
+    )
+    enumeration.check()
+
+
+def test_the_enumeration_record_must_sum_to_the_listing():
+    """The same invariant the coverage has, one level up: fetched plus excluded is
+    the listing, or the record refuses to be a record."""
+    with pytest.raises(ValueError):
+        Enumeration("US", listed=9, fetched=("AAA",), excluded=()).check()
 
 
 def test_the_idx_crawl_keeps_its_own_index_and_drops_the_us_one():
     """The reference kept is the *market's* index, not a constant: IDX's regime
-    reads `^JKSE`, and a US index row appearing in an IDX enumeration is not the
-    thing that regime will read."""
+    reads `^JKSE`, and a US index row appearing in an IDX listing is not the
+    thing that regime will read. IDX names are recorded in their stored `.JK`
+    form, so the enumeration and the coverage speak the same names."""
     instruments = [
         Instrument(market="IDX", symbol="^JKSE", role="reference"),
         Instrument(market="IDX", symbol="^IXIC", role="reference"),
         Instrument(market="IDX", symbol="BBCA", role="candidate", name="BBCA"),
     ]
 
-    assert crawl_enumeration(instruments, "IDX") == ["^JKSE", "BBCA"]
+    enumeration = narrow(instruments, "IDX")
+
+    assert enumeration.fetched == ("^JKSE", "BBCA.JK")
+    assert enumeration.excluded == (("^IXIC", UNREAD_REFERENCE),)
 
 
 def test_the_store_window_trims_bars_before_the_contracts_store_start(tmp_path):
@@ -4428,14 +4474,18 @@ def test_crawl_market_enumerates_then_fetches_the_window(tmp_path):
     )
     out = tmp_path / "bt.duckdb"
 
-    coverage = crawl_market(
+    enumeration, coverage = crawl_market(
         Source(client, backoff_base=0.0, sleep=lambda _s: None),
         market="US", out_path=out, now=_BUILD_NOW, progress=lambda _line: None,
     )
 
     assert client.fetched == ["^IXIC", "AAPL"]  # SPY was never asked for
+    assert enumeration.listed == 3
     assert coverage.enumerated == 2
     assert coverage.stored == ("AAPL", "^IXIC")
+    # Both records are committed, not just returned.
+    assert Enumeration.load(enumeration_path(out, "US")) == enumeration
+    assert BuildCoverage.load(coverage_path(out, "US")) == coverage
     store = Store.open(out)
     try:
         assert [b.session for b in store.bars("US", "^IXIC")] == [date(2015, 6, 1)]
@@ -4475,22 +4525,34 @@ def test_the_crawl_cli_runs_both_markets_into_one_store(tmp_path):
     assert BuildCoverage.load(coverage_path(out, "IDX")).stored == ("BBCA.JK",)
 
 
-def test_the_crawl_cli_refuses_the_live_store_before_it_fetches_anything():
+def test_the_crawl_cli_refuses_the_live_store_before_it_fetches_anything(capsys):
     """The guard runs before the first request, not after the crawl.
 
     `refuse_live_store` already refuses at the store boundary (#186), but by then
     a multi-hour US pull may have completed and be about to be written into live
-    history. The runner checks every destination up front, so the refusal costs
+    history. The runner checks the destination up front, so the refusal costs
     nothing and the mistake is caught while it is still cheap.
+
+    It reports the way `screener.run` does — the reason on stderr and exit 2 —
+    rather than as a traceback: this is the one surface an operator drives by
+    hand, and a mis-aimed crawl should explain itself.
     """
 
     class _NeverAsked(_FetchClient):
         def enumerate(self, market):  # pragma: no cover - the guard fires first
             raise AssertionError("the crawl enumerated before checking its destination")
 
-    with pytest.raises(LiveStoreWriteRefused):
-        crawl_main(
-            ["--out", str(live_store_path())],
-            source_factory=lambda: Source(_NeverAsked({}), sleep=lambda _s: None),
-            now=_BUILD_NOW,
-        )
+    exit_code = crawl_main(
+        ["--out", str(live_store_path())],
+        source_factory=lambda: Source(_NeverAsked({}), sleep=lambda _s: None),
+        now=_BUILD_NOW,
+    )
+
+    assert exit_code == 2
+    assert "refusing to build the backtest store into the live store" in capsys.readouterr().err
+
+
+def test_the_crawl_cli_reports_a_bad_argument_as_an_exit_code(capsys):
+    """Argparse's own exit is caught and returned as 2, matching `screener.run`,
+    so the runner has one way of failing rather than two."""
+    assert crawl_main(["--market", "MARS", "--out", "x"]) == 2

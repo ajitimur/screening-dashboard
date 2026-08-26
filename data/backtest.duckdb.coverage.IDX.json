@@ -1,6 +1,6 @@
 {
   "market": "IDX",
-  "enumerated": 839,
+  "enumerated": 840,
   "duplicates": 0,
   "stored": [
     "AADI.JK",
@@ -273,6 +273,7 @@
     "EMTK.JK",
     "ENAK.JK",
     "ENRG.JK",
+    "ENZO.JK",
     "EPAC.JK",
     "EPMT.JK",
     "ERAA.JK",
@@ -387,6 +388,7 @@
     "IPCM.JK",
     "IPOL.JK",
     "IPTV.JK",
+    "IRRA.JK",
     "IRSX.JK",
     "ISAP.JK",
     "ISAT.JK",
@@ -722,7 +724,6 @@
     "SNLK.JK",
     "SOCI.JK",
     "SOFA.JK",
-    "SOHO.JK",
     "SOLA.JK",
     "SONA.JK",
     "SOSS.JK",

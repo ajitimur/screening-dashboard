@@ -14,12 +14,20 @@ reach them.
 
 Conditioning, never filtering
 -----------------------------
-The contract's ``regime.role`` cell says ``conditioning_variable_never_filter``
-and this module is where that is either honoured or quietly broken. Every state
-trades, the three states and the undefined bucket **partition** the trades handed
-in, and :func:`market_posture` reports the arithmetic of that partition —
-``excluded_by_regime`` is a computed zero, not a promise in a docstring. A filter
-introduced anywhere upstream shows up as cells that no longer add back up.
+The contract's ``regime.role`` cell says ``conditioning_variable_never_filter``.
+Every state trades, and the three states plus the undefined bucket **partition**
+the trades: :func:`market_posture` reports that arithmetic, alongside the count of
+what each of the two *declared* non-regime exclusions removed — the other market,
+and the other arms.
+
+That block is honest about its own reach, and the distinction matters. The counts
+show that nothing falls between the cells **here**; they cannot show that nothing
+was filtered before the trades arrived, because an upstream filter removes rows
+first and every sum below would still balance. What actually holds the promise is
+structural and sits in two other places: :mod:`backtest.simulate` reads no regime
+column at all when it produces trades — pinned by a test that flips a persisted
+state and gets the same trades back — and :func:`check_regime_role` refuses a
+contract whose role cell has stopped saying "never filter".
 
 The undefined bucket is not a rounding error. Below
 :data:`~screener.regime.REGIME_WARMUP` index bars the state is undefined rather
@@ -54,15 +62,24 @@ Both verdicts are the interval's, never the mean's, and ``undecided`` is a real
 answer rather than a failure: it says the run gives the app's word no measured
 basis, which is precisely the question the product asked.
 
-Breadth: reported, never conditioned on
----------------------------------------
-:func:`breadth_summary` reports it and carries its survivorship warning, and no
+The two companions: reported, never conditioned on
+--------------------------------------------------
+:func:`breadth_summary` reports breadth with its survivorship warning, and no
 cohort in this module can be keyed by it — :func:`posture_cell` takes a
 :data:`REPORTED_STATES` member and refuses anything else, so "condition on the
 state, not on breadth" is a refusal at the seam rather than a convention. Breadth
 is the measure survivorship bias corrupts most directly, and in a backtest the
 corruption is *worse* rather than better, because the names missing from the store
 are disproportionately the ones that later died.
+
+:func:`follow_through_summary` reports the other companion, and the asymmetry
+between them is the point of reporting it here at all: follow-through is
+**unbiased** where breadth is not. The live app captures it forward nightly
+because a survivorship-biased past cannot rebuild it — but the index series
+carries no survivorship hole, so this run reconstructs it legitimately across the
+whole window. It is the one regime signal for which the backtest is the better
+instrument, and it is still never conditioned on, because it is not what the app's
+posture reads.
 
 Everything below is arm B's, the contract's pre-registered arm, and the per-cell
 arithmetic is :mod:`backtest.metric`'s own — the costs, the win rate, the
@@ -94,6 +111,7 @@ from .contract import (
 )
 from .denominator import (
     BREADTH_BASIS,
+    FOLLOW_THROUGH_BASIS,
     DenominatorStore,
     RegimeReading,
     SessionRow,
@@ -109,7 +127,9 @@ from .metric import (
     EXCLUDED_YEARS_WINDOW,
     FULL_WINDOW,
     PRIMARY_ARM,
+    _distribution,
     _quantile,
+    _reported_markets,
     after_cost_r,
     clusters_by_symbol,
     expectancy_cell,
@@ -130,6 +150,16 @@ REGIME_ROLE = "conditioning_variable_never_filter"
 # — this *is* t−1, because the break comes on the session after the detection and
 # the fill on the one after that.
 STATE_READ_AT = "detection_session"
+
+# What that offset actually is, spelled out rather than left inside "t−1". The
+# detection session is one session before the break and **two** before the fill, so
+# a reader checking for look-ahead can see the gap instead of taking the label's
+# word for it.
+STATE_READ_AT_NOTE = (
+    "the detection session — the night the candidate was listed with the app's "
+    "posture beside it, one session before the break that signals entry and two "
+    "before the fill; no bar after it is read to date the trade"
+)
 
 # The bucket a trade lands in when no state was showing. Two different causes —
 # a session below the regime's warm-up, and a session the spine has no row for —
@@ -185,8 +215,49 @@ SIGNAL_LEVEL_NOTE = (
     "figure is what the posture costs or saves directly, never what it might buy"
 )
 
+# What actually holds "nothing is excluded by regime", written into the payload
+# because the arithmetic beside it cannot hold it alone: a filter applied upstream
+# removes trades before this module sees them, and no sum computed here would
+# notice. The guarantee is structural and lives in two places — the simulator reads
+# no regime column, pinned by a test, and the contract's role cell is refused by
+# :func:`check_regime_role` if it moves.
+UPSTREAM_GUARANTEE = (
+    "the trades reaching this module are produced without reading any regime "
+    "column at all (backtest.simulate), and the contract's regime.role cell is "
+    "refused if it ever names a filter; the counts below show only that the "
+    "states partition what did arrive"
+)
+
+# Why the states are not also cut per year. The metric reports per year because
+# that is its axis; crossing it with the state would put three-quarters of the run
+# in cells too thin to read, and the pair of windows below carries the one
+# time-slice that actually threatens this cell.
+PER_YEAR_NOTE = (
+    "states are reported over the full window and with 2020–21 excluded, not per "
+    "year: three states crossed with fourteen years is mostly cells below the "
+    "bootstrap's cluster floor, and 2020–21 is the stretch that would inflate "
+    "FRIENDLY specifically — which is the time-slice this cell needs"
+)
+
+# How many views of one dataset stand behind these figures, so a reader can price
+# the multiple-testing risk rather than assume it away. Three exit arms and three
+# states is nine, before any threshold is swept — and the pre-registered metric
+# stands as the headline regardless of what any view here shows.
+VIEWS_NOTE = (
+    "three exit arms and three regime states is nine views of one dataset before "
+    "any threshold is swept; the pre-registered metric stands as the headline even "
+    "where a view here looks better"
+)
+
 # The warning that travels with every breadth figure, in the payload and on the
 # printed page. Prose in a docstring would not survive a reader querying the JSON.
+FOLLOW_THROUGH_NOTE = (
+    "follow-through is unbiased where breadth is not: the live app captures it "
+    "forward nightly because a survivorship-biased past cannot rebuild it, but the "
+    "index series carries no survivorship hole, so this run reconstructs it "
+    "legitimately across the whole window — reported, and still never conditioned on"
+)
+
 BREADTH_WARNING = (
     "breadth is descriptive only and is never conditioned on: survivorship bias "
     "corrupts it more directly than anything else reported here, and in a backtest "
@@ -322,6 +393,24 @@ def state_of(spine: RegimeSpine, trade: SimulatedTrade) -> str:
     return reading.state
 
 
+def for_market(
+    trades: Sequence[SimulatedTrade], market: str
+) -> list[SimulatedTrade]:
+    """One market's trades on :data:`PRIMARY_ARM`, out of a run-wide list.
+
+    The **only** two exclusions anything in this module performs, and they are
+    named here in one place so ``excluded_by_regime`` can be reported against a
+    number that already accounts for them. Neither is a regime exclusion: US and
+    IDX never pool (findings §8), and the posture qualifies the pre-registered
+    headline, so it is priced on the arm that headline is.
+
+    Every entry point applies it rather than trusting its caller — a direct call to
+    a counterfactual must not be able to average two arms into one verdict when the
+    report a level up could not.
+    """
+    return [t for t in trades if t.market == market and t.arm == PRIMARY_ARM]
+
+
 def by_state(
     spine: RegimeSpine, trades: Sequence[SimulatedTrade]
 ) -> dict[str, list[SimulatedTrade]]:
@@ -444,8 +533,13 @@ def _verdict(ci_low: float | None, ci_high: float | None) -> str:
     One place, because both postures are judged the same way and two spellings of
     "does this interval clear zero" would eventually disagree. Earned when the
     whole interval sits below zero, refuted when it sits above, undecided when it
-    straddles — and :data:`VERDICT_TOO_THIN` is not reachable here, because it is a
-    fact about the cluster count rather than about the interval.
+    straddles.
+
+    A **suppressed** interval arrives here as ``None`` and comes back
+    :data:`VERDICT_TOO_THIN`, which is deliberately not folded into ``undecided``:
+    "the names disagree" and "there were never enough names to ask" are different
+    findings, and only the first is about the regime. The bootstrap decides which
+    of the two it is — this function only reads the answer.
     """
     if ci_low is None or ci_high is None:
         return VERDICT_TOO_THIN
@@ -545,14 +639,17 @@ def hostile_counterfactual(
     contract: RunContract,
     trades: Sequence[SimulatedTrade],
     spine: RegimeSpine,
-    *,
-    market: str,
 ) -> dict[str, Any]:
     """What sitting out ``HOSTILE`` would have cost or saved this market.
 
     The counterfactual the product actually needs, and it is only computable
     because the run refused to filter: these trades were taken, so removing them is
     arithmetic rather than a model.
+
+    The market is the **spine's**, not a parameter beside it: the spine is one
+    market's sessions read off that market's own index, so a ``market`` argument
+    could only ever agree with it or be a bug, and a parameter whose sole use is to
+    be checked against another argument is a parameter worth deleting.
 
     ``delta_total_r`` is the book's change — the negative of what the hostile
     trades made — and :data:`EFFECT_COST` / :data:`EFFECT_SAVED` names its
@@ -566,11 +663,17 @@ def hostile_counterfactual(
 
     See :data:`SIGNAL_LEVEL_NOTE` for what this figure cannot say.
     """
-    buckets = by_state(spine, trades)
+    mine = for_market(trades, spine.market)
+    buckets = by_state(spine, mine)
     hostile = buckets[HOSTILE]
-    rest = [t for t in trades if state_of(spine, t) != HOSTILE]
+    # The complement off the **partition**, not a second pass over the trades with
+    # the test inverted. Two spellings of "everything but HOSTILE" is two places
+    # for the book and the cells to stop agreeing, and the disagreement would be
+    # invisible: both halves would still look like plausible numbers.
+    rest = [t for state, bucket in buckets.items() if state != HOSTILE
+            for t in bucket]
     cell = posture_cell(
-        contract, hostile, market=market, state=HOSTILE, label=FULL_WINDOW
+        contract, hostile, market=spine.market, state=HOSTILE, label=FULL_WINDOW
     )
     total_r = cell["total_r"]
     delta = -total_r
@@ -579,7 +682,7 @@ def hostile_counterfactual(
     else:
         effect = EFFECT_COST if total_r > 0 else EFFECT_SAVED
     boot = cell["bootstrap"]
-    whole = _book(contract, trades)
+    whole = _book(contract, mine)
     without = _book(contract, rest)
     return {
         "state": HOSTILE,
@@ -607,12 +710,34 @@ def hostile_counterfactual(
     }
 
 
+def _shape(contract: RunContract, trades: Sequence[SimulatedTrade]) -> dict[str, Any]:
+    """The win rate and R-distribution behind one side of a comparison.
+
+    Reported because an expectancy never travels alone here (CONTEXT.md,
+    *After-cost expectancy*): 22.7% of the reference trader's trades made money and
+    his mean R was positive anyway, so a low win rate is judged against its right
+    tail rather than on its own. A "reduced" verdict resting on two bare means
+    would hide the case that actually matters — two states with the same mean and
+    different tails are not the same state to trade.
+
+    :func:`~backtest.metric._distribution` computes the shape, so the quantiles a
+    posture reports and the ones the headline reports are the same quantiles.
+    """
+    rs = [r for r in (after_cost_r(t, contract) for t in trades) if r is not None]
+    wins = [r for r in rs if r > 0]
+    return {
+        "closed": len(rs),
+        "win_rate": (len(wins) / len(rs)) if rs else None,
+        "wins": len(wins),
+        "losses": len(rs) - len(wins),
+        "distribution": _distribution(rs),
+    }
+
+
 def choppy_reduced(
     contract: RunContract,
     trades: Sequence[SimulatedTrade],
     spine: RegimeSpine,
-    *,
-    market: str,
 ) -> dict[str, Any]:
     """Does ``CHOPPY`` earn its "reduced", measured against ``FRIENDLY``?
 
@@ -625,8 +750,17 @@ def choppy_reduced(
     around it comes out :data:`VERDICT_UNDECIDED` rather than as a finding — and
     undecided is the honest answer to a word the app prints on no basis: this run
     gives it none either.
+
+    Both sides carry their **win rate and R-distribution**, for the reason every
+    expectancy in this repo does: a gap between two means says nothing about which
+    tail produced it, and the tail is what a sizing posture is actually about.
+
+    The market is the spine's own and the arm is :data:`PRIMARY_ARM`; both are
+    applied here rather than assumed of the caller, so a direct call cannot average
+    two markets or two arms into one comparison.
     """
-    buckets = by_state(spine, trades)
+    mine = for_market(trades, spine.market)
+    buckets = by_state(spine, mine)
     choppy, friendly = buckets[CHOPPY], buckets[FRIENDLY]
     boot = bootstrap_difference(
         clusters_by_symbol(choppy, contract), clusters_by_symbol(friendly, contract)
@@ -640,6 +774,8 @@ def choppy_reduced(
         "expectancy_r": boot["mean_a"],
         "expectancy_r_friendly": boot["mean_b"],
         "delta_expectancy_r": boot["difference"],
+        "shape": _shape(contract, choppy),
+        "shape_friendly": _shape(contract, friendly),
         "verdict": _verdict(boot["ci_low"], boot["ci_high"]),
         "bootstrap": boot,
     }
@@ -677,35 +813,64 @@ def breadth_summary(spine: RegimeSpine) -> dict[str, Any]:
 # -- the report ---------------------------------------------------------------
 
 
+def follow_through_summary(spine: RegimeSpine) -> dict[str, Any]:
+    """The index's breakout follow-through over the window — and it is *unbiased*.
+
+    Breadth's companion, and the one place the asymmetry between them has to be
+    said out loud: breadth is survivorship-corrupted and this is not. The app
+    captures follow-through forward nightly precisely because a survivorship-biased
+    past cannot rebuild it — but the **index series carries no survivorship hole**,
+    so a backtest reconstructs it legitimately across the whole window. This is the
+    only regime signal for which the backtest is a *better* instrument than the
+    live app.
+
+    Reported and never conditioned on, like breadth — not because it is corrupt,
+    but because it is not what the app's posture reads, and a cell keyed by it
+    would be a cell about a different regime than the one shipped.
+    """
+    seen = [
+        r.broke_out for r in spine.readings.values() if r.broke_out is not None
+    ]
+    return {
+        "sessions": len(seen),
+        "sessions_without_reading": len(spine.readings) - len(seen),
+        "breakouts": sum(1 for b in seen if b),
+        "breakout_rate": (sum(1 for b in seen if b) / len(seen)) if seen else None,
+        "basis": FOLLOW_THROUGH_BASIS,
+        "conditioned_on": False,
+        "note": FOLLOW_THROUGH_NOTE,
+    }
+
+
 def market_posture(
     contract: RunContract,
     trades: Sequence[SimulatedTrade],
     spine: RegimeSpine,
-    *,
-    market: str,
 ) -> dict[str, Any]:
     """One market's whole posture: every state's cells, both counterfactuals,
-    breadth beside them, and the arithmetic that shows nothing was excluded.
+    breadth and follow-through beside them, and the exclusion accounting.
 
-    ``trades`` may span markets and arms; only this market's, on
-    :data:`~backtest.metric.PRIMARY_ARM`, are counted, so a caller hands over the
-    whole run and the separation happens here.
+    ``trades`` may span markets and arms; :func:`for_market` narrows them, and the
+    market is the **spine's own** — one market's sessions read off one market's
+    index — so a caller hands over the whole run and the separation happens here.
 
-    ``conditioning`` is the load-bearing block. ``excluded_by_regime`` is computed
-    — the trades handed in, minus the trades that landed in a cell — and not
-    asserted. If a filter ever appears upstream, the cells stop adding up and the
-    number stops being zero, which is the only way a promise like this survives
-    contact with a later change.
+    ``conditioning`` accounts for every trade that did *not* reach a cell, and
+    names which of the two declared, non-regime reasons dropped it. It is
+    deliberately not a proof that the run never filtered by regime: an upstream
+    filter would remove trades before this function ever saw them, and no
+    arithmetic here could notice. What holds that promise is upstream and
+    structural — :mod:`backtest.simulate` reads no regime column at all, which is
+    pinned by a test, and the contract's ``regime.role`` cell is refused by
+    :func:`check_regime_role` if it ever changes. This block's job is the narrower
+    and checkable one: showing that *within* this module the states partition the
+    trades and nothing quietly falls between the cells.
     """
     check_regime_source(contract)
     check_regime_role(contract)
-    if spine.market != market:
-        raise ValueError(
-            f"a {spine.market!r} spine cannot date {market!r}'s trades: the regime "
-            "is read off each market's own index, and the two indices differ"
-        )
-    mine = [t for t in trades if t.market == market and t.arm == PRIMARY_ARM]
+    market = spine.market
+    mine = for_market(trades, market)
     buckets = by_state(spine, mine)
+    in_cells = sum(len(b) for b in buckets.values())
     return {
         "market": market,
         "index": MARKET_INDEX[market],
@@ -724,21 +889,32 @@ def market_posture(
                 "windows": _windows(
                     contract, buckets[state], market=market, state=state
                 ),
+                "trades": len(buckets[state]),
             }
             for state in REPORTED_STATES
         ],
-        "counterfactual": hostile_counterfactual(
-            contract, mine, spine, market=market
-        ),
-        "reduced": choppy_reduced(contract, mine, spine, market=market),
+        "counterfactual": hostile_counterfactual(contract, mine, spine),
+        "reduced": choppy_reduced(contract, mine, spine),
         "breadth": breadth_summary(spine),
+        "follow_through": follow_through_summary(spine),
         "conditioning": {
             "role": contract.value(REGIME_ROLE_KEY),
+            # Every trade handed in, then the two declared exclusions, then what
+            # reached a cell. Spelled out rather than reduced to one zero, because
+            # "nothing was excluded by regime" is only worth reading beside the
+            # count of what *was* excluded and why.
+            "handed_in": len(trades),
+            "excluded_other_markets": sum(1 for t in trades if t.market != market),
+            "excluded_other_arms": sum(
+                1 for t in trades if t.market == market and t.arm != PRIMARY_ARM
+            ),
             "trades": len(mine),
-            "in_cells": sum(len(b) for b in buckets.values()),
-            "excluded_by_regime": len(mine) - sum(len(b) for b in buckets.values()),
+            "in_cells": in_cells,
+            "excluded_by_regime": len(mine) - in_cells,
+            "partition_holds": len(mine) == in_cells,
             "sessions": len(spine.readings),
             "warmup_bars": REGIME_WARMUP,
+            "upstream_guarantee": UPSTREAM_GUARANTEE,
         },
     }
 
@@ -762,12 +938,21 @@ def posture_report(
     """
     check_regime_source(contract)
     check_regime_role(contract)
-    named = tuple(markets) if markets else tuple(contract.value(SCOPE_MARKETS_KEY))
+    named = _reported_markets(contract, markets)
     missing = [m for m in named if m not in spines]
     if missing:
         raise ValueError(
             f"no regime spine for {missing}: a market reported with no sessions "
             "would show every trade as undefined and read as a warm-up hole"
+        )
+    # A mapping whose key disagrees with the spine it points at is the one way left
+    # to date a market's trades off another market's index, now that the market is
+    # the spine's own rather than a second argument beside it.
+    mislabelled = [m for m in named if spines[m].market != m]
+    if mislabelled:
+        raise ValueError(
+            f"the spine filed under {mislabelled} names a different market: the "
+            "regime is read off each market's own index, and the two indices differ"
         )
     return stamp_result(
         contract,
@@ -775,8 +960,11 @@ def posture_report(
             "regime_source": REGIME_SOURCE,
             "regime_role": REGIME_ROLE,
             "state_read_at": STATE_READ_AT,
+            "state_read_at_note": STATE_READ_AT_NOTE,
             "arm": PRIMARY_ARM,
             "states": list(REPORTED_STATES),
+            "per_year": PER_YEAR_NOTE,
+            "views": VIEWS_NOTE,
             "bootstrap": {
                 "cluster": BOOTSTRAP_CLUSTER,
                 "resamples": BOOTSTRAP_RESAMPLES,
@@ -784,7 +972,7 @@ def posture_report(
                 "confidence": BOOTSTRAP_CONFIDENCE,
             },
             "markets": [
-                market_posture(contract, trades, spines[market], market=market)
+                market_posture(contract, trades, spines[market])
                 for market in named
             ],
         },
@@ -817,6 +1005,16 @@ def _cell_line(cell: dict[str, Any], *, width: int = 30) -> str:
     )
 
 
+def _pct(share: float | None) -> str:
+    """A share as a percentage, or an em dash where there was nothing to divide.
+
+    One spelling, because a blank and a ``0.0%`` mean different things — no trades
+    versus trades that all lost — and formatting each site by hand is how the two
+    end up looking the same.
+    """
+    return "—" if share is None else f"{share:.1%}"
+
+
 def _verdict_line(body: dict[str, Any], point: str) -> str:
     """One posture's verdict, with the word the app prints beside it.
 
@@ -844,8 +1042,10 @@ def format_posture(report: dict[str, Any]) -> str:
     lines: list[str] = [
         f"regime posture — arm {report['arm']}, state read at "
         f"{report['state_read_at']} (t−1)",
+        f"  {report['state_read_at_note']}",
         f"  {report['regime_role']}: nothing is excluded by regime, every state "
         "trades, and each one's expectancy is measured",
+        f"  {report['views']}",
     ]
     for body in report["markets"]:
         cond = body["conditioning"]
@@ -853,7 +1053,9 @@ def format_posture(report: dict[str, Any]) -> str:
             "",
             f"{body['market']} — regime off {body['index']}, "
             f"{cond['trades']} trades over {cond['sessions']} sessions, "
-            f"{cond['excluded_by_regime']} excluded by regime",
+            f"{cond['excluded_by_regime']} excluded by regime "
+            f"({cond['excluded_other_markets']} other-market and "
+            f"{cond['excluded_other_arms']} other-arm trades were set aside first)",
         ]
         for state in body["states"]:
             lines.append(f"  {state['state']}")
@@ -869,12 +1071,19 @@ def format_posture(report: dict[str, Any]) -> str:
         ]
         red = body["reduced"]
         delta = red["delta_expectancy_r"]
-        lines.append(
+        shape, friendly_shape = red["shape"], red["shape_friendly"]
+        lines += [
             _verdict_line(
                 red, "none — no trades on one side" if delta is None
                 else f"{delta:+.3f}R",
-            )
-        )
+            ),
+            # The counts and both win rates, on the line under the verdict. A
+            # relative verdict quoted without the two sides behind it is the one
+            # figure on this page a reader could most easily misread as absolute.
+            f"    CHOPPY n={shape['closed']} "
+            f"win {_pct(shape['win_rate'])} against FRIENDLY "
+            f"n={friendly_shape['closed']} win {_pct(friendly_shape['win_rate'])}",
+        ]
 
         breadth = body["breadth"]
         median = breadth["median"]
@@ -883,10 +1092,14 @@ def format_posture(report: dict[str, Any]) -> str:
             if median is not None
             else "no sessions carried a reading"
         )
+        through = body["follow_through"]
         lines += [
             "",
             f"  breadth (descriptive, never conditioned on): {spread}",
             f"    {breadth['warning']}",
+            f"  follow-through (unbiased, never conditioned on): index broke out "
+            f"on {_pct(through['breakout_rate'])} of {through['sessions']} sessions",
+            f"    {through['note']}",
         ]
     return "\n".join(lines)
 
@@ -919,9 +1132,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     contract = DEFAULT_CONTRACT
-    markets = tuple(args.market) if args.market else tuple(
-        contract.value(SCOPE_MARKETS_KEY)
-    )
+    # The contract's own scope, resolved by :mod:`backtest.metric`'s one fallback
+    # rather than by a second copy of it here: defaulting at the command *and* in
+    # the report would be two places for "which markets is this run about" to
+    # diverge, and the divergence shows up as a market silently missing.
+    markets = _reported_markets(contract, args.market)
     store = Store.open(args.store)
     denominator = DenominatorStore.open(denominator_path(args.store))
     try:

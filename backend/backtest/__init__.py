@@ -114,11 +114,18 @@ is t−1, the night the candidate was listed with its posture beside it and two 
 before the fill. The per-cell arithmetic is :mod:`backtest.metric`'s own, so a posture
 cell and a headline cell cannot report the same trades differently.
 
-The load-bearing property is that regime **conditions and never filters**: the three
-states and an undefined bucket partition the trades, and the report's
-``excluded_by_regime`` is computed from that partition rather than asserted beside it.
-Breadth is reported with its survivorship warning and can never be a cohort key —
-:func:`~backtest.posture.posture_cell` takes a state and refuses anything else.
+The load-bearing property is that regime **conditions and never filters**. The three
+states and an undefined bucket partition the trades, and the report accounts for the
+two declared non-regime exclusions — the other market and the other arms — rather than
+reducing the whole claim to one zero. What actually holds the promise sits upstream and
+is structural: :mod:`backtest.simulate` reads no regime column when it produces trades,
+pinned by a test that flips a persisted state and gets the same trades back.
+
+Both regime companions are reported and neither is conditioned on. Breadth carries its
+survivorship warning and can never be a cohort key —
+:func:`~backtest.posture.posture_cell` takes a state and refuses anything else — while
+follow-through is named plainly as **unbiased where breadth is not**, the one regime
+signal the live app can never backfill and this run reconstructs legitimately.
 
 :mod:`backtest.posture`'s names are **not** re-exported here, for the reasons that
 already keep :mod:`backtest.metric` out: it is a command (``python -m

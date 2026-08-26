@@ -547,7 +547,10 @@ at all; `CHOPPY` against **`FRIENDLY`**, because "reduced" claims the state is w
 trade rather than unprofitable. Both verdicts are the **interval's, never the mean's**, and
 `undecided` is a real answer — it says the run leaves the app's word as unfounded as it
 found it. Priced at **signal level**: sitting a state out frees no capital here, so the
-figure is what the posture costs, never what it might buy.
+figure is what the posture costs, never what it might buy. Both **regime companions** are
+reported beside the cells and neither is conditioned on — breadth with its survivorship
+warning, follow-through named plainly as **unbiased where breadth is not**, because the
+index series carries no survivorship hole and this run is the better instrument for it.
 _Avoid_: regime filter, regime edge — and never condition a cell on **breadth**, which is
 the **regime companion** survivorship corrupts most.
 

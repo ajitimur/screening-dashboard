@@ -45,13 +45,17 @@ it as ``__main__`` — which Python reports as a ``RuntimeWarning`` on every
 invocation of the documented command. So the entry point is reached as
 ``backtest.run.run_denominator``.
 
-Issue #189 lands Phase 4's first arm: :mod:`backtest.simulate` turns each persisted
-detection into a trade. Entry is the detection's own trigger — a close through it
-signals, the next open fills — the stop is the detection's own unmodified, and arm B
-trails a 10MA on the same terms. The result is denominated in R off the detection's
-stop width **in ADR**, so a rescale of the bar series moves numerator and denominator
-together and R does not move at all; the one absolute-price comparison that is not
-immune rides on every trade as a price-scale flag whose dropped count is reported.
+Issues #189 and #190 land Phase 4: :mod:`backtest.simulate` turns each persisted
+detection into a trade on each of the three exit arms. Entry is the detection's own
+trigger — a close through it signals, the next open fills — and the stop is the
+detection's own unmodified. Both are computed once and shared, so the arms differ in
+the exit and in nothing else: B trails a 10MA, C a 20MA, and A takes 50% off at the
+close of the fifth session after entry and trails the remainder on a 10MA, its R
+position-weighted per leg and summed. The result is denominated in R off the
+detection's stop width **in ADR**, so a rescale of the bar series moves numerator and
+denominator together and R does not move at all; the one absolute-price comparison
+that is not immune rides on every trade as a price-scale flag whose dropped count is
+reported.
 
 :mod:`backtest.simulate`'s names are **not** re-exported here, and the mechanical
 reason is now doubled: it is a command in its own right

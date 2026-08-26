@@ -5245,13 +5245,25 @@ from backtest.simulate import (
     SimulatedTrade,
     check_trail_mechanic,
     price_scale_drops,
-    simulate_arm_b,
+    simulate_arm,
     simulate_market,
     format_trades,
     simulate_report,
     trail_ma,
-    trail_ma_window,
+    exit_plan,
 )
+
+
+def simulate_arm_b(bars, detection, *, market, contract):
+    """Arm B by name, which is how every test below this line asks for it.
+
+    #190 made the arm a parameter of :func:`simulate_arm` — the arms share one
+    entry and one stop, and only the exit differs — so this is what "arm B" now
+    spells. Kept as a test-local shim rather than a second production entry point:
+    two names for one function in the module itself is exactly the drift the arms
+    were unified to remove.
+    """
+    return simulate_arm(bars, detection, market=market, contract=contract, arm=ARM_B)
 
 
 def _sim_bar(session: date, o: float, h: float, l: float, c: float) -> Bar:
@@ -5371,7 +5383,7 @@ def test_the_trail_signals_on_a_close_through_the_ma_and_fills_at_the_next_open(
 
     trade = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
 
-    window = trail_ma_window(DEFAULT_CONTRACT)
+    window = exit_plan(DEFAULT_CONTRACT, ARM_B).trail_ma
     assert window == 10
     signal = next(
         i for i in range(41, len(bars))
@@ -5680,9 +5692,9 @@ def test_the_report_carries_the_contract_and_the_dropped_count(store):
     report = simulate_report(DEFAULT_CONTRACT, trades)
 
     assert report[CONTRACT_KEY] == DEFAULT_CONTRACT.to_dict()
-    assert report["arm"] == ARM_B
-    assert report["trades"] == 2
-    assert report["price_scale_dropped"] == 1
+    (arm_b,) = [r for r in report["arms"] if r["arm"] == ARM_B]
+    assert arm_b["trades"] == 2
+    assert arm_b["price_scale_dropped"] == 1
 
 
 def test_the_printed_result_says_how_many_trades_the_price_scale_flag_drops(store):
@@ -5740,7 +5752,7 @@ def test_a_changed_trail_mechanic_is_contract_drift_not_a_silent_reinterpretatio
 def test_arm_b_reads_its_window_from_the_contract_not_from_a_constant(store):
     """The 10 in "10MA" belongs to the contract, so a sweep changes one cell."""
     assert (
-        trail_ma_window(DEFAULT_CONTRACT)
+        exit_plan(DEFAULT_CONTRACT, ARM_B).trail_ma
         == DEFAULT_CONTRACT.value(EXIT_ARM_B_KEY)["trail_ma"]
     )
 
@@ -5800,7 +5812,7 @@ def test_the_denominators_detections_simulate_end_to_end(store, denominator):
     )
     assert measured_detections > 1
 
-    trades = simulate_market(store, denominator, "US", DEFAULT_CONTRACT)
+    trades = simulate_market(store, denominator, "US", DEFAULT_CONTRACT, arms=(ARM_B,))
 
     # The one detection whose next session broke: bar 104's, filled at bar 106.
     (trade,) = trades
@@ -5823,3 +5835,398 @@ def test_the_denominators_detections_simulate_end_to_end(store, denominator):
     # The run's burn-in really does carry detections, so the exclusion has work to do.
     assert any(denominator.detections("US", r.session) for r in run.burn_in)
     assert trade.detection_session in {r.session for r in run.measured}
+
+
+# -- arms A and C, on arm B's entry and stop (issue #190) ----------------------
+#
+# The remaining two exits, sharing arm B's entry and stop *by construction* rather
+# than by agreement: the entry and the stop are computed once and the exit is the
+# only per-arm step, which is the only reason running three arms answers anything
+# about exits at all.
+#
+# Arm A is the trader's documented behaviour — 50% off at the close of the fifth
+# session after entry, remainder on a 10MA trail — and has no counterpart in the
+# reference set, so it is measured and never anchored. Arm C is a pure 20MA trail;
+# B and C are the two directly comparable to the reference set's simulated exits,
+# which is what keeps the anchors usable.
+
+from backtest.chain import bar_index
+from backtest.contract import EXIT_ARM_A_KEY, EXIT_ARM_C_KEY
+from backtest.simulate import (
+    ARM_A,
+    ARM_C,
+    ARMS,
+    EXIT_SCALE,
+    SCALE_MECHANIC,
+    TRAIL_LIVE_FROM_FILL,
+    ExitLeg,
+    arm_report,
+    check_arm_mechanics,
+)
+
+
+def _arm(bars, det, arm, *, market="US"):
+    return simulate_arm(bars, det, market=market, contract=DEFAULT_CONTRACT, arm=arm)
+
+
+def test_the_three_arms_share_one_entry_and_one_stop(store):
+    """The premise of running three arms, asserted rather than assumed.
+
+    If the arms differed anywhere before the exit, a difference between their
+    results would be attributable to that difference too, and the whole comparison
+    would say nothing about exits. So every field decided at or before the fill is
+    required to be identical across all three.
+    """
+    bars = _sim_bars()
+    det = _sim_detection(bars)
+
+    trades = {arm: _arm(bars, det, arm) for arm in ARMS}
+
+    assert set(trades) == {ARM_A, ARM_B, ARM_C}
+    shared = {
+        (t.trigger, t.break_signal, t.entry, t.stop_price, t.stop_width, t.price_scale)
+        for t in trades.values()
+    }
+    assert len(shared) == 1
+    # And the exit really is the only thing that moved: C's 20MA holds a trade B's
+    # 10MA has already let go of, so the fixture would notice arms that agreed.
+    assert trades[ARM_C].exit != trades[ARM_B].exit
+
+
+def test_arm_a_scales_half_at_the_close_of_the_fifth_session_after_entry(store):
+    """The trader's documented behaviour, as the contract's own numbers.
+
+    "Day 5" is the *close of the fifth session after entry* — the fill session is
+    day 0 — and the remainder then trails a 10MA on the same signal-then-fill terms
+    arm B uses. The scale session is recomputed from the fill here rather than
+    written as a constant, so a test that agreed with the simulator by copying its
+    answer would disagree the moment either side moved.
+    """
+    bars = _sim_bars()
+    det = _sim_detection(bars)
+
+    trade = _arm(bars, det, ARM_A)
+
+    plan = exit_plan(DEFAULT_CONTRACT, ARM_A)
+    assert (plan.scale_day, plan.scale_fraction, plan.trail_ma) == (5, 0.5, 10)
+    fill = bar_index(bars, trade.entry.session)
+    scale_bar = bars[fill + plan.scale_day]
+
+    scale, runner = trade.legs
+    assert scale.reason == EXIT_SCALE
+    assert scale.weight == pytest.approx(0.5)
+    # A planned partial is decided and filled on the same close: there is no signal
+    # to wait a session on, because nothing about the market triggered it.
+    assert scale.signal.session == scale.exit.session == scale_bar.session
+    assert scale.exit.price == scale_bar.close
+    # The remainder is the rest of the position, exited on arm B's own trail.
+    assert runner.reason == EXIT_TRAIL
+    assert runner.weight == pytest.approx(0.5)
+    assert runner.exit == _arm(bars, det, ARM_B).exit
+
+
+def test_arm_as_r_is_position_weighted_per_leg_and_summed(store):
+    """Half a position exiting at +2R contributes 1R, not 2R (acceptance criterion).
+
+    This is the whole of what "two-legged R" means, and it is the one arithmetic in
+    the module that a plausible implementation gets wrong by averaging the legs'
+    R instead of weighting them — a mistake that is invisible in the output,
+    because the wrong number is the same order of magnitude as the right one.
+    """
+    bars = _sim_bars()
+    session = bars[45].session
+
+    def at(price):
+        return Decision(session=session, price=price)
+
+    trade = dataclasses.replace(
+        _arm(bars, _sim_detection(bars), ARM_A),
+        entry=Decision(session=bars[41].session, price=100.0),
+        stop_width=10.0,
+        legs=(
+            # Half out at 120 — ten points is one R, so this leg is +2R on half a
+            # position, and it must contribute exactly 1R.
+            ExitLeg(weight=0.5, signal=at(120.0), exit=at(120.0), reason=EXIT_SCALE),
+            # The remainder out flat, contributing nothing.
+            ExitLeg(weight=0.5, signal=at(100.0), exit=at(100.0), reason=EXIT_TRAIL),
+        ),
+    )
+
+    assert trade.r_multiple == pytest.approx(1.0)
+    # The same exit taken in one leg is the two-legged one's ceiling: a simulator
+    # that summed its legs unweighted would report 2R here too.
+    whole = dataclasses.replace(
+        trade,
+        legs=(ExitLeg(weight=1.0, signal=at(120.0), exit=at(120.0), reason=EXIT_TRAIL),),
+    )
+    assert whole.r_multiple == pytest.approx(2.0)
+
+
+def test_arm_c_trails_a_twenty_session_ma_and_reads_it_from_the_contract(store):
+    """Arm C is arm B with one number changed, and the number is a contract cell.
+
+    The 20 belongs to the contract, so a later run that sweeps it changes one cell
+    and no code. The exit session is recomputed from the fixture's own closes for
+    the same reason arm B's is.
+    """
+    bars = _sim_bars()
+    det = _sim_detection(bars)
+
+    trade = _arm(bars, det, ARM_C)
+
+    window = exit_plan(DEFAULT_CONTRACT, ARM_C).trail_ma
+    assert window == DEFAULT_CONTRACT.value(EXIT_ARM_C_KEY)["trail_ma"] == 20
+    signal = next(
+        i for i in range(41, len(bars))
+        if (ma := trail_ma(bars[: i + 1], window)) is not None and bars[i].close < ma
+    )
+    (leg,) = trade.legs
+    assert leg.reason == EXIT_TRAIL
+    assert leg.weight == pytest.approx(1.0)
+    assert leg.signal.session == bars[signal].session
+    assert trade.exit.session == bars[signal + 1].session
+    assert trade.exit.price == bars[signal + 1].open
+
+
+def test_arm_as_stop_takes_the_whole_position_when_it_fires_before_day_five(store):
+    """A stop before the scale ends the trade whole, not half.
+
+    The scale is a *plan*, and a plan that has not executed holds no position. An
+    implementation that booked the scale leg regardless would credit arm A with an
+    exit at a price it never traded, on precisely the trades that went against it.
+    """
+    # Break, fill, then straight through the stop at 96 on the next session.
+    closes = _SIM_FLAT + [110.0, 111.0, 90.0, 89.0, 88.0, 87.0, 86.0, 85.0]
+    bars = _sim_bars(closes)
+    det = _sim_detection(bars)
+
+    trade = _arm(bars, det, ARM_A)
+
+    (leg,) = trade.legs
+    assert leg.reason == EXIT_STOP
+    assert leg.weight == pytest.approx(1.0)
+    assert trade.r_multiple == pytest.approx(
+        (trade.exit.price - trade.entry.price) / trade.stop_width
+    )
+
+
+def test_a_scaled_trade_whose_remainder_never_exits_is_open_and_carries_no_r(store):
+    """Half a result is not a result.
+
+    The bars run out with the runner still running. Reporting the realised half
+    would be an equity curve made of the legs that happened to close, which is the
+    same bias marking an open trade at the last close would introduce — only harder
+    to see, because the trade would look closed.
+    """
+    bars = _sim_bars(_SIM_FLAT + _SIM_RUN)
+    det = _sim_detection(bars)
+
+    trade = _arm(bars, det, ARM_A)
+
+    (scale,) = trade.legs
+    assert scale.reason == EXIT_SCALE
+    assert trade.open_at_end
+    assert trade.exit is None
+    assert trade.exit_reason is None
+    assert trade.r_multiple is None
+
+
+def test_arm_a_is_measured_and_never_anchored(store):
+    """Arm A has no counterpart in the reference set, and says so in its own report.
+
+    B and C are the two directly comparable to the reference set's simulated exits;
+    A is the trader's own behaviour and has nothing to be compared against. A report
+    that did not carry that distinction would let a later phase anchor A against a
+    figure that was never measured on A's rules.
+    """
+    bars = _sim_bars()
+    trades = [_arm(bars, _sim_detection(bars), arm) for arm in ARMS]
+
+    report = simulate_report(DEFAULT_CONTRACT, trades)
+    by_arm = {r["arm"]: r for r in report["arms"]}
+
+    assert by_arm[ARM_A]["comparable_to_reference"] is False
+    assert by_arm[ARM_B]["comparable_to_reference"] is True
+    assert by_arm[ARM_C]["comparable_to_reference"] is True
+    assert "arm A — 50% at the close of session 5" in format_trades(report)
+
+
+def test_the_day_five_and_trail_mechanics_are_recorded_as_arbitrary(store):
+    """Both mechanics are contract cells that say they were chosen arbitrarily.
+
+    Neither "the fifth session" nor "fill at the next open" is derived from
+    anything. Recording that is what lets a later run vary them deliberately rather
+    than rediscover them, and the code refuses a contract that has quietly dropped
+    the admission — a run whose mechanics look principled is a run whose sweep
+    nobody thinks to do.
+    """
+    check_arm_mechanics(DEFAULT_CONTRACT, ARM_A)
+    assert DEFAULT_CONTRACT.value(EXIT_ARM_A_KEY)["arbitrary_mechanics"] is True
+    assert DEFAULT_CONTRACT.value(EXIT_TRAIL_MECHANIC_KEY) == TRAIL_MECHANIC
+    assert SCALE_MECHANIC == "close_of_nth_session_after_entry"
+
+    principled = RunContract(
+        contract_version=DEFAULT_CONTRACT.contract_version,
+        label=DEFAULT_CONTRACT.label,
+        cells=tuple(
+            Cell(
+                key=c.key,
+                value={**c.value, "arbitrary_mechanics": False},
+                justification=c.justification,
+            )
+            if c.key == EXIT_ARM_A_KEY else c
+            for c in DEFAULT_CONTRACT.cells
+        ),
+    )
+    with pytest.raises(ContractDrift):
+        check_arm_mechanics(principled, ARM_A)
+
+
+def test_a_detection_appears_once_per_arm(store, denominator):
+    """One trade per arm per detection (acceptance criterion), end to end.
+
+    Run over the persisted denominator rather than a hand-authored detection, so a
+    simulator that produced three arms in isolation and duplicated them over the
+    store's rows would still be caught.
+    """
+    dates = _seed_breakout_store(store)
+    run_denominator(
+        store, denominator, "US", DEFAULT_CONTRACT,
+        start=dates[0], end=dates[-1], measured_start=dates[100],
+    )
+
+    trades = simulate_market(store, denominator, "US", DEFAULT_CONTRACT)
+
+    keyed = {(t.symbol, t.detection_session, t.arm) for t in trades}
+    assert len(keyed) == len(trades) == 3
+    assert {t.arm for t in trades} == set(ARMS)
+    # One detection, three arms, one shared entry — the store's own rows, not the
+    # authored fixture's.
+    assert len({(t.detection_session, t.entry, t.stop_price) for t in trades}) == 1
+
+
+def test_one_arm_can_be_simulated_alone_without_moving_the_others(store, denominator):
+    """Restricting the arms is a filter on which exits run, never on what they read.
+
+    The arms share their entry, so simulating one alone must produce exactly the
+    trade the full run produced for it — otherwise the per-arm figures a sweep
+    reports would depend on which arms happened to be run beside them.
+    """
+    dates = _seed_breakout_store(store)
+    run_denominator(
+        store, denominator, "US", DEFAULT_CONTRACT,
+        start=dates[0], end=dates[-1], measured_start=dates[100],
+    )
+
+    every = simulate_market(store, denominator, "US", DEFAULT_CONTRACT)
+    alone = simulate_market(store, denominator, "US", DEFAULT_CONTRACT, arms=(ARM_C,))
+
+    assert alone == [t for t in every if t.arm == ARM_C]
+
+
+def test_each_arms_report_carries_its_own_exit_and_the_one_contract(store):
+    """Three arms, three sets of figures, one stamped contract.
+
+    The arms differ only in the exit, so the report has to name the exit each figure
+    came from; a set of totals labelled only "arm A/B/C" would be unreadable the
+    moment a sweep changed a window.
+    """
+    bars = _sim_bars()
+    trades = [_arm(bars, _sim_detection(bars), arm) for arm in ARMS]
+
+    report = simulate_report(DEFAULT_CONTRACT, trades)
+
+    assert report[CONTRACT_KEY] == DEFAULT_CONTRACT.to_dict()
+    assert [r["arm"] for r in report["arms"]] == list(ARMS)
+    by_arm = {r["arm"]: r for r in report["arms"]}
+    assert by_arm[ARM_A]["scale_day"] == 5
+    assert by_arm[ARM_A]["scale_fraction"] == 0.5
+    assert by_arm[ARM_A]["scale_mechanic"] == SCALE_MECHANIC
+    assert by_arm[ARM_B]["trail_ma"] == 10
+    assert by_arm[ARM_C]["trail_ma"] == 20
+    assert all(r["trades"] == 1 for r in report["arms"])
+    # And a single arm's body is the same shape whether or not the others ran.
+    assert arm_report(DEFAULT_CONTRACT, ARM_C, trades) == by_arm[ARM_C]
+
+
+def test_an_arm_the_contract_does_not_name_is_refused(store):
+    """A typo in an arm name is a hard error, not an empty result set.
+
+    An unknown arm that returned no trades would report a clean zero — the shape a
+    real, correctly-run arm takes when nothing triggered — and there is no way to
+    tell those two apart after the fact.
+    """
+    bars = _sim_bars()
+    with pytest.raises(ValueError):
+        _arm(bars, _sim_detection(bars), "D")
+
+
+def test_the_trail_is_live_from_the_fill_and_the_contract_says_so(store):
+    """The third arbitrary mechanic, in the contract rather than in a comment.
+
+    On a scaling arm the trail watches from the fill, not from the scale day — so a
+    runner that rolls over before day 5 takes the *whole* position out and the scale
+    never happens. On a fast breakout that degenerates arm A into arm B, which is a
+    material claim about what arm A measures and exactly the kind of thing the
+    issue means by "the mechanics are contract, not code comments".
+    """
+    # Break, fill, then a slide that closes under the 10MA well before day 5.
+    closes = _SIM_FLAT + [110.0, 111.0, 99.0, 98.5, 98.0, 97.5, 97.2, 97.0]
+    bars = _sim_bars(closes)
+    det = _sim_detection(bars)
+
+    trade = _arm(bars, det, ARM_A)
+
+    (leg,) = trade.legs
+    assert leg.reason == EXIT_TRAIL
+    assert leg.weight == pytest.approx(1.0)
+    # Degenerate is the point: with the trail live from the fill, arm A took the
+    # same trade arm B did.
+    assert trade.legs == _arm(bars, det, ARM_B).legs
+
+    assert exit_plan(DEFAULT_CONTRACT, ARM_A).trail_live_from == TRAIL_LIVE_FROM_FILL
+    assert (
+        DEFAULT_CONTRACT.value(EXIT_ARM_A_KEY)["trail_live_from"]
+        == TRAIL_LIVE_FROM_FILL
+    )
+
+
+def test_a_trail_the_contract_starts_elsewhere_is_drift_not_a_reinterpretation(store):
+    """Varying the cell without varying the code would leave a run whose contract
+    and behaviour disagree while both look right — the same refusal the trail's own
+    fill mechanic already carries."""
+    elsewhere = RunContract(
+        contract_version=DEFAULT_CONTRACT.contract_version,
+        label=DEFAULT_CONTRACT.label,
+        cells=tuple(
+            Cell(
+                key=c.key,
+                value={**c.value, "trail_live_from": "scale_day"},
+                justification=c.justification,
+            )
+            if c.key == EXIT_ARM_A_KEY else c
+            for c in DEFAULT_CONTRACT.cells
+        ),
+    )
+    with pytest.raises(ContractDrift):
+        check_arm_mechanics(elsewhere, ARM_A)
+
+
+def test_an_arm_that_ran_and_traded_nothing_reports_zeros_rather_than_vanishing(store):
+    """An arm that triggered nothing is a measurement; an arm that never ran is not.
+
+    A report built from the arms *present in the trades* collapses the two into the
+    same output — a missing section — and there is no way to tell them apart after
+    the fact. So the report covers the arms that were run.
+    """
+    bars = _sim_bars()
+    trades = [_arm(bars, _sim_detection(bars), ARM_B)]
+
+    ran_all = simulate_report(DEFAULT_CONTRACT, trades)
+    ran_one = simulate_report(DEFAULT_CONTRACT, trades, arms=(ARM_B,))
+
+    assert [r["arm"] for r in ran_all["arms"]] == list(ARMS)
+    quiet = {r["arm"]: r for r in ran_all["arms"]}[ARM_C]
+    assert (quiet["trades"], quiet["closed"], quiet["total_r"]) == (0, 0, 0)
+    # And an arm that never ran is absent, which is the distinction being kept.
+    assert [r["arm"] for r in ran_one["arms"]] == [ARM_B]

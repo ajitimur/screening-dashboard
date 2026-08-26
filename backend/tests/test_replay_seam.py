@@ -4582,6 +4582,7 @@ from backtest.denominator import (
     FOLLOW_THROUGH_BASIS,
     DenominatorStore,
     RunStampMismatch,
+    SessionRow,
     declared_columns,
     denominator_path,
 )
@@ -6230,3 +6231,778 @@ def test_an_arm_that_ran_and_traded_nothing_reports_zeros_rather_than_vanishing(
     assert (quiet["trades"], quiet["closed"], quiet["total_r"]) == (0, 0, 0)
     # And an arm that never ran is absent, which is the distinction being kept.
     assert [r["arm"] for r in ran_one["arms"]] == [ARM_B]
+
+
+# -- the denominator figures: precision, at last (issue #193) ------------------
+#
+# Phase 5 of PRD #182, and the figures no prior study in this repo could produce.
+# The reference study has 828 trades a trader **took**, so every result in it is
+# conditioned on his selection and it can report no precision at all. #149 hit the
+# same wall from the other side and had to record 27,323 detections as volume
+# carrying no verdict. Those detections are exactly the population measured here.
+#
+# Three figures, and each carries the coverage it was measured against, because a
+# rate whose denominator is not printed is a rate nobody can check:
+#
+# - **detections per session**, per market and per year, plotted across the window
+# - **the share that trigger** — a close through the detection's own trigger
+# - **the share that reach a favourable outcome** — precision
+#
+# Two things the block guards that no assertion about a rate would catch. A
+# detection the bars cannot answer must never be counted as a miss, and a trade
+# still running at the end of the window must never be counted as a loss: both
+# would deflate precision silently and in the direction that makes the method look
+# worse, which is the direction nobody investigates. And a year whose count
+# collapses is a data hole that reads as a quiet market until someone looks, so it
+# is flagged on the row rather than left for a reader to spot in a column.
+
+from backtest.figures import (
+    DETECTION_COLLAPSE_FRACTION,
+    FAVOURABLE_RULE,
+    HOLE_MARK,
+    SESSION_COLLAPSE_FRACTION,
+    SMA50_OVERLAP_NOTE,
+    Share,
+    figures_for_market,
+    figures_report,
+    format_figures,
+    main as figures_main,
+)
+from backtest.simulate import (
+    ARM_A,
+    ARM_C,
+    ENTRY_FILLED,
+    ENTRY_NO_BREAK,
+    ENTRY_PENDING,
+    ENTRY_UNDECIDABLE,
+    ENTRY_UNFILLED,
+    entry,
+)
+
+
+def _fig_bars(start: date, closes: list[float]) -> list[Bar]:
+    """Bars for one authored name, one close per session, from ``start``."""
+    return _flat_then(_daily(start, len(closes)), closes)
+
+
+# A detection named on the 40th bar of a flat stretch, whose next session decides
+# the break. All three runs are the same length, so a year's session count is the
+# fixture's arithmetic and never an artefact of which outcome a name happened to
+# reach.
+#
+# ``_FIG_WIN`` breaks, runs to 290 and rolls over under its own 10MA at 200 — the
+# fill is at 111 and the exit at 195, so it is favourable by a distance no rounding
+# reaches. Authored that way deliberately: a fixture that merely *breaks out* is
+# not a winner, because the trail signals on the way back down and can easily fill
+# under the entry. ``_FIG_LOSS`` breaks and slides through the stop at 96.
+# ``_FIG_NO_BREAK`` never closes through the trigger at all.
+_FIG_FLAT = [100.0] * 40
+_FIG_WIN = [110.0, 111.0, 130.0, 150.0, 170.0, 190.0, 210.0, 230.0,
+            250.0, 270.0, 290.0, 200.0, 195.0, 190.0, 185.0, 180.0,
+            175.0, 170.0, 165.0, 160.0, 155.0, 150.0]
+_FIG_LOSS = [110.0, 111.0, 108.0, 102.0, 97.0, 90.0, 89.0, 88.0,
+             87.0, 86.0, 85.0, 84.0, 83.0, 82.0, 81.0, 80.0,
+             79.0, 78.0, 77.0, 76.0, 75.0, 74.0]
+_FIG_NO_BREAK = [101.0, 101.0, 100.0, 100.0, 99.0, 99.0, 98.0, 98.0,
+                 99.0, 99.0, 100.0, 100.0, 101.0, 101.0, 100.0, 100.0,
+                 99.0, 99.0, 100.0, 100.0, 101.0, 101.0]
+# What one authored name costs in sessions: the flat stretch plus its run.
+FIG_SESSIONS = len(_FIG_FLAT) + len(_FIG_WIN)
+
+
+def _fig_detection(bars: list[Bar], symbol: str) -> Detection:
+    """The detection the figures are measured over: trigger 102, stop 96.
+
+    Built the way ``_sim_detection`` is — ``stopw_adr`` derived from the ADR the
+    detector would have measured, never chosen beside it — so the fixture is a
+    detection some detector could actually have emitted.
+    """
+    a = adr(trailing_bars(bars, bars[39].session, ADR_WINDOW))
+    return dataclasses.replace(
+        _det(symbol, 5),
+        symbol=symbol,
+        session=bars[39].session,
+        trigger=SIM_TRIGGER,
+        stop=SIM_STOP_WIDTH,
+        stopw_adr=SIM_STOP_WIDTH / (a * SIM_TRIGGER),
+        adr=a,
+        close=bars[39].close,
+        cluster_high=SIM_TRIGGER,
+    )
+
+
+def _seed_figure_name(
+    store: Store,
+    denominator: DenominatorStore,
+    market: str,
+    symbol: str,
+    start: date,
+    closes: list[float],
+    *,
+    burn_in: bool = False,
+    detect: bool = True,
+) -> Detection:
+    """One authored name: its bars in the bar store, its detection in the denominator.
+
+    The denominator rows are written directly rather than replayed through the
+    chain, because these tests are about the *figures* read off the rows and a
+    fourteen-year fixture built through the detector would take the geometry — not
+    the arithmetic — as the thing under test. Every session between the first bar
+    and the last carries a header, so the per-year session counts below are the
+    fixture's own and not an artefact of which sessions happened to detect.
+
+    ``detect=False`` seeds the sessions and no detection, which is how a year gets
+    a full trading calendar and an empty field — the shape a collapsed count has
+    when it is a data hole rather than a short year.
+    """
+    bars = _fig_bars(start, closes)
+    store.append_bars(market, symbol, bars)
+    det = _fig_detection(bars, symbol)
+    for bar in bars:
+        denominator.append_session(
+            SessionRow(
+                market=market, session=bar.session, burn_in=burn_in,
+                members=1,
+                detections=1 if detect and bar.session == det.session else 0,
+                regime_state=None, breadth=None, broke_out=None, index_close=None,
+            )
+        )
+    if detect:
+        denominator.append_detections(market, det.session, [
+            ScoredDetection(
+                symbol=symbol, detection=det,
+                score=seven_dimension_score(det, prior_move=False),
+                star_rank=1, not_taken=False, rs_line=False, relative_move=None,
+            )
+        ])
+    return det
+
+
+def _figures(store, denominator, market="US", **kw):
+    return figures_for_market(store, denominator, market, DEFAULT_CONTRACT, **kw)
+
+
+def _year(figures, year: int):
+    (row,) = [y for y in figures.years if y.year == year]
+    return row
+
+
+# -- the entry, and why it never became a trade -------------------------------
+
+
+def test_an_entry_records_why_it_never_became_a_trade(store):
+    """The five ways an entry ends, and they are not interchangeable.
+
+    ``simulate_arm`` returns ``None`` for all of them, which is right for a
+    simulator and useless for a figure: "the next session did not break" is a
+    resolved miss and belongs in the trigger denominator, while "the bars end
+    before the session that would decide it" is the window's edge and does not.
+    Folding the two together deflates the trigger share by however many detections
+    the window happened to end on.
+    """
+    win = _fig_bars(date(2020, 1, 1), _FIG_FLAT + _FIG_WIN)
+    det = _fig_detection(win, "BASE")
+
+    assert entry(win, det).outcome == ENTRY_FILLED
+    # Bar 40 broke, and the market never opened again to fill it.
+    assert entry(win[:41], det).outcome == ENTRY_UNFILLED
+    # The bars end on the detection itself: nothing has decided the break yet.
+    assert entry(win[:40], det).outcome == ENTRY_PENDING
+    # The deciding session closed under the trigger. A resolved miss.
+    flat = _fig_bars(date(2020, 1, 1), _FIG_FLAT + _FIG_NO_BREAK)
+    assert entry(flat, _fig_detection(flat, "BASE")).outcome == ENTRY_NO_BREAK
+    # The detection's own session is not in the bars at all.
+    assert entry(win[45:], det).outcome == ENTRY_UNDECIDABLE
+
+
+def test_a_filled_entry_carries_the_prices_every_arm_shares(store):
+    """The entry *is* the shared part: trigger, break, fill, stop and stop width.
+
+    #190 pinned that the three arms agree on these; this pins that they agree
+    because there is one entry, not because three code paths happen to compute the
+    same numbers.
+    """
+    bars = _fig_bars(date(2020, 1, 1), _FIG_FLAT + _FIG_WIN)
+    det = _fig_detection(bars, "BASE")
+
+    e = entry(bars, det)
+    trade = simulate_arm(bars, det, market="US", contract=DEFAULT_CONTRACT, arm=ARM_B)
+
+    assert e.trigger == trade.trigger
+    assert e.break_signal == trade.break_signal
+    assert e.fill == trade.entry
+    assert e.stop_price == trade.stop_price
+    assert e.stop_width == trade.stop_width
+    assert e.price_scale == trade.price_scale
+
+
+# -- detections per session, per market and per year --------------------------
+
+
+def test_detections_per_session_is_reported_per_market_and_per_year(
+    store, denominator
+):
+    """Per market and per year, never pooled only. IDX magnitudes are not US
+    magnitudes and a window holding a crash and a mania is not described by a
+    single number that fits neither."""
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    _seed_figure_name(store, denominator, "US", "BBB", date(2021, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    _seed_figure_name(store, denominator, "IDX", "CCC.JK", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+
+    us = _figures(store, denominator, "US")
+    idx = _figures(store, denominator, "IDX")
+
+    assert [y.year for y in us.years] == [2020, 2021]
+    assert [y.year for y in idx.years] == [2020]
+    # Two names over 2020 and 2021, one detection each, on their own sessions.
+    assert _year(us, 2020).detections == 1
+    assert _year(us, 2021).detections == 1
+    assert _year(us, 2020).sessions == FIG_SESSIONS
+    assert _year(us, 2020).detections_per_session == pytest.approx(1 / FIG_SESSIONS)
+
+
+def test_burn_in_sessions_are_excluded_from_every_figure(store, denominator):
+    """A warm-up session is persisted and never measured. A figure that counted
+    them would rest on an unsettled chain — and would report a detection the run
+    itself declines to measure."""
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN, burn_in=True)
+    _seed_figure_name(store, denominator, "US", "BBB", date(2021, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+
+    us = _figures(store, denominator, "US")
+
+    assert [y.year for y in us.years] == [2021]
+    assert us.detections == 1
+
+
+# -- the share that trigger ---------------------------------------------------
+
+
+def test_the_share_of_detections_that_trigger_is_reported(store, denominator):
+    """One name breaks through its trigger and one does not, so the share is a
+    half — the figure the reference study could never produce, because a setup he
+    declined was never recorded at all."""
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    _seed_figure_name(store, denominator, "US", "BBB", date(2020, 6, 1),
+                      _FIG_FLAT + _FIG_NO_BREAK)
+
+    us = _figures(store, denominator, "US")
+
+    assert us.triggered == Share(2 - 1, 2)
+    assert us.triggered.rate == 0.5
+
+
+def test_a_detection_the_bars_cannot_answer_is_not_counted_as_a_miss(
+    store, denominator
+):
+    """Undecidable and pending detections leave the trigger denominator entirely.
+
+    A detection sitting on the last session of the window has not failed to
+    trigger; nothing has asked it yet. Counting it as a miss would deflate the
+    trigger share by however many detections the window happened to end on, in the
+    direction that makes the detector look worse — which is the direction nobody
+    investigates.
+    """
+    det = _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                            _FIG_FLAT + _FIG_WIN)
+    # A second detection on the store's very last session: undecided, not missed.
+    last = _fig_bars(date(2020, 1, 1), _FIG_FLAT + _FIG_WIN)[-1].session
+    pending = dataclasses.replace(det, symbol="AAA", session=last)
+    denominator.append_detections("US", last, [
+        ScoredDetection(
+            symbol="AAA", detection=pending,
+            score=seven_dimension_score(pending, prior_move=False),
+            star_rank=1, not_taken=False, rs_line=False, relative_move=None,
+        )
+    ])
+
+    us = _figures(store, denominator, "US")
+
+    assert us.detections == 2
+    assert us.triggered == Share(1, 1)
+    assert us.undecided == 1
+
+
+# -- precision ----------------------------------------------------------------
+
+
+def test_the_share_reaching_a_favourable_outcome_is_the_precision_figure(
+    store, denominator
+):
+    """Precision at last: of every setup the detector named and the bars answered,
+    the share that made money. Three names — one wins, one is stopped out, one
+    never breaks — so one detection in three reached a favourable outcome."""
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    _seed_figure_name(store, denominator, "US", "BBB", date(2020, 6, 1),
+                      _FIG_FLAT + _FIG_LOSS)
+    _seed_figure_name(store, denominator, "US", "CCC", date(2021, 1, 1),
+                      _FIG_FLAT + _FIG_NO_BREAK)
+
+    us = _figures(store, denominator, "US")
+    arm_b = us.arms[ARM_B]
+
+    assert arm_b.favourable == 1
+    assert arm_b.precision == Share(1, 3)
+    # The win rate is a different question with a different denominator: of the
+    # trades that were *taken*, how many paid. Conflating the two would report a
+    # detector's precision as if it were a trader's hit rate.
+    assert arm_b.win_rate == Share(1, 2)
+
+
+def test_the_trigger_share_and_precision_are_reported_per_year_too(
+    store, denominator
+):
+    """Per market *and* per year, never pooled only. A window holding a crash and a
+    mania is not described by a single number that fits neither — and pooling is
+    how a year the method lost money in disappears into a decade it made money in.
+    """
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    _seed_figure_name(store, denominator, "US", "BBB", date(2021, 1, 1),
+                      _FIG_FLAT + _FIG_LOSS)
+
+    us = _figures(store, denominator, "US")
+
+    assert _year(us, 2020).arms[ARM_B].precision == Share(1, 1)
+    assert _year(us, 2021).arms[ARM_B].precision == Share(0, 1)
+    assert _year(us, 2020).triggered == Share(1, 1)
+    # And the pooled figure is beside them, never instead of them.
+    assert us.arms[ARM_B].precision == Share(1, 2)
+    printed = format_figures(figures_report(DEFAULT_CONTRACT, [us]))
+    assert "precision B" in printed
+
+
+def test_a_trade_still_open_at_the_end_of_the_window_is_never_a_loss(
+    store, denominator
+):
+    """An open trade has no outcome, so it leaves precision's denominator.
+
+    Closing it at the last available close would invent an exit the rules never
+    gave — systematically, for every name still running when the window ends. It
+    is reported as unresolved instead, which is the honest shape: a question the
+    window was too short to answer.
+    """
+    # The run-up with no roll-over: the trail never signals and the bars run out.
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + [110.0, 111.0, 118.0, 124.0, 130.0])
+
+    us = _figures(store, denominator, "US")
+    arm_b = us.arms[ARM_B]
+
+    assert us.triggered == Share(1, 1)
+    assert arm_b.open_at_end == 1
+    assert arm_b.precision == Share(0, 0)
+    assert arm_b.precision.rate is None
+
+
+def test_precision_is_reported_per_arm_because_it_depends_on_the_exit(
+    store, denominator
+):
+    """The arms share one entry and one stop, so the trigger share is one figure
+    across all three — and precision is not. An exit is what turns a break into a
+    favourable outcome or an unfavourable one, so a single precision figure would
+    be a claim about an exit it never named."""
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+
+    us = _figures(store, denominator, "US")
+
+    assert set(us.arms) == {ARM_A, ARM_B, ARM_C}
+    # One entry, so the trigger share is one figure and not three.
+    assert us.triggered == Share(1, 1)
+    # And a precision per arm, each measured against its own answered count: an arm
+    # still holding the position has answered nothing yet, whatever the arm beside
+    # it did. The entry is shared, so `filled` cannot differ; `answered` can.
+    assert us.arms[ARM_B].filled == us.arms[ARM_C].filled == 1
+    assert [us.arms[a].answered for a in (ARM_A, ARM_B, ARM_C)] == [1, 1, 1]
+
+
+def test_the_favourable_rule_rides_on_the_result(store, denominator):
+    """What counts as favourable is a threshold, and a threshold nobody can read
+    off the result is one a later run can quietly move."""
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+
+    report = figures_report(DEFAULT_CONTRACT, [_figures(store, denominator, "US")])
+
+    assert report["favourable_rule"] == FAVOURABLE_RULE
+    assert FAVOURABLE_RULE in format_figures(report)
+
+
+def test_precision_is_a_before_cost_figure_and_the_report_says_so(
+    store, denominator
+):
+    """Costs are #191's, and a precision figure computed before them overstates.
+
+    A caveat a reader has to remember is one a reader forgets, so it rides on the
+    payload and is printed beside the number rather than living in a commit
+    message.
+    """
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+
+    report = figures_report(DEFAULT_CONTRACT, [_figures(store, denominator, "US")])
+
+    assert report["costs_applied"] is False
+    assert "before costs" in format_figures(report)
+
+
+# -- coverage -----------------------------------------------------------------
+
+
+def test_every_figure_carries_the_coverage_count_it_was_measured_against(
+    store, denominator
+):
+    """A rate whose denominator is not printed is a rate nobody can check, and a
+    ``0/0`` reported as ``0.0`` is a claim the data never made."""
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_NO_BREAK)
+
+    us = _figures(store, denominator, "US")
+
+    assert us.triggered.of == 1
+    assert Share(0, 0).rate is None
+    assert Share(1, 4).rate == 0.25
+    # Every rate in the printed report arrives with its own coverage beside it.
+    printed = format_figures(figures_report(DEFAULT_CONTRACT, [us]))
+    assert "0 of 1" in printed
+
+
+# -- the SMA50 overlap --------------------------------------------------------
+
+
+def test_the_sma50_overlap_is_stated_wherever_counts_are_reported(
+    store, denominator
+):
+    """Detection counts fall against an unfiltered run because the contract's
+    SMA50 gate overlaps the detector's own trend logic. That is the gate working,
+    not the detector becoming more selective — and a reader who is not told
+    conflates the two."""
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+
+    report = figures_report(DEFAULT_CONTRACT, [_figures(store, denominator, "US")])
+
+    assert report["sma50_overlap"] == SMA50_OVERLAP_NOTE
+    assert SMA50_OVERLAP_NOTE in format_figures(report)
+
+
+# -- the plot, and the years that collapse ------------------------------------
+
+
+def test_a_year_whose_detection_count_collapses_is_flagged(store, denominator):
+    """A count that collapses reads as a quiet market until someone looks, so the
+    row says so rather than leaving it for a reader to spot in a column."""
+    # Three years of a full calendar and a healthy field, then a fourth with the
+    # same calendar and an empty one. Nothing about the year is short — only the
+    # count is, which is what a data hole looks like from the report.
+    for year in (2019, 2020, 2021, 2022):
+        for month in (1, 4, 7, 10):
+            _seed_figure_name(
+                store, denominator, "US", f"N{year}{month}", date(year, month, 1),
+                _FIG_FLAT + _FIG_WIN, detect=year != 2022,
+            )
+
+    us = _figures(store, denominator, "US")
+
+    assert _year(us, 2021).detections_collapsed is False
+    assert _year(us, 2022).detections_collapsed is True
+    # The year is not short — only its field is, which is the confusion the two
+    # flags exist to keep apart.
+    assert _year(us, 2022).sessions == _year(us, 2021).sessions
+    assert _year(us, 2022).sessions_collapsed is False
+    assert any("detections" in f for f in _year(us, 2022).flags)
+
+
+def test_a_year_whose_session_count_collapses_is_flagged_as_a_data_hole(
+    store, denominator
+):
+    """Sessions missing from the middle of a window are a hole in the store, and
+    a rate computed over them is a rate over a year that never happened."""
+    for year in (2019, 2021, 2022):
+        for month in (1, 4, 7, 10):
+            _seed_figure_name(
+                store, denominator, "US", f"N{year}{month}", date(year, month, 1),
+                _FIG_FLAT + _FIG_WIN,
+            )
+    # 2020 is an interior year holding one short stretch and nothing else.
+    _seed_figure_name(store, denominator, "US", "HOLE", date(2020, 6, 1),
+                      _FIG_FLAT + _FIG_WIN)
+
+    us = _figures(store, denominator, "US")
+
+    assert _year(us, 2020).sessions_collapsed is True
+    assert _year(us, 2021).sessions_collapsed is False
+    assert any("session" in f for f in _year(us, 2020).flags)
+
+
+def test_a_partial_year_at_the_edge_of_the_window_is_not_a_hole(store, denominator):
+    """The window opens and closes mid-year by design, so its first and last years
+    are short on purpose. Flagging them would cry wolf on every run and teach a
+    reader to skip the one flag that means something."""
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 11, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    for month in (1, 4, 7, 10):
+        _seed_figure_name(store, denominator, "US", f"M{month}", date(2021, month, 1),
+                          _FIG_FLAT + _FIG_WIN)
+    _seed_figure_name(store, denominator, "US", "ZZZ", date(2022, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+
+    us = _figures(store, denominator, "US")
+
+    assert _year(us, 2020).sessions_collapsed is False
+    assert _year(us, 2022).sessions_collapsed is False
+
+
+def test_the_collapse_rules_ride_on_the_result_rather_than_on_a_reader(
+    store, denominator
+):
+    """A flag whose rule is not printed is a flag a reader has to trust."""
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+
+    report = figures_report(DEFAULT_CONTRACT, [_figures(store, denominator, "US")])
+
+    assert report["collapse_rule"]["detections_fraction"] == DETECTION_COLLAPSE_FRACTION
+    assert report["collapse_rule"]["sessions_fraction"] == SESSION_COLLAPSE_FRACTION
+
+
+def test_detections_per_session_is_plotted_across_the_window(store, denominator):
+    """The plot is the deliverable, not the table beside it: a collapsing count is
+    a shape a reader sees at a glance and a number a reader has to compare."""
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    _seed_figure_name(store, denominator, "US", "BBB", date(2021, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+
+    printed = format_figures(
+        figures_report(DEFAULT_CONTRACT, [_figures(store, denominator, "US")])
+    )
+
+    assert "2020" in printed and "2021" in printed
+    # One bar per year, drawn from the year's own detections-per-session.
+    assert printed.count("█") > 0
+
+
+def test_a_month_the_store_never_covered_plots_as_a_hole_not_a_quiet_month(
+    store, denominator
+):
+    """A yearly mean hides a missing quarter — it drops by a quarter and looks like
+    a slow year. The monthly series is where a hole is actually visible, so a month
+    with no sessions at all draws differently from a month with sessions and no
+    detections."""
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    _seed_figure_name(store, denominator, "US", "BBB", date(2020, 10, 1),
+                      _FIG_FLAT + _FIG_WIN)
+
+    printed = format_figures(
+        figures_report(DEFAULT_CONTRACT, [_figures(store, denominator, "US")])
+    )
+
+    assert HOLE_MARK in printed
+
+
+# -- the result, and the command ----------------------------------------------
+
+
+def test_the_figures_report_carries_the_contract_that_produced_it(
+    store, denominator
+):
+    """Every figure the package emits carries its contract, so two runs under
+    different contracts are distinguishable from their serialised output alone."""
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+
+    report = figures_report(DEFAULT_CONTRACT, [_figures(store, denominator, "US")])
+
+    assert report["contract"] == DEFAULT_CONTRACT.to_dict()
+    assert [m["market"] for m in report["markets"]] == ["US"]
+
+
+def test_the_figures_cli_reports_and_writes_the_denominator_figures(
+    tmp_path, capsys
+):
+    """One command reproduces the figures off a persisted denominator, and writes
+    the machine-readable result beside the printed one."""
+    path = tmp_path / "backtest_us.duckdb"
+    store = Store.open(path)
+    denominator = DenominatorStore.open(denominator_path(path))
+    denominator.stamp(DEFAULT_CONTRACT)
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    store.close()
+    denominator.close()
+    out_json = tmp_path / "figures.json"
+
+    code = figures_main([
+        "--store", str(path), "--market", "US", "--out-json", str(out_json)
+    ])
+
+    assert code == 0
+    printed = capsys.readouterr().out
+    assert SMA50_OVERLAP_NOTE in printed
+    written = json.loads(out_json.read_text())
+    assert written["contract"] == DEFAULT_CONTRACT.to_dict()
+    assert written["markets"][0]["market"] == "US"
+
+
+# -- what the #193 review found unguarded -------------------------------------
+
+
+def test_a_year_the_store_missed_entirely_still_gets_a_row_and_a_flag(
+    store, denominator
+):
+    """The worst hole is the one a year-keyed report cannot see.
+
+    A year with no sessions at all contributes no rows to group by, so a report
+    built from the years *present* would give it no line, no flag and no weight in
+    the median — and the largest data hole the criterion exists to catch would be
+    the single case it could not. It survives only as a blank stretch in the
+    monthly grid, which is not a flag.
+    """
+    for year in (2019, 2020, 2022):
+        for month in (1, 4, 7, 10):
+            _seed_figure_name(
+                store, denominator, "US", f"N{year}{month}", date(year, month, 1),
+                _FIG_FLAT + _FIG_WIN,
+            )
+
+    us = _figures(store, denominator, "US")
+
+    assert [y.year for y in us.years] == [2019, 2020, 2021, 2022]
+    assert _year(us, 2021).sessions == 0
+    assert _year(us, 2021).sessions_collapsed is True
+    # And it makes no claim it cannot support: no sessions is no rate, never zero.
+    assert _year(us, 2021).detections_per_session is None
+    assert _year(us, 2021).detections_collapsed is False
+
+
+def test_a_hole_in_the_windows_first_year_is_flagged_like_any_other(
+    store, denominator
+):
+    """The edge exemption this first shipped with was itself a hole.
+
+    Exempting the window's opening and closing years from the sessions flag reads
+    as generosity — they are short by design — but a store that lost three quarters
+    of the opening year drops its sessions *and* its detections together, so the
+    per-session rate barely moves and the detections flag stays silent too. Judging
+    the density against the span the window actually covers removes the by-design
+    shortness without removing the flag.
+    """
+    # 2019 opens the window on 1 January and then holds one stretch and nothing
+    # else — the calendar says a year, the store holds two months of it.
+    _seed_figure_name(store, denominator, "US", "HOLE", date(2019, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    for year in (2020, 2021, 2022):
+        for month in (1, 4, 7, 10):
+            _seed_figure_name(
+                store, denominator, "US", f"N{year}{month}", date(year, month, 1),
+                _FIG_FLAT + _FIG_WIN,
+            )
+
+    us = _figures(store, denominator, "US")
+
+    assert _year(us, 2019).sessions_collapsed is True
+    # Not because its field thinned — the rate is ordinary, which is exactly why
+    # the detections flag cannot stand in for the sessions one.
+    assert _year(us, 2019).detections_collapsed is False
+
+
+def test_a_year_the_window_only_half_covers_is_not_a_hole(store, denominator):
+    """The other half of the same rule. A window that opens in November holds two
+    months of that year because it opened in November, and a flag that fired on it
+    would fire on every run — which teaches a reader to skip the one that means
+    something."""
+    _seed_figure_name(store, denominator, "US", "LATE", date(2019, 11, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    for year in (2020, 2021):
+        for month in (1, 4, 7, 10):
+            _seed_figure_name(
+                store, denominator, "US", f"N{year}{month}", date(year, month, 1),
+                _FIG_FLAT + _FIG_WIN,
+            )
+
+    us = _figures(store, denominator, "US")
+
+    assert _year(us, 2019).sessions < _year(us, 2020).sessions
+    assert _year(us, 2019).sessions_collapsed is False
+
+
+def test_a_break_the_window_ended_before_filling_is_counted_and_named(
+    store, denominator
+):
+    """It triggered, and no session opened to fill it.
+
+    That detection is in the trigger share — it *did* trade through its trigger —
+    and in no arm's precision denominator, because no position was ever taken. Left
+    unnamed it would sit in neither bucket and simply vanish from the arithmetic,
+    which is how a population leaves a report without anyone noticing it went.
+    """
+    # The bars end on the session that decides the break.
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + [110.0])
+
+    us = _figures(store, denominator, "US")
+
+    assert us.unfilled == 1
+    assert us.triggered == Share(1, 1)
+    assert us.arms[ARM_B].filled == 0
+    assert us.arms[ARM_B].precision == Share(0, 0)
+
+
+def test_every_detection_lands_in_exactly_one_bucket(store, denominator):
+    """The four buckets are the whole population, and they add up.
+
+    A bucket that does not reconcile is a population going somewhere unreported,
+    and a rate computed over the rest is a rate over a denominator nobody can
+    reconstruct.
+    """
+    _seed_figure_name(store, denominator, "US", "WINS", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    _seed_figure_name(store, denominator, "US", "NONE", date(2020, 4, 1),
+                      _FIG_FLAT + _FIG_NO_BREAK)
+    _seed_figure_name(store, denominator, "US", "EDGE", date(2020, 8, 1),
+                      _FIG_FLAT + [110.0])
+
+    us = _figures(store, denominator, "US")
+
+    assert us.detections == 3
+    assert (us.no_break, us.unfilled, us.undecided) == (1, 1, 0)
+    assert us.arms[ARM_B].filled == 1
+    assert all(us.reconciles(arm) for arm in us.arms)
+
+
+def test_the_price_scale_count_rides_on_the_figures_it_qualifies(
+    store, denominator
+):
+    """The flag is reported beside every result built on it, and precision is built
+    on entries priced in absolute terms.
+
+    Yahoo's unlabelled rights-issue rescale is not visible in the R geometry, which
+    is in ADR units and immune — but it is visible in the one absolute comparison
+    the entry cannot avoid, and a precision figure quoted without the count is a
+    figure whose inputs nobody checked.
+    """
+    det = _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                            _FIG_FLAT + _FIG_WIN)
+    # The same detection, re-persisted with a close three times the bar's: a
+    # rescale, not a price that moved.
+    rescaled = dataclasses.replace(det, close=det.close * 3)
+    denominator._cursor().execute(
+        "UPDATE denominator_detections SET close = ? WHERE symbol = ?",
+        [rescaled.close, "AAA"],
+    )
+
+    us = _figures(store, denominator, "US")
+    report = figures_report(DEFAULT_CONTRACT, [us])
+
+    assert us.price_scale_dropped == len(us.arms)
+    assert report["markets"][0]["price_scale_dropped"] == len(us.arms)
+    assert "price-scale flag would drop" in format_figures(report)

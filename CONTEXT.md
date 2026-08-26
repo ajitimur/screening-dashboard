@@ -385,9 +385,25 @@ label; `mfe10smaPct` is the label used to calibrate the detector, because it mea
 whether the setup worked independently of how the trade was managed.
 
 **Recall**:
-The share of executed trades the app would have surfaced. Measurable. Its counterpart,
-precision, is not — the reference set records no setup he declined, so there is no true
-control group and no false-positive rate. Recall is never optimised on its own.
+The share of executed trades the app would have surfaced. Measurable. Recall is never
+optimised on its own. Its counterpart **precision** is not measurable *against the
+reference set* — it records no setup he declined, so there is no control group there and
+no false-positive rate. It is measurable against the **denominator**, which is what that
+was built for.
+
+**Precision**:
+The share of the setups the detector named that reached a favourable outcome — R above
+zero on a closed **simulated trade** (PRD #182 Phase 5, `backtest.figures`). The figure no
+prior study in this repo could produce, and the one #141 and #149 both had to substitute
+field-volume proxies for. Its denominator is every **answered** detection, the ones that
+never triggered included, which is what makes it a figure about the *detector*. Not the
+**win rate**, whose denominator is only the trades taken and which is therefore a figure
+about the *exit* — reporting one as the other quotes a detector's precision as a trader's
+hit rate. Reported per market, per year and per exit arm, always with the coverage count
+beside it, and always **before costs** until #191 applies them. A detection the bars could
+not answer is **undecided**, never a miss, and a trade still running is **open**, never a
+loss: both would deflate the figure in the direction nobody investigates.
+_Avoid_: hit rate, accuracy — and never quote it without its coverage.
 
 **Replayed field**:
 The full candidate list reconstructed for one past session, from a cold-started forward

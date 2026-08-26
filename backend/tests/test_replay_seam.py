@@ -6252,9 +6252,14 @@ def test_an_arm_that_ran_and_traded_nothing_reports_zeros_rather_than_vanishing(
 #     fortnight is not three independent observations, and bootstrapping the rows
 #     flatters every p-value.
 
-from backtest.contract import COSTS_KEY, METRIC_PRIMARY_KEY
+from backtest.contract import (
+    COSTS_KEY,
+    METRIC_PRIMARY_KEY,
+    WINDOW_MEASURED_START_KEY,
+)
 from backtest.metric import (
     BOOTSTRAP_CLUSTER,
+    BOOTSTRAP_MIN_CLUSTERS,
     BOOTSTRAP_RESAMPLES,
     BOOTSTRAP_SEED,
     EXCLUDED_YEARS,
@@ -6479,13 +6484,20 @@ def test_a_market_is_never_reported_pooled_only(store):
     A pooled fourteen-year number over a window holding a crash and a mania
     describes neither, so a reader must not be able to reach one without the years
     beside it.
+
+    The span runs from the **contract's** measured start, not from the first trade:
+    a market that traded nothing until 2016 in a run measuring from 2012 has four
+    silent years, and those are exactly the years an empty crawl would hide.
     """
     trades = [_mtrade("AAA", 2016, 1.0), _mtrade("BBB", 2020, -1.0)]
 
     body = market_report(DEFAULT_CONTRACT, trades, market="US")
 
     years = [y["label"] for y in body["years"]]
-    assert years == [str(y) for y in range(2016, 2021)]
+    start = int(DEFAULT_CONTRACT.value(WINDOW_MEASURED_START_KEY)[:4])
+    assert start == 2012
+    assert years == [str(y) for y in range(start, 2021)]
+    assert {y["label"]: y for y in body["years"]}["2013"]["trades"] == 0
     printed = format_metric(metric_report(DEFAULT_CONTRACT, trades))
     for label in years:
         assert label in printed
@@ -6668,4 +6680,74 @@ def test_the_metric_runs_off_the_simulator_end_to_end(store):
     assert window["expectancy_r"] == pytest.approx(
         trade.r_multiple - cost_r(trade, DEFAULT_CONTRACT)
     )
-    assert [y["label"] for y in body["years"]] == [str(trade.entry.session.year)]
+    # The years run from the contract's measured start to the trade's own year;
+    # every one before it is a silent year the run measured and found nothing in.
+    years = [y["label"] for y in body["years"]]
+    assert years[-1] == str(trade.entry.session.year)
+    assert years[0] == DEFAULT_CONTRACT.value(WINDOW_MEASURED_START_KEY)[:4]
+
+
+def test_a_cell_too_thin_to_bootstrap_reports_no_interval_rather_than_a_degenerate_one(store):
+    """One symbol resampled two thousand times returns its own mean two thousand
+    times — a zero-width interval at p = 0, which prints as overwhelming
+    significance and is the opposite: one independent observation.
+
+    Per-year cells are exactly where the cluster count goes thin, so the floor
+    matters most where the metric is reported. The thin cell still says how many
+    symbols it had, because "too few to say" and "no result" are different findings.
+    """
+    thin = [_mtrade("ONE", 2016, 3.0, month=1 + i) for i in range(4)]
+
+    cell = expectancy_cell(DEFAULT_CONTRACT, thin, market="US", label="2016")
+
+    boot = cell["bootstrap"]
+    assert boot["clusters"] == 1 < BOOTSTRAP_MIN_CLUSTERS
+    assert (boot["ci_low"], boot["ci_high"], boot["p_value"]) == (None, None, None)
+    assert "too thin" in boot["suppressed"]
+    # The expectancy itself is still reported — it is the interval that is refused.
+    assert cell["expectancy_r"] is not None
+    printed = format_metric(metric_report(DEFAULT_CONTRACT, thin))
+    assert "too thin for an interval" in printed
+
+    # And a cell at the floor gets its interval.
+    wide = [_mtrade(f"S{i}", 2016, 1.0) for i in range(BOOTSTRAP_MIN_CLUSTERS)]
+    at_floor = expectancy_cell(DEFAULT_CONTRACT, wide, market="US", label="2016")
+    assert at_floor["bootstrap"]["ci_low"] is not None
+    assert at_floor["bootstrap"]["suppressed"] is None
+
+
+def test_a_trade_that_closed_without_a_denominator_is_not_counted_as_open(store):
+    """A trade whose stop width is non-positive has come fully off and still has no
+    R. Folding it into the open count would report a finished trade as running, and
+    the two numbers would stop adding up to the total with nothing in between.
+    """
+    ok = _mtrade("AAA", 2016, 1.0)
+    broken = dataclasses.replace(_mtrade("BBB", 2016, 1.0), stop_width=0.0)
+    still_on = _mtrade("CCC", 2016, 1.0, open_at_end=True)
+
+    cell = expectancy_cell(
+        DEFAULT_CONTRACT, [ok, broken, still_on], market="US", label="2016"
+    )
+
+    assert broken.closed and broken.r_multiple is None
+    assert cell["trades"] == 3
+    assert cell["closed"] == 1
+    assert cell["open_at_end"] == 1
+    assert cell["undenominated"] == 1
+    # Every trade lands in exactly one of the three, so none can go missing.
+    assert cell["closed"] + cell["open_at_end"] + cell["undenominated"] == 3
+
+
+def test_the_headline_cannot_be_stamped_over_another_arms_trades(store):
+    """The metric's name and the trades under it are the same arm or the report is
+    a mislabel — which is exactly what the two-arm refusal exists to prevent, and
+    would be reintroduced by any caller able to choose the arm."""
+    arm_a = [_mtrade("AAA", 2016, 5.0, arm=ARM_A)]
+
+    report = metric_report(DEFAULT_CONTRACT, arm_a)
+
+    assert report["arm"] == ARM_B
+    # Arm A's trades are not this arm's, so the headline counts none of them rather
+    # than reporting arm A's result under arm B's name.
+    body = {m["market"]: m for m in report["markets"]}["US"]
+    assert {w["label"]: w for w in body["windows"]}[FULL_WINDOW]["trades"] == 0

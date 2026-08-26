@@ -475,8 +475,18 @@ report carries the count of variants standing behind it — every threshold trie
 and enough of them produce a winner from noise. A trade counts in the year of its **entry
 session**, the year the decision was taken, so a trade's year never moves with the exit
 rule under test.
-_Avoid_: the headline number, our main result — and never quote a swept variant under this
-name.
+_Avoid_: the headline number, our main result — and never quote a **swept variant** under
+this name.
+
+**Swept variant**:
+A result recomputed at a threshold other than the contract's, after the
+**pre-registered metric** has been computed and recorded. Always reported with the count
+of variants tried, because every threshold tried is a test and enough of them produce a
+winner from noise. The word narrows the **exit arm** entry's `_Avoid_: variant` rather
+than contradicting it: an arm is a *rule* the contract froze in Phase 0, a swept variant
+is a *threshold* moved afterwards, and calling an arm a variant is what that `_Avoid_`
+exists to stop.
+_Avoid_: variant on its own — unqualified it reads as an exit arm.
 
 **After-cost expectancy**:
 The mean R of the closed **simulated trades** in one cell, net of the contract's own

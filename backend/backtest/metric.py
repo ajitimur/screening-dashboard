@@ -71,6 +71,23 @@ ride on every cell, because a significance figure that moved between two runs of
 the same data would make every result unreproducible with nothing in the output to
 show it.
 
+A cell with fewer than :data:`BOOTSTRAP_MIN_CLUSTERS` symbols gets no interval at
+all, and says so. A resample can only draw the clusters it has, so one symbol
+resampled 2,000 times returns a zero-width interval at p = 0 — which prints as
+overwhelming significance and is one independent observation. Per-year cells are
+exactly where the cluster count goes thin, so this is a floor the metric needs
+where it is reported rather than an edge case.
+
+Never pooled only, at both edges
+--------------------------------
+The per-year span is anchored at the contract's ``window.measured_start``, not at
+the first trade: a market that traded nothing until 2016 in a run measuring from
+2012 has four silent years, and an empty crawl is precisely what hides in them.
+The far end stays observed, because the contract's ``measured_end`` is the token
+``latest_complete_session`` rather than a date — so a market silent in its final
+years is still under-reported at that end, and that limit is stated rather than
+papered over.
+
 What this module does not do
 ----------------------------
 No sweep. Every threshold tried is a test, and enough of them produce a winner from
@@ -94,12 +111,15 @@ from .contract import (
     DEFAULT_CONTRACT,
     METRIC_PRIMARY_KEY,
     SCOPE_MARKETS_KEY,
+    WINDOW_MEASURED_START_KEY,
     RunContract,
 )
 from .denominator import DenominatorStore, denominator_path
 from .result import stamp_result
 from .run import ContractDrift
-from .simulate import ARM_B, SimulatedTrade, simulate_market
+from .simulate import ARM_B, SimulatedTrade, price_scale_drops, simulate_market
+
+# -- what the contract says, and what this module adds to it ------------------
 
 # The arm the headline is computed on. Arm B is the reference set's primary
 # simulated exit, so the figure stays comparable to what this repo has already
@@ -117,6 +137,12 @@ PRIMARY_METRIC = "arm_b_after_cost_expectancy_r_per_market_per_year"
 COST_CHARGED = "both_sides"
 BPS = 10_000.0
 
+# The two sub-keys inside the contract's per-market costs cell. Named for the same
+# reason the cells themselves are: a bare ``costs["commission_bps"]`` at four sites
+# is four places a rename has to be found by grep.
+COMMISSION_BPS = "commission_bps"
+SLIPPAGE_BPS = "slippage_bps"
+
 # The two windows every market reports, side by side. 2020–21 is excluded in the
 # second because that tape rewarded momentum nearly everywhere, and a result that
 # rests on it alone is a result about the tape.
@@ -132,6 +158,19 @@ BOOTSTRAP_RESAMPLES = 2_000
 BOOTSTRAP_SEED = 191
 BOOTSTRAP_CONFIDENCE = 0.95
 
+# Below this many clusters no interval is reported at all. A resample can only ever
+# draw from the clusters it has, so one symbol resampled 2,000 times returns that
+# symbol's own mean 2,000 times: a zero-width interval and a p-value of exactly 0 or
+# 1. That prints as overwhelming significance and is the opposite — it is a cell
+# with one independent observation. Per-year cells are precisely where the cluster
+# count goes thin, so the floor matters most exactly where the metric is reported.
+#
+# Five is a judgement, not a derivation, and is recorded as one: below five symbols
+# a 95% percentile interval is pinned by fewer than five distinct values and
+# describes the sample's own range rather than the uncertainty around it. The
+# suppressed cells still report ``clusters``, so a thin cell reads as thin.
+BOOTSTRAP_MIN_CLUSTERS = 5
+
 # The count of swept variants standing behind the headline. Zero, and structurally
 # so: this module computes the pre-registered metric and no sweep exists yet. A
 # later phase updates this rather than leaving a reader to assume it.
@@ -140,6 +179,9 @@ SWEEP_NOTE = (
     "the pre-registered metric is computed and recorded before any swept variant "
     "exists; a swept result is reported with the count of variants tried"
 )
+
+
+# -- refusing a contract that has moved out from under the code ---------------
 
 
 def check_primary_metric(contract: RunContract) -> None:
@@ -171,7 +213,7 @@ def check_costs(contract: RunContract, market: str) -> None:
             f"the contract's {COSTS_KEY!r} cell prices {sorted(costs)} and not "
             f"{market!r}; an unpriced market is drift, not a free trade"
         )
-    for side in ("commission_bps", "slippage_bps"):
+    for side in (COMMISSION_BPS, SLIPPAGE_BPS):
         if side not in costs[market]:
             raise ContractDrift(
                 f"the contract's costs for {market!r} carry no {side!r}"
@@ -188,7 +230,10 @@ def per_side_cost_bps(contract: RunContract, market: str) -> float:
     """
     check_costs(contract, market)
     costs = contract.value(COSTS_KEY)[market]
-    return float(costs["commission_bps"]) + float(costs["slippage_bps"])
+    return float(costs[COMMISSION_BPS]) + float(costs[SLIPPAGE_BPS])
+
+
+# -- the arithmetic: costs, the distribution behind an expectancy, the bootstrap
 
 
 def cost_r(trade: SimulatedTrade, contract: RunContract) -> float:
@@ -264,6 +309,7 @@ def bootstrap_expectancy(
     seed: int = BOOTSTRAP_SEED,
     confidence: float = BOOTSTRAP_CONFIDENCE,
     cluster: str = BOOTSTRAP_CLUSTER,
+    min_clusters: int = BOOTSTRAP_MIN_CLUSTERS,
 ) -> dict[str, Any]:
     """A clustered bootstrap of the mean of ``clusters``' pooled values.
 
@@ -281,6 +327,12 @@ def bootstrap_expectancy(
 
     ``cluster`` names the unit for the reader, and taking it as an argument is what
     lets the seam test run the same data clustered by row and show the difference.
+
+    A cell with fewer than :data:`BOOTSTRAP_MIN_CLUSTERS` clusters gets **no
+    interval and no p-value**, and a ``suppressed`` line saying why. Reporting one
+    would be worse than reporting nothing: a single cluster resampled 2,000 times
+    returns its own mean 2,000 times, which prints as a zero-width interval at
+    p = 0 and reads as overwhelming significance from one independent observation.
     """
     n = len(clusters)
     body: dict[str, Any] = {
@@ -290,9 +342,20 @@ def bootstrap_expectancy(
         "resamples": resamples,
         "seed": seed,
         "confidence": confidence,
+        "min_clusters": min_clusters,
+        "suppressed": None,
     }
-    if n == 0:
-        return {**body, "ci_low": None, "ci_high": None, "p_value": None}
+    if n < min_clusters:
+        return {
+            **body,
+            "ci_low": None,
+            "ci_high": None,
+            "p_value": None,
+            "suppressed": (
+                f"{n} {cluster}s is fewer than {min_clusters}: too thin for an "
+                "interval, and a degenerate one would read as significance"
+            ),
+        }
 
     rng = random.Random(seed)
     indices = range(n)
@@ -316,6 +379,21 @@ def bootstrap_expectancy(
     }
 
 
+# The quantiles every distribution reports, and the fractions they read at. One
+# table rather than a list of keys and a parallel list of calls, so an empty
+# distribution and a populated one cannot drift into carrying different fields —
+# which would make a quiet cell and a computed one differently shaped.
+_QUANTILES = (
+    ("p10", 0.10),
+    ("q1", 0.25),
+    ("median", 0.50),
+    ("q3", 0.75),
+    ("p90", 0.90),
+)
+_DISTRIBUTION_KEYS = ("min", *(name for name, _ in _QUANTILES), "max",
+                      "mean_win", "mean_loss")
+
+
 def _distribution(rs: Sequence[float]) -> dict[str, Any]:
     """The shape behind an expectancy: the quantiles and the two conditional means.
 
@@ -325,25 +403,20 @@ def _distribution(rs: Sequence[float]) -> dict[str, Any]:
     emphatically not.
     """
     if not rs:
-        return {
-            "min": None, "p10": None, "q1": None, "median": None,
-            "q3": None, "p90": None, "max": None,
-            "mean_win": None, "mean_loss": None,
-        }
+        return {key: None for key in _DISTRIBUTION_KEYS}
     ordered = sorted(rs)
     wins = [r for r in ordered if r > 0]
     losses = [r for r in ordered if r <= 0]
     return {
         "min": ordered[0],
-        "p10": _quantile(ordered, 0.10),
-        "q1": _quantile(ordered, 0.25),
-        "median": _quantile(ordered, 0.50),
-        "q3": _quantile(ordered, 0.75),
-        "p90": _quantile(ordered, 0.90),
+        **{name: _quantile(ordered, q) for name, q in _QUANTILES},
         "max": ordered[-1],
         "mean_win": sum(wins) / len(wins) if wins else None,
         "mean_loss": sum(losses) / len(losses) if losses else None,
     }
+
+
+# -- the report: one cell, one market, the whole headline ---------------------
 
 
 def expectancy_cell(
@@ -352,7 +425,6 @@ def expectancy_cell(
     *,
     market: str,
     label: str,
-    arm: str = PRIMARY_ARM,
 ) -> dict[str, Any]:
     """One market's after-cost expectancy over one slice, with its shape and its CI.
 
@@ -377,11 +449,12 @@ def expectancy_cell(
             f"an expectancy cell is one market's: {market!r} was asked for and "
             f"{sorted(foreign)} arrived too; US and IDX never pool"
         )
-    other_arms = {t.arm for t in trades} - {arm}
+    other_arms = {t.arm for t in trades} - {PRIMARY_ARM}
     if other_arms:
         raise ValueError(
-            f"the pre-registered metric is arm {arm}'s: {sorted(other_arms)} "
-            "arrived too, and no arm produced the average of them"
+            f"the pre-registered metric is arm {PRIMARY_ARM}'s: "
+            f"{sorted(other_arms)} arrived too, and no arm produced the average "
+            "of them"
         )
 
     closed = [t for t in trades if t.r_multiple is not None]
@@ -392,9 +465,20 @@ def expectancy_cell(
         "label": label,
         "trades": len(trades),
         "closed": len(closed),
-        "open_at_end": len(trades) - len(closed),
+        # Off the trade's **own** property rather than off "has no R", because the
+        # two are not the same set: a trade whose stop width is non-positive has
+        # come fully off and still cannot be denominated. Counting it as open would
+        # report a finished trade as running, so it gets its own count and the two
+        # numbers add up to the total with nothing hidden between them.
+        "open_at_end": sum(1 for t in trades if t.open_at_end),
+        "undenominated": sum(
+            1 for t in trades if t.closed and t.r_multiple is None
+        ),
         "symbols": len({t.symbol for t in trades}),
-        "price_scale_dropped": sum(1 for t in trades if not t.price_scale_ok),
+        # The simulator's own count, not a second one: it is the function whose
+        # docstring argues why the flag is reported and never filtered, and two
+        # implementations of that would be two places for it to become a filter.
+        "price_scale_dropped": price_scale_drops(trades),
         "expectancy_r": (sum(rs) / len(rs)) if rs else None,
         "expectancy_r_before_cost": (sum(before) / len(before)) if before else None,
         "cost_r": (
@@ -409,17 +493,44 @@ def expectancy_cell(
     }
 
 
-def _years(trades: Sequence[SimulatedTrade]) -> list[int]:
-    """Every year from the first entry to the last, gaps included.
+def _reported_markets(
+    contract: RunContract, asked: Sequence[str] | None
+) -> tuple[str, ...]:
+    """The markets to report: those asked for, or the contract's own scope.
 
-    The span rather than the years present: a year inside the window with no trade
-    is a measurement — possibly a data hole — and an absent row would read as a
-    quiet market until somebody looked.
+    One fallback, in one place. Defaulting at the command *and* in the report would
+    be two places for "which markets is this run about" to diverge, and the
+    divergence would show up as a market silently missing from a headline that
+    promised both.
+    """
+    return tuple(asked) if asked else tuple(contract.value(SCOPE_MARKETS_KEY))
+
+
+def _years(contract: RunContract, trades: Sequence[SimulatedTrade]) -> list[int]:
+    """Every year of the measured window that this market could have traded in.
+
+    The span rather than the years present: a year with no trade is a measurement —
+    possibly a data hole — and an absent row reads as a quiet market until somebody
+    looks.
+
+    Anchored at the **contract's** ``window.measured_start`` rather than at the
+    first trade, because a market that traded nothing until 2016 in a run that
+    started measuring in 2012 has four silent years, and those are exactly the years
+    a crawl that came back empty would hide. Spanning the observed trades alone
+    protects interior gaps and quietly drops the ones at the edge, which is the
+    failure mode this function exists to prevent arriving through the function
+    itself.
+
+    The far end stays observed: the contract's ``measured_end`` is the token
+    ``latest_complete_session`` rather than a date, so no year is derivable from it.
+    A market silent for its final years is therefore still under-reported at that
+    end, and that is a known limit rather than a covered case.
     """
     if not trades:
         return []
     entries = [t.entry.session.year for t in trades]
-    return list(range(min(entries), max(entries) + 1))
+    start = int(str(contract.value(WINDOW_MEASURED_START_KEY))[:4])
+    return list(range(min(start, *entries), max(entries) + 1))
 
 
 def market_report(
@@ -427,13 +538,18 @@ def market_report(
     trades: Sequence[SimulatedTrade],
     *,
     market: str,
-    arm: str = PRIMARY_ARM,
 ) -> dict[str, Any]:
     """One market's headline: the per-year cells, then the two windows beside them.
 
-    ``trades`` may span markets and arms; only this market's, on this arm, are
-    counted — so a caller hands over the whole run and the separation happens here
-    rather than at every call site.
+    ``trades`` may span markets and arms; only this market's, on
+    :data:`PRIMARY_ARM`, are counted — so a caller hands over the whole run and the
+    separation happens here rather than at every call site.
+
+    The arm is **not** a parameter, and that is the point: the metric's name and the
+    trades under it have to be the same arm or the report is a mislabel. A caller
+    able to choose the arm could stamp arm A's result with arm B's pre-registered
+    name, which is the very confusion the two-arm refusal in :func:`expectancy_cell`
+    exists to prevent, arriving one level up.
 
     The years come first because they are the metric: the two window figures are a
     summary of them and a pooled fourteen-year number over a crash and a mania
@@ -443,11 +559,11 @@ def market_report(
     """
     check_costs(contract, market)
     costs = contract.value(COSTS_KEY)[market]
-    mine = [t for t in trades if t.market == market and t.arm == arm]
+    mine = [t for t in trades if t.market == market and t.arm == PRIMARY_ARM]
     kept = [t for t in mine if t.entry.session.year not in EXCLUDED_YEARS]
     return {
         "market": market,
-        "arm": arm,
+        "arm": PRIMARY_ARM,
         "costs": {
             "commission_bps": float(costs["commission_bps"]),
             "slippage_bps": float(costs["slippage_bps"]),
@@ -460,15 +576,14 @@ def market_report(
                 [t for t in mine if t.entry.session.year == year],
                 market=market,
                 label=str(year),
-                arm=arm,
             )
-            for year in _years(mine)
+            for year in _years(contract, mine)
         ],
         "windows": [
-            expectancy_cell(contract, mine, market=market, label=FULL_WINDOW, arm=arm),
+            expectancy_cell(contract, mine, market=market, label=FULL_WINDOW),
             {
                 **expectancy_cell(
-                    contract, kept, market=market, label=EXCLUDED_YEARS_WINDOW, arm=arm
+                    contract, kept, market=market, label=EXCLUDED_YEARS_WINDOW
                 ),
                 "excluded_years": list(EXCLUDED_YEARS),
             },
@@ -481,7 +596,6 @@ def metric_report(
     trades: Sequence[SimulatedTrade],
     *,
     markets: Sequence[str] | None = None,
-    arm: str = PRIMARY_ARM,
 ) -> dict[str, Any]:
     """The whole pre-registered metric as one stamped payload, market by market.
 
@@ -496,14 +610,12 @@ def metric_report(
     have been computed.
     """
     check_primary_metric(contract)
-    named = tuple(markets) if markets is not None else tuple(
-        contract.value(SCOPE_MARKETS_KEY)
-    )
+    named = _reported_markets(contract, markets)
     return stamp_result(
         contract,
         {
             "metric": contract.value(METRIC_PRIMARY_KEY),
-            "arm": arm,
+            "arm": PRIMARY_ARM,
             "pre_registered": True,
             "sweep": {"variants_tried": SWEPT_VARIANTS, "note": SWEEP_NOTE},
             "bootstrap": {
@@ -514,11 +626,14 @@ def metric_report(
             },
             "year_attributed_to": "entry_session",
             "markets": [
-                market_report(contract, trades, market=market, arm=arm)
+                market_report(contract, trades, market=market)
                 for market in named
             ],
         },
     )
+
+
+# -- printing it, and the command that produces it ----------------------------
 
 
 def _cell_line(cell: dict[str, Any], *, width: int = 22) -> str:
@@ -535,7 +650,10 @@ def _cell_line(cell: dict[str, Any], *, width: int = 22) -> str:
         f"[{boot['ci_low']:+.2f}, {boot['ci_high']:+.2f}] p={boot['p_value']:.3f} "
         f"on {boot['clusters']} {boot['cluster']}s"
         if boot["ci_low"] is not None
-        else "no interval"
+        # The thin cell says it is thin, in the place a reader looks for the
+        # interval — a blank there would read as "no result" rather than "too few
+        # symbols to say", and those are different findings.
+        else f"{boot['clusters']} {boot['cluster']}s — too thin for an interval"
     )
     return (
         f"  {cell['label']:<{width}} {cell['expectancy_r']:+.3f}R  "
@@ -600,9 +718,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     contract = DEFAULT_CONTRACT
-    markets = tuple(args.market) if args.market else tuple(
-        contract.value(SCOPE_MARKETS_KEY)
-    )
+    # ``None`` is passed straight through rather than defaulted here:
+    # :func:`metric_report` already falls back to the contract's own scope, and
+    # defaulting in two places is two places for the fallback to diverge.
+    markets = _reported_markets(contract, args.market)
     store = Store.open(args.store)
     denominator = DenominatorStore.open(denominator_path(args.store))
     try:

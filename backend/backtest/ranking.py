@@ -610,9 +610,21 @@ def bootstrap_symbol_statistic(
 
 # -- the verdict --------------------------------------------------------------
 
+# The verdict vocabulary, in the tokens :mod:`backtest.posture` established for
+# its own — ``earned`` / ``refuted`` / ``undecided`` / ``too_thin``. Machine-
+# readable single tokens rather than prose, and ``too_thin`` spelled identically in
+# both modules, so a reader joining two of this run's payloads is not comparing
+# "too_thin" against "too thin to say". :data:`VERDICT_PHRASE` renders them for the
+# printed page, which is the one place prose belongs.
 VERDICT_RANKS = "ranks"
-VERDICT_NO_EVIDENCE = "no evidence it ranks"
-VERDICT_TOO_THIN = "too thin to say"
+VERDICT_NO_EVIDENCE = "no_evidence"
+VERDICT_TOO_THIN = "too_thin"
+
+VERDICT_PHRASE = {
+    VERDICT_RANKS: "ranks",
+    VERDICT_NO_EVIDENCE: "no evidence it ranks",
+    VERDICT_TOO_THIN: "too thin to say",
+}
 
 VERDICT_RULE = (
     "'ranks' requires the top-minus-bottom gap and Spearman's rho to have "
@@ -1002,7 +1014,7 @@ def _slice_lines(body: dict[str, Any], *, indent: str = "") -> list[str]:
         f"{_interval(gap['bootstrap'])}",
         f"{indent}  rho {rho_value} over {rho['pairs']} trades  "
         f"{_interval(rho['bootstrap'])}",
-        f"{indent}  verdict: {body['verdict']}",
+        f"{indent}  verdict: {VERDICT_PHRASE[body['verdict']]}",
     ]
     return lines
 

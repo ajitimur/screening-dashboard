@@ -175,6 +175,20 @@ that already keep :mod:`backtest.ranking` out: it is a command
 :class:`~backtest.run.ContractDrift`. The entry point is
 ``backtest.candidates.candidates_report``.
 
+Two small modules came out of that second measurement rather than being copied
+into it, because a second caller is what turns shared code into a module.
+:mod:`backtest.stats` holds the statistics more than one measurement needs — the
+tie rule, Spearman's rho, clustering by symbol, the clustered bootstrap over an
+arbitrary statistic, and the two places a report renders and counts an interval.
+It knows nothing about what is being measured, which is what lets one bootstrap
+serve a score band's gap and a candidate dimension's. :mod:`backtest.cohort` holds
+the join back to the persisted row: the detection index for a market, and the
+**total** join from simulated trades to the rows that produced them, whose refusal
+has to be the same in both callers because the argument for refusing is the same.
+:mod:`backtest.ranking` was where both lived when it was the only caller; leaving
+them there would have made it a measurement and the run's statistics library at
+once, changing for two reasons and imported by the module it should not own.
+
 The universe's names are not re-exported, and the reason is naming rather than
 import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean
 something else one import away (:mod:`screener.universe`, :mod:`replay.reference`),

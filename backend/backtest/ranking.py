@@ -97,23 +97,22 @@ from __future__ import annotations
 
 import argparse
 import json
-import random
 from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence, TypeVar
+from typing import Any, Sequence
 
 from replay.field import SEVEN_DIM_LABEL, SEVEN_DIM_MAX_POINTS, SevenDimScore
 from screener.score import DIMENSIONS
 from screener.store import Store
 
+from .cohort import DetectionIndex, detection_index, join_detections
 from .contract import DEFAULT_CONTRACT, SCOPE_MARKETS_KEY, RunContract
 from .denominator import DenominatorStore, denominator_path
 from .metric import (
     BOOTSTRAP_CLUSTER,
     BOOTSTRAP_CONFIDENCE,
-    BOOTSTRAP_MIN_CLUSTERS,
     BOOTSTRAP_RESAMPLES,
     BOOTSTRAP_SEED,
     PRIMARY_ARM,
@@ -122,7 +121,13 @@ from .metric import (
     check_one_market_one_arm,
     expectancy_cell,
     measured_years,
-    quantile,
+)
+from .stats import (
+    bootstrap_symbol_statistic,
+    cluster_by_symbol,
+    format_interval,
+    intervals_reported,
+    spearman,
 )
 from .result import stamp_result
 from .run import ContractDrift
@@ -408,14 +413,11 @@ def symbol_clusters(
 ) -> list[tuple[Outcome, ...]]:
     """The closed outcomes grouped one cluster per symbol, symbol order.
 
-    The unit of independence. Ordered by symbol so a resample under a fixed seed is
-    reproducible — clusters arriving in insertion order would move the interval
-    with the order the trades happened to be read in.
+    The unit of independence, and the clustering itself is
+    :func:`~backtest.stats.cluster_by_symbol`'s — this is the ranking's own rows
+    put through it.
     """
-    grouped: dict[str, list[Outcome]] = {}
-    for row in outcomes(cohort, contract):
-        grouped.setdefault(row.symbol, []).append(row)
-    return [tuple(grouped[symbol]) for symbol in sorted(grouped)]
+    return cluster_by_symbol(outcomes(cohort, contract))
 
 
 # -- the two statistics -------------------------------------------------------
@@ -439,62 +441,6 @@ def top_minus_bottom(
     return sum(top) / len(top) - sum(bottom) / len(bottom)
 
 
-def ranks(values: Sequence[float]) -> list[float]:
-    """Fractional ranks, ties taking the average of the positions they occupy.
-
-    Ties are the common case on an eight-point score, so this is the whole of why
-    the correlation is meaningful here: breaking them by arrival order would make
-    rho a function of the sort.
-
-    Public because :mod:`backtest.candidates` ranks a candidate dimension's stored
-    value against the same outcome, and a second implementation of a tie rule is a
-    second place for two rhos in one run to have been computed differently.
-    """
-    order = sorted(range(len(values)), key=lambda i: values[i])
-    out = [0.0] * len(values)
-    i = 0
-    while i < len(order):
-        j = i
-        while j + 1 < len(order) and values[order[j + 1]] == values[order[i]]:
-            j += 1
-        average = (i + j) / 2 + 1
-        for k in range(i, j + 1):
-            out[order[k]] = average
-        i = j + 1
-    return out
-
-
-def spearman(xs: Sequence[float], ys: Sequence[float]) -> float | None:
-    """Spearman's rho between two paired series, ties averaged.
-
-    The arithmetic alone, so the two callers that need it — the score against the
-    outcome here, and a candidate dimension's stored value against the same
-    outcome in :mod:`backtest.candidates` — read one tie rule and one variance
-    refusal rather than two that could drift apart.
-
-    ``None`` when either side has no variance. There is no correlation to report
-    there, and a zero would read as "measured and found nothing" rather than "not
-    measurable".
-    """
-    if len(xs) != len(ys):
-        raise ValueError(
-            f"a correlation needs paired series; {len(xs)} against {len(ys)} "
-            "is a join that lost rows on one side"
-        )
-    if len(xs) < 2:
-        return None
-    x, y = ranks(xs), ranks(ys)
-    n = len(xs)
-    mx, my = sum(x) / n, sum(y) / n
-    dx = [a - mx for a in x]
-    dy = [b - my for b in y]
-    sx = sum(a * a for a in dx) ** 0.5
-    sy = sum(b * b for b in dy) ** 0.5
-    if sx == 0.0 or sy == 0.0:
-        return None
-    return sum(a * b for a, b in zip(dx, dy)) / (sx * sy)
-
-
 def rank_correlation(rows: Sequence[Outcome]) -> float | None:
     """Spearman's rho between score and outcome — the whole-cohort ranking claim.
 
@@ -507,145 +453,6 @@ def rank_correlation(rows: Sequence[Outcome]) -> float | None:
     the same.
     """
     return spearman([float(row.points) for row in rows], [row.r for row in rows])
-
-
-# -- the bootstrap, over a statistic rather than over a mean -------------------
-
-# The bootstrap resamples clusters and hands the pooled rows to a statistic; it
-# reads no field of a row itself. So the row type is the caller's — an
-# :class:`Outcome` here, a candidate dimension's outcome in
-# :mod:`backtest.candidates` — and saying so in the signature is what keeps the
-# second caller from needing a second bootstrap with the same seed.
-Row = TypeVar("Row")
-
-
-# How much of a resample distribution may be undefined before the interval built
-# on the rest of it is refused.
-#
-# A resample is undefined exactly when it drew no symbol from the top band or none
-# from the bottom — the draws that carry the most uncertainty about a gap resting
-# on a thin edge. Dropping them and reading the interval off what is left
-# *conditions on the statistic having been computable*, which renormalises the
-# distribution towards the cases where it was, and those are the confident ones.
-# The correction goes the wrong way: it tightens the interval exactly where the
-# data is weakest.
-#
-# There is no honest value to substitute for an undefined draw — zero is a
-# measurement nobody made — so the remedy is to refuse the interval rather than to
-# repair it. A tenth is a judgement and is recorded as one: below it the
-# renormalisation moves a percentile bound by less than the resampling noise around
-# it, and above it the interval is describing a sub-population of the resamples.
-# The count always rides on the output, so a cell just under the line reads as one.
-MAX_UNDEFINED_SHARE = 0.10
-
-
-def bootstrap_symbol_statistic(
-    clusters: Sequence[Sequence[Row]],
-    statistic: Callable[[Sequence[Row]], float | None],
-    *,
-    resamples: int = BOOTSTRAP_RESAMPLES,
-    seed: int = BOOTSTRAP_SEED,
-    confidence: float = BOOTSTRAP_CONFIDENCE,
-    cluster: str = BOOTSTRAP_CLUSTER,
-    min_clusters: int = BOOTSTRAP_MIN_CLUSTERS,
-    max_undefined_share: float = MAX_UNDEFINED_SHARE,
-    unavailable: str | None = None,
-) -> dict[str, Any]:
-    """A clustered bootstrap of an arbitrary statistic over the pooled rows.
-
-    :func:`~backtest.metric.bootstrap_expectancy` resamples the same unit and takes
-    the pooled **mean**; a gap between two bands and a rank correlation are not
-    means of anything, so they need the resampled cohort itself. Hence a second
-    entry point rather than a second bootstrap: the seed, the resample count, the
-    confidence level, the cluster floor and the reported fields are all the
-    metric's, so two intervals in one report can never have been built differently.
-
-    Each resample draws ``len(clusters)`` clusters **with replacement** and pools
-    every row inside them, so a symbol is in or out as a whole. ``p_value`` is
-    one-sided — the share of resampled statistics at or below zero — which is the
-    shape of the claim: the question is whether a higher score pays *more*, not
-    whether it pays differently.
-
-    A resample the statistic cannot evaluate (an empty edge band, no variance) is
-    counted under ``undefined`` rather than defaulted to zero, because a resample
-    that could not answer is not a resample that answered no. Past
-    :data:`MAX_UNDEFINED_SHARE` of the draws the interval is **refused**: reading it
-    off the draws that did compute would condition on the statistic having been
-    computable, which is a condition satisfied disproportionately by the confident
-    draws. See that constant for the argument.
-
-    Below ``min_clusters`` no interval is reported at all, for the reason the
-    metric records: one symbol resampled two thousand times returns its own mean
-    two thousand times, which prints as a zero-width interval at p = 0 and is one
-    independent observation.
-
-    ``unavailable`` refuses before any resampling, for a statistic that could not
-    be computed on this cohort whatever was drawn — :mod:`backtest.candidates`
-    passes it for a rank correlation against a candidate that persists no degree.
-    The refusal is stated in the caller's words but reported in this function's
-    shape, so a cell that never ran a bootstrap and one that ran and refused are
-    read the same way by anything downstream.
-    """
-
-    n = len(clusters)
-    pooled = [row for cluster_rows in clusters for row in cluster_rows]
-    body: dict[str, Any] = {
-        "cluster": cluster,
-        "clusters": n,
-        "observations": len(pooled),
-        "resamples": resamples,
-        "seed": seed,
-        "confidence": confidence,
-        "min_clusters": min_clusters,
-        "undefined": 0,
-        "max_undefined_share": max_undefined_share,
-        "suppressed": None,
-    }
-    empty = {**body, "ci_low": None, "ci_high": None, "p_value": None}
-    if unavailable is not None:
-        return {**empty, "suppressed": unavailable}
-    if n < min_clusters:
-        return {
-            **empty,
-            "suppressed": (
-                f"{n} {cluster}s is fewer than {min_clusters}: too thin for an "
-                "interval, and a degenerate one would read as significance"
-            ),
-        }
-
-    rng = random.Random(seed)
-    indices = range(n)
-    drawn_values: list[float] = []
-    undefined = 0
-    for _ in range(resamples):
-        drawn = [row for i in indices for row in clusters[rng.choice(indices)]]
-        value = statistic(drawn)
-        if value is None:
-            undefined += 1
-            continue
-        drawn_values.append(value)
-    share_undefined = undefined / resamples if resamples else 1.0
-    if not drawn_values or share_undefined > max_undefined_share:
-        return {
-            **empty,
-            "undefined": undefined,
-            "suppressed": (
-                f"{share_undefined:.1%} of resamples could not be evaluated over "
-                f"{n} {cluster}s, past the {max_undefined_share:.0%} the interval "
-                "is allowed: reading it off the rest would condition on the draws "
-                "where the statistic was computable, which are the confident ones"
-            ),
-        }
-
-    drawn_values.sort()
-    tail = (1.0 - confidence) / 2.0
-    return {
-        **body,
-        "undefined": undefined,
-        "ci_low": quantile(drawn_values, tail),
-        "ci_high": quantile(drawn_values, 1.0 - tail),
-        "p_value": sum(1 for v in drawn_values if v <= 0.0) / len(drawn_values),
-    }
 
 
 # -- the verdict --------------------------------------------------------------
@@ -705,56 +512,22 @@ def verdict(
 
 # -- joining a trade to the score that produced it ----------------------------
 
-ScoreIndex = Mapping[tuple[date, str], SevenDimScore]
-
-
-def score_index(
-    denominator: DenominatorStore, market: str, *, include_burn_in: bool = False
-) -> dict[tuple[date, str], SevenDimScore]:
-    """Every persisted detection's score for one market, keyed by session and symbol.
-
-    The key is the pair the denominator's own primary key uses, so the join below
-    is exact: a symbol is detected at most once on a session.
-
-    Burn-in sessions are excluded by default for the reason they are flagged at
-    all — a warm-up session is persisted and never measured (story 76) — and the
-    default matches :func:`~backtest.simulate.walk_detections`, so the index and
-    the trades cover the same sessions rather than nearly the same ones.
-    """
-    index: dict[tuple[date, str], SevenDimScore] = {}
-    for header in denominator.sessions(
-        market, burn_in=None if include_burn_in else False
-    ):
-        for scored in denominator.detections(market, header.session):
-            check_seven_dimension_score(scored.score)
-            index[(header.session, scored.symbol)] = scored.score
-    return index
-
-
 def scored_trades(
-    trades: Sequence[SimulatedTrade], scores: ScoreIndex
+    trades: Sequence[SimulatedTrade], index: DetectionIndex
 ) -> list[ScoredTrade]:
-    """Join each trade to its detection's score, refusing a trade that has none.
+    """Join each trade to the score of the detection that produced it.
 
-    The join is **total** or it is a bug: every simulated trade came from a
-    persisted detection, and that detection carries a score. Dropping an unmatched
-    trade quietly would shrink the cohort the ranking is measured on with nothing
-    in the output to say which trades left — and the trades most likely to go
-    missing are not a random sample of them.
+    The join is :func:`~backtest.cohort.join_detections`' — **total**, so a trade
+    with no persisted row raises rather than being dropped; that module holds the
+    argument, which is the same one the candidate measurement relies on. What is
+    the ranking's own is the check at the door: a nine-point row arriving here
+    would be scored by something other than the replayed rubric and would silently
+    re-base every band, so it is refused before a cut is taken over it.
     """
     out: list[ScoredTrade] = []
-    for trade in trades:
-        key = (trade.detection_session, trade.symbol)
-        if key not in scores:
-            raise ValueError(
-                f"no persisted score for {trade.symbol} detected "
-                f"{trade.detection_session}: the join from trade to detection is "
-                "total, and a missing row is a broken denominator rather than a "
-                "trade to drop"
-            )
-        score = scores[key]
-        check_seven_dimension_score(score)
-        out.append(ScoredTrade(trade=trade, score=score))
+    for trade, detection in join_detections(trades, index):
+        check_seven_dimension_score(detection.score)
+        out.append(ScoredTrade(trade=trade, score=detection.score))
     return out
 
 
@@ -933,8 +706,7 @@ def _intervals_reported(markets_body: Sequence[dict[str, Any]]) -> int:
     anything made no claim to correct for.
     """
     def in_slice(body: dict[str, Any]) -> int:
-        cells = [*body["buckets"], body["gap"], body["spearman"]]
-        return sum(1 for c in cells if c["bootstrap"]["ci_low"] is not None)
+        return intervals_reported([*body["buckets"], body["gap"], body["spearman"]])
 
     return sum(
         in_slice(market) + sum(in_slice(year) for year in market["years"])
@@ -1013,16 +785,6 @@ def ranking_report(
 # -- printing it, and the command that produces it ----------------------------
 
 
-def _interval(boot: dict[str, Any]) -> str:
-    """One interval as a phrase, or the reason there is none."""
-    if boot["ci_low"] is None:
-        return f"{boot['clusters']} {boot['cluster']}s — too thin for an interval"
-    return (
-        f"[{boot['ci_low']:+.2f}, {boot['ci_high']:+.2f}] p={boot['p_value']:.3f} "
-        f"on {boot['clusters']} {boot['cluster']}s"
-    )
-
-
 def _bucket_line(cell: dict[str, Any]) -> str:
     """One bucket as a line: the band, its n, what it paid and how sure that is.
 
@@ -1039,7 +801,7 @@ def _bucket_line(cell: dict[str, Any]) -> str:
         return f"{head} no closed trades ({cell['trades']} taken)"
     return (
         f"{head} {cell['expectancy_r']:+.3f}R  win {cell['win_rate']:.1%}  "
-        f"{cell['symbols']} symbols  {_interval(cell['bootstrap'])}"
+        f"{cell['symbols']} symbols  {format_interval(cell['bootstrap'])}"
     )
 
 
@@ -1051,9 +813,9 @@ def _slice_lines(body: dict[str, Any], *, indent: str = "") -> list[str]:
     rho_value = "undefined" if rho["rho"] is None else f"{rho['rho']:+.3f}"
     lines += [
         f"{indent}  gap {gap['bottom']} → {gap['top']}: {value}  "
-        f"{_interval(gap['bootstrap'])}",
+        f"{format_interval(gap['bootstrap'])}",
         f"{indent}  rho {rho_value} over {rho['pairs']} trades  "
-        f"{_interval(rho['bootstrap'])}",
+        f"{format_interval(rho['bootstrap'])}",
         f"{indent}  verdict: {VERDICT_PHRASE[body['verdict']]}",
     ]
     return lines
@@ -1136,7 +898,7 @@ def main(argv: list[str] | None = None) -> int:
             trades = simulate_market(
                 store, denominator, market, contract, arms=(PRIMARY_ARM,)
             )
-            cohort += scored_trades(trades, score_index(denominator, market))
+            cohort += scored_trades(trades, detection_index(denominator, market))
     finally:
         denominator.close()
         store.close()

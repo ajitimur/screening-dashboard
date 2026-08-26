@@ -531,8 +531,11 @@ count ride on every cell, because a significance figure that moved between two r
 same data would be unreproducible with nothing in the output to show it. A statistic that is
 not a mean — a **score band** gap, a candidate's hit-minus-miss gap, a rank correlation — is
 resampled the same way through
-`backtest.ranking.bootstrap_symbol_statistic`, on the metric's own seed and cluster floor, so
-two intervals in one report were never built differently.
+`backtest.stats.bootstrap_symbol_statistic`, on the metric's own seed and cluster floor, so
+two intervals in one report were never built differently. A draw the statistic cannot evaluate
+is counted as **undefined**, never as a zero, and past a tenth of the draws the interval is
+refused rather than read off the rest — which would condition on the statistic having been
+computable, and those are the confident draws.
 _Avoid_: bootstrapping the trades, resampling the rows — the row is not the unit.
 
 **Priced posture**:

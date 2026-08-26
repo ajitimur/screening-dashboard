@@ -17,10 +17,15 @@ Both registrations then ran into the limits of that instrument:
 * ``RS line`` was refused on criterion 4 for a wrong-way Δ (findings §5d), on a
   dimension firing on one detection in ten in *both* groups.
 * ``Relative move`` came back positive on both fields and then stalled **0.06pp**
-  inside criterion 2's ~85% ceiling (§5e) — a threshold the ADR itself calls "the
-  one magnitude in this design with nothing behind it", now deciding an admission
-  by six hundredths of a point. The ADR declined to resolve it and recorded that
-  no third candidate should register until that threshold is argued on its own.
+  inside criterion 1's ~85% not-taken hit-rate ceiling (§5e). That ceiling and
+  criterion 2's ~15% disagreement floor are **one threshold read from two sides**
+  — disagreement with ``Prior move`` is exactly ``1 − hit rate`` — which is why
+  the two criteria are the same number and land together: on the literal reading
+  criterion 1 admits the dimension, on any reading honouring the tilde criterion 2
+  refuses it. The ADR calls that magnitude "the one magnitude in this design with
+  nothing behind it", and it now decides an admission by six hundredths of a
+  point. The ADR declined to resolve it and recorded that no third candidate
+  should register until the threshold is argued on its own.
 
 This run gives the same two dimensions an outcome variable: **R after costs**, on
 trades taken mechanically over two markets and fourteen years, which no rubric
@@ -80,7 +85,7 @@ Everything else is the metric's
 -------------------------------
 The after-cost R of a trade, the per-market costs, the cell behind every group and
 the clustered bootstrap are :mod:`backtest.metric`'s and
-:func:`backtest.ranking.bootstrap_symbol_statistic`'s, on the same seed, cluster
+:mod:`backtest.stats`', on the same seed, cluster
 and floor — so this measurement and the headline can never disagree about what a
 trade paid, and two intervals in one run were never built differently.
 """
@@ -92,7 +97,7 @@ import json
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Sequence
 
 from replay.contrast import CANDIDATES
 from replay.field import ScoredDetection
@@ -100,6 +105,7 @@ from screener.relative_strength import RELATIVE_MOVE_CUT
 from screener.score import DIMENSIONS
 from screener.store import Store
 
+from .cohort import DetectionIndex, detection_index, join_detections
 from .contract import DEFAULT_CONTRACT, SCOPE_MARKETS_KEY, RunContract
 from .denominator import DenominatorStore, denominator_path
 from .metric import (
@@ -113,10 +119,16 @@ from .metric import (
     check_one_market_one_arm,
     expectancy_cell,
 )
-from .ranking import bootstrap_symbol_statistic, spearman
 from .result import stamp_result
 from .run import ContractDrift
 from .simulate import SimulatedTrade, simulate_market
+from .stats import (
+    bootstrap_symbol_statistic,
+    cluster_by_symbol,
+    format_interval,
+    intervals_reported,
+    spearman,
+)
 
 # -- the three groups ---------------------------------------------------------
 
@@ -146,7 +158,7 @@ VALUE_BOOLEAN = "boolean"
 
 
 @dataclass(frozen=True)
-class Candidate:
+class CandidateDimension:
     """One registered candidate dimension, and how to read a persisted row for it.
 
     :data:`CANDIDATES` supplies the name and the pre-registered boolean reader;
@@ -162,37 +174,53 @@ class Candidate:
     name: str
     hit: Callable[[ScoredDetection], bool]
     value: Callable[[ScoredDetection], Any]
-    value_kind: str
     cut: str
     absent_means: str
+    # The **degree** reader, or ``None`` where the row keeps only a verdict. One
+    # field carries that fact rather than a ``value_kind`` string switched on at
+    # three sites: a candidate either has a number to rank or it does not, and
+    # :attr:`value_kind` is derived from it so the label and the behaviour cannot
+    # drift apart.
+    degree: Callable[[ScoredDetection], float | None] | None = None
+
+    @property
+    def value_kind(self) -> str:
+        """What the persisted row carries, for the payload and the printed page."""
+        return VALUE_GRADED if self.degree is not None else VALUE_BOOLEAN
 
 
-# How to read each registered candidate's stored value, keyed by the name the
-# registry uses. Kept apart from :data:`CANDIDATES` because that tuple is ADR
-# 0005's register of what has been *pre-registered*, and a measurement module
-# adding an entry to it could promote a column after its gap was visible.
-_VALUE_READERS: dict[str, dict[str, Any]] = {
-    "RS line": {
-        "value": lambda d: d.rs_line,
-        "value_kind": VALUE_BOOLEAN,
-        "cut": "RS_today >= RS_at_base_start, over the detection's own base",
-        "absent_means": (
+def _relative_move_degree(detection: ScoredDetection) -> float | None:
+    """``Relative move``'s stored degree — the value itself, in ADR units."""
+    return detection.relative_move
+
+
+# How to read each registered candidate's persisted row, keyed by the name the
+# register uses. Kept apart from :data:`CANDIDATES` because that tuple is ADR
+# 0005's register of what has been *pre-registered*, and a measurement module able
+# to add an entry to it is a module able to promote a column after its gap is
+# visible.
+_READERS: dict[str, dict[str, Any]] = {
+    "RS line": dict(
+        value=lambda d: d.rs_line,
+        degree=None,
+        cut="RS_today >= RS_at_base_start, over the detection's own base",
+        absent_means=(
             "a price was missing at one of the two anchors, so the question was "
             "never asked — which is a different fact from asking it and getting no"
         ),
-    },
-    "Relative move": {
-        "value": lambda d: d.relative_move,
-        "value_kind": VALUE_GRADED,
-        "cut": (
+    ),
+    "Relative move": dict(
+        value=lambda d: d.relative_move,
+        degree=_relative_move_degree,
+        cut=(
             f"the 6m index-relative move in ADR units, strictly above "
             f"{RELATIVE_MOVE_CUT:.1f}"
         ),
-        "absent_means": (
+        absent_means=(
             "the name had not listed six months ago, or has no ADR — never zero, "
             "which is a real value sitting exactly on the cut"
         ),
-    },
+    ),
 }
 
 
@@ -209,7 +237,7 @@ def check_registry(
     what an absent one means — so a new registration stops the measurement instead
     of being quietly left out of a report that still claims to cover the register.
     """
-    unknown = sorted({name for name, _w, _r in registered} - set(_VALUE_READERS))
+    unknown = sorted({name for name, _w, _r in registered} - set(_READERS))
     if unknown:
         raise ContractDrift(
             f"registered candidate(s) {unknown} have no value reader in "
@@ -219,19 +247,19 @@ def check_registry(
         )
 
 
-def _under_test() -> tuple[Candidate, ...]:
+def _under_test() -> tuple[CandidateDimension, ...]:
     """The register, in its own order, with this module's readers attached."""
     check_registry()
     return tuple(
-        Candidate(name=name, hit=hit, **_VALUE_READERS[name])
+        CandidateDimension(name=name, hit=hit, **_READERS[name])
         for name, _weight, hit in CANDIDATES
     )
 
 
-CANDIDATES_UNDER_TEST: tuple[Candidate, ...] = _under_test()
+CANDIDATES_UNDER_TEST: tuple[CandidateDimension, ...] = _under_test()
 
 
-def named_candidate(name: str) -> Candidate:
+def named_candidate(name: str) -> CandidateDimension:
     """One candidate by the name the register uses."""
     for candidate in CANDIDATES_UNDER_TEST:
         if candidate.name == name:
@@ -297,6 +325,7 @@ SELECTION_CONTRAST: dict[str, dict[str, Any]] = {
         "delta_pp": -2.1,
         "pooled_spread": 0.326,
         "adr_0005_verdict": "not admitted",
+        "recorded_as": "refused on criterion 4 — a wrong-way gap",
         "why": (
             "refused on criterion 4, a wrong-way gap, with the anchor named as "
             "the mechanism: base_start is a local high under both detector "
@@ -316,11 +345,14 @@ SELECTION_CONTRAST: dict[str, dict[str, Any]] = {
         "delta_pp": 3.6,
         "pooled_spread": 0.357,
         "adr_0005_verdict": "not admitted",
+        "recorded_as": "on_the_bound — the criteria do not separate",
         "why": (
-            "positive on both fields, and then 0.06pp inside criterion 2's ~85% "
-            "ceiling — 0.29 standard errors from a threshold the ADR calls a "
-            "judgement rather than a measurement. The criteria do not separate, "
-            "so nothing shipped"
+            "positive on both fields, and then 0.06pp inside criterion 1's ~85% "
+            "not-taken hit-rate ceiling — 0.29 standard errors from it. That "
+            "ceiling and criterion 2's ~15% disagreement floor are one threshold "
+            "read from two sides, so the two criteria give opposite answers on "
+            "the same number, and the ADR calls that magnitude a judgement rather "
+            "than a measurement. The criteria do not separate, so nothing shipped"
         ),
     },
 }
@@ -359,7 +391,7 @@ MULTIPLE_TESTING_NOTE = (
 
 
 @dataclass(frozen=True)
-class CandidateTrade:
+class DetectedTrade:
     """One simulated trade beside the persisted detection row it came from.
 
     Joined rather than stored together, for the reason the ranking gives: the
@@ -396,7 +428,7 @@ class CandidateOutcome:
     r: float
 
 
-def group_of(candidate: Candidate, detection: ScoredDetection) -> str:
+def group_of(candidate: CandidateDimension, detection: ScoredDetection) -> str:
     """Which of the three groups a persisted row falls in, read at read time.
 
     Absence is tested **first** and on the stored value itself, so no absent row
@@ -409,31 +441,38 @@ def group_of(candidate: Candidate, detection: ScoredDetection) -> str:
 
 
 def split(
-    candidate: Candidate, cohort: Sequence[CandidateTrade]
-) -> dict[str, list[CandidateTrade]]:
+    candidate: CandidateDimension, cohort: Sequence[DetectedTrade]
+) -> dict[str, list[DetectedTrade]]:
     """The cohort partitioned into the three groups, every group present.
 
     A group with no trades comes back empty rather than missing, so a report can
     show its zero: an absent row and a group nobody measured are indistinguishable
     after the fact.
     """
-    groups: dict[str, list[CandidateTrade]] = {g: [] for g in GROUPS}
+    groups: dict[str, list[DetectedTrade]] = {g: [] for g in GROUPS}
     for row in cohort:
         groups[group_of(candidate, row.detection)].append(row)
     return groups
 
 
-def _graded_value(candidate: Candidate, detection: ScoredDetection) -> float | None:
-    """The stored degree, or ``None`` where the candidate keeps only a verdict."""
-    if candidate.value_kind != VALUE_GRADED:
+def _graded_value(
+    candidate: CandidateDimension, detection: ScoredDetection
+) -> float | None:
+    """The stored degree, or ``None`` where the candidate keeps only a verdict.
+
+    The one site that asks whether a candidate has a degree at all, and it asks the
+    reader rather than a label: a candidate with no ``degree`` has nothing to
+    return, and a row with an absent value has nothing either.
+    """
+    if candidate.degree is None:
         return None
-    value = candidate.value(detection)
+    value = candidate.degree(detection)
     return None if value is None else float(value)
 
 
 def outcomes(
-    candidate: Candidate,
-    cohort: Sequence[CandidateTrade],
+    candidate: CandidateDimension,
+    cohort: Sequence[DetectedTrade],
     contract: RunContract,
 ) -> list[CandidateOutcome]:
     """The cohort's **closed** trades as rows, after costs, in cohort order.
@@ -456,25 +495,6 @@ def outcomes(
             )
         )
     return rows
-
-
-def symbol_clusters(
-    rows: Sequence[CandidateOutcome],
-) -> list[tuple[CandidateOutcome, ...]]:
-    """The rows grouped one cluster per symbol, in symbol order.
-
-    The unit of independence, and it is the **whole** cohort's rows rather than one
-    group's: a resample draws symbols from the field that was measured, and each
-    statistic then reads the rows it is about. Clustering per group instead would
-    resample two populations independently and lose the fact that one name can sit
-    in only one of them.
-
-    Ordered by symbol so a resample under a fixed seed is reproducible.
-    """
-    grouped: dict[str, list[CandidateOutcome]] = {}
-    for row in rows:
-        grouped.setdefault(row.symbol, []).append(row)
-    return [tuple(grouped[symbol]) for symbol in sorted(grouped)]
 
 
 # -- the statistics -----------------------------------------------------------
@@ -586,54 +606,21 @@ def verdict(*, gap: dict[str, Any], sides: Sequence[dict[str, Any]]) -> str:
 
 # -- joining a trade to the row that produced it ------------------------------
 
-DetectionIndex = Mapping[tuple[date, str], ScoredDetection]
-
-
-def candidate_index(
-    denominator: DenominatorStore, market: str, *, include_burn_in: bool = False
-) -> dict[tuple[date, str], ScoredDetection]:
-    """Every persisted detection row for one market, keyed by session and symbol.
-
-    The whole row rather than the two values, because the readers take a
-    :class:`~replay.field.ScoredDetection` — the same argument the selection
-    contrast hands them, so neither study can be reading a differently shaped
-    input.
-
-    Burn-in sessions are excluded by default, matching
-    :func:`~backtest.simulate.walk_detections`, so the index and the trades cover
-    the same sessions rather than nearly the same ones.
-    """
-    index: dict[tuple[date, str], ScoredDetection] = {}
-    for header in denominator.sessions(
-        market, burn_in=None if include_burn_in else False
-    ):
-        for scored in denominator.detections(market, header.session):
-            index[(header.session, scored.symbol)] = scored
-    return index
-
-
 def candidate_trades(
     trades: Sequence[SimulatedTrade], index: DetectionIndex
-) -> list[CandidateTrade]:
-    """Join each trade to its persisted row, refusing a trade that has none.
+) -> list[DetectedTrade]:
+    """Join each trade to the persisted row that produced it.
 
-    The join is **total** or it is a bug: every simulated trade came from a
-    persisted detection. Dropping an unmatched one would shrink the cohort with
-    nothing in the output to say which trades left, and the trades most likely to
-    go missing are not a random sample of them.
+    The join is :func:`~backtest.cohort.join_detections`' — **total**, so a trade
+    with no row raises rather than being dropped; that module holds the argument.
+    What this adds is only the row type: a trade beside the whole detection row,
+    because both candidate values are read off it at report time by the readers
+    :data:`CANDIDATES` supplies.
     """
-    out: list[CandidateTrade] = []
-    for trade in trades:
-        key = (trade.detection_session, trade.symbol)
-        if key not in index:
-            raise ValueError(
-                f"no persisted detection row for {trade.symbol} detected "
-                f"{trade.detection_session}: the join from trade to row is total, "
-                "and a missing row is a broken denominator rather than a trade to "
-                "drop"
-            )
-        out.append(CandidateTrade(trade=trade, detection=index[key]))
-    return out
+    return [
+        DetectedTrade(trade=trade, detection=detection)
+        for trade, detection in join_detections(trades, index)
+    ]
 
 
 # -- the report ---------------------------------------------------------------
@@ -641,9 +628,9 @@ def candidate_trades(
 
 def _group_cell(
     contract: RunContract,
-    candidate: Candidate,
+    candidate: CandidateDimension,
     group: str,
-    rows: Sequence[CandidateTrade],
+    rows: Sequence[DetectedTrade],
     *,
     market: str,
     closed_total: int,
@@ -670,24 +657,18 @@ def _group_cell(
     return cell
 
 
-def _gap_cell(
-    rows: Sequence[CandidateOutcome],
-    clusters: Sequence[Sequence[CandidateOutcome]],
-) -> dict[str, Any]:
+def _gap_cell(rows: Sequence[CandidateOutcome]) -> dict[str, Any]:
     """The hit-minus-miss gap with its clustered interval."""
     return {
         "statistic": "mean after-cost R, hit minus miss",
         "reads_absence_as": "absent — it enters neither side",
         "enters_the_verdict": True,
         "value": outcome_gap(rows),
-        "bootstrap": bootstrap_symbol_statistic(clusters, outcome_gap),
+        "bootstrap": bootstrap_symbol_statistic(cluster_by_symbol(rows), outcome_gap),
     }
 
 
-def _rubric_reading_cell(
-    rows: Sequence[CandidateOutcome],
-    clusters: Sequence[Sequence[CandidateOutcome]],
-) -> dict[str, Any]:
+def _rubric_reading_cell(rows: Sequence[CandidateOutcome]) -> dict[str, Any]:
     """The same gap as a shipped boolean would compute it, and its interval."""
     return {
         "statistic": "mean after-cost R, hit minus (miss and absent)",
@@ -697,18 +678,22 @@ def _rubric_reading_cell(
         ),
         "enters_the_verdict": False,
         "value": rubric_reading_gap(rows),
-        "bootstrap": bootstrap_symbol_statistic(clusters, rubric_reading_gap),
+        "bootstrap": bootstrap_symbol_statistic(
+            cluster_by_symbol(rows), rubric_reading_gap
+        ),
     }
 
 
 def _value_cell(
-    candidate: Candidate,
-    rows: Sequence[CandidateOutcome],
-    clusters: Sequence[Sequence[CandidateOutcome]],
+    candidate: CandidateDimension, rows: Sequence[CandidateOutcome]
 ) -> dict[str, Any]:
-    """Spearman's rho against the stored degree, or the reason there is none."""
-    graded = candidate.value_kind == VALUE_GRADED
-    unavailable = None if graded else (
+    """Spearman's rho against the stored degree, or the reason there is none.
+
+    ``rho`` is :func:`value_correlation` unconditionally: it already returns
+    ``None`` where no row carries a degree, and a second guard here would be a
+    second place for "this candidate has nothing to rank" to be decided.
+    """
+    unavailable = None if candidate.degree is not None else (
         f"{candidate.name} persists a boolean, not a degree: there is no value to "
         "rank, and correlating a verdict with the outcome would restate the gap"
     )
@@ -719,18 +704,18 @@ def _value_cell(
         "enters_the_verdict": False,
         "value_kind": candidate.value_kind,
         "unavailable": unavailable,
-        "rho": value_correlation(rows) if graded else None,
+        "rho": value_correlation(rows),
         "pairs": sum(1 for row in rows if row.value is not None),
         "bootstrap": bootstrap_symbol_statistic(
-            clusters, value_correlation, unavailable=unavailable
+            cluster_by_symbol(rows), value_correlation, unavailable=unavailable
         ),
     }
 
 
 def market_candidate(
     contract: RunContract,
-    candidate: Candidate,
-    cohort: Sequence[CandidateTrade],
+    candidate: CandidateDimension,
+    cohort: Sequence[DetectedTrade],
     *,
     market: str,
 ) -> dict[str, Any]:
@@ -750,7 +735,6 @@ def market_candidate(
 
     groups = split(candidate, cohort)
     rows = outcomes(candidate, cohort, contract)
-    clusters = symbol_clusters(rows)
     closed_total = len(rows)
     cells = {
         group: _group_cell(
@@ -759,7 +743,7 @@ def market_candidate(
         )
         for group in GROUPS
     }
-    gap = _gap_cell(rows, clusters)
+    gap = _gap_cell(rows)
     return {
         "candidate": candidate.name,
         "market": market,
@@ -776,8 +760,8 @@ def market_candidate(
         "closed": closed_total,
         "groups": cells,
         "gap": gap,
-        "rubric_reading": _rubric_reading_cell(rows, clusters),
-        "value_correlation": _value_cell(candidate, rows, clusters),
+        "rubric_reading": _rubric_reading_cell(rows),
+        "value_correlation": _value_cell(candidate, rows),
         "verdict": verdict(
             gap=gap, sides=[cells[group] for group in ASKED_GROUPS]
         ),
@@ -787,7 +771,7 @@ def market_candidate(
 
 def market_candidates(
     contract: RunContract,
-    cohort: Sequence[CandidateTrade],
+    cohort: Sequence[DetectedTrade],
     *,
     market: str,
 ) -> dict[str, Any]:
@@ -812,9 +796,10 @@ def _intervals_reported(markets_body: Sequence[dict[str, Any]]) -> int:
     correct for.
     """
     def in_cell(cell: dict[str, Any]) -> int:
-        bodies = [cell["groups"][group] for group in GROUPS]
-        bodies += [cell["gap"], cell["rubric_reading"], cell["value_correlation"]]
-        return sum(1 for b in bodies if b["bootstrap"]["ci_low"] is not None)
+        return intervals_reported(
+            [cell["groups"][group] for group in GROUPS]
+            + [cell["gap"], cell["rubric_reading"], cell["value_correlation"]]
+        )
 
     return sum(
         sum(in_cell(cell) for cell in market["candidates"])
@@ -824,7 +809,7 @@ def _intervals_reported(markets_body: Sequence[dict[str, Any]]) -> int:
 
 def candidates_report(
     contract: RunContract,
-    cohort: Sequence[CandidateTrade],
+    cohort: Sequence[DetectedTrade],
     *,
     markets: Sequence[str] | None = None,
 ) -> dict[str, Any]:
@@ -898,16 +883,6 @@ def candidates_report(
 # -- printing it, and the command that produces it ----------------------------
 
 
-def _interval(boot: dict[str, Any]) -> str:
-    """One interval as a phrase, or the reason there is none."""
-    if boot["ci_low"] is None:
-        return f"{boot['clusters']} {boot['cluster']}s — no interval"
-    return (
-        f"[{boot['ci_low']:+.2f}, {boot['ci_high']:+.2f}] p={boot['p_value']:.3f} "
-        f"on {boot['clusters']} {boot['cluster']}s"
-    )
-
-
 def _group_line(cell: dict[str, Any]) -> str:
     """One group as a line: what it is, its n, what it paid and how sure that is.
 
@@ -920,7 +895,7 @@ def _group_line(cell: dict[str, Any]) -> str:
         return f"{head} no closed trades ({cell['trades']} taken)"
     return (
         f"{head} {cell['expectancy_r']:+.3f}R  win {cell['win_rate']:.1%}  "
-        f"{cell['symbols']} symbols  {_interval(cell['bootstrap'])}"
+        f"{cell['symbols']} symbols  {format_interval(cell['bootstrap'])}"
     )
 
 
@@ -929,7 +904,7 @@ def _value_line(cell: dict[str, Any]) -> str:
         return f"  rho    — {cell['unavailable']}"
     return (
         f"  rho    {cell['rho']:+.3f} over {cell['pairs']} valued trades  "
-        f"{_interval(cell['bootstrap'])}"
+        f"{format_interval(cell['bootstrap'])}"
     )
 
 
@@ -946,12 +921,17 @@ def _candidate_lines(cell: dict[str, Any]) -> list[str]:
         f"{cell['symbols']} symbols)",
         f"  selection contrast ({prior['source']}, detector {prior['detector']}): "
         f"Δ {prior['delta_pp']:+.1f}pp — {prior['adr_0005_verdict']}",
+        # The outcome ADR 0005 actually recorded, not only that nothing shipped.
+        # "not admitted" covers a refusal on a wrong-way gap and a dimension that
+        # landed on its own bound, and those are different findings — a reader of
+        # the page should not have to open the JSON to tell them apart.
+        f"    recorded as: {prior['recorded_as']}",
     ]
     lines += [_group_line(cell["groups"][group]) for group in GROUPS]
     lines += [
-        f"  gap    hit − miss {value}  {_interval(gap['bootstrap'])}",
+        f"  gap    hit − miss {value}  {format_interval(gap['bootstrap'])}",
         f"  as shipped (absent read as a miss) {rubric_value}  "
-        f"{_interval(rubric['bootstrap'])}",
+        f"{format_interval(rubric['bootstrap'])}",
         _value_line(cell["value_correlation"]),
         f"  verdict: {VERDICT_PHRASE[cell['verdict']]}",
     ]
@@ -1009,12 +989,12 @@ def main(argv: list[str] | None = None) -> int:
     store = Store.open(args.store)
     denominator = DenominatorStore.open(denominator_path(args.store))
     try:
-        cohort: list[CandidateTrade] = []
+        cohort: list[DetectedTrade] = []
         for market in markets:
             trades = simulate_market(
                 store, denominator, market, contract, arms=(PRIMARY_ARM,)
             )
-            cohort += candidate_trades(trades, candidate_index(denominator, market))
+            cohort += candidate_trades(trades, detection_index(denominator, market))
     finally:
         denominator.close()
         store.close()

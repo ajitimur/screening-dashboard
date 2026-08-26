@@ -2843,14 +2843,23 @@ def test_the_rs_line_does_not_move_a_replayed_star():
 
 def test_build_field_defaults_the_candidate_dimension_to_absent():
     """A caller with no index bars to hand builds the same field as before, with
-    every candidate reading ``False`` rather than raising."""
+    every candidate reading **absent** rather than raising.
+
+    Absent and not ``False``, which is what this defaulted to until #195 needed the
+    distinction to hold end to end: a caller that never computed the dimension has
+    not measured a decayed RS line, and a row saying ``False`` would put the whole
+    field on the miss side of a measurement that reports the two apart. The
+    reachable path always supplies a real value (:func:`session_rs_lines` keys
+    every detection), so this is the default made honest rather than a bug fixed —
+    but the honest default is the one that cannot lie if that path ever changes.
+    """
     dets = [_det("AAA", 6), _det("BBB", 3)]
 
     without = build_field(dets, [])
     with_rs = build_field(dets, [], rs_line_of={"AAA": True})
 
-    assert {d.symbol: d.rs_line for d in without} == {"AAA": False, "BBB": False}
-    assert {d.symbol: d.rs_line for d in with_rs} == {"AAA": True, "BBB": False}
+    assert {d.symbol: d.rs_line for d in without} == {"AAA": None, "BBB": None}
+    assert {d.symbol: d.rs_line for d in with_rs} == {"AAA": True, "BBB": None}
     # Supplying it changes neither the order nor the scores.
     assert [d.symbol for d in without] == [d.symbol for d in with_rs]
     assert [d.score for d in without] == [d.score for d in with_rs]
@@ -8326,10 +8335,10 @@ def test_the_report_says_why_the_states_are_not_also_cut_per_year(store):
 #   * **Clustered by symbol, as everywhere else.** A name detected three times in
 #     a fortnight is one observation's worth of independence, not three.
 
+from backtest.stats import MAX_UNDEFINED_SHARE, bootstrap_symbol_statistic
 from backtest.ranking import (
     APP_MAX_POINTS,
     IN_SAMPLE_GAP,
-    MAX_UNDEFINED_SHARE,
     SCORE_DIMENSIONS,
     SCORE_LABEL,
     SCORE_MAX_POINTS,
@@ -8342,14 +8351,12 @@ from backtest.ranking import (
     Band,
     ScoredTrade,
     bands,
-    bootstrap_symbol_statistic,
     check_seven_dimension_score,
     format_ranking,
     market_ranking,
     outcomes,
     rank_correlation,
     ranking_report,
-    score_index,
     scored_trades,
     symbol_clusters,
     top_minus_bottom,
@@ -8694,9 +8701,11 @@ def test_a_trade_with_no_score_row_is_a_failure_rather_than_a_silent_drop(store)
     the output to show which trades left.
     """
     trade = _mtrade("AAA", 2016, 1.0)
-    scores = {(trade.detection_session, "AAA"): _score(6)}
+    index = {(trade.detection_session, "AAA"): _cdetection("AAA", trade.detection_session)}
 
-    assert [s.score.points for s in scored_trades([trade], scores)] == [6]
+    assert [s.score.points for s in scored_trades([trade], index)] == [
+        _cdetection("AAA", trade.detection_session).score.points
+    ]
     with pytest.raises(ValueError):
         scored_trades([trade], {})
 
@@ -8846,7 +8855,7 @@ def test_the_ranking_runs_off_the_denominator_end_to_end(store, denominator):
     trades = simulate_market(
         store, denominator, "US", DEFAULT_CONTRACT, arms=(ARM_B,)
     )
-    scores = score_index(denominator, "US")
+    scores = detection_index(denominator, "US")
 
     cohort = scored_trades(trades, scores)
 
@@ -8904,8 +8913,7 @@ from backtest.candidates import (
     VERDICT_NO_EVIDENCE as CANDIDATE_NO_EVIDENCE,
     VERDICT_PREDICTS as CANDIDATE_PREDICTS,
     VERDICT_TOO_THIN as CANDIDATE_TOO_THIN,
-    CandidateTrade,
-    candidate_index,
+    DetectedTrade,
     candidate_trades,
     candidates_report,
     check_not_admitted,
@@ -8920,7 +8928,8 @@ from backtest.candidates import (
     split,
     value_correlation,
 )
-from backtest.ranking import spearman
+from backtest.cohort import detection_index
+from backtest.stats import spearman
 from replay.contrast import CANDIDATE_DIMENSIONS
 
 
@@ -8974,7 +8983,7 @@ def _ctrade(
     month: int = 3,
     market: str = "US",
     arm: str = ARM_B,
-) -> CandidateTrade:
+) -> DetectedTrade:
     """One arm-B trade beside the persisted row that produced it.
 
     Authored on :func:`_mtrade`, the metric section's own fixture, for the reason
@@ -8982,7 +8991,7 @@ def _ctrade(
     metric's way, and a second trade fixture would be a second cost model.
     """
     trade = _mtrade(symbol, year, r, market=market, arm=arm, month=month)
-    return CandidateTrade(
+    return DetectedTrade(
         trade=trade,
         detection=_cdetection(
             symbol, trade.detection_session,
@@ -8997,7 +9006,7 @@ def _ccohort(
     absent: dict[str, float] | None = None,
     *,
     market: str = "US",
-) -> list[CandidateTrade]:
+) -> list[DetectedTrade]:
     """A cohort split three ways on ``Relative move``'s stored value.
 
     A hit is a positive value, a miss a negative one, and an absent row carries
@@ -9019,7 +9028,7 @@ def _spread(prefix: str, r: float, n: int) -> dict[str, float]:
 
 
 def _cbody(
-    cohort: list[CandidateTrade], name: str, *, market: str = "US"
+    cohort: list[DetectedTrade], name: str, *, market: str = "US"
 ) -> dict[str, Any]:
     """One candidate's cell over one market — the shape most tests below read."""
     return market_candidate(
@@ -9487,9 +9496,51 @@ def test_the_candidate_measurement_runs_off_the_denominator_end_to_end(
         store, denominator, "US", DEFAULT_CONTRACT, arms=(ARM_B,)
     )
 
-    cohort = candidate_trades(trades, candidate_index(denominator, "US"))
+    cohort = candidate_trades(trades, detection_index(denominator, "US"))
 
     assert [c.trade.symbol for c in cohort] == ["AAA"]
     assert cohort[0].detection.relative_move == pytest.approx(1.25)
     body = _cbody(cohort, _RELATIVE_MOVE)
     assert body["groups"][GROUP_HIT]["trades"] == 1
+
+
+def test_a_row_that_never_computed_the_dimension_reads_absent_not_a_miss():
+    """The absence guard, followed one step further back than `group_of`.
+
+    `group_of` reads absence off the stored value, so its claim is only as good as
+    what the field wrote. A `ScoredDetection` built without the dimension computed
+    at all defaults its value to **absent** rather than to `False` — until #195
+    `rs_line` defaulted to `False`, which would have put a field nobody measured
+    entirely on the miss side of a measurement whose whole subject is telling the
+    two apart.
+    """
+    plain = build_field([_det("AAA", 6)], [])[0]
+
+    assert plain.rs_line is None
+    assert plain.relative_move is None
+    assert group_of(named_candidate(_RS_LINE), plain) == GROUP_ABSENT
+    assert group_of(named_candidate(_RELATIVE_MOVE), plain) == GROUP_ABSENT
+
+
+def test_the_page_says_what_adr_0005_recorded_not_only_that_nothing_shipped():
+    """"Not admitted" covers two different findings.
+
+    `RS line` was refused on a wrong-way gap; `Relative move` landed on its own
+    bound and the criteria failed to separate. A page printing only "not admitted"
+    would flatten a refusal and an unresolved threshold into one word, and the
+    second is the reason #195 exists.
+    """
+    report = candidates_report(
+        DEFAULT_CONTRACT,
+        _ccohort(_spread("H", 2.0, 6), _spread("M", -1.0, 6)),
+        markets=("US",),
+    )
+
+    page = format_candidates(report)
+
+    assert "criterion 4" in page
+    assert "on_the_bound" in page
+    assert (
+        _cfind(report, "US", _RELATIVE_MOVE)["selection_contrast"]["recorded_as"]
+        != _cfind(report, "US", _RS_LINE)["selection_contrast"]["recorded_as"]
+    )

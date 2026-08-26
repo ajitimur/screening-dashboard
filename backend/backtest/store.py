@@ -208,6 +208,48 @@ def _outcome(
     return None
 
 
+class LiveStoreWriteRefused(ValueError):
+    """Raised when a build is handed the live store as its output.
+
+    Its own error, not a bare ``ValueError``, because a caller that wants to
+    catch this wants to catch exactly this — every other bad argument here is a
+    programming mistake, and this one is a near-miss on years of history.
+    """
+
+
+def live_store_path() -> Path:
+    """The store the app itself reads, resolved.
+
+    Read off :data:`screener.app.DEFAULT_DB_PATH` rather than recomputed, so the
+    guard cannot drift from the path the app actually opens — including the
+    ``SCREENER_DB`` override. Imported inside the function, as
+    :mod:`screener.run` and :mod:`screener.acceptance` do, to keep the web app
+    out of this module's import graph.
+    """
+    from screener.app import DEFAULT_DB_PATH
+
+    return Path(DEFAULT_DB_PATH).resolve()
+
+
+def refuse_live_store(out_path: str | Path) -> Path:
+    """Return ``out_path`` resolved, refusing if it is the live store.
+
+    Checked **before** the store is opened, because :meth:`Store.open` creates
+    the file read-write and a refusal raised afterwards would already have
+    touched it. Compared on the resolved path, so a different spelling of the
+    same file — a relative path, a ``..`` hop, a symlink — is the same file and
+    is refused too.
+    """
+    out = Path(out_path).resolve()
+    if out == live_store_path():
+        raise LiveStoreWriteRefused(
+            f"refusing to build the backtest store into the live store at {out}: "
+            "the backtest fetches its own history into a purpose-built file and "
+            "never writes live history (PRD story 49)"
+        )
+    return out
+
+
 def build_backtest_store(
     source: Source,
     symbols: Iterable[str],
@@ -241,14 +283,18 @@ def build_backtest_store(
     two sum to the enumeration before the value is handed back.
 
     The live store is never opened here at all — the build reaches only ``source``
-    and the fresh store at ``out_path`` — so the run is structurally incapable of
-    corrupting live history (user story 49). ``now`` must be timezone-aware for the
-    finality rule.
+    and the fresh store at ``out_path`` — and :func:`refuse_live_store` rejects an
+    ``out_path`` that resolves to the live store before anything is opened, so the
+    run is structurally incapable of corrupting live history (user story 49).
+    Without that guard the claim rested on the caller: ``Store.open`` opens
+    read-write, so the live path handed in here would have been written to.
+    ``now`` must be timezone-aware for the finality rule.
     """
     # Distinct stored forms, in enumeration order. The ledger is keyed by symbol,
     # so a name listed twice — or listed once bare and once already suffixed — is
     # one symbol with one verdict, and counting it twice in the enumeration would
     # make the sum invariant unsatisfiable rather than informative.
+    out_path = refuse_live_store(out_path)
     to_fetch = list(dict.fromkeys(market_symbol(market, s) for s in symbols))
     total = len(to_fetch)
     counts: Counter[str] = Counter()

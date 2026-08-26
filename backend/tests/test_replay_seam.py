@@ -3681,6 +3681,7 @@ from datetime import datetime, timezone
 
 from backtest import (
     BuildCoverage,
+    LiveStoreWriteRefused,
     Refusal,
     build_backtest_store,
     market_symbol,
@@ -3890,23 +3891,82 @@ def test_a_repeated_build_does_not_duplicate_rows(tmp_path):
     assert first == second  # the coverage is stable across a repeat
 
 
-def test_the_build_leaves_a_live_store_byte_identical(tmp_path):
-    """The build reaches only the source and its own fresh store, so a live store
-    sitting beside it is byte-identical after a build — the run is structurally
-    incapable of corrupting live history (PRD story 49)."""
-    live_path = tmp_path / "live.duckdb"
+def _seed_live_store(tmp_path, monkeypatch):
+    """A live store at the path the app itself would read, and its bytes.
+
+    The build has to be pointed at the *real* live path to be tested against it,
+    and :data:`screener.app.DEFAULT_DB_PATH` is read at import time, so the
+    attribute is patched rather than the environment. Hashing an arbitrary
+    sibling file instead would pass whatever the build did to live history.
+    """
+    import screener.app
+
+    live_path = tmp_path / "screener.duckdb"
     live = Store.open(live_path)
     live.append_bars("US", "AAA", [_bar(date(2020, 6, 1))])
     live.close()
+    monkeypatch.setattr(screener.app, "DEFAULT_DB_PATH", str(live_path))
+    return live_path, hashlib.sha256(live_path.read_bytes()).hexdigest()
 
-    before = hashlib.sha256(live_path.read_bytes()).hexdigest()
-    build_backtest_store(
+
+def test_the_build_refuses_to_write_into_the_live_store(tmp_path, monkeypatch):
+    """Handed the live store as its output, the build refuses before opening it.
+
+    This is the claim the module docstring makes — that the run is structurally
+    incapable of corrupting live history (PRD story 49) — and until #186 was
+    reviewed nothing enforced it: ``Store.open(out_path)`` opens read-write, so
+    a caller passing the live path wrote bars straight into live history. The
+    refusal is what makes "never written" a property of the code rather than of
+    the caller's care, and the bytes are checked after, because an exception
+    raised too late is not a guard.
+    """
+    live_path, before = _seed_live_store(tmp_path, monkeypatch)
+
+    with pytest.raises(LiveStoreWriteRefused, match="live store"):
+        build_backtest_store(
+            _fetch_source({"ZZZ": [_bar_row(date(2015, 6, 1))]}),
+            ["ZZZ"], live_path, market="US", now=_BUILD_NOW,
+        )
+
+    assert hashlib.sha256(live_path.read_bytes()).hexdigest() == before
+
+
+def test_the_build_refuses_the_live_store_by_identity_not_by_spelling(
+    tmp_path, monkeypatch
+):
+    """The refusal resolves the path, so it is not dodged by a different spelling
+    of the same file — the guard is about which file is written, not which string
+    was passed."""
+    live_path, before = _seed_live_store(tmp_path, monkeypatch)
+    indirect = tmp_path / "sub" / ".." / "screener.duckdb"
+    (tmp_path / "sub").mkdir()
+
+    with pytest.raises(LiveStoreWriteRefused):
+        build_backtest_store(
+            _fetch_source({"ZZZ": [_bar_row(date(2015, 6, 1))]}),
+            ["ZZZ"], indirect, market="US", now=_BUILD_NOW,
+        )
+
+    assert hashlib.sha256(live_path.read_bytes()).hexdigest() == before
+
+
+def test_the_build_leaves_a_live_store_byte_identical(tmp_path, monkeypatch):
+    """A build into its own purpose-built store leaves the live store — the one
+    the app actually reads — byte-identical (PRD story 49).
+
+    The store is the configured live one, not a same-named file the build never
+    had a reference to, so the assertion is about live history rather than about
+    an unrelated file in a temp directory.
+    """
+    live_path, before = _seed_live_store(tmp_path, monkeypatch)
+
+    coverage = build_backtest_store(
         _fetch_source({"ZZZ": [_bar_row(date(2015, 6, 1))]}),
         ["ZZZ"], tmp_path / "backtest.duckdb", market="US", now=_BUILD_NOW,
     )
-    after = hashlib.sha256(live_path.read_bytes()).hexdigest()
 
-    assert before == after
+    assert coverage.stored == ("ZZZ",)
+    assert hashlib.sha256(live_path.read_bytes()).hexdigest() == before
 
 
 def test_the_fetch_reports_progress_during_a_long_run(tmp_path):

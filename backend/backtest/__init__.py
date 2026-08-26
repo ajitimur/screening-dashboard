@@ -42,6 +42,7 @@ from .result import stamp_result
 from .store import (
     IDX_SUFFIX,
     BuildCoverage,
+    LiveStoreWriteRefused,
     Refusal,
     build_backtest_store,
     market_symbol,
@@ -55,6 +56,7 @@ __all__ = [
     "stamp_result",
     "IDX_SUFFIX",
     "BuildCoverage",
+    "LiveStoreWriteRefused",
     "Refusal",
     "build_backtest_store",
     "market_symbol",

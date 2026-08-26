@@ -65,16 +65,34 @@ reason is now doubled: it is a command in its own right
 documented command warn on every invocation. The entry point is reached as
 ``backtest.simulate.simulate_market``.
 
-Issue #191 lands the first cell of Phase 5: :mod:`backtest.metric`, the one metric
-the run promised in advance — arm B's after-cost expectancy in R, per market per
-year. It reads no bar. The simulator already denominated each trade in R, so this
-module is arithmetic over those trades: the contract's per-market commission and
-slippage charged on both sides and divided by the trade's own stop width, the win
-rate and the R-distribution reported beside every expectancy, per year always and
-the 2020–21-excluded figure beside the full-window one, and significance
+Issue #193 lands the first of Phase 5: :mod:`backtest.figures`, the three figures the
+denominator was built to produce. Detections per session, the share that trigger, and
+the share that reach a favourable outcome — precision, which the reference study can
+report no value for at all because every result in it is conditioned on trades the
+trader took. Reported per market and per year and never pooled only, plotted across
+the window so a year whose count collapses is visible as the data hole it is, and every
+rate carrying the coverage count it was measured against.
+
+:mod:`backtest.figures`'s names are **not** re-exported here either, and for the same
+mechanical reason as :mod:`backtest.simulate`'s: it is a command
+(``python -m backtest.figures``) and it imports that module, so the entry point is
+reached as ``backtest.figures.figures_for_market``.
+
+Issue #191 lands Phase 5's **pre-registered** cell: :mod:`backtest.metric`, the one
+metric the run promised in advance — arm B's after-cost expectancy in R, per market
+per year. It reads no bar either. The simulator already denominated each trade in R,
+so this module is arithmetic over those trades: the contract's per-market commission
+and slippage charged on both sides and divided by the trade's own stop width, the
+win rate and the R-distribution reported beside every expectancy, per year always
+and the 2020–21-excluded figure beside the full-window one, and significance
 bootstrapped by resampling **symbols** rather than rows. It computes and records the
 headline **before any swept variant exists**, and says so with the count of variants
 behind it.
+
+The two Phase 5 modules divide by what they measure rather than by when they ran:
+:mod:`backtest.figures` reports what the denominator *found* — detections, the share
+that trigger, precision — and :mod:`backtest.metric` reports what trading it *paid*,
+after costs, on the one arm the contract pre-registered.
 
 :mod:`backtest.metric`'s names are **not** re-exported here for the reasons that
 already keep :mod:`backtest.simulate` out: it is a command

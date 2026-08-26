@@ -7587,6 +7587,7 @@ from backtest.survivorship import (
     spine_path,
     survivorship_report,
     todays_roster,
+    window_population,
 )
 
 _WINDOW = (date(2012, 1, 1), date(2026, 8, 26))
@@ -8177,3 +8178,64 @@ def test_the_measured_hole_reaches_the_headline_without_hand_written_glue(store:
     # The per-year cell carries its own bound too, not only the window figure a
     # reader skims to.
     assert printed.count("bound") >= 2
+
+
+def test_the_share_is_counted_over_one_population_not_two(store: Store):
+    """Both halves come from the names the spine sighted inside the window.
+
+    The first version of this count did not do that — the absent names were counted
+    over the spine's whole roster and the covered names over today's *fetch set*,
+    5,498 against 20,923. A ratio of two different populations is not a share of
+    anything, and it read as a hole two-thirds larger than the one that is there.
+
+    A name sighted only outside the window is in neither half: it never traded in
+    the window this run measures.
+    """
+    spine = _bracketing(
+        _snap(date(2013, 2, 1), "GONE", "ALIVE"),
+    ).verify(*_WINDOW)
+
+    population = window_population(spine, _WINDOW)
+
+    # `EDGE` is sighted at 2011-12 *and* 2026-09, so it spans the window and counts.
+    assert sorted(population) == ["ALIVE", "EDGE", "GONE"]
+    narrow = (date(2014, 1, 1), date(2015, 1, 1))
+    assert sorted(window_population(spine, narrow)) == ["EDGE"]
+
+
+def test_a_name_listed_for_a_year_is_not_a_name_listed_for_fourteen(store: Store):
+    """The bound is scaled off time listed, not off name count.
+
+    40% of the absent US names were listed for under two years. Counting each of
+    them as one whole missing name credits an eighteen-month listing with as many
+    chances to throw a signal as one listed throughout, and the bound is a statement
+    about trades. So the share that feeds it is weighted by exposure, and the name
+    share stays beside it because that is the figure findings §2's 92-of-312 is
+    comparable to.
+    """
+    hole = hole_from_counts(
+        market="US", covered_names=1, absent_names=1, recycled_names=0,
+        covered_exposure_days=3650, missing_exposure_days=365,
+    )
+
+    assert hole.share == pytest.approx(0.5)
+    assert hole.exposure_share == pytest.approx(365 / 4015)
+    assert hole.to_dict()["exposure_weighted"] is True
+    # And the join hands the bound the weighted one.
+    report = survivorship_report(
+        DEFAULT_CONTRACT, holes=[hole], absent={}, coverage={}, gaps=[]
+    )
+    assert holes_by_market(report)["US"] == pytest.approx(365 / 4015)
+
+
+def test_an_unweighted_market_falls_back_to_the_name_share(store: Store):
+    """IDX has no dated spine, so it has no durations. A zero there would read as
+    "nothing missing" rather than "not weighted", so the name share stands in and
+    the output says which it is."""
+    idx = hole_from_counts(
+        market="IDX", covered_names=840, absent_names=122, recycled_names=None,
+        basis=BASIS_ENUMERATION,
+    )
+
+    assert idx.exposure_share == idx.share
+    assert idx.to_dict()["exposure_weighted"] is False

@@ -318,6 +318,35 @@ Two deliverables:
 **Done when** both the count and the bound are computed, and the write-up states the headline
 figure *and* its pessimistic twin together.
 
+**Measured** (2026-08-26, #196). `python -m backtest.survivorship` read 96 archived captures
+and found, on US, **7,346 names listed inside the window and gone from today's enumeration**,
+plus **512 recycled** and **3 the crawl got no bars for**, against 7,310 covered — a hole of
+**51.8% of the names sighted in the window, or 37.7% weighted by how long each was listed**.
+IDX's gap from the enumeration side is **122 of 962 (12.7%)**, with its recycled half
+unmeasured. Written up in
+[`references/backtest_survivorship.md`](../references/backtest_survivorship.md); the dated
+count is committed beside it as JSON.
+
+**The bound is larger than the effect this run is looking for.** At 37.7%, the missing
+population contributes 0.605 trades for every covered trade, each a full stop, so the
+pessimistic twin is negative for **any headline below +0.605R** — a figure no breakout
+expectancy in this repo comes near. Phases 3–5 should proceed knowing that: on today's store
+the survivorship bound does not qualify the headline, it exceeds it. Narrowing the hole is
+therefore a Phase 3 input rather than a Phase 7 caveat, and the two obvious levers are
+crawling the delisted names the spine now *names* (the count is a list of tickers, not a
+number) and gating the missing population by the universe rules before scaling trades off it.
+
+The measured hole is well above findings §2's 29.5% floor, which is the direction a 2012 start
+should move it. `against_floor` flags the opposite outcome rather than reporting it as an
+improvement: over a longer window a *smaller* hole is much more likely to mean the coverage
+test stopped asking the hard question.
+
+**The sensitivity's own figures wait on [#198](../../issues/198).** No denominator exists yet,
+so there are no simulated trades to put a real headline against. The wiring needs no further
+code — `backtest.metric --out-json` then `backtest.survivorship --metric-json` — and the bound
+rides on the printed metric either way, including as an explicit "not attached" line when
+nothing has.
+
 **The source, and the two that were set aside** (2026-08-26, #196). The spine is the **Nasdaq
 Trader symbol directory** — `nasdaqlisted.txt` and `otherlisted.txt`, the same two files
 `screener.source.parse_us_listings` reads live — recovered at past dates from the Internet

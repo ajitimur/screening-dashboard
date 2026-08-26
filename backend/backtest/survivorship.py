@@ -359,6 +359,19 @@ class Listing:
     last_listed: date
     snapshots: int
 
+    def exposure_days(self, window: tuple[date, date]) -> int:
+        """How many days of ``window`` this name was listed for.
+
+        The weight behind :attr:`SurvivorshipHole.exposure_share`. A name listed for
+        eighteen months of a fourteen-year window had a fourteenth of the chances to
+        throw a signal that a name listed throughout did, and counting the two as one
+        name each is what makes a name-count share the wrong multiplier for trades.
+        """
+        start, end = window
+        first = max(self.first_listed, start)
+        last = min(self.last_listed, end)
+        return max(0, (last - first).days)
+
 
 @dataclass(frozen=True)
 class VerifiedSpine:
@@ -440,6 +453,30 @@ def todays_roster(enumeration: Enumeration) -> set[str]:
     }
 
 
+def window_population(
+    spine: VerifiedSpine, window: tuple[date, date]
+) -> dict[str, Listing]:
+    """Every symbol the spine sighted **inside** the window, with its dates.
+
+    The one population both halves of the share are counted over, and it exists as
+    a function because the first version of this count did not have one: the absent
+    names were counted over the spine's whole roster and the covered names over
+    today's *fetch set*, which is 5,498 against 20,923. A ratio of two different
+    populations is not a share of anything, and it read as a hole two-thirds larger
+    than the one that is there.
+
+    Names sighted only outside the window are dropped: a listing that came and went
+    before 2012, or first appeared after the last session, never traded in the
+    window this run measures.
+    """
+    start, end = window
+    return {
+        symbol: listing
+        for symbol, listing in spine.listings().items()
+        if listing.first_listed <= end and listing.last_listed >= start
+    }
+
+
 def absences(
     spine: VerifiedSpine,
     *,
@@ -462,7 +499,6 @@ def absences(
             "verified (ListingSpine.verify): counting against an unverified spine "
             "is how a source's own edges get reported as a survivorship hole"
         )
-    start, end = window
     today = set(enumerated_today)
     return tuple(
         Absence(
@@ -472,10 +508,10 @@ def absences(
             last_listed=listing.last_listed,
             snapshots=listing.snapshots,
         )
-        for listing in sorted(spine.listings().values(), key=lambda l: l.symbol)
+        for listing in sorted(
+            window_population(spine, window).values(), key=lambda l: l.symbol
+        )
         if listing.symbol not in today
-        and listing.first_listed <= end
-        and listing.last_listed >= start
     )
 
 
@@ -694,6 +730,17 @@ class SurvivorshipHole:
     absent_names: int
     recycled_names: int | None
     basis: str
+    covered_exposure_days: int = 0
+    missing_exposure_days: int = 0
+    """How long the two populations were listed for, inside the window.
+
+    The name counts answer "how much of the roster is missing"; these answer "how
+    much of the *opportunity* is missing", and the two differ by a lot here because
+    40% of the absent names were listed for under two years. Trades scale with time
+    listed rather than with name count, so :attr:`exposure_share` is what feeds the
+    bound and :attr:`share` is what gets compared to findings §2's ticker count.
+    """
+
     no_bars_names: int = 0
     """Names the crawl asked about and got nothing for.
 
@@ -717,7 +764,24 @@ class SurvivorshipHole:
 
     @property
     def share(self) -> float:
+        """The missing share by name count — comparable to findings §2's 92 of 312."""
         return self.missing_names / self.total_names if self.total_names else 0.0
+
+    @property
+    def exposure_days(self) -> int:
+        return self.covered_exposure_days + self.missing_exposure_days
+
+    @property
+    def exposure_share(self) -> float:
+        """The missing share weighted by how long each name was listed.
+
+        Falls back to :attr:`share` where no exposure was measured — a market with
+        no dated spine has no durations, and a zero there would read as "nothing
+        missing" rather than "not weighted".
+        """
+        if not self.exposure_days:
+            return self.share
+        return self.missing_exposure_days / self.exposure_days
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -730,6 +794,10 @@ class SurvivorshipHole:
             "missing_names": self.missing_names,
             "total_names": self.total_names,
             "share": self.share,
+            "exposure_share": self.exposure_share,
+            "covered_exposure_days": self.covered_exposure_days,
+            "missing_exposure_days": self.missing_exposure_days,
+            "exposure_weighted": bool(self.exposure_days),
             "no_bars_names": self.no_bars_names,
         }
 
@@ -749,6 +817,8 @@ def hole_from_counts(
     recycled_names: int | None,
     basis: str = BASIS_SPINE,
     no_bars_names: int = 0,
+    covered_exposure_days: int = 0,
+    missing_exposure_days: int = 0,
 ) -> SurvivorshipHole:
     """Assemble a hole from its counts, refusing a negative one.
 
@@ -770,6 +840,8 @@ def hole_from_counts(
         recycled_names=recycled_names,
         basis=basis,
         no_bars_names=no_bars_names,
+        covered_exposure_days=covered_exposure_days,
+        missing_exposure_days=missing_exposure_days,
     )
 
 
@@ -1214,9 +1286,15 @@ def holes_by_market(report: Mapping[str, Any]) -> dict[str, float]:
 
     The join between the two deliverables, and it is a function rather than a line
     at a call site so the count and the bound cannot be wired to different markets.
+
+    It reads the **exposure-weighted** share rather than the name count, and the
+    difference is not cosmetic: 40% of the absent US names were listed for under two
+    years, so weighting every name equally would credit a name listed for eighteen
+    months with as many chances to throw a signal as one listed throughout — and the
+    bound is a statement about *trades*.
     """
     return {
-        body["market"]: body["hole"]["share"]
+        body["market"]: body["hole"]["exposure_share"]
         for body in report["markets"]
         if body["hole"]
     }
@@ -1303,9 +1381,18 @@ def format_survivorship(report: Mapping[str, Any]) -> str:
                 else "recycled unmeasured"
             )
             lines.append(
-                f"  hole {hole['share']:.1%} ({hole['basis']}) — "
-                f"{hole['absent_names']} absent + {recycled} of "
-                f"{hole['total_names']} names"
+                f"  hole {hole['share']:.1%} by name ({hole['basis']}) — "
+                f"{hole['absent_names']} absent + {recycled} + "
+                f"{hole['no_bars_names']} no-bars of {hole['total_names']} names"
+            )
+            lines.append(
+                f"  hole {hole['exposure_share']:.1%} weighted by time listed — "
+                + (
+                    "the share the bound is scaled off, because trades scale with "
+                    "time listed rather than with name count"
+                    if hole["exposure_weighted"]
+                    else "not weighted (no dated spine); the name share stands in"
+                )
             )
             floor = body["versus_findings_floor"]
             lines.append(
@@ -1414,14 +1501,35 @@ def main(argv: list[str] | None = None) -> int:
                     window_start=window_start,
                 )
                 censuses[market] = census
+                # Both sides of the share come from one population — every name the
+                # spine sighted inside the window — so the ratio is a share of
+                # something rather than of two different rosters. The recycled and
+                # no-bars names are moved from the covered side to the missing one:
+                # they are listed today and the run still cannot price them.
+                population = window_population(verified, (window_start, window_end))
+                blind = set(census.recycled) | set(census.no_bars)
+                gone = {a.symbol for a in found[market]}
+                missing_days = sum(
+                    l.exposure_days((window_start, window_end))
+                    for sym, l in population.items()
+                    if sym in gone or sym in blind
+                )
+                covered_days = sum(
+                    l.exposure_days((window_start, window_end))
+                    for sym, l in population.items()
+                    if sym not in gone and sym not in blind
+                )
                 holes.append(
                     hole_from_counts(
                         market=market,
-                        covered_names=len(census.covered),
-                        absent_names=len(found[market]),
+                        covered_names=len(population) - len(gone)
+                        - len(blind & set(population)),
+                        absent_names=len(gone),
                         recycled_names=len(census.recycled),
                         no_bars_names=len(census.no_bars),
                         basis=BASIS_SPINE,
+                        covered_exposure_days=covered_days,
+                        missing_exposure_days=missing_days,
                     )
                 )
             elif gap is not None:

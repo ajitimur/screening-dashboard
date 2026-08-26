@@ -3345,6 +3345,7 @@ from backtest import (
     market_symbol,
 )
 from screener.source import (
+    DEFAULT_MAX_ATTEMPTS,
     PermanentlyUnavailableError,
     RateLimitedError,
     Source,
@@ -3429,7 +3430,7 @@ def test_build_fetches_idx_symbols_under_the_jk_suffix(tmp_path):
         assert store.bars("IDX", "BBCA.JK") == [_bar(date(2015, 6, 1))]
     finally:
         store.close()
-    assert coverage.resolved == ("BBCA.JK",)
+    assert coverage.stored == ("BBCA.JK",)
 
 
 def test_every_enumerated_symbol_ends_in_bars_or_a_refusal_row(tmp_path):
@@ -3450,7 +3451,7 @@ def test_every_enumerated_symbol_ends_in_bars_or_a_refusal_row(tmp_path):
         tmp_path / "backtest.duckdb", market="US", now=_BUILD_NOW,
     )
 
-    assert coverage.resolved == ("GOOD",)
+    assert coverage.stored == ("GOOD",)
     by_symbol = {r.symbol: r.reason for r in coverage.refusals}
     assert by_symbol == {
         "SILENT": "unresolved",
@@ -3487,11 +3488,11 @@ def test_the_bar_and_refusal_counts_sum_to_the_enumeration(tmp_path):
         market="US", now=_BUILD_NOW,
     )
 
-    assert len(coverage.resolved) + len(coverage.refusals) == len(enumeration)
+    assert len(coverage.stored) + len(coverage.refusals) == len(enumeration)
     assert coverage.enumerated == len(enumeration)
     # And the check is not merely descriptive: a coverage that does not sum raises.
     with pytest.raises(ValueError, match="does not sum"):
-        BuildCoverage("US", enumerated=3, resolved=("A",), refusals=()).check()
+        BuildCoverage("US", enumerated=3, stored=("A",), refusals=()).check()
 
 
 def test_zero_volume_phantom_bars_are_removed_at_ingest(tmp_path):
@@ -3522,7 +3523,7 @@ def test_zero_volume_phantom_bars_are_removed_at_ingest(tmp_path):
     finally:
         store.close()
 
-    assert coverage.resolved == ("MIXED",)
+    assert coverage.stored == ("MIXED",)
     assert Refusal("PHANTOM", "no_bars") in coverage.refusals
 
 
@@ -3569,8 +3570,10 @@ def test_the_build_leaves_a_live_store_byte_identical(tmp_path):
 
 def test_the_fetch_reports_progress_during_a_long_run(tmp_path):
     """A long fetch reports progress as it goes, so a multi-hour crawl is not killed
-    for having printed nothing (PRD story 52). The final line always lands, marking
-    the end of the pull, and it names the running resolved/silent/refused split."""
+    for having printed nothing (PRD story 52). The pull's closing line always lands,
+    marking the end of the pull and naming the running resolved/silent/refused
+    split; the sweep then speaks for itself, so the build's last word is what the
+    sweep got back rather than a tally the sweep has since revised."""
     lines: list[str] = []
     responses = {f"S{i}": [_bar_row(date(2015, 6, 1))] for i in range(3)}
     responses["S1"] = []  # one silence, so the split is not trivial
@@ -3582,9 +3585,9 @@ def test_the_fetch_reports_progress_during_a_long_run(tmp_path):
     )
 
     assert lines  # progress was emitted
-    last = lines[-1]
-    assert "US: pull 3/3" in last
-    assert "2 resolved" in last and "1 silent" in last
+    pull_close = next(line for line in lines if "US: pull 3/3" in line)
+    assert "2 resolved" in pull_close and "1 silent" in pull_close
+    assert "sweep recovered 0 of 1 silent symbols" in lines[-1]
 
 
 def test_the_coverage_round_trips_through_json(tmp_path):
@@ -3646,3 +3649,97 @@ def test_the_fetch_is_paced_rather_than_bursted(tmp_path):
     # Every symbol resolved first time, so no backoff ran: the whole of the clock's
     # advance is pacing, and it spans the five gaps between six paced requests.
     assert clock.now >= (len(symbols) - 1) / 2.0
+
+
+class _TailSilenceClient:
+    """A client whose silence is a fact about the *pull*, not about the symbol.
+
+    The first ``silent_asks`` fetches raise a stated 429; every ask after that
+    answers in full. That is the shape issue #104 measured — a provider that has
+    stopped answering a long crawl serves the very same request once it has been
+    left alone for a minute — and it is the shape a fetcher that writes its tail
+    off where it fell would record as a permanent absence.
+    """
+
+    def __init__(self, rows: list[dict], *, silent_asks: int) -> None:
+        self._rows = rows
+        self._silent_asks = silent_asks
+        self.asks = 0
+
+    def enumerate(self, market):  # pragma: no cover - not exercised by the fetcher
+        raise NotImplementedError
+
+    def fetch(self, symbol, start=None):
+        self.asks += 1
+        if self.asks <= self._silent_asks:
+            raise RateLimitedError(symbol)
+        return self._rows
+
+
+def test_a_throttled_tail_is_swept_before_it_is_ledgered_as_an_absence(tmp_path):
+    """Silence that survives a symbol's own retries is re-asked after a rest, and
+    the answer supersedes the verdict the pull reached (issue #104).
+
+    This is the ledger's honesty, not a recovery nicety. A crawl's tail silence is
+    overwhelmingly the provider's exhaustion rather than a listing with no
+    history, so a fetcher that stops at the first pass writes throttled names into
+    the ledger as refusals — and Phase 2 reads that inflated count as the
+    survivorship bound. An absence has to be a fact about the symbol.
+    """
+    # Silent for the whole of the first pass's retry budget, answering only once
+    # the sweep has rested and asked again.
+    client = _TailSilenceClient([_bar_row(date(2015, 6, 1))], silent_asks=DEFAULT_MAX_ATTEMPTS)
+    source = Source(client, backoff_base=0.0, sleep=lambda _s: None)
+
+    coverage = build_backtest_store(
+        source, ["TAIL"], tmp_path / "backtest.duckdb",
+        market="US", now=_BUILD_NOW,
+    )
+
+    assert coverage.stored == ("TAIL",)
+    assert coverage.refusals == ()  # not written off where it fell
+    coverage.check()
+
+    store = Store.open(tmp_path / "backtest.duckdb")
+    try:
+        assert store.bars("US", "TAIL") == [_bar(date(2015, 6, 1))]
+    finally:
+        store.close()
+
+
+def test_the_sweep_revises_a_verdict_rather_than_adding_one(tmp_path):
+    """A swept symbol is one symbol however many times it was asked: the recovered
+    name appears once in the coverage, and the sum invariant still holds over an
+    enumeration whose tail was swept."""
+    client = _TailSilenceClient([_bar_row(date(2015, 6, 1))], silent_asks=DEFAULT_MAX_ATTEMPTS)
+    source = Source(client, backoff_base=0.0, sleep=lambda _s: None)
+
+    coverage = build_backtest_store(
+        source, ["TAIL"], tmp_path / "backtest.duckdb",
+        market="US", now=_BUILD_NOW,
+    )
+
+    assert coverage.enumerated == 1
+    assert len(coverage.stored) + len(coverage.refusals) == 1
+
+
+def test_a_name_enumerated_twice_is_one_symbol_with_one_verdict(tmp_path):
+    """A duplicated enumeration entry — including one listed once bare and once
+    already suffixed — is one symbol, asked once and ledgered once.
+
+    The sum invariant is the thing being protected: counting a name twice in the
+    enumeration while the ledger holds one verdict for it would make the invariant
+    unsatisfiable, and an invariant that cannot hold reports nothing about coverage.
+    """
+    client = _FetchClient({"BBCA.JK": [_bar_row(date(2015, 6, 1))]})
+    source = Source(client, backoff_base=0.0, sleep=lambda _s: None)
+
+    coverage = build_backtest_store(
+        source, ["BBCA", "BBCA.JK", "BBCA"], tmp_path / "backtest.duckdb",
+        market="IDX", now=_BUILD_NOW,
+    )
+
+    assert client.fetched == ["BBCA.JK"]  # asked once, not three times
+    assert coverage.enumerated == 1
+    assert coverage.stored == ("BBCA.JK",)
+    coverage.check()

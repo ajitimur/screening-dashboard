@@ -3343,17 +3343,33 @@ from backtest.contract import (
     UNIVERSE_IDX_PRICE_FLOOR_KEY,
     UNIVERSE_IDX_PRICE_FLOOR_ROLE_KEY,
     UNIVERSE_STATELESSNESS_KEY,
+    UNIVERSE_TREND_GATE_KEY,
     UNIVERSE_VOLATILITY_GAP_REASON_KEY,
     UNIVERSE_VOLATILITY_GATE_KEY,
 )
 from backtest import universe as backtest_universe
 from backtest.universe import (
+    ADR_FLOOR,
     TREND_WINDOW,
-    VOLATILITY_FLOOR,
     Candidate as UniverseCandidate,
-    classify as classify_universe,
-    is_member,
+    is_member as _is_universe_member,
+    classify as _classify_universe,
 )
+
+
+def classify_universe(market, candidates, session, contract=DEFAULT_CONTRACT):
+    """``backtest.universe.classify`` under the committed contract.
+
+    The classifier itself never defaults its contract — a membership computed
+    under a contract nobody named cannot be stamped with one. These cases are all
+    about the gates rather than about which contract is in force, so the default
+    lives here, in the test, where naming it is the exception.
+    """
+    return _classify_universe(market, candidates, session, contract)
+
+
+def is_member(candidate, market, session, contract=DEFAULT_CONTRACT):
+    return _is_universe_member(candidate, market, session, contract)
 
 # 60 bars through t−1, plus session t itself — so every case can be asked both
 # "what was knowable the night before" and "what does day t's own bar do", and
@@ -3409,17 +3425,29 @@ def test_the_backtest_universe_reads_no_prior_membership():
     band (0.8–1.0 × $10M) — exactly where a stateful classifier's answer depends
     on yesterday's — answered the same way both times.
     """
-    assert "prior_members" not in inspect.signature(classify_universe).parameters
+    assert "prior_members" not in inspect.signature(_classify_universe).parameters
     assert "prior_members" in inspect.signature(app_universe.classify).parameters
 
-    in_band = _candidate("BAND", dollar_volume=9_000_000.0)
-    clear = _candidate("CLEAR", dollar_volume=50_000_000.0)
-    candidates = [in_band, clear]
+    # The app, asked about a name inside *its* band, gives two different answers
+    # for the two prior states — which is what "stateful" means here, and what
+    # this classifier has to stop doing.
+    sessions = _U_SESSIONS[:-1]
+    app_band = app_universe.Candidate(
+        symbol="BAND",
+        name="",
+        resolved=True,
+        bars=_universe_bars(dollar_volume=17_000_000.0, sessions=sessions),
+    )
+    assert app_universe.classify("US", [app_band], sessions, {"BAND"}) == ["BAND"]
+    assert app_universe.classify("US", [app_band], sessions, set()) == []
 
-    first = classify_universe("US", candidates, _U_SIGNAL)
-    second = classify_universe("US", list(reversed(candidates)), _U_SIGNAL)
-
-    assert first == second == ["CLEAR"]
+    # This one has only the one answer to give. $9M sits inside the band a
+    # hysteretic version of the contract's own $10M floor would hold a member in
+    # (0.8–1.0×), so it is exactly the name a reintroduced band would retain —
+    # and it is excluded, on both of two identical calls.
+    candidates = [_candidate("BAND", dollar_volume=9_000_000.0), _candidate("CLEAR")]
+    assert classify_universe("US", candidates, _U_SIGNAL) == ["CLEAR"]
+    assert classify_universe("US", candidates, _U_SIGNAL) == ["CLEAR"]
 
 
 def test_each_universe_gate_excludes_for_its_own_reason():
@@ -3442,7 +3470,13 @@ def test_each_universe_gate_excludes_for_its_own_reason():
     idx = dict(price=500.0, dollar_volume=50_000_000_000.0)
     assert classify_universe(
         "IDX",
-        [_candidate("MEMBER", **idx), _candidate("PENNY", **{**idx, "price": 80.0})],
+        [
+            _candidate("MEMBER", **idx),
+            _candidate("PENNY", **{**idx, "price": 80.0}),
+            _candidate("THIN", **{**idx, "dollar_volume": 5_000_000_000.0}),
+            _candidate("QUIET", **{**idx, "adr_pct": 0.02}),
+            _candidate("FALLING", **{**idx, "drift": -0.002}),
+        ],
         _U_SIGNAL,
     ) == ["MEMBER"]
 
@@ -3536,6 +3570,20 @@ def test_the_apps_universe_classifier_is_still_sticky_and_hysteretic():
     assert app_universe.classify("US", [silent], sessions, set()) == []
 
 
+def test_the_prose_gate_cells_and_their_constants_cannot_drift_apart():
+    """The trend window and the ADR floor are the two gate values the contract can
+    only *describe* — ``"close > SMA50"`` and ``"ADR20 >= 3.5%"`` are prose, so
+    unlike the market floors no caller can compute against them.
+
+    That leaves them able to drift: reword the cell, or move the constant, and
+    nothing else would notice. This is the something else. Both are pinned to the
+    cell that justifies them, so a change has to be made in both places or fail
+    here — which is where a reader learns the contract is the authority.
+    """
+    assert f"SMA{TREND_WINDOW}" in DEFAULT_CONTRACT.value(UNIVERSE_TREND_GATE_KEY)
+    assert f"{ADR_FLOOR:.1%}" in DEFAULT_CONTRACT.value(UNIVERSE_VOLATILITY_GATE_KEY)
+
+
 def test_the_universe_records_its_gap_below_the_rubrics_adr_floor():
     """The gap between the 3.5% floor and the rubric's 5% is recorded with its
     reason (acceptance criterion), so nobody later "fixes" the two to match.
@@ -3544,15 +3592,12 @@ def test_the_universe_records_its_gap_below_the_rubrics_adr_floor():
     living only in a comment: it is a contract cell, and the cell's justification
     names findings §6's measurement of what the 5% floor withholds.
     """
-    assert VOLATILITY_FLOOR == 0.035
-    assert VOLATILITY_FLOOR < ADR_MIN == 0.05
+    assert ADR_FLOOR == 0.035
+    assert ADR_FLOOR < ADR_MIN == 0.05
 
     reason = DEFAULT_CONTRACT.cell(UNIVERSE_VOLATILITY_GAP_REASON_KEY)
     assert "31%" in reason.justification
     assert "findings §6" in reason.justification
-    assert VOLATILITY_FLOOR == 0.035 and "3.5%" in DEFAULT_CONTRACT.value(
-        UNIVERSE_VOLATILITY_GATE_KEY
-    )
 
 
 def test_the_universe_records_the_churn_statelessness_reintroduces():

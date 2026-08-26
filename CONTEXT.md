@@ -41,8 +41,27 @@ Anything ingested. Carries a role of `candidate` or `reference`; reference instr
 
 **Universe**:
 The tradeable set for a market on a session — liquidity, instrument type and listing age.
-Membership is sticky: removal requires positive evidence.
+Membership is sticky: removal requires positive evidence. Unqualified, the word means the
+**app's**, which is the one the product ships; the backtest's is a **stateless universe**
+and is always named as one.
 _Avoid_: watchlist, screen.
+
+**Stateless universe**:
+The backtest's tradeable set (PRD #182, `backtest.universe`) — close above SMA50, ADTV over
+the contract's floor, ADR20 at or above **3.5%**, plus IDX's **Rp 100** data-validity trim,
+all measured through **t−1** and with no reference to prior membership. A second classifier
+beside the app's, never a replacement: the app's floors are $20M / Rp 1B against the
+contract's $10M / Rp 10B, the app has no trend or ADR gate at all, and the app reads
+yesterday's membership for both stickiness and its hysteresis band. Dropping that band
+reintroduces the boundary churn it exists to damp — a name oscillating around a floor enters
+and leaves day by day — which is **nearly free at signal level**, since each signal is
+evaluated on its own session, and real at portfolio level. Recorded as a known difference,
+not fixed. Its 3.5% sits **deliberately below** the rubric's `score.ADR_MIN` of 5%, because
+findings §6 Finding 2 measured that 5% floor withholding a score point from 31% of his real
+entries, so a universe cut at 5% would leave the ADR dimension no spread to test.
+_Avoid_: backtest universe filter; reading the Rp 100 trim as a penny-stock filter — it is
+**data validity**, and below it IDX quotes hit the tick grid hard enough that ADR and range
+geometry stop meaning what they mean elsewhere.
 
 **ADR**:
 Average Daily Range, `SMA20(high / low − 1)`. The method's volatility unit; nearly every

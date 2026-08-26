@@ -43,9 +43,14 @@ Two things recorded here so nobody later "fixes" them
   session — so it is recorded as a known difference from the app rather than
   fixed (contract ``universe.statelessness``).
 
-Every floor is read off the :class:`~backtest.contract.RunContract`, never off
-the app's ``screener.universe.LIQUIDITY_FLOOR``, so "the contract's values, not
-the app's" holds by construction rather than by vigilance.
+The two **market floors** — the liquidity floors and the Rp 100 trim — are read
+off the :class:`~backtest.contract.RunContract` and never off the app's
+``screener.universe.LIQUIDITY_FLOOR``, so "the contract's values, not the app's"
+holds by construction. The trend window and the ADR floor cannot be: their
+contract cells are prose (``"close > SMA50"``, ``"ADR20 >= 3.5%"``), which no
+caller can compute against, so they live as constants below and a seam test pins
+each one against the cell that justifies it. Rewording a cell without moving its
+constant, or the reverse, fails that test.
 """
 
 from __future__ import annotations
@@ -63,7 +68,6 @@ from screener.indicators import adr, sma
 from screener.universe import is_common_stock, median_dollar_volume
 
 from .contract import (
-    DEFAULT_CONTRACT,
     UNIVERSE_IDX_PRICE_FLOOR_KEY,
     UNIVERSE_LIQUIDITY_FLOOR_KEY,
     RunContract,
@@ -75,11 +79,11 @@ from .contract import (
 # minimum is not what governs.
 TREND_WINDOW = 50
 
-# The volatility floor, set **deliberately below** the rubric's 5%
+# The ADR floor, set **deliberately below** the rubric's 5%
 # (:data:`screener.score.ADR_MIN`) — see the module docstring and contract cell
 # ``universe.volatility_gap_reason``. Moving it to 5% to "match" the rubric
 # destroys the spread the ADR dimension is being measured on.
-VOLATILITY_FLOOR = 0.035
+ADR_FLOOR = 0.035
 
 
 @dataclass(frozen=True)
@@ -114,18 +118,18 @@ def passes_trend_gate(bars: list[Bar]) -> bool:
     return bars[-1].adj_close > ma
 
 
-def passes_volatility_gate(bars: list[Bar]) -> bool:
-    """ADR20 at or above 3.5% (``universe.volatility_gate``).
+def passes_adr_gate(bars: list[Bar]) -> bool:
+    """ADR20 at or above 3.5% (contract cell ``universe.volatility_gate``).
 
     ``False`` until 20 traded bars exist. The floor is below the rubric's 5% on
     purpose — see the module docstring.
     """
     a = adr(bars)
-    return a is not None and a >= VOLATILITY_FLOOR
+    return a is not None and a >= ADR_FLOOR
 
 
 def passes_liquidity_gate(
-    bars: list[Bar], market: str, contract: RunContract = DEFAULT_CONTRACT
+    bars: list[Bar], market: str, contract: RunContract
 ) -> bool:
     """ADTV at or above the contract's per-market floor ($10M US, Rp 10B IDX).
 
@@ -140,7 +144,7 @@ def passes_liquidity_gate(
 
 
 def passes_price_gate(
-    bars: list[Bar], market: str, contract: RunContract = DEFAULT_CONTRACT
+    bars: list[Bar], market: str, contract: RunContract
 ) -> bool:
     """IDX's Rp 100 nominal-price trim on the split-corrected series.
 
@@ -150,9 +154,21 @@ def passes_price_gate(
     with an implied cost story into it and the write-up says something the run
     does not.
 
-    Applied to the adjusted (split-corrected) close, which is the series every
-    other figure in this package uses — Yahoo's unlabelled rights-issue rescaling
-    makes "nominal price" ambiguous otherwise. US names have no such trim.
+    Applied to the adjusted close, which is the series every other figure in this
+    package uses, and the plan's instruction — the raw close is not the untouched
+    nominal quote it looks like, because Yahoo retroactively rescales OHLC for
+    rights issues with no split row to explain it (measured on BBRI, plan
+    "Traps"). US names have no such trim.
+
+    The cost of that choice, named rather than hidden: ``adj_close`` is split
+    *and dividend* adjusted, so a historical bar's value is deflated by every
+    distribution after that session. On a dividend-paying IDX name sitting just
+    over Rp 100 the trim is therefore slightly stricter than the quote of the day
+    warranted, and by an amount that was not knowable that night. The store holds
+    no split-only series to prefer instead, and the trim's job is to drop names
+    whose *geometry* is tick-grid-bound — a question the adjusted series answers
+    consistently with the ADR and SMA50 gates beside it, which read the same
+    series. Revisit it if a split-only series ever exists.
     """
     if market != "IDX":
         return True
@@ -166,7 +182,7 @@ def is_member(
     candidate: Candidate,
     market: str,
     session: date,
-    contract: RunContract = DEFAULT_CONTRACT,
+    contract: RunContract,
 ) -> bool:
     """Is ``candidate`` a universe member for a signal on ``session``?
 
@@ -179,7 +195,7 @@ def is_member(
     return (
         is_common_stock(candidate.symbol, candidate.name)
         and passes_trend_gate(bars)
-        and passes_volatility_gate(bars)
+        and passes_adr_gate(bars)
         and passes_liquidity_gate(bars, market, contract)
         and passes_price_gate(bars, market, contract)
     )
@@ -189,7 +205,7 @@ def classify(
     market: str,
     candidates: list[Candidate],
     session: date,
-    contract: RunContract = DEFAULT_CONTRACT,
+    contract: RunContract,
 ) -> list[str]:
     """The sorted symbols that are universe members for a signal on ``session``.
 
@@ -197,6 +213,11 @@ def classify(
     the same session twice returns identical membership regardless of any earlier
     state (``universe.statelessness``). The boundary churn this reintroduces
     against the app's hysteresis band is a recorded known difference, not a bug.
+
+    ``contract`` is required and never defaulted, on the same reasoning as
+    :func:`backtest.stamp_result`: a membership computed under a contract the
+    caller did not name is a figure that cannot be stamped with the contract that
+    produced it.
     """
     return sorted(
         c.symbol for c in candidates if is_member(c, market, session, contract)

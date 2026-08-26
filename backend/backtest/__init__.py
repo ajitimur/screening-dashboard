@@ -21,13 +21,13 @@ Issue #185 lands the second: :mod:`backtest.universe`, the contract's stateless
 universe classifier. Issue #186 lands the third: :mod:`backtest.store`, the paced
 bar fetcher and its refusal ledger, whose names *are* re-exported below.
 
-The universe's are not, and the reason is naming rather than weight: ``classify``,
-``Candidate`` and ``is_member`` each already mean something else one import away
-(:mod:`screener.universe`, :mod:`replay.reference`), so they are worth the module
-qualifier — ``backtest.universe.classify`` says which universe it classifies.
-There is no import-weight argument to make either way: :mod:`backtest.store`
-reaches the duckdb-backed store layer, so importing this package has pulled it in
-since #186 regardless.
+The universe's names are not re-exported, and the reason is naming rather than
+import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean
+something else one import away (:mod:`screener.universe`, :mod:`replay.reference`),
+so they are worth the module qualifier — ``backtest.universe.classify`` says which
+universe it classifies. There is no import-weight argument to make either way:
+:mod:`backtest.store` reaches the duckdb-backed store layer, so importing this
+package has pulled it in since #186 regardless.
 """
 
 from __future__ import annotations
@@ -40,11 +40,11 @@ from .contract import (
 )
 from .result import stamp_result
 from .store import (
-    IDX_SUFFIX,
     BuildCoverage,
     LiveStoreWriteRefused,
     Refusal,
     build_backtest_store,
+    coverage_path,
     market_symbol,
 )
 
@@ -54,10 +54,10 @@ __all__ = [
     "DEFAULT_CONTRACT",
     "DEFAULT_CONTRACT_JSON",
     "stamp_result",
-    "IDX_SUFFIX",
     "BuildCoverage",
     "LiveStoreWriteRefused",
     "Refusal",
     "build_backtest_store",
+    "coverage_path",
     "market_symbol",
 ]

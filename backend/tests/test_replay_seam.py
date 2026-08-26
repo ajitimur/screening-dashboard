@@ -3682,6 +3682,7 @@ from datetime import datetime, timezone
 from backtest import (
     BuildCoverage,
     LiveStoreWriteRefused,
+    coverage_path,
     Refusal,
     build_backtest_store,
     market_symbol,
@@ -4144,3 +4145,119 @@ def test_a_name_enumerated_twice_is_one_symbol_with_one_verdict(tmp_path):
     assert coverage.enumerated == 1
     assert coverage.stored == ("BBCA.JK",)
     coverage.check()
+
+
+# -- what the #186 review found unguarded -----------------------------------
+
+
+def test_the_build_refuses_to_return_a_coverage_that_does_not_sum(tmp_path, monkeypatch):
+    """The sum invariant is enforced in the build, not merely asserted in a test.
+
+    The spec calls this property the whole point — a symbol that is silently
+    absent is survivorship bias entering by the back door — but until this test
+    the `.check()` call could be deleted with all tests still passing, because
+    the ledger sums by construction and nothing exercised the refusal. Here the
+    source layer is made to lose a symbol, which is the shape of the real failure
+    (a resolution that never arrives leaves the ledger short), and the build must
+    refuse rather than hand back a coverage that quietly under-reports.
+    """
+    import backtest.store as bt_store
+
+    real = bt_store.resolve_all
+    monkeypatch.setattr(
+        bt_store, "resolve_all",
+        lambda source, symbols, **kw: (
+            r for r in real(source, symbols, **kw) if r.symbol != "BBB"
+        ),
+    )
+
+    with pytest.raises(ValueError, match="does not sum to the enumeration"):
+        build_backtest_store(
+            _fetch_source({"AAA": [_bar_row(date(2015, 6, 1))], "BBB": []}),
+            ["AAA", "BBB"], tmp_path / "bt.duckdb", market="US", now=_BUILD_NOW,
+        )
+
+
+def test_the_build_commits_its_coverage_beside_the_store(tmp_path):
+    """Both counts are committed, not just returned (plan Phase 1 "Done when":
+    "the two counts sum to the enumeration, and **both are committed**").
+
+    A coverage that lives only in a return value is recomputed on trust by
+    whoever asks next; written beside the store it is the artefact that makes an
+    absence a fact. It round-trips back to the value the build returned.
+    """
+    out = tmp_path / "bt.duckdb"
+    coverage = build_backtest_store(
+        _fetch_source({"AAA": [_bar_row(date(2015, 6, 1))], "BBB": "refused"}),
+        ["AAA", "BBB"], out, market="US", now=_BUILD_NOW,
+    )
+
+    written = coverage_path(out)
+    assert written.exists()
+    assert BuildCoverage.load(written) == coverage
+    assert json.loads(written.read_text())["enumerated"] == 2
+
+
+def test_a_resumed_build_does_not_refetch_what_the_store_already_has(tmp_path):
+    """A resumed build skips symbols already carrying bars (spec: "A resumed or
+    repeated build does not duplicate rows"; the issue splits this from the crawl
+    precisely because the crawl is "hours of wall clock").
+
+    Without this the store's contents are ignored and a resumption costs the
+    whole crawl again — rows stay unduplicated, but only because `append_bars` is
+    idempotent. An already-stored symbol still belongs to the coverage: it ended
+    with bars on disk, which is what `stored` means.
+    """
+    out = tmp_path / "bt.duckdb"
+    first = _FetchClient({"AAA": [_bar_row(date(2015, 6, 1))], "BBB": "refused"})
+    build_backtest_store(
+        Source(first, backoff_base=0.0, sleep=lambda _s: None),
+        ["AAA", "BBB"], out, market="US", now=_BUILD_NOW,
+    )
+    assert first.fetched == ["AAA", "BBB"]
+
+    second = _FetchClient({"AAA": [_bar_row(date(2015, 6, 1))], "BBB": "refused"})
+    coverage = build_backtest_store(
+        Source(second, backoff_base=0.0, sleep=lambda _s: None),
+        ["AAA", "BBB"], out, market="US", now=_BUILD_NOW, resume=True,
+    )
+
+    assert second.fetched == ["BBB"]  # AAA had bars; only the refusal is retried
+    assert coverage.stored == ("AAA",)
+    assert coverage.enumerated == 2
+    coverage.check()
+
+
+def test_a_repeated_build_still_refetches_everything_by_default(tmp_path):
+    """Skipping is opt-in. A plain repeat re-asks for every symbol, so a build
+    that means to extend an existing store's history is not silently short-cut
+    into a no-op — `resume` names the intent."""
+    out = tmp_path / "bt.duckdb"
+    for _ in range(2):
+        client = _FetchClient({"AAA": [_bar_row(date(2015, 6, 1))]})
+        build_backtest_store(
+            Source(client, backoff_base=0.0, sleep=lambda _s: None),
+            ["AAA"], out, market="US", now=_BUILD_NOW,
+        )
+    assert client.fetched == ["AAA"]
+
+
+def test_names_folded_by_deduplication_are_reported_not_silently_dropped(tmp_path):
+    """A duplicate name is folded to one verdict, and the fold is recorded.
+
+    `enumerated` is the count of distinct symbols, so a caller handing in 900
+    names with 20 repeats sees 880 and an invariant that holds — with the 20
+    vanished from the arithmetic unexplained. `duplicates` is what keeps the
+    caller's own enumeration reconcilable with this one.
+    """
+    coverage = build_backtest_store(
+        _fetch_source({"AAA": [_bar_row(date(2015, 6, 1))]}),
+        ["AAA", "AAA", "aaa".upper()], tmp_path / "bt.duckdb",
+        market="US", now=_BUILD_NOW,
+    )
+
+    assert coverage.enumerated == 1
+    assert coverage.duplicates == 2
+    assert coverage.stored == ("AAA",)
+    coverage.check()
+    assert BuildCoverage.from_dict(coverage.to_dict()) == coverage

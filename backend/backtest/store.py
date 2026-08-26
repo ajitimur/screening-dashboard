@@ -41,6 +41,7 @@ over it as well.
 
 from __future__ import annotations
 
+import json
 import time
 from collections import Counter
 from dataclasses import dataclass
@@ -143,6 +144,11 @@ class BuildCoverage:
     enumerated: int
     stored: tuple[str, ...]
     refusals: tuple[Refusal, ...]
+    # Names the caller listed more than once, folded to one verdict. Recorded
+    # rather than dropped: ``enumerated`` counts distinct symbols, so without this
+    # a caller reconciling 900 submitted names against an enumeration of 880 finds
+    # 20 unaccounted for and no way to tell folding from loss.
+    duplicates: int = 0
 
     def check(self) -> "BuildCoverage":
         """Assert the coverage invariant and return self, so a build cannot report
@@ -160,6 +166,7 @@ class BuildCoverage:
         return {
             "market": self.market,
             "enumerated": self.enumerated,
+            "duplicates": self.duplicates,
             "stored": list(self.stored),
             "refusals": [r.to_dict() for r in self.refusals],
         }
@@ -169,9 +176,23 @@ class BuildCoverage:
         return BuildCoverage(
             market=d["market"],
             enumerated=d["enumerated"],
+            duplicates=d.get("duplicates", 0),
             stored=tuple(d["stored"]),
             refusals=tuple(Refusal.from_dict(r) for r in d["refusals"]),
         )
+
+    def to_json(self, *, indent: int = 2) -> str:
+        """The committed on-disk form, matching :meth:`RunContract.to_json`."""
+        return json.dumps(self.to_dict(), indent=indent) + "\n"
+
+    def write(self, path: str | Path) -> None:
+        out = Path(path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(self.to_json())
+
+    @staticmethod
+    def load(path: str | Path) -> "BuildCoverage":
+        return BuildCoverage.from_dict(json.loads(Path(path).read_text()))
 
 
 def _refusal_reason(resolution: Resolution) -> RefusalReason:
@@ -187,14 +208,14 @@ def _refusal_reason(resolution: Resolution) -> RefusalReason:
     return "refused" if resolution.status == "refused" else "unresolved"
 
 
-def _outcome(
+def _ingest_and_ledger(
     store: Store, market: str, resolution: Resolution, now: datetime
 ) -> Refusal | None:
     """Ingest one resolution and return the ledger row it earns, or ``None`` if it
     ended with bars in the store.
 
     Bars go through the app's own ingest hygiene (:func:`clean_bars`) — phantoms
-    dropped, a non-final session discarded — and ``append_bars`` is idempotent
+    dropped, a non-final bar discarded — and ``append_bars`` is idempotent
     (``ON CONFLICT DO NOTHING``), so a resumed or repeated build re-fetches
     without duplicating a stored bar. A symbol that resolved but kept no clean
     bars is an absence like any other and earns a row.
@@ -206,6 +227,17 @@ def _outcome(
         return Refusal(resolution.symbol, "no_bars")
     store.append_bars(market, resolution.symbol, bars)
     return None
+
+
+def coverage_path(out_path: str | Path) -> Path:
+    """Where a build commits its coverage: the store's path plus ``.coverage.json``.
+
+    Derived from the store rather than passed separately, so the ledger cannot be
+    written beside the wrong store or forgotten by a caller — the plan's Phase 1
+    is done only when both counts are *committed*, not merely returned.
+    """
+    out = Path(out_path)
+    return out.with_name(out.name + ".coverage.json")
 
 
 class LiveStoreWriteRefused(ValueError):
@@ -258,6 +290,7 @@ def build_backtest_store(
     market: str,
     now: datetime,
     workers: int = DEFAULT_RESOLVE_WORKERS,
+    resume: bool = False,
     progress: Callable[[str], None] = emit_progress,
 ) -> BuildCoverage:
     """Fetch every enumerated symbol into a fresh store, ledgering every absence.
@@ -289,14 +322,23 @@ def build_backtest_store(
     Without that guard the claim rested on the caller: ``Store.open`` opens
     read-write, so the live path handed in here would have been written to.
     ``now`` must be timezone-aware for the finality rule.
+
+    ``resume`` skips symbols the store already holds bars for. It is opt-in
+    because the two intents are not the same: resuming an interrupted crawl wants
+    the fetched work kept, while repeating a build to extend an existing store's
+    history wants every symbol re-asked. The default re-asks — rows still cannot
+    duplicate, since ``append_bars`` is idempotent — and ``resume=True`` is how a
+    caller says the crawl was interrupted rather than superseded.
     """
     # Distinct stored forms, in enumeration order. The ledger is keyed by symbol,
     # so a name listed twice — or listed once bare and once already suffixed — is
     # one symbol with one verdict, and counting it twice in the enumeration would
     # make the sum invariant unsatisfiable rather than informative.
     out_path = refuse_live_store(out_path)
-    to_fetch = list(dict.fromkeys(market_symbol(market, s) for s in symbols))
-    total = len(to_fetch)
+    enumerated_symbols = [market_symbol(market, s) for s in symbols]
+    distinct = list(dict.fromkeys(enumerated_symbols))
+    duplicates = len(enumerated_symbols) - len(distinct)
+    enumerated = len(distinct)
     counts: Counter[str] = Counter()
     # One entry per enumerated symbol, keyed by symbol so the sweep revises rather
     # than appends: ``None`` means bars reached the store, a Refusal means they did
@@ -306,11 +348,24 @@ def build_backtest_store(
 
     store = Store.open(out_path)
     try:
+        # A resumed build asks only for what the store has no bars for. The
+        # already-stored names are seeded into the ledger as stored, because that
+        # is what they are — they ended with bars on disk — so the coverage still
+        # accounts for the whole enumeration rather than only this pass's share.
+        if resume:
+            have = set(store.symbols(market))
+            already = [s for s in distinct if s in have]
+            ledger.update({symbol: None for symbol in already})
+            to_fetch = [s for s in distinct if s not in have]
+        else:
+            to_fetch = distinct
+        total = len(to_fetch)
+
         for done, resolution in enumerate(
             resolve_all(source, to_fetch, workers=workers), 1
         ):
             counts[resolution.status] += 1
-            ledger[resolution.symbol] = _outcome(store, market, resolution, now)
+            ledger[resolution.symbol] = _ingest_and_ledger(store, market, resolution, now)
             if done % PROGRESS_EVERY == 0 or done == total:
                 progress(
                     progress_line(
@@ -345,7 +400,7 @@ def build_backtest_store(
                 counts["unresolved"] -= 1
                 counts[resolution.status] += 1
                 revised += 1
-            ledger[resolution.symbol] = _outcome(store, market, resolution, now)
+            ledger[resolution.symbol] = _ingest_and_ledger(store, market, resolution, now)
             recovered += resolution.status == "resolved"
         if silent:
             progress(sweep_result_line(market, recovered, len(silent)))
@@ -365,11 +420,17 @@ def build_backtest_store(
     # yields in completion order, which varies run to run under concurrency, and a
     # committable ledger (user story 54) must not reorder on a re-run that changed
     # no verdict.
-    return BuildCoverage(
+    coverage = BuildCoverage(
         market=market,
-        enumerated=total,
+        enumerated=enumerated,
+        duplicates=duplicates,
         stored=tuple(sorted(s for s, row in ledger.items() if row is None)),
         refusals=tuple(
             sorted((r for r in ledger.values() if r is not None), key=lambda r: r.symbol)
         ),
     ).check()
+    # Committed beside the store, not merely returned: a coverage that lives only
+    # in a return value is recomputed on trust by whoever asks next, and Phase 1
+    # is done only when both counts are committed.
+    coverage.write(coverage_path(out_path))
+    return coverage

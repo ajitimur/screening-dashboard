@@ -531,6 +531,29 @@ count ride on every cell, because a significance figure that moved between two r
 same data would be unreproducible with nothing in the output to show it.
 _Avoid_: bootstrapping the trades, resampling the rows — the row is not the unit.
 
+**Priced posture**:
+What a **regime** state's advice actually cost or earned (PRD #182, `backtest.posture`).
+The app prints "sit out" for `HOSTILE` and "reduced" for `CHOPPY` on no measured basis;
+this is the measurement — **after-cost expectancy per state, per market, with n on every
+cell** so a cell too thin to read is visible as thin rather than quoted as a result. It is
+only computable because regime **conditions and never filters**: every state got to trade,
+so removing one is arithmetic rather than a model. The three states and an **undefined**
+bucket *partition* the trades, and `excluded_by_regime` is computed from that partition
+rather than promised — a filter introduced upstream shows up as cells that stop adding up.
+The state is the app's own, read off each market's index on the **detection session**,
+which is t−1: the night the candidate was listed with its posture beside it, two sessions
+before the fill. `HOSTILE` is judged against **zero**, because its word instructs no trade
+at all; `CHOPPY` against **`FRIENDLY`**, because "reduced" claims the state is worse to
+trade rather than unprofitable. Both verdicts are the **interval's, never the mean's**, and
+`undecided` is a real answer — it says the run leaves the app's word as unfounded as it
+found it. Priced at **signal level**: sitting a state out frees no capital here, so the
+figure is what the posture costs, never what it might buy. Both **regime companions** are
+reported beside the cells and neither is conditioned on — breadth with its survivorship
+warning, follow-through named plainly as **unbiased where breadth is not**, because the
+index series carries no survivorship hole and this run is the better instrument for it.
+_Avoid_: regime filter, regime edge — and never condition a cell on **breadth**, which is
+the **regime companion** survivorship corrupts most.
+
 **Not-taken detection**:
 A member of the replayed field on a session where he entered something else. Not a
 declined setup — he may never have seen it — so it is a comparison group, never a

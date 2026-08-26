@@ -4581,6 +4581,7 @@ from backtest.denominator import (
     DETECTION_FIELDS,
     FOLLOW_THROUGH_BASIS,
     DenominatorStore,
+    RegimeReading,
     RunStampMismatch,
     SessionRow,
     declared_columns,
@@ -7525,3 +7526,769 @@ def test_the_price_scale_count_rides_on_the_figures_it_qualifies(
     assert us.price_scale_dropped == len(us.arms)
     assert report["markets"][0]["price_scale_dropped"] == len(us.arms)
     assert "price-scale flag would drop" in format_figures(report)
+
+
+# -- pricing the regime posture (issue #192) -----------------------------------
+#
+# Phase 5's most product-relevant cell. The app prints "sit out" for HOSTILE and
+# "reduced" for CHOPPY today, on no measured basis at all; this section is the
+# measurement. Regime is a **conditioning variable and never a filter**, so every
+# state trades and each one's expectancy is measured instead of assumed.
+#
+# Four claims are load-bearing, and each has a test that fails loudly on drift:
+#
+#   * **Nothing is excluded by regime.** Every trade lands in exactly one cell,
+#     including the ones whose state is undefined, and the cells add back up.
+#   * **The state is the app's own, read at t−1.** The detection session is the
+#     night the candidate was listed with its posture; the break comes the session
+#     after it. Reading the entry session instead would condition on a state
+#     nobody had yet.
+#   * **The postures are priced, not asserted.** The HOSTILE counterfactual is
+#     computed in R, and CHOPPY's "reduced" is answered against FRIENDLY's
+#     measured expectancy rather than against the word.
+#   * **Breadth is reported and never conditioned on.** It is the column
+#     survivorship corrupts most, and in a backtest the corruption is worse.
+
+from typing import get_args
+
+from backtest.contract import REGIME_ROLE_KEY, REGIME_SOURCE_KEY
+from backtest.posture import (
+    APP_STATES,
+    REGIME_ROLE,
+    REGIME_SOURCE,
+    REPORTED_STATES,
+    STATE_READ_AT,
+    STATE_UNDEFINED,
+    VERDICT_EARNED,
+    VERDICT_REFUTED,
+    VERDICT_TOO_THIN,
+    VERDICT_UNDECIDED,
+    RegimeSpine,
+    bootstrap_difference,
+    breadth_summary,
+    check_regime_role,
+    check_regime_source,
+    choppy_reduced,
+    follow_through_summary,
+    for_market,
+    format_posture,
+    hostile_counterfactual,
+    market_posture,
+    posture_cell,
+    posture_report,
+    spine_for_market,
+    state_of,
+)
+from screener.regime import RegimeState
+from screener.regime import posture as app_posture
+
+
+def _reading(state, *, breadth=0.5):
+    """One session's regime observation, authored rather than computed."""
+    return RegimeReading(
+        state=state, breadth=breadth, broke_out=None, index_close=100.0
+    )
+
+
+def _spine(market, states, *, breadth=0.5):
+    """A market's measured sessions and the state showing on each."""
+    return RegimeSpine(
+        market=market,
+        readings={
+            session: _reading(state, breadth=breadth)
+            for session, state in states.items()
+        },
+    )
+
+
+def _ptrade(symbol, session, r, *, market="US", arm=ARM_B):
+    """One arm-B trade, detected on ``session``, whose before-cost R is ``r``.
+
+    The entry sits **two sessions after** the detection, which is what the
+    simulator's own mechanic produces: the break comes on the session after the
+    detection and the fill on the open after that. The gap is what makes the
+    t−1 test meaningful — a fixture whose entry and detection shared a date could
+    not tell the two readings apart.
+    """
+    base = _mtrade(symbol, session.year, r, market=market, arm=arm,
+                   month=session.month)
+    return dataclasses.replace(
+        base,
+        detection_session=session,
+        entry=Decision(session=session + timedelta(days=2), price=base.entry.price),
+    )
+
+
+def _cohort(sessions, states, rs, *, market="US", prefix=""):
+    """Trades and a spine together: one symbol per R, so clusters are not one name."""
+    trades = [
+        _ptrade(f"{prefix}{i:02d}", session, r, market=market)
+        for i, (session, r) in enumerate(zip(sessions, rs))
+    ]
+    spine = _spine(market, dict(zip(sessions, states)))
+    return trades, spine
+
+
+def _sessions(year, n):
+    return [date(year, 3, 1) + timedelta(days=i) for i in range(n)]
+
+
+def test_the_regime_source_and_role_are_the_contracts_own(store):
+    """The state this module conditions on, and the role it plays, are read off the
+    contract rather than restated beside it.
+
+    A contract that made regime a filter while the code still measured every state
+    would leave a run whose contract and behaviour disagree while both look right —
+    and "nothing is excluded by regime" is precisely the claim the cell exists to
+    hold fixed.
+    """
+    assert REGIME_SOURCE == DEFAULT_CONTRACT.value(REGIME_SOURCE_KEY)
+    assert REGIME_ROLE == DEFAULT_CONTRACT.value(REGIME_ROLE_KEY)
+    check_regime_source(DEFAULT_CONTRACT)
+    check_regime_role(DEFAULT_CONTRACT)
+
+    filtered = RunContract(
+        contract_version=DEFAULT_CONTRACT.contract_version,
+        label=DEFAULT_CONTRACT.label,
+        cells=tuple(
+            Cell(key=c.key, value="filter_hostile_out",
+                 justification=c.justification)
+            if c.key == REGIME_ROLE_KEY else c
+            for c in DEFAULT_CONTRACT.cells
+        ),
+    )
+    with pytest.raises(ContractDrift):
+        check_regime_role(filtered)
+
+
+def test_the_state_is_the_one_showing_on_the_detection_session(store):
+    """t−1, which is what the detection session *is*.
+
+    The candidate is listed on the night of the detection with the posture the app
+    printed beside it; the break comes on the session after and the fill on the one
+    after that. Reading the state off the entry session would condition on a
+    reading nobody had when the trade was taken — look-ahead through the
+    conditioning variable rather than through the price.
+    """
+    detected = date(2016, 3, 1)
+    trade = _ptrade("AAA", detected, 1.0)
+    spine = _spine("US", {detected: "FRIENDLY", trade.entry.session: "HOSTILE"})
+
+    assert trade.entry.session != detected
+    assert state_of(spine, trade) == "FRIENDLY"
+    assert STATE_READ_AT == "detection_session"
+
+
+def test_a_trade_whose_session_has_no_state_is_undefined_and_still_counted(store):
+    """Below the regime's 25-bar warm-up the state is undefined, not defaulted — and
+    a trade taken there is still a trade.
+
+    Bucketing it into CHOPPY would invent a reading, and dropping it would be the
+    one thing this module promises never to do: regime excludes nothing.
+    """
+    warm = date(2012, 3, 1)
+    absent = date(2012, 3, 2)
+    trades = [_ptrade("AAA", warm, 1.0), _ptrade("BBB", absent, -1.0)]
+    spine = _spine("US", {warm: None})
+
+    assert state_of(spine, trades[0]) == STATE_UNDEFINED
+    assert state_of(spine, trades[1]) == STATE_UNDEFINED
+    body = market_posture(DEFAULT_CONTRACT, trades, spine)
+    undefined = next(
+        s for s in body["states"] if s["state"] == STATE_UNDEFINED
+    )
+    assert undefined["windows"][0]["trades"] == 2
+
+
+def test_every_trade_lands_in_exactly_one_cell_and_regime_excludes_nothing(store):
+    """The partition, checked as arithmetic rather than asserted in prose.
+
+    Three states and the undefined bucket cover every trade, and the counts add
+    back up to the total handed in. That sum is the whole of "nothing is excluded
+    by regime" — a filter anywhere upstream would show as cells that no longer
+    total.
+    """
+    sessions = _sessions(2016, 4)
+    trades, spine = _cohort(
+        sessions,
+        ["FRIENDLY", "CHOPPY", "HOSTILE", None],
+        [2.0, -1.0, 0.5, 1.0],
+    )
+    body = market_posture(DEFAULT_CONTRACT, trades, spine)
+
+    per_cell = {s["state"]: s["windows"][0]["trades"] for s in body["states"]}
+    assert per_cell == {
+        "FRIENDLY": 1, "CHOPPY": 1, "HOSTILE": 1, STATE_UNDEFINED: 1
+    }
+    assert sum(per_cell.values()) == len(trades)
+    assert body["conditioning"]["excluded_by_regime"] == 0
+    assert body["conditioning"]["trades"] == len(trades)
+    assert set(per_cell) == set(REPORTED_STATES)
+
+
+def test_a_state_with_no_trades_still_reports_its_zero(store):
+    """A state nobody traded in is a measurement, not an absent row.
+
+    An empty HOSTILE cell that simply vanished would read as a market that never
+    saw a hostile tape, which is a different and much stronger claim than one that
+    threw no signal there.
+    """
+    sessions = _sessions(2016, 2)
+    trades, spine = _cohort(sessions, ["FRIENDLY", "FRIENDLY"], [1.0, 2.0])
+    body = market_posture(DEFAULT_CONTRACT, trades, spine)
+
+    hostile = next(s for s in body["states"] if s["state"] == "HOSTILE")
+    assert hostile["windows"][0]["trades"] == 0
+    assert hostile["windows"][0]["expectancy_r"] is None
+
+
+def test_every_cell_shows_n_even_when_it_is_too_thin_to_read(store):
+    """n regardless, so a cell too thin to read is visible as thin rather than
+    quoted as a result.
+
+    Two symbols is below the bootstrap's cluster floor, so the cell reports no
+    interval — and says so where a reader looks for one.
+    """
+    sessions = _sessions(2016, 2)
+    trades, spine = _cohort(sessions, ["HOSTILE", "HOSTILE"], [3.0, 4.0])
+    body = market_posture(DEFAULT_CONTRACT, trades, spine)
+
+    hostile = next(s for s in body["states"] if s["state"] == "HOSTILE")
+    cell = hostile["windows"][0]
+    assert cell["trades"] == 2 and cell["closed"] == 2
+    assert cell["expectancy_r"] is not None
+    assert cell["bootstrap"]["ci_low"] is None
+    assert cell["bootstrap"]["suppressed"]
+
+    printed = format_posture(
+        posture_report(DEFAULT_CONTRACT, trades, {"US": spine}, markets=["US"])
+    )
+    assert "n=2" in printed
+    assert "too thin" in printed
+
+
+def test_the_states_report_the_2020_21_excluded_window_beside_the_full_one(store):
+    """That tape rewarded momentum nearly everywhere, and it is FRIENDLY it would
+    inflate — so a FRIENDLY expectancy that rests on it alone is a figure about the
+    tape and not about the state."""
+    mania = date(2020, 3, 1)
+    ordinary = date(2016, 3, 1)
+    trades = [_ptrade("AAA", mania, 5.0), _ptrade("BBB", ordinary, 1.0)]
+    spine = _spine("US", {mania: "FRIENDLY", ordinary: "FRIENDLY"})
+
+    body = market_posture(DEFAULT_CONTRACT, trades, spine)
+    friendly = next(s for s in body["states"] if s["state"] == "FRIENDLY")
+    full, excluded = friendly["windows"]
+
+    assert full["label"].endswith(FULL_WINDOW)
+    assert excluded["label"].endswith(EXCLUDED_YEARS_WINDOW)
+    assert full["trades"] == 2 and excluded["trades"] == 1
+    assert excluded["expectancy_r"] < full["expectancy_r"]
+    assert excluded["excluded_years"] == list(EXCLUDED_YEARS)
+
+
+def test_us_and_idx_never_pool_and_there_is_no_top_level_expectancy(store):
+    """findings §8 measured that magnitudes do not transfer between the markets, so
+    a pooled figure would be a number about neither — and the way to stop one being
+    quoted is for it never to have been computed."""
+    us_sessions = _sessions(2016, 2)
+    idx_sessions = _sessions(2017, 2)
+    us, us_spine = _cohort(us_sessions, ["HOSTILE"] * 2, [1.0, 2.0], prefix="U")
+    idx, idx_spine = _cohort(idx_sessions, ["HOSTILE"] * 2, [-1.0, -1.0],
+                             market="IDX", prefix="I")
+
+    report = posture_report(
+        DEFAULT_CONTRACT, us + idx,
+        {"US": us_spine, "IDX": idx_spine}, markets=["US", "IDX"],
+    )
+
+    assert [m["market"] for m in report["markets"]] == ["US", "IDX"]
+    assert "expectancy_r" not in report
+    # The cohort refusal is inherited, and it is structural: a cell cannot be
+    # built across two markets even by a caller that wants one.
+    with pytest.raises(ValueError):
+        posture_cell(DEFAULT_CONTRACT, us + idx, market="US", state="HOSTILE",
+                     label=FULL_WINDOW)
+
+
+def test_a_cell_cannot_be_conditioned_on_breadth(store):
+    """Breadth is descriptive and never a cohort key, and that is enforced where the
+    cohort is built rather than remembered at the call site.
+
+    It is the measure survivorship corrupts most directly, and in a backtest the
+    corruption is worse rather than better, because the missing names are
+    disproportionately the ones that later died.
+    """
+    trade = _ptrade("AAA", date(2016, 3, 1), 1.0)
+    with pytest.raises(ValueError):
+        posture_cell(DEFAULT_CONTRACT, [trade], market="US", state=0.42,
+                     label=FULL_WINDOW)
+    with pytest.raises(ValueError):
+        posture_cell(DEFAULT_CONTRACT, [trade], market="US",
+                     state="breadth_above_median", label=FULL_WINDOW)
+
+
+def test_breadth_is_reported_and_carries_its_survivorship_warning(store):
+    """Reported, because the plan asks for it; warned, because a breadth number
+    read as an equal of the state is the corruption arriving through the report."""
+    sessions = _sessions(2016, 3)
+    spine = _spine("US", dict(zip(sessions, ["FRIENDLY"] * 3)), breadth=0.4)
+
+    summary = breadth_summary(spine)
+    assert summary["sessions"] == 3
+    assert summary["median"] == pytest.approx(0.4)
+    assert summary["basis"] == BREADTH_BASIS
+    assert "survivorship" in summary["warning"]
+    assert summary["conditioned_on"] is False
+
+
+def test_the_hostile_counterfactual_prices_what_sitting_out_would_have_cost(store):
+    """The number the product actually needs, in R.
+
+    HOSTILE trades that made money mean the posture the app prints would have cost
+    the book exactly what they earned — and the counterfactual says so with a sign
+    rather than leaving a reader to infer it.
+    """
+    sessions = _sessions(2016, 4)
+    trades, spine = _cohort(
+        sessions, ["HOSTILE", "HOSTILE", "FRIENDLY", "FRIENDLY"],
+        [2.0, 3.0, 1.0, 1.0],
+    )
+    cf = hostile_counterfactual(DEFAULT_CONTRACT, trades, spine)
+
+    assert cf["posture"] == app_posture("HOSTILE") == "sit out"
+    assert cf["closed"] == 2
+    assert cf["total_r"] > 0
+    assert cf["delta_total_r"] == pytest.approx(-cf["total_r"])
+    assert cf["effect"] == "cost"
+    assert cf["book"]["all"]["closed"] == 4
+    assert cf["book"]["without_hostile"]["closed"] == 2
+
+
+def test_sitting_out_hostile_saves_when_the_state_lost_money(store):
+    """The other direction, and the one the app's word assumes: a HOSTILE book that
+    lost means sitting it out saves, and the saving is the loss it avoided."""
+    sessions = _sessions(2016, 4)
+    trades, spine = _cohort(
+        sessions, ["HOSTILE", "HOSTILE", "FRIENDLY", "FRIENDLY"],
+        [-1.0, -1.0, 2.0, 2.0],
+    )
+    cf = hostile_counterfactual(DEFAULT_CONTRACT, trades, spine)
+
+    assert cf["total_r"] < 0
+    assert cf["delta_total_r"] > 0
+    assert cf["effect"] == "saved"
+    assert cf["book"]["without_hostile"]["expectancy_r"] > (
+        cf["book"]["all"]["expectancy_r"]
+    )
+
+
+def test_sit_out_is_earned_only_where_hostile_expectancy_is_measurably_negative(
+    store
+):
+    """The verdict is the interval's, not the mean's.
+
+    A hostile cohort that lost across enough independent names earns the word; one
+    that made money refutes it; one whose interval straddles zero leaves it
+    undecided — which is still an answer, and the one the app has today.
+    """
+    losing_sessions = _sessions(2016, 8)
+    losing, losing_spine = _cohort(
+        losing_sessions, ["HOSTILE"] * 8, [-1.0] * 8, prefix="L"
+    )
+    assert hostile_counterfactual(
+        DEFAULT_CONTRACT, losing, losing_spine
+    )["verdict"] == VERDICT_EARNED
+
+    winning, winning_spine = _cohort(
+        losing_sessions, ["HOSTILE"] * 8, [3.0] * 8, prefix="W"
+    )
+    assert hostile_counterfactual(
+        DEFAULT_CONTRACT, winning, winning_spine
+    )["verdict"] == VERDICT_REFUTED
+
+    mixed_rs = [-3.0, 3.0, -2.5, 2.5, -2.0, 2.0, -1.0, 1.0]
+    mixed, mixed_spine = _cohort(
+        losing_sessions, ["HOSTILE"] * 8, mixed_rs, prefix="M"
+    )
+    assert hostile_counterfactual(
+        DEFAULT_CONTRACT, mixed, mixed_spine
+    )["verdict"] == VERDICT_UNDECIDED
+
+    thin, thin_spine = _cohort(
+        _sessions(2016, 2), ["HOSTILE"] * 2, [-1.0, -1.0], prefix="T"
+    )
+    assert hostile_counterfactual(
+        DEFAULT_CONTRACT, thin, thin_spine
+    )["verdict"] == VERDICT_TOO_THIN
+
+
+def test_choppy_earns_reduced_only_against_friendlys_measured_expectancy(store):
+    """'Reduced' is a *relative* posture, so it is judged against FRIENDLY rather
+    than against zero — the question is whether the state is worse to trade, not
+    whether it is unprofitable."""
+    sessions = _sessions(2016, 16)
+    states = ["CHOPPY"] * 8 + ["FRIENDLY"] * 8
+    earned, earned_spine = _cohort(
+        sessions, states, [-1.0] * 8 + [3.0] * 8, prefix="E"
+    )
+    verdict = choppy_reduced(DEFAULT_CONTRACT, earned, earned_spine)
+    assert verdict["posture"] == app_posture("CHOPPY") == "reduced"
+    assert verdict["verdict"] == VERDICT_EARNED
+    assert verdict["delta_expectancy_r"] < 0
+
+    flipped, flipped_spine = _cohort(
+        sessions, states, [3.0] * 8 + [-1.0] * 8, prefix="F"
+    )
+    assert choppy_reduced(
+        DEFAULT_CONTRACT, flipped, flipped_spine
+    )["verdict"] == VERDICT_REFUTED
+
+    thin, thin_spine = _cohort(
+        _sessions(2016, 4), ["CHOPPY", "CHOPPY", "FRIENDLY", "FRIENDLY"],
+        [-1.0, -1.0, 1.0, 1.0], prefix="T",
+    )
+    assert choppy_reduced(
+        DEFAULT_CONTRACT, thin, thin_spine
+    )["verdict"] == VERDICT_TOO_THIN
+
+
+def test_the_difference_bootstrap_resamples_both_sides_by_cluster(store):
+    """The difference of two means, with each side's clusters drawn whole.
+
+    Resampling rows would let one name's fortnight of signals arrive as several
+    independent observations on whichever side it sat, and would tighten the
+    interval around the very comparison the posture turns on.
+    """
+    low = [(-1.0,), (-1.0,), (-1.0,), (-1.0,), (-1.0,), (-1.0,)]
+    high = [(2.0,), (2.0,), (2.0,), (2.0,), (2.0,), (2.0,)]
+
+    boot = bootstrap_difference(low, high)
+    assert boot["difference"] == pytest.approx(-3.0)
+    assert boot["ci_high"] < 0
+    assert boot["clusters_a"] == 6 and boot["clusters_b"] == 6
+    assert boot["cluster"] == BOOTSTRAP_CLUSTER
+
+    thin = bootstrap_difference(low[:2], high)
+    assert thin["ci_low"] is None and thin["suppressed"]
+
+
+def test_the_posture_report_is_stamped_and_names_its_conditioning(store):
+    """The contract travels with the result, and the report says in its own body
+    that regime conditioned and never filtered."""
+    sessions = _sessions(2016, 2)
+    trades, spine = _cohort(sessions, ["HOSTILE", "FRIENDLY"], [1.0, 1.0])
+    report = posture_report(
+        DEFAULT_CONTRACT, trades, {"US": spine}, markets=["US"]
+    )
+
+    assert report["contract"] == DEFAULT_CONTRACT.to_dict()
+    assert report["regime_source"] == REGIME_SOURCE
+    assert report["regime_role"] == REGIME_ROLE
+    assert report["arm"] == PRIMARY_ARM
+    assert report["state_read_at"] == STATE_READ_AT
+
+
+def test_the_posture_is_arm_bs_and_refuses_another_arms_trades(store):
+    """The same refusal the headline carries, one level up: a posture priced on a
+    mix of arms would report a number no arm produced."""
+    trades = [
+        dataclasses.replace(
+            _ptrade("AAA", date(2016, 3, 1), 1.0), arm=ARM_A
+        )
+    ]
+    with pytest.raises(ValueError):
+        posture_cell(DEFAULT_CONTRACT, trades, market="US", state="HOSTILE",
+                     label=FULL_WINDOW)
+
+
+def test_the_printed_page_shows_every_state_with_its_n_and_both_verdicts(store):
+    """The page a reader actually quotes from. Every state appears with its count
+    whether or not it is readable, and the two postures the app prints are answered
+    on the page rather than left in the payload."""
+    sessions = _sessions(2016, 16)
+    states = ["CHOPPY"] * 8 + ["FRIENDLY"] * 8
+    trades, spine = _cohort(sessions, states, [-1.0] * 8 + [3.0] * 8)
+    printed = format_posture(
+        posture_report(DEFAULT_CONTRACT, trades, {"US": spine}, markets=["US"])
+    )
+
+    for state in REPORTED_STATES:
+        assert state in printed
+    assert "sit out" in printed and "reduced" in printed
+    assert "survivorship" in printed
+    assert "nothing is excluded by regime" in printed
+
+
+def test_the_spine_is_built_off_the_persisted_denominator_sessions(
+    store, denominator
+):
+    """The state comes from the rows the run already persisted, not from a second
+    reading of the index — one computation of the regime, stored once.
+
+    Burn-in sessions are out of the spine for the same reason they are out of the
+    trades: a warm-up session is persisted and never measured.
+    """
+    denominator.stamp(DEFAULT_CONTRACT)
+    measured = date(2016, 3, 2)
+    warm = date(2016, 3, 1)
+    for session, burn_in, state in ((warm, True, "FRIENDLY"),
+                                    (measured, False, "HOSTILE")):
+        denominator.append_session(
+            SessionRow.of(
+                "US", session, burn_in=burn_in, members=10, detections=1,
+                regime=RegimeReading(
+                    state=state, breadth=0.3, broke_out=None, index_close=99.0
+                ),
+            )
+        )
+
+    spine = spine_for_market(denominator, "US")
+
+    assert set(spine.readings) == {measured}
+    assert spine.readings[measured].state == "HOSTILE"
+    trade = _ptrade("AAA", measured, 1.0)
+    assert state_of(spine, trade) == "HOSTILE"
+
+
+def test_the_posture_joins_a_simulated_trade_to_a_persisted_reading(
+    store, denominator
+):
+    """The seam that matters: a trade the simulator produced, dated by a state the
+    run persisted.
+
+    Every other test here authors both sides so the arithmetic stays checkable;
+    this one proves the two actually join on the session they agree about. The
+    reading is persisted against the detection's own session — the night the
+    candidate was listed — and the trade's entry lands two sessions later, so a
+    join that reached for the entry instead would find no row at all and report a
+    real trade as undefined.
+    """
+    denominator.stamp(DEFAULT_CONTRACT)
+    bars = _sim_bars()
+    det = _sim_detection(bars)
+    trade = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
+    denominator.append_session(
+        SessionRow.of(
+            "US", det.session, burn_in=False, members=10, detections=1,
+            regime=RegimeReading(
+                state="HOSTILE", breadth=0.25, broke_out=None, index_close=99.0
+            ),
+        )
+    )
+
+    spine = spine_for_market(denominator, "US")
+    assert trade.entry.session > det.session
+    assert state_of(spine, trade) == "HOSTILE"
+
+    body = market_posture(DEFAULT_CONTRACT, [trade], spine)
+    hostile = next(s for s in body["states"] if s["state"] == "HOSTILE")
+    cell = hostile["windows"][0]
+
+    assert cell["closed"] == 1
+    assert cell["expectancy_r"] == pytest.approx(
+        trade.r_multiple - cost_r(trade, DEFAULT_CONTRACT)
+    )
+    assert body["conditioning"]["excluded_by_regime"] == 0
+    # The counterfactual is this one trade's, and it is the book's whole result:
+    # sitting out HOSTILE here leaves nothing behind.
+    cf = body["counterfactual"]
+    assert cf["book"]["without_hostile"]["closed"] == 0
+    assert cf["delta_total_r"] == pytest.approx(-cell["total_r"])
+
+
+def test_the_reported_states_are_the_apps_own_plus_the_undefined_bucket(store):
+    """The cells come from the app's own ``RegimeState``, not from a list retyped
+    here.
+
+    The module's whole claim is that it conditions on the state the product
+    actually shows. A hardcoded list would break that claim quietly: a fourth state
+    added to the app would fall into the undefined bucket and read as a warm-up
+    hole rather than as a state nobody had thought to report.
+    """
+    assert APP_STATES == get_args(RegimeState)
+    assert REPORTED_STATES == (*APP_STATES, STATE_UNDEFINED)
+    # The two words the module prices are states the app really has, so a rename
+    # in the app breaks this rather than silently emptying both counterfactuals.
+    assert {"HOSTILE", "CHOPPY", "FRIENDLY"} <= set(APP_STATES)
+    assert app_posture("HOSTILE") and app_posture("CHOPPY")
+
+
+def test_the_simulator_produces_the_same_trades_whatever_the_regime_said(
+    store, denominator
+):
+    """"Nothing is excluded by regime **anywhere in the run**", tested where the
+    claim actually lives.
+
+    The counts in `market_posture` cannot hold this promise: an upstream filter
+    would drop trades before that function ever saw them and every sum there would
+    still balance. What holds it is that the trade-producing path reads no regime
+    column at all — so flipping the persisted state from FRIENDLY to HOSTILE, the
+    two states whose postures would gate hardest, must return byte-identical
+    trades. If a regime gate were ever introduced upstream, this is the test that
+    fails.
+    """
+    denominator.stamp(DEFAULT_CONTRACT)
+    det = _seed_figure_name(store, denominator, "US", "AAA", date(2016, 1, 1),
+                            _FIG_FLAT + _FIG_WIN)
+    denominator._cursor().execute(
+        "UPDATE denominator_sessions SET regime_state = 'FRIENDLY'"
+    )
+    friendly = simulate_market(store, denominator, "US", DEFAULT_CONTRACT,
+                               arms=(PRIMARY_ARM,))
+    denominator._cursor().execute(
+        "UPDATE denominator_sessions SET regime_state = 'HOSTILE'"
+    )
+    hostile = simulate_market(store, denominator, "US", DEFAULT_CONTRACT,
+                              arms=(PRIMARY_ARM,))
+
+    assert friendly and friendly == hostile
+    assert det.session in {t.detection_session for t in friendly}
+
+    # And the two runs land in different cells, which is the whole point: the
+    # state changed what the trade is *reported under*, never whether it happened.
+    spine = spine_for_market(denominator, "US")
+    assert {state_of(spine, t) for t in hostile} == {"HOSTILE"}
+
+
+def test_the_conditioning_block_accounts_for_the_two_declared_exclusions(store):
+    """The exclusion accounting, which is narrower than it used to claim to be.
+
+    Two trades are set aside before any cell is built — one from the other market,
+    one from another arm — and both are counted and named. Neither is a regime
+    exclusion, and the point of naming them is that "nothing was excluded by
+    regime" is only worth reading beside the count of what *was* excluded and why.
+    """
+    session = date(2016, 3, 1)
+    mine = _ptrade("AAA", session, 1.0)
+    other_market = _ptrade("BBB", session, 1.0, market="IDX")
+    other_arm = dataclasses.replace(_ptrade("CCC", session, 1.0), arm=ARM_A)
+    spine = _spine("US", {session: "HOSTILE"})
+
+    body = market_posture(
+        DEFAULT_CONTRACT, [mine, other_market, other_arm], spine
+    )
+    cond = body["conditioning"]
+
+    assert cond["handed_in"] == 3
+    assert cond["excluded_other_markets"] == 1
+    assert cond["excluded_other_arms"] == 1
+    assert cond["trades"] == cond["in_cells"] == 1
+    assert cond["excluded_by_regime"] == 0
+    assert cond["partition_holds"] is True
+    assert "backtest.simulate" in cond["upstream_guarantee"]
+
+
+def test_a_counterfactual_called_directly_still_refuses_to_mix_arms(store):
+    """The market and arm narrowing lives in the counterfactuals too, not only in
+    the report above them.
+
+    A direct caller must not be able to average arm A into a verdict the report a
+    level up could not — the refusal is worth nothing if it only guards the path
+    that was already safe.
+    """
+    session = date(2016, 3, 1)
+    hostile = _ptrade("AAA", session, -2.0)
+    stray_arm = dataclasses.replace(_ptrade("BBB", session, 9.0), arm=ARM_A)
+    stray_market = _ptrade("CCC", session, 9.0, market="IDX")
+    spine = _spine("US", {session: "HOSTILE"})
+
+    cf = hostile_counterfactual(
+        DEFAULT_CONTRACT, [hostile, stray_arm, stray_market], spine
+    )
+    assert cf["closed"] == 1
+    assert cf["expectancy_r"] < 0  # the +9R strays never reached the cell
+
+    red = choppy_reduced(
+        DEFAULT_CONTRACT, [hostile, stray_arm, stray_market], spine
+    )
+    assert red["trades"] == 0 and red["trades_friendly"] == 0
+
+
+def test_the_reduced_verdict_carries_both_sides_win_rate_and_distribution(store):
+    """An expectancy never travels alone here, and a *difference* of two of them
+    least of all.
+
+    Two states with the same mean and different tails are not the same state to
+    trade, and a bare gap between two means cannot show which tail produced it —
+    which is exactly the question a sizing posture asks.
+    """
+    sessions = _sessions(2016, 16)
+    states = ["CHOPPY"] * 8 + ["FRIENDLY"] * 8
+    trades, spine = _cohort(sessions, states, [-1.0] * 8 + [3.0] * 8)
+
+    red = choppy_reduced(DEFAULT_CONTRACT, trades, spine)
+
+    assert red["shape"]["closed"] == 8 and red["shape_friendly"]["closed"] == 8
+    assert red["shape"]["win_rate"] == 0.0
+    assert red["shape_friendly"]["win_rate"] == 1.0
+    for side in (red["shape"], red["shape_friendly"]):
+        assert side["distribution"]["median"] is not None
+        assert side["distribution"]["p90"] is not None
+
+    printed = format_posture(
+        posture_report(DEFAULT_CONTRACT, trades, {"US": spine}, markets=["US"])
+    )
+    # The relative verdict is the line most easily misread as an absolute one, so
+    # both sides' n and win rate sit directly under it.
+    assert "CHOPPY n=8" in printed and "FRIENDLY n=8" in printed
+
+
+def test_follow_through_is_reported_and_named_unbiased_where_breadth_is_not(store):
+    """Breadth's companion, and the only regime signal for which this backtest is a
+    *better* instrument than the live app.
+
+    The app captures it forward nightly because a survivorship-biased past cannot
+    rebuild it; the index series carries no survivorship hole, so the run
+    reconstructs it legitimately. Reported — and still never conditioned on.
+    """
+    sessions = _sessions(2016, 4)
+    spine = RegimeSpine(
+        market="US",
+        readings={
+            s: RegimeReading(state="FRIENDLY", breadth=0.4, broke_out=broke,
+                             index_close=100.0)
+            for s, broke in zip(sessions, [True, False, False, None])
+        },
+    )
+
+    summary = follow_through_summary(spine)
+    assert summary["sessions"] == 3
+    assert summary["sessions_without_reading"] == 1
+    assert summary["breakouts"] == 1
+    assert summary["breakout_rate"] == pytest.approx(1 / 3)
+    assert summary["basis"] == FOLLOW_THROUGH_BASIS
+    assert summary["conditioned_on"] is False
+    assert "unbiased where breadth is not" in summary["note"]
+
+    trades, _ = _cohort(sessions, ["FRIENDLY"] * 4, [1.0] * 4)
+    printed = format_posture(
+        posture_report(DEFAULT_CONTRACT, trades, {"US": spine}, markets=["US"])
+    )
+    assert "follow-through (unbiased, never conditioned on)" in printed
+
+
+def test_a_spine_filed_under_the_wrong_market_is_refused(store):
+    """The market is the spine's own now, so a mapping whose key disagrees with the
+    spine it points at is the one remaining way to date one market's trades off
+    another market's index."""
+    spine = _spine("IDX", {date(2016, 3, 1): "HOSTILE"})
+    with pytest.raises(ValueError):
+        posture_report(DEFAULT_CONTRACT, [], {"US": spine}, markets=["US"])
+
+
+def test_the_report_says_why_the_states_are_not_also_cut_per_year(store):
+    """Three states crossed with fourteen years is mostly cells below the cluster
+    floor. That is a judgement, and it is recorded as one rather than left as a
+    silent omission a reader has to notice."""
+    sessions = _sessions(2016, 2)
+    trades, spine = _cohort(sessions, ["HOSTILE", "FRIENDLY"], [1.0, 1.0])
+    report = posture_report(
+        DEFAULT_CONTRACT, trades, {"US": spine}, markets=["US"]
+    )
+
+    assert "per year" in report["per_year"]
+    assert "2020–21" in report["per_year"]
+    # And the multiple-testing count the plan asks to be stated rather than assumed.
+    assert "nine views" in report["views"]
+    assert "nine views" in format_posture(report)

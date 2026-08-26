@@ -41,7 +41,6 @@ from typing import Callable, Sequence, TextIO
 from replay.caching_store import CachingStore
 from replay.chain import SessionField
 from replay.field import FieldSession, build_field_sessions
-from screener.bars import Bar
 from screener.detection import DETECTION_LOOKBACKS
 from screener.regime import REGIME_WARMUP, breadth, index_broke_out, regime_state
 from screener.source import MARKET_INDEX

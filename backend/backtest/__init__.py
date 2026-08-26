@@ -53,11 +53,13 @@ stop width **in ADR**, so a rescale of the bar series moves numerator and denomi
 together and R does not move at all; the one absolute-price comparison that is not
 immune rides on every trade as a price-scale flag whose dropped count is reported.
 
-:mod:`backtest.simulate`'s names are **not** re-exported here, and for the same
-mechanical reason :mod:`backtest.run`'s are not: it imports
-:class:`~backtest.run.ContractDrift`, so re-exporting it would pull ``backtest.run``
-into ``sys.modules`` at package-import time and make ``python -m backtest.run`` warn
-on every invocation. The entry point is reached as ``backtest.simulate.simulate_market``.
+:mod:`backtest.simulate`'s names are **not** re-exported here, and the mechanical
+reason is now doubled: it is a command in its own right
+(``python -m backtest.simulate``), *and* it imports
+:class:`~backtest.run.ContractDrift`, so re-exporting it would pull both it and
+``backtest.run`` into ``sys.modules`` at package-import time and make either
+documented command warn on every invocation. The entry point is reached as
+``backtest.simulate.simulate_market``.
 
 The universe's names are not re-exported, and the reason is naming rather than
 import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean

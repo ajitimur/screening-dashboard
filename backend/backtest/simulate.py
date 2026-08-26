@@ -78,18 +78,26 @@ then attributable to the exit alone.
 
 from __future__ import annotations
 
+import argparse
+import json
 from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 from typing import Any, Sequence
 
 from screener.bars import Bar
 from screener.detection import Detection
-from screener.indicators import ADR_WINDOW, adr_abs
+from screener.indicators import ADR_WINDOW, adr
 from screener.store import Store
 
 from .chain import bar_index, trailing_bars
-from .contract import EXIT_ARM_B_KEY, EXIT_TRAIL_MECHANIC_KEY, RunContract
-from .denominator import DenominatorStore
+from .contract import (
+    DEFAULT_CONTRACT,
+    EXIT_ARM_B_KEY,
+    EXIT_TRAIL_MECHANIC_KEY,
+    RunContract,
+)
+from .denominator import DenominatorStore, denominator_path
 from .result import stamp_result
 from .run import ContractDrift
 
@@ -152,12 +160,18 @@ class SimulatedTrade:
     arm: str
     detection_session: date
     trigger: Decision
-    breakout: Decision
+    break_signal: Decision
     entry: Decision
-    stop: Decision
-    # The R denominator in price units: the detection's stop width in ADR, priced
-    # off the bars at the deciding session. See the module docstring.
-    risk: float
+    stop_price: Decision
+    # The R denominator: the detection's own stop width, in price units. Named
+    # for the glossary's **Stop width** — never "risk", which CONTEXT.md
+    # reserves against precisely because a stop budget and the risk taken on a
+    # filled position are different quantities. Rebuilt from the detection's
+    # ``stopw_adr`` against the ADR of the *bars* at the deciding session, which
+    # is the detector's own formula on the same inputs — so it equals
+    # ``detection.stop`` whenever the two price scales agree, and stays in ADR
+    # units where they do not.
+    stop_width: float
     exit_signal: Decision | None
     exit: Decision | None
     exit_reason: str | None
@@ -174,12 +188,12 @@ class SimulatedTrade:
         """The result in R, or ``None`` while the trade is still open.
 
         Both terms are prices from the bar series — the exit and the entry are bar
-        prices, and :attr:`risk` was priced off the bars' own ADR — so a constant
+        prices, and :attr:`stop_width` was priced off the bars' own ADR — so a constant
         rescale of the whole series cancels and R does not move.
         """
-        if self.exit is None or self.risk <= 0:
+        if self.exit is None or self.stop_width <= 0:
             return None
-        return (self.exit.price - self.entry.price) / self.risk
+        return (self.exit.price - self.entry.price) / self.stop_width
 
 
 def trail_ma(bars: Sequence[Bar], window: int) -> float | None:
@@ -255,11 +269,11 @@ def simulate_arm_b(
     # Everything that denominates the trade is measured at the detection's own
     # session, on the bars that existed then.
     at_decision = trailing_bars(bars, detection.session, ADR_WINDOW)
-    a = adr_abs(at_decision)
+    a = adr(at_decision)
     if a is None or a <= 0:
         return None
-    risk = detection.stopw_adr * a
-    if risk <= 0:
+    stop_width = detection.stopw_adr * a * detection.trigger
+    if stop_width <= 0:
         return None
 
     # The one absolute-price comparison the ADR geometry cannot make immune: a
@@ -291,10 +305,10 @@ def simulate_arm_b(
         arm=ARM_B,
         detection_session=detection.session,
         trigger=Decision(session=detection.session, price=detection.trigger),
-        breakout=Decision(session=break_bar.session, price=break_bar.close),
+        break_signal=Decision(session=break_bar.session, price=break_bar.close),
         entry=Decision(session=fill_bar.session, price=fill_bar.open),
-        stop=Decision(session=detection.session, price=stop_price),
-        risk=risk,
+        stop_price=Decision(session=detection.session, price=stop_price),
+        stop_width=stop_width,
         exit_signal=exit_signal,
         exit=exit_decision,
         exit_reason=reason,
@@ -421,3 +435,74 @@ def simulate_report(
             "total_r": sum(t.r_multiple for t in closed),
         },
     )
+
+
+def format_trades(report: dict[str, Any]) -> str:
+    """The arm's result as a few lines a terminal can print.
+
+    The price-scale count is on its own line rather than folded into a total,
+    because it is the one figure here that is *about the data* rather than about
+    the method, and a reader who skims must not miss that some trades' absolute
+    prices could not be verified.
+    """
+    lines = [
+        f"arm {report['arm']} — {report['trail_ma']}MA trail "
+        f"({report['trail_mechanic']})",
+        f"  trades          {report['trades']}",
+        f"  closed          {report['closed']}",
+        f"  open at end     {report['open_at_end']}",
+        f"  total R         {report['total_r']:+.2f}",
+        f"  price-scale flag would drop {report['price_scale_dropped']} "
+        f"of {report['trades']}",
+    ]
+    return "\n".join(lines)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Simulate arm B over a persisted denominator and report the result.
+
+    The command that reproduces the arm::
+
+        python -m backtest.simulate --store data/backtest_us.duckdb \\
+            --market US --out-json references/backtest_arm_b_us.json
+
+    Reads the bar store and the denominator :mod:`backtest.run` wrote beside it.
+    Neither is written to: this phase consumes the denominator and produces
+    figures, so it has no reason to hold either file open for writing and every
+    reason not to.
+    """
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--store", required=True, help="path to the backtest bar store")
+    parser.add_argument("--market", required=True)
+    parser.add_argument(
+        "--include-burn-in", action="store_true",
+        help="also take trades off burn-in sessions (never for a measured result)",
+    )
+    parser.add_argument(
+        "--out-json", default=None,
+        help="where to write the machine-readable, contract-stamped result",
+    )
+    args = parser.parse_args(argv)
+
+    store = Store.open(args.store)
+    denominator = DenominatorStore.open(denominator_path(args.store))
+    try:
+        trades = simulate_market(
+            store, denominator, args.market, DEFAULT_CONTRACT,
+            include_burn_in=args.include_burn_in,
+        )
+    finally:
+        denominator.close()
+        store.close()
+
+    report = simulate_report(DEFAULT_CONTRACT, trades)
+    if args.out_json:
+        Path(args.out_json).write_text(json.dumps(report, indent=1) + "\n")
+    print(format_trades(report))
+    if args.out_json:
+        print(f"\nwrote {args.out_json}")
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())

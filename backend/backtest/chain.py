@@ -249,7 +249,6 @@ def backtest_chain(
     )
 
 
-
 def bar_cut(bars: Sequence[Bar], session: date) -> int:
     """How many bars fall on or before ``session`` — the package's point-in-time cut.
 
@@ -292,10 +291,10 @@ def trailing_bars(bars: Sequence[Bar], session: date, depth: int) -> list[Bar]:
 
 
 __all__ = [
-    "bar_cut",
-    "bar_index",
     "WindowNotCovered",
     "backtest_chain",
+    "bar_cut",
+    "bar_index",
     "burn_in_count",
     "check_window_covered",
     "excluded_references",

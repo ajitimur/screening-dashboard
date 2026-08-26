@@ -1,13 +1,26 @@
-# The geometry anchors, and why the backtest store does not reproduce them
+# The anchors, and why this run is not yet anchored
 
 Phase 6 of [the out-of-sample backtest plan](../docs/out-of-sample-backtest-plan.md)
 (PRD #182, issue #198). The plan's third rule is anchor before believing, and its escape
 hatch is "reproduce the figure, **or** explain the divergence in writing". This is that
-writing, for the one anchor group that diverges.
+writing.
 
-Issue #197 built the table and found the divergence; it left it unresolved and left the
-anchors pinned at their committed values rather than widened to accommodate it. This page
-resolves it, and the resolution is the reason the run below it is allowed to be read.
+Issue #197 built the table and found the geometry divergence; it left it unresolved and left
+the anchors pinned at their committed values rather than widened to accommodate it. This page
+resolves that one, and then records a second divergence — found by running the table against
+the completed run — that **cannot** be resolved in writing and stops the run.
+
+## Where this leaves the run
+
+Five of the six anchors settle: three geometry and two gate-dependent, each diverging for a
+cause set out below. The sixth, `in_field`, diverges by **flipping the sign of §4b's gap**,
+which is the one outcome the table refuses to let a written cause waive. So:
+
+> **No figure from this run may be read yet.** The replay is complete and persisted — the
+> gate is on believing the run, not on doing it — but `backtest.full_run` refuses to emit a
+> figure, a plot or a payload until `in_field` is settled.
+
+That refusal is the table working, not the table failing.
 
 ## The divergence
 
@@ -73,6 +86,68 @@ Across the whole 828-trade reference set the same enumeration gap swallows **82 
 144 trades** — the geometry anchor happens to sit on the part of it that is nearly empty,
 because most never-enumerated names also lack the bar history the anchor needs.
 
+## The gate-dependent anchors
+
+Measured over **the run's own field** — the denominator this run persisted, built from the
+contract's stateless universe — across the reference study's own window (US, 947 sessions,
+2019-04-01 .. 2022-12-30, its first 126 burn-in). Not recomputed from the reference study's
+outputs, which would anchor the new pipeline against the old one's answers and report a pass
+for it.
+
+Only 503 of his 828 trades are replayable against this store, against 656 on `replay.duckdb`
+— the same scope difference the geometry anchors show, arriving in the denominators.
+
+| Anchor | Committed | This run | Settles? |
+| --- | --- | --- | --- |
+| Blind-spot tickers / trades / R share | 92 / 172 / 18.0% | **136 / 325 / 25.9%** | yes, with cause |
+| Detection recall (A1) | 549 of 656 | **421 of 503** | yes, with cause |
+| `in_field` (A2, v3, whole) | 397 of 656, gap **+1.95pp** | **165 of 503, gap −5.01pp** | **no — sign flip** |
+
+**Blind spots — the survivorship hole, measured.** 136 tickers and 325 trades, carrying 25.9%
+of his realised R, against findings §2's 92 / 172 / 18.0% over the four-year window. #196
+predicted exactly this: "a 2012 start reaches further back, so expect worse — a better number
+is a reason for suspicion, not celebration." It is worse, in the direction and roughly the
+proportion expected. This is the bound #196 owns; it is measured here, not fixed here.
+
+**Detection recall — reproduced.** 421 of 503 is **83.70%**; the committed 549 of 656 is
+**83.69%**. A different population returning the same rate to four decimal places is about as
+strong a statement as this table can make that the store and the detector are sound. The
+anchor fails only because its tolerance on both components is zero and the population moved.
+
+**`in_field` — the sign flip, and what actually caused it.**
+
+The measurement changed two things against the committed figure at once: the store, and the
+universe the field is built from. So it was measured a third way, holding the population fixed:
+
+| Store | Universe | Population | `in_field` | gap |
+| --- | --- | --- | --- | --- |
+| `replay.duckdb` | app's | all 656 | 397 (60.5%) | **+1.95** |
+| `replay.duckdb` | app's | the same 503 | 324 (64.4%) | **+1.86** |
+| `backtest.duckdb` | contract's stateless | 503 | 165 (32.8%) | **−5.01** |
+
+**The population is not the cause.** Hold it fixed and run the same grid over the store the
+committed figure came from, and the gap stays positive at +1.86 — within a hair of +1.95, and
+the same sign. The flip appears only when the field is rebuilt from the contract's stateless
+universe, which also more than halves `in_field`, 64.4% → 32.8%.
+
+That narrowing is not itself surprising: the stateless universe adds an ADR20 floor of 3.5%
+and a $10M ADTV floor and drops the app's membership hysteresis, so it is a much tighter field
+and fewer of his names reach it. What the sign says is different and is not explained by
+tightness: **inside that narrower field, the published rubric ranks his trades below the field
+average rather than above it.** The rubric's edge does not survive the gate the backtest runs
+under.
+
+Whether that is a defect in the field construction or a real result about the rubric out of
+sample is exactly the open question, and it is not one this issue can settle — it is the
+question #194 asks. What is settled is where it is *not*: not the bars (bit-identical), not
+the detector (recall reproduces to four decimals), and not the population (isolated above).
+
+**This anchor is a first measurement**, flagged as such in the table precisely so a mismatch is
+investigated in both directions rather than charged straight to the new pipeline. The committed
++1.95 has no second measurement agreeing with it. The +1.86 above is now that second
+measurement, and it agrees — which moves the suspicion onto the stateless field rather than
+onto the pin.
+
 ## What follows from this
 
 - The geometry divergence is **explained**, and the cause is sample composition, proven by
@@ -83,11 +158,17 @@ because most never-enumerated names also lack the bar history the anchor needs.
 - The store and the indicators are **anchored**: whatever else is wrong with this run, the
   bars are the bars the reference study measured.
 - The survivorship residual rides on every result out of this run as one line, and is
-  bounded by #196 rather than by this page.
+  bounded by #196 rather than by this page. This run measures it larger than findings §2 did
+  — 136 / 325 / 25.9% against 92 / 172 / 18.0% — over a window that reaches seven years
+  further back.
+- The detector is **anchored**: recall reproduces its rate to four decimal places over a
+  population 23% smaller.
+- `in_field` is **not settled and cannot be settled here.** The rubric's edge reverses inside
+  the contract's stateless field, and no figure from this run may be read until that is
+  understood. It is not the bars, not the detector and not the population.
 
-The divergence is recorded through the mechanism rather than only here — the run is
-anchored with an explicit written cause per diverging anchor, so a reader who never opens
-this file still cannot mistake a divergence for a match:
+Every divergence is recorded through the mechanism rather than only here, so a reader who
+never opens this file still cannot mistake one for a match:
 
 ```
 python -m backtest.anchors --store data/backtest.duckdb \
@@ -95,11 +176,14 @@ python -m backtest.anchors --store data/backtest.duckdb \
     --explain median_range_3bar_adr="..." \
     --explain median_range_5bar_adr="..." \
     --explain median_adr_at_entry_eve="..." \
+    --explain coverage_blind_spot="..." \
+    --explain detection_recall="..." \
     --out-json references/backtest_anchors.json
 ```
 
-A sign flip in §4b's gap is not explainable and no cause written here or anywhere else
-waives it; that one stops the run.
+Run with a cause supplied for all six, five settle and `in_field` still fails. A sign flip in
+§4b's gap is not explainable and no cause written here or anywhere else waives it; that one
+stops the run, and it is meant to.
 
 ## Reproducing this page
 
@@ -108,4 +192,20 @@ Every number above comes from the two committed stores and the committed referen
 - the medians, from `backtest.anchors.measure_geometry` against each store;
 - the split, from `data/backtest.duckdb.enumeration.US.json`'s exclusion reasons and
   `data/backtest.duckdb.coverage.US.json`'s `stored` list;
-- rows A, B and C, by applying those two lists as filters to the replay store's sample.
+- rows A, B and C, by applying those two lists as filters to the replay store's sample;
+- the gate-dependent anchors, from `replay.funnel.run_funnel` and
+  `replay.discrimination_grid.run_grid` against `data/backtest.duckdb` over
+  2019-04-01 .. 2022-12-30 with 126 burn-in sessions, committed as
+  `references/backtest_field_anchors.json`;
+- the isolation row, from the same `run_grid` against `data/replay.duckdb` with the trade
+  list restricted to the names `coverage.US.json` lists as `stored`.
+
+The run those anchors are measured over is itself reproduced by:
+
+```
+python -m backtest.full_run --store data/backtest.duckdb
+```
+
+Both markets, the whole window, no dates on the command line — they come from
+`references/backtest_run_contract.json`. It takes about three hours from a cold store and is
+resumable: a second pass reads back every session the first computed.

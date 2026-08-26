@@ -1,0 +1,14 @@
+{
+ "detection_recall": {
+  "passed": 421,
+  "of": 503,
+  "stage": "detection"
+ },
+ "in_field": {
+  "in_field": 165,
+  "of": 503,
+  "gap_pp": -5.006549825234521,
+  "field": "whole",
+  "detector_version": 3
+ }
+}

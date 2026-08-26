@@ -101,6 +101,28 @@ already keep :mod:`backtest.simulate` out: it is a command
 documented command warn on every invocation. The entry point is
 ``backtest.metric.metric_report``.
 
+Issue #196 lands Phase 2, and it is deliberately *out* of phase order: it is a
+measurement that gates believing any of the numbers above it.
+:mod:`backtest.survivorship` measures how much of the fourteen-year population the
+store cannot see. Two deliverables — a dated count of names that were listed inside
+the window and are gone from today's enumeration, reconstructed from an archived
+listing spine whose coverage of the window is verified before anything is counted
+against it; and a sensitivity, the pre-registered metric re-run with that missing
+population assigned a full stop-out. The gap between the two is the bias bound, and
+it rides on :mod:`backtest.metric`'s own printed page as one line — including when
+nothing attached one, which prints as the absence rather than as a blank.
+
+Coverage there is a fact about the **bars**, never about the symbol: the question is
+whether the store's history covers the session being replayed, which is what
+separates a delisted name from a *recycled* one — a ticker reassigned to an
+unrelated listing, absent from no list, arriving as plausible bars for the wrong
+company.
+
+:mod:`backtest.survivorship`'s names are **not** re-exported here, for the reasons
+that already keep :mod:`backtest.metric` out: it is a command
+(``python -m backtest.survivorship``) and it imports that module. The entry point is
+``backtest.survivorship.survivorship_report``.
+
 The universe's names are not re-exported, and the reason is naming rather than
 import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean
 something else one import away (:mod:`screener.universe`, :mod:`replay.reference`),

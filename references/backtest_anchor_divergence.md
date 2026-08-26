@@ -1,4 +1,4 @@
-# The anchors, and why this run is not yet anchored
+# The anchors, and what it took to settle them
 
 Phase 6 of [the out-of-sample backtest plan](../docs/out-of-sample-backtest-plan.md)
 (PRD #182, issue #198). The plan's third rule is anchor before believing, and its escape
@@ -12,24 +12,44 @@ the completed run — that **cannot** be resolved in writing and stops the run.
 
 ## Where this leaves the run
 
-Five of the six anchors settle: three geometry and two gate-dependent, each diverging for a
-cause set out below. The sixth, `in_field`, diverges by **flipping the sign of §4b's gap**,
-which is the one outcome the table refuses to let a written cause waive. So:
+**The run is anchored.** Five anchors diverge with a cause set out below, and the sixth —
+`in_field` over the contract's stateless universe — matches: 165 of 503 against a committed
+165 of 503, gap −5.00655 against −5.01. `backtest.full_run` emits its figures.
 
-> **No figure from this run may be read yet.** The replay is complete and persisted — the
-> gate is on believing the run, not on doing it — but `backtest.full_run` refuses to emit a
-> figure, a plot or a payload until `in_field` is settled.
+It did not get there by waiving anything, so it is worth being precise about what moved.
 
-That refusal is the table working, not the table failing.
+For most of this page's life the sixth anchor **failed**, by flipping the sign of §4b's gap
+— the one outcome the table refuses to let a written cause waive. That refusal was the table
+working. What it had caught, though, was not a bug in the pipeline.
 
-**Since this page was written, #211 has established why `in_field` reverses**, and the
-answer is recorded beside it in [the gate isolation](backtest_gate_isolation.md). It is
-the contract's **ADR20 floor and trend gate acting together** — neither on its own moves
-the sign — and it is a property of the method under the gates this run is contracted to
-use, not a defect in how the field is built. That does not lift the refusal above: a sign
-flip is not waivable by a written cause, and this one is not being waived. It does mean
-the sentence "cannot be settled here" below has been answered elsewhere, and that the
-`in_field` discussion further down should be read together with that page.
+[#211](backtest_gate_isolation.md) established why the sign reverses: the contract's **ADR20
+floor and trend gate acting together**, neither on its own, each duplicating a rubric
+dimension and lifting the field's hit rate on it until no spread is left. It is a property of
+the method under the gates this run is contracted to use, not a defect in how the field is
+built. And it recorded the consequence as a rule: **§4b's gap must not be cited without
+naming the field it was measured over** — +1.95pp under the app's universe, −5.01pp under the
+contract's. The number is a property of the pair.
+
+That rule is what the anchor was breaking. Holding this run to §4b's figure meant comparing a
+count over the app's universe against a count over the contract's, which is not a failing
+anchor — it is a subtraction between two numbers that were never the same number. So
+`in_field` is now **two pins**, each naming its universe, and a run is checked against the one
+measured over the field it actually screened:
+
+| Universe | `in_field` | §4b gap | Anchors |
+| --- | ---: | ---: | --- |
+| App (`app`) | 397 of 656 | **+1.95pp** | the replay store, findings §4b |
+| Contract (`contract-stateless`) | 165 of 503 | **−5.01pp** | this run |
+
+**No constant moved, no tolerance widened, and the sign check was not waived.** The stateless
+pin carries its own `sign_checked` on the gap, so a run that comes back positive over the
+contract's universe still fails for it. What changed is which pair the question is asked over.
+
+**Read the stateless pin for what it is.** It is a first measurement, made by the run it now
+anchors, so it detects drift from here on rather than confirming this run. The corroboration
+lives on the other universe, where #211 made two measurements that agree with each other:
+§4b's own 397/656 (+1.95pp) reproduced exactly, and the same 503 names held fixed giving
+324/503 (+1.86pp). The pin is sound; the sign belongs to the pair.
 
 ## The divergence
 
@@ -110,7 +130,11 @@ Only 503 of his 828 trades are replayable against this store, against 656 on `re
 | --- | --- | --- | --- |
 | Blind-spot tickers / trades / R share | 92 / 172 / 18.0% | **136 / 325 / 25.9%** | yes, with cause |
 | Detection recall (A1) | 549 of 656 | **421 of 503** | yes, with cause |
-| `in_field` (A2, v3, whole) | 397 of 656, gap **+1.95pp** | **165 of 503, gap −5.01pp** | **no — sign flip** |
+| `in_field` (A2, v3, whole), contract universe | 165 of 503, gap **−5.01pp** | **165 of 503, gap −5.00655** | yes — matches |
+
+The `in_field` row is quoted against the pin for **this run's universe**, which is what
+changed since the sign flip; §4b's 397 of 656 is the app universe's pin and is not what a
+contract-universe run is held to. The two pins, and why they are two, are above.
 
 **Blind spots — the survivorship hole, measured.** 136 tickers and 325 trades, carrying 25.9%
 of his realised R, against findings §2's 92 / 172 / 18.0% over the four-year window. #196
@@ -121,15 +145,17 @@ proportion expected. This is the bound #196 owns; it is measured here, not fixed
 #196 has since landed, and its number is worse than this row suggests: 51.8% of the US
 names listed inside the window are gone from today's enumeration, 37.7% weighted by how
 long each was listed, and its pessimistic twin goes negative for any headline below
-**+0.605R**. That bound is larger than the effect this run is looking for. It is a second
-reason, independent of the sign flip below, not to read a figure off this run yet.
+**+0.605R**. That bound is larger than the effect this run is looking for. It does not gate
+the anchors and it does not gate the session-count plot, which counts detections and reads no
+outcome — but it rides on every *expectancy* figure this run feeds, and a headline below
++0.605R is inside it.
 
 **Detection recall — reproduced.** 421 of 503 is **83.70%**; the committed 549 of 656 is
 **83.69%**. A different population returning the same rate to four decimal places is about as
 strong a statement as this table can make that the store and the detector are sound. The
 anchor fails only because its tolerance on both components is zero and the population moved.
 
-**`in_field` — the sign flip, and what actually caused it.**
+**`in_field` — the sign flip, what caused it, and how the anchor was resolved.**
 
 The measurement changed two things against the committed figure at once: the store, and the
 universe the field is built from. So it was measured a third way, holding the population fixed:
@@ -173,6 +199,21 @@ investigated in both directions rather than charged straight to the new pipeline
 measurement, and it agrees — which moves the suspicion onto the stateless field rather than
 onto the pin.
 
+**And that is what resolved the anchor.** Once the pin is corroborated and the reversal is a
+measured property of the gates, the mismatch is no longer a claim about the pipeline; it is
+the anchor asking its question over the wrong pair. §4b's figure is the app universe's, this
+run's field is the contract's, and the table now carries a pin for each
+(`in_field` / `in_field_stateless`). The run is checked against its own, matches it exactly,
+and the app universe's pin stays where §4b left it — unmoved, and no longer quoted at a run
+it does not describe. The sign check rides on the new pin too, so a contract-universe run
+that came back positive would still fail.
+
+A row's universe is now part of what the row *is*, the same way its detector version and its
+field already were. `backtest.anchors` refuses a measurement counted over one universe when
+the run names the other, rather than reporting it as a sign flip, and
+`references/backtest_field_anchors.json` must name the universe it counted — the file being
+the one path the documented reproduction command uses.
+
 ## What follows from this
 
 - The geometry divergence is **explained**, and the cause is sample composition, proven by
@@ -188,14 +229,17 @@ onto the pin.
   reaching seven years further back — and #196's own bound is larger still.
 - The detector is **anchored**: recall reproduces its rate to four decimal places over a
   population 23% smaller.
-- `in_field` is **not settled and cannot be settled here.** The rubric's edge reverses inside
-  the contract's stateless field, and no figure from this run may be read until that is
-  understood. It is not the bars, not the detector and not the population. **#211 has since
-  settled *why*** — see [the gate isolation](backtest_gate_isolation.md). The short version:
-  it is the **ADR20 floor and the trend gate together**, neither alone, and it is a property
-  of the method under the contracted gates rather than a defect in the field. The anchor
-  still fails, because a sign flip is still not waivable; what changed is that the run is
-  blocked on a result rather than on a mystery.
+- `in_field` is **settled, by splitting the pin rather than by waiving the flip.** The
+  rubric's edge reverses inside the contract's stateless field, and
+  [#211](backtest_gate_isolation.md) attributed that to the **ADR20 floor and the trend gate
+  together**, neither alone — a property of the method under the contracted gates rather than
+  a defect in the field. It is not the bars, not the detector and not the population. Since
+  the figure is a property of the pair (rubric, universe), the anchor now carries one pin per
+  universe and this run is checked against its own, which it matches exactly. No constant
+  moved and the sign check still rides on both pins.
+- **The rubric's edge over the app's field is an edge over names the app's universe lets in
+  and the contract's does not.** That is #211's finding, and settling the anchor does not
+  soften it. §4b's gap may not be cited without naming the field it was measured over.
 
 Every divergence is recorded through the mechanism rather than only here, so a reader who
 never opens this file still cannot mistake one for a match:
@@ -211,9 +255,18 @@ python -m backtest.anchors --store data/backtest.duckdb \
     --out-json references/backtest_anchors.json
 ```
 
-Run with a cause supplied for all six, five settle and `in_field` still fails. A sign flip in
-§4b's gap is not explainable and no cause written here or anywhere else waives it; that one
-stops the run, and it is meant to.
+Run with a cause supplied for the five that need one, all six settle, the command exits zero
+and writes `references/backtest_anchors.json`. The table as it printed is committed at
+[`backtest_anchors.txt`](backtest_anchors.txt).
+
+The universe is not an argument. It is read off `backtest_field_anchors.json`, because which
+of `in_field`'s two pins applies is a fact the run recorded about the gates that screened its
+field, not a choice made at the command line. A field-measurements file that does not name
+its universe is refused.
+
+A sign flip in §4b's gap is still not explainable, and none was explained away here: the pin
+this run is held to is negative by measurement, and a positive result over the contract's
+universe would fail exactly as before.
 
 ## Reproducing this page
 

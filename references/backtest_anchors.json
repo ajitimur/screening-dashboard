@@ -1,0 +1,500 @@
+{
+ "contract": {
+  "contract_version": "1",
+  "label": "out-of-sample backtest \u2014 US+IDX, 2012 onward (PRD #182)",
+  "cells": [
+   {
+    "key": "scope.setups",
+    "value": "long_breakout_eod",
+    "justification": "Long breakout EOD setups only, so the run measures the same thing the reference set and the detector do (PRD story 7)."
+   },
+   {
+    "key": "scope.level",
+    "value": "signal_primary_portfolio_deferred",
+    "justification": "Signal level is declared primary and portfolio level specified but deferred, so the open question is answered without the capital model blocking it (story 8)."
+   },
+   {
+    "key": "scope.markets",
+    "value": [
+     "US",
+     "IDX"
+    ],
+    "justification": "US and IDX reported separately throughout, so findings \u00a78's result that magnitudes do not transfer is honoured rather than averaged away (story 4)."
+   },
+   {
+    "key": "window.measured_start",
+    "value": "2012-01-01",
+    "justification": "The measured window starts 2012-01-01 so the sample spans several regimes rather than one (story 5)."
+   },
+   {
+    "key": "window.measured_end",
+    "value": "latest_complete_session",
+    "justification": "The measured window runs to the latest complete session, so the sample extends as far as the data legitimately allows (story 5)."
+   },
+   {
+    "key": "window.store_start",
+    "value": "2011-01-01",
+    "justification": "The store window starts 2011-01-01 so the detector's 80-bar minimum history, the universe gates and the regime's 25-bar warm-up are all satisfied before the first measured session (story 6)."
+   },
+   {
+    "key": "universe.trend_gate",
+    "value": "close > SMA50",
+    "justification": "The trend gate is close > SMA50 on both markets, so the universe reflects the method's own precondition (story 10)."
+   },
+   {
+    "key": "universe.liquidity_floor",
+    "value": {
+     "US": 10000000.0,
+     "IDX": 10000000000.0
+    },
+    "justification": "Liquidity floors are $10M for US and Rp 10B for IDX \u2014 a deliberate contract value, not the app's inherited $20M / Rp 1B (story 11)."
+   },
+   {
+    "key": "universe.adtv",
+    "value": "median_20d_unadjusted_close_x_volume",
+    "justification": "ADTV is the 20-day median of unadjusted close \u00d7 volume, so one block trade cannot lift an illiquid name over the floor (story 12)."
+   },
+   {
+    "key": "universe.adtv_aggregator",
+    "value": "median",
+    "justification": "The aggregator is the median; a switch to mean is a deliberate act, so which spiky small caps qualify never changes by accident (story 13)."
+   },
+   {
+    "key": "universe.volatility_gate",
+    "value": "ADR20 >= 3.5%",
+    "justification": "The volatility gate is ADR20 \u2265 3.5%, set deliberately below the rubric's 5% floor so the ADR dimension is left with spread to test (story 14)."
+   },
+   {
+    "key": "universe.volatility_gap_reason",
+    "value": "gate_below_rubric_floor_is_deliberate",
+    "justification": "The gap below the rubric's 5% floor is recorded so nobody later 'fixes' it to match and silently destroys the thing being measured \u2014 findings \u00a76 Finding 2 measured the 5% floor withholding a score point from 31% of his real entries (story 15)."
+   },
+   {
+    "key": "universe.idx_price_floor",
+    "value": 100.0,
+    "justification": "A nominal price floor of Rp 100 on the split-corrected series excludes IDX names whose quotes hit the tick grid hard enough to distort ADR and range geometry (story 16)."
+   },
+   {
+    "key": "universe.idx_price_floor_role",
+    "value": "data_validity",
+    "justification": "The Rp 100 floor is data validity and never cost control, so no reader infers a penny-stock filter with an implied cost story (story 17)."
+   },
+   {
+    "key": "universe.statelessness",
+    "value": "stateless_gates_through_t_minus_1",
+    "justification": "The universe is stateless \u2014 three gates measured through t\u22121 with no reference to prior membership \u2014 a known difference from the app's hysteresis band whose boundary churn is nearly free at signal level and real at portfolio level (stories 9, 18, 19)."
+   },
+   {
+    "key": "universe.reference_exclusion",
+    "value": "exclude_index_and_benchmark_etfs",
+    "justification": "The five benchmark references stay out of the ranked field, pinned against the enumeration by a test, so this fresh build inherits the #162 fix rather than reproducing the contamination (stories 73, 74)."
+   },
+   {
+    "key": "detection.gate",
+    "value": [
+     "1m",
+     "3m",
+     "6m",
+     "12m"
+    ],
+    "justification": "The detection gate is the four-lookback width (detector v3, ADR 0003 amendment); the denominator is built against that width and it is not swept in the primary run (PRD Implementation Decisions)."
+   },
+   {
+    "key": "regime.source",
+    "value": "app_regime_off_market_index_at_t_minus_1",
+    "justification": "Regime is the app's own regime, unmodified, read off each market's own index at t\u22121 \u2014 so findings are actionable in the product and the conditioning input obeys the point-in-time rule (stories 21, 23)."
+   },
+   {
+    "key": "regime.role",
+    "value": "conditioning_variable_never_filter",
+    "justification": "Regime is a conditioning variable and never a filter: every state trades and each one's expectancy is measured instead of assumed (story 22)."
+   },
+   {
+    "key": "entry.rule",
+    "value": "detection_trigger_filled_next_session",
+    "justification": "Entry is taken at the detection's own trigger, filled the next session, so the simulated trade uses the detector's own decision rather than a second definition (story 31)."
+   },
+   {
+    "key": "stop.rule",
+    "value": "detection_stop_unmodified",
+    "justification": "The stop is the detection's own stop, used unmodified, so R is denominated the way the app denominates it (story 32)."
+   },
+   {
+    "key": "exit.arm_a",
+    "value": {
+     "scale_fraction": 0.5,
+     "scale_day": 5,
+     "trail_ma": 10,
+     "trail_live_from": "fill",
+     "arbitrary_mechanics": true
+    },
+    "justification": "Arm A scales 50% off at the close of the fifth session after entry and trails the remainder on a 10MA \u2014 the trader's documented behaviour; its R is two position-weighted legs summed, and 'day 5' and the trail are recorded as arbitrary (stories 34, 36, 37, 39). The trail is live from the fill rather than from the scale day, so a runner that rolls over before day 5 takes the whole position and the scale never happens; that is a third arbitrary choice and is recorded here rather than left in the code, so a later run can sweep it (story 39)."
+   },
+   {
+    "key": "exit.arm_b",
+    "value": {
+     "trail_ma": 10
+    },
+    "justification": "Arm B is a pure 10MA trail, directly comparable to the reference set's simulated exit and the arm the primary metric is computed on (story 35)."
+   },
+   {
+    "key": "exit.arm_c",
+    "value": {
+     "trail_ma": 20
+    },
+    "justification": "Arm C is a pure 20MA trail, the reference set's second simulated exit (story 35)."
+   },
+   {
+    "key": "exit.trail_mechanic",
+    "value": "close_through_ma_signals_fill_next_open",
+    "justification": "A trail signals on a close through the MA and fills at the next open, so the exit is point-in-time and reproducible; recorded as arbitrary so a later run can vary it deliberately (stories 38, 39)."
+   },
+   {
+    "key": "costs.per_market",
+    "value": {
+     "US": {
+      "commission_bps": 0.0,
+      "slippage_bps": 5.0
+     },
+     "IDX": {
+      "commission_bps": 15.0,
+      "slippage_bps": 25.0
+     }
+    },
+    "justification": "Commission and slippage are per-market contract values applied before any sweep, so IDX's real fees and spread are not modelled with US's near-zero assumptions; this pre-registered baseline is recorded here and swept variants are reported with the count of variants tried (story 40)."
+   },
+   {
+    "key": "metric.primary",
+    "value": "arm_b_after_cost_expectancy_r_per_market_per_year",
+    "justification": "The one pre-registered primary metric is arm B's after-cost expectancy in R, per market per year, so the headline cannot be chosen after the fact (story 41)."
+   },
+   {
+    "key": "decision.kill",
+    "value": {
+     "metric": "arm_b_after_cost_expectancy_r",
+     "comparator": "<=",
+     "threshold": 0.0,
+     "requires": [
+      "both_markets",
+      "full_window",
+      "and_excluding_2020_2021"
+     ],
+     "basis": "survivor_biased_number"
+    },
+    "justification": "Kill fires only when arm B's after-cost expectancy is \u2264 0 in both markets on the full window and with 2020\u201321 excluded, and the line is drawn on the survivor-biased number so a failure is decisive \u2014 the honest figure can only be worse (stories 42, 43)."
+   },
+   {
+    "key": "decision.ship",
+    "value": {
+     "requires": [
+      "positive_result",
+      "clears_phase2_pessimistic_bound"
+     ],
+     "scope": "per_market"
+    },
+    "justification": "Ship requires a positive result that also clears the Phase 2 pessimistic bound, scoped per market so a US pass licenses nothing in Jakarta (stories 44, 45)."
+   },
+   {
+    "key": "decision.one_market_failure",
+    "value": "method_stands_that_market_off_until_explained",
+    "justification": "A one-market failure is its own pre-named verdict: the method stands and that market is off until a run explains the difference, so it is not improvised in the moment (story 46)."
+   },
+   {
+    "key": "decision.inconclusive",
+    "value": "report_inconclusive_no_swept_tiebreak",
+    "justification": "An inconclusive run is reported as inconclusive; reaching for a swept variant to break the tie is ruled out by the contract that exists to prevent it (story 47)."
+   },
+   {
+    "key": "decision.licensed_changes",
+    "value": "write_licensed_change_before_any_constant_moves",
+    "justification": "Each verdict's licensed change is written down before any constant moves, so a result cannot be converted into an unguarded edit (story 48)."
+   }
+  ]
+ },
+ "detector_version": 3,
+ "universe": "contract-stateless",
+ "arms_anchored": [
+  "B",
+  "C"
+ ],
+ "arms_measured_never_anchored": [
+  "A"
+ ],
+ "geometry": [
+  {
+   "anchor": "median_range_3bar_adr",
+   "label": "Median trailing 3-bar range at his entries",
+   "kind": "geometry",
+   "quantity": "bar-geometry",
+   "universe": null,
+   "unit": "ADR",
+   "source": "findings \u00a73b",
+   "detector_stamp": "detector-independent (bar geometry)",
+   "measured_at_detector": [],
+   "first_measurement": false,
+   "tolerance_reason": null,
+   "note": "the ungated ruler the far-outlier guard tests and the rubric grades; monotone in k, so it is also the tightest window the cluster scan sees",
+   "superseded": [],
+   "arm": null,
+   "verdict": "diverged (explained)",
+   "explanation": "the backtest store carries only rankable candidates, so his 150 reference-ETF trades (#162) and 3 never-enumerated ones are absent; the 496 trades both stores measure carry bit-identical geometry, and filtering the replay store to this population reproduces this figure exactly",
+   "components": [
+    {
+     "component": "median",
+     "committed": 1.31,
+     "measured": 1.2752205469039555,
+     "tolerance": 0.02,
+     "divergence": -0.03477945309604458,
+     "matched": false,
+     "sign_flipped": false
+    }
+   ]
+  },
+  {
+   "anchor": "median_range_5bar_adr",
+   "label": "Median trailing 5-bar range at his entries",
+   "kind": "geometry",
+   "quantity": "bar-geometry",
+   "universe": null,
+   "unit": "ADR",
+   "source": "findings \u00a73b, \u00a73c",
+   "detector_stamp": "detector-independent (bar geometry)",
+   "measured_at_detector": [],
+   "first_measurement": false,
+   "tolerance_reason": null,
+   "note": "the travel measure \u00a73c reads the late contraction off \u2014 flat at ~2.4 ADR from three months out, falling only in the last ~10 sessions",
+   "superseded": [],
+   "arm": null,
+   "verdict": "diverged (explained)",
+   "explanation": "(as above)",
+   "components": [
+    {
+     "component": "median",
+     "committed": 1.86,
+     "measured": 1.7674291610221797,
+     "tolerance": 0.02,
+     "divergence": -0.09257083897782037,
+     "matched": false,
+     "sign_flipped": false
+    }
+   ]
+  },
+  {
+   "anchor": "median_adr_at_entry_eve",
+   "label": "Median 20-day ADR at entry eve",
+   "kind": "geometry",
+   "quantity": "bar-geometry",
+   "universe": null,
+   "unit": "fraction of price",
+   "source": "findings \u00a73c",
+   "detector_stamp": "detector-independent (bar geometry)",
+   "measured_at_detector": [],
+   "first_measurement": false,
+   "tolerance_reason": null,
+   "note": "flat into his entries: what contracts is travel, not the daily range, so a store bug that smooths bars shows here before anywhere else",
+   "superseded": [],
+   "arm": null,
+   "verdict": "diverged (explained)",
+   "explanation": "(as above)",
+   "components": [
+    {
+     "component": "median",
+     "committed": 0.0608,
+     "measured": 0.06427697943371014,
+     "tolerance": 0.001,
+     "divergence": 0.0034769794337101353,
+     "matched": false,
+     "sign_flipped": false
+    }
+   ]
+  }
+ ],
+ "gate_dependent": [
+  {
+   "anchor": "coverage_blind_spot",
+   "label": "Blind-spot tickers / trades, 2019\u20132022",
+   "kind": "gate-dependent",
+   "quantity": "reference-coverage",
+   "universe": null,
+   "unit": "count",
+   "source": "findings \u00a72",
+   "detector_stamp": "detector-independent (bar geometry)",
+   "measured_at_detector": [],
+   "first_measurement": false,
+   "tolerance_reason": null,
+   "note": "measured in the replay window against bars covering each trade's evaluation session \u2014 the condition under which anything can be said about a trade at all",
+   "superseded": [
+    {
+     "value": "81 tickers / 141 trades / 11.7%",
+     "why": "measured over all history rather than in the replay window (#114)"
+    },
+    {
+     "value": "91 tickers / 170 trades of 658 replayable",
+     "why": "measured under the has-any-bars test #139 replaced, which replayed one company's trade against another company's bars"
+    }
+   ],
+   "arm": null,
+   "verdict": "diverged (explained)",
+   "explanation": "the survivorship hole over a window reaching seven years further back than findings \u00a72's, measured not fixed; #196 owns bounding it",
+   "components": [
+    {
+     "component": "blind_spot_tickers",
+     "committed": 92,
+     "measured": 136.0,
+     "tolerance": 0,
+     "divergence": 44.0,
+     "matched": false,
+     "sign_flipped": false
+    },
+    {
+     "component": "blind_spot_trades",
+     "committed": 172,
+     "measured": 325.0,
+     "tolerance": 0,
+     "divergence": 153.0,
+     "matched": false,
+     "sign_flipped": false
+    },
+    {
+     "component": "distinct_tickers",
+     "committed": 312,
+     "measured": 312.0,
+     "tolerance": 0,
+     "divergence": 0.0,
+     "matched": true,
+     "sign_flipped": false
+    },
+    {
+     "component": "total_rows",
+     "committed": 828,
+     "measured": 828.0,
+     "tolerance": 0,
+     "divergence": 0.0,
+     "matched": true,
+     "sign_flipped": false
+    },
+    {
+     "component": "rows_with_outcomes",
+     "committed": 827,
+     "measured": 827.0,
+     "tolerance": 0,
+     "divergence": 0.0,
+     "matched": true,
+     "sign_flipped": false
+    },
+    {
+     "component": "blind_spot_r_share",
+     "committed": 0.18,
+     "measured": 0.25926482070995255,
+     "tolerance": 0.001,
+     "divergence": 0.07926482070995255,
+     "matched": false,
+     "sign_flipped": false
+    }
+   ]
+  },
+  {
+   "anchor": "detection_recall",
+   "label": "Detection recall (A1), gate-invariant",
+   "kind": "gate-dependent",
+   "quantity": "detection-recall (gate-invariant)",
+   "universe": null,
+   "unit": "trades",
+   "source": "findings \u00a73, \u00a73b",
+   "detector_stamp": "detector v2, v3",
+   "measured_at_detector": [
+    2,
+    3
+   ],
+   "first_measurement": false,
+   "tolerance_reason": null,
+   "note": "whether the detector would have fired on his name at all \u2014 never whether the name reached that night's field",
+   "superseded": [
+    {
+     "value": "380 of 658",
+     "why": "measured under v1's hard 1.5\u00d7ADR cluster cut, before #154's far-outlier guard, and on the pre-#139 replayable population"
+    }
+   ],
+   "arm": null,
+   "verdict": "diverged (explained)",
+   "explanation": "the same rate over a smaller population \u2014 421/503 is 83.70% against the committed 83.69% \u2014 so the detector reproduces and only the population moved",
+   "components": [
+    {
+     "component": "passed",
+     "committed": 549,
+     "measured": 421.0,
+     "tolerance": 0,
+     "divergence": -128.0,
+     "matched": false,
+     "sign_flipped": false
+    },
+    {
+     "component": "of",
+     "committed": 656,
+     "measured": 503.0,
+     "tolerance": 0,
+     "divergence": -153.0,
+     "matched": false,
+     "sign_flipped": false
+    }
+   ]
+  },
+  {
+   "anchor": "in_field_stateless",
+   "label": "Trades in the replayed field (A2 in_field), contract universe",
+   "kind": "gate-dependent",
+   "quantity": "field-membership (gate-dependent)",
+   "universe": "contract-stateless",
+   "unit": "trades",
+   "source": "#198's full run, attributed by #211",
+   "detector_stamp": "detector v3",
+   "measured_at_detector": [
+    3
+   ],
+   "first_measurement": true,
+   "tolerance_reason": "a first measurement anchoring against the run that produced it, so it detects drift from here on rather than confirming this run. Two measurements #211 made over the app's universe are what corroborate it instead: \u00a74b's own 397/656 (+1.95pp) reproduced exactly, and the same 503 names held fixed giving 324/503 (+1.86pp) \u2014 the pin is sound and the sign belongs to the pair of universes, not to a bug",
+   "note": "the same quantity as the row above, counted over the contract's stateless universe instead of the app's. The negative sign is the measured property, not a failure: #211 attributed it to the ADR20 floor and the trend gate acting together, each of which duplicates a rubric dimension and lifts the field's hit rate on it until no spread is left. Neither gate alone restores the sign and no constant was moved (references/backtest_gate_isolation.md)",
+   "superseded": [],
+   "arm": null,
+   "verdict": "match",
+   "explanation": null,
+   "components": [
+    {
+     "component": "in_field",
+     "committed": 165,
+     "measured": 165.0,
+     "tolerance": 0,
+     "divergence": 0.0,
+     "matched": true,
+     "sign_flipped": false
+    },
+    {
+     "component": "of",
+     "committed": 503,
+     "measured": 503.0,
+     "tolerance": 0,
+     "divergence": 0.0,
+     "matched": true,
+     "sign_flipped": false
+    },
+    {
+     "component": "gap_pp",
+     "committed": -5.01,
+     "measured": -5.006549825234521,
+     "tolerance": null,
+     "divergence": 0.0034501747654784864,
+     "matched": true,
+     "sign_flipped": false
+    }
+   ]
+  }
+ ],
+ "geometry_only": false,
+ "passes": true,
+ "geometry_sample": {
+  "n": 496,
+  "without_bars": 312,
+  "short_history": 20,
+  "no_prior_session": 0
+ }
+}

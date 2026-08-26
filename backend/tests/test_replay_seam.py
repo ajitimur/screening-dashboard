@@ -9574,10 +9574,14 @@ from backtest.anchors import (
     CONTAMINATION_TRADES,
     GATE_DEPENDENT,
     GATE_DEPENDENT_ANCHORS,
+    gate_dependent_anchors,
     GEOMETRY,
     GEOMETRY_ANCHORS,
     QUANTITY_DETECTION_RECALL,
     QUANTITY_IN_FIELD,
+    UNIVERSE_APP,
+    UNIVERSE_CONTRACT,
+    _field_measurements,
     AnchorReport,
     GeometrySample,
     Measurement,
@@ -9685,7 +9689,9 @@ def _all_measurements(**kwargs) -> list[Measurement]:
         _coverage_measurement(**kwargs.pop("coverage", {})),
         recall_measurement(_recall(**kwargs.pop("recall", {}))),
         in_field_measurement(
-            _cell(**kwargs.pop("cell", {})), replayable=kwargs.pop("replayable", 656)
+            _cell(**kwargs.pop("cell", {})),
+            replayable=kwargs.pop("replayable", 656),
+            universe=UNIVERSE_APP,
         ),
     ]
 
@@ -9696,8 +9702,16 @@ def _all_measurements(**kwargs) -> list[Measurement]:
 def test_the_table_holds_six_anchors_with_the_three_geometry_ones_first():
     """The plan's order is a claim about what is worth reading when: geometry
     anchors the store and the indicators, so it is checked before anything that
-    depends on a gate."""
-    assert len(ANCHORS) == 6
+    depends on a gate.
+
+    The table carries seven rows and a run is held to six of them. The extra row
+    is ``in_field``'s second universe (#211), and a run screens its field with one
+    set of gates or the other — never both — so exactly one of the two applies.
+    """
+    assert len(ANCHORS) == 7
+    assert len(gate_dependent_anchors(UNIVERSE_APP)) == 3
+    assert len(gate_dependent_anchors(UNIVERSE_CONTRACT)) == 3
+    assert len(GEOMETRY_ANCHORS) + len(gate_dependent_anchors(UNIVERSE_APP)) == 6
     assert [a.key for a in ANCHORS[:3]] == [a.key for a in GEOMETRY_ANCHORS]
     assert {a.kind for a in GEOMETRY_ANCHORS} == {GEOMETRY}
     assert {a.kind for a in GATE_DEPENDENT_ANCHORS} == {GATE_DEPENDENT}
@@ -9804,7 +9818,7 @@ def test_a_geometry_failure_stops_before_the_gate_dependent_anchors_are_read():
         *_geometry_measurements(three=1.31, five=2.60, adr=0.0608),
         _coverage_measurement(),
         recall_measurement(_recall()),
-        in_field_measurement(_cell(), replayable=656),
+        in_field_measurement(_cell(), replayable=656, universe=UNIVERSE_APP),
     ]
 
     with pytest.raises(DriftError) as excinfo:
@@ -9915,7 +9929,9 @@ def test_the_two_field_measurements_come_from_two_different_types():
     other's measurement."""
     assert recall_measurement(_recall()).quantity == QUANTITY_DETECTION_RECALL
     assert (
-        in_field_measurement(_cell(), replayable=656).quantity == QUANTITY_IN_FIELD
+        in_field_measurement(
+            _cell(), replayable=656, universe=UNIVERSE_APP
+        ).quantity == QUANTITY_IN_FIELD
     )
     with pytest.raises(DriftError):
         recall_measurement(dataclasses.replace(_recall(), stage="liquidity"))
@@ -9926,7 +9942,8 @@ def test_in_field_is_anchored_on_the_whole_field_only():
     retention emptied 316 of 821 sessions, and #164 measured what that did."""
     with pytest.raises(DriftError) as excinfo:
         in_field_measurement(
-            _cell(field_source=FIELD_TRUNCATED), replayable=656
+            _cell(field_source=FIELD_TRUNCATED), replayable=656,
+            universe=UNIVERSE_APP,
         )
 
     assert "whole field" in str(excinfo.value)
@@ -9971,7 +9988,7 @@ def test_a_median_that_could_not_be_computed_fails_rather_than_passing():
         check_anchors([
             *geometry_measurements(empty), _coverage_measurement(),
             recall_measurement(_recall()),
-            in_field_measurement(_cell(), replayable=656),
+            in_field_measurement(_cell(), replayable=656, universe=UNIVERSE_APP),
         ])
 
     assert "median_range_3bar_adr" in str(excinfo.value)
@@ -10025,7 +10042,7 @@ def test_a_measurement_tagged_with_arm_a_is_refused():
     with pytest.raises(DriftError) as excinfo:
         check_anchors([
             *_geometry_measurements(), _coverage_measurement(), recall,
-            in_field_measurement(_cell(), replayable=656),
+            in_field_measurement(_cell(), replayable=656, universe=UNIVERSE_APP),
         ])
 
     assert "arm 'A'" in str(excinfo.value)
@@ -10035,7 +10052,8 @@ def test_an_arm_b_measurement_anchors_normally():
     report = check_anchors([
         *_geometry_measurements(), _coverage_measurement(),
         recall_measurement(_recall(), arm=ARM_B),
-        in_field_measurement(_cell(), replayable=656, arm=ARM_B),
+        in_field_measurement(_cell(), replayable=656, universe=UNIVERSE_APP,
+                             arm=ARM_B),
     ])
 
     assert report.passes
@@ -10149,7 +10167,7 @@ def test_the_geometry_sample_size_rides_on_the_report(store):
             ),
             _coverage_measurement(),
             recall_measurement(_recall()),
-            in_field_measurement(_cell(), replayable=656),
+            in_field_measurement(_cell(), replayable=656, universe=UNIVERSE_APP),
         ],
         sample=measured,
     )
@@ -10186,7 +10204,7 @@ def test_the_anchor_report_is_stamped_and_serialises():
         a.key for a in GEOMETRY_ANCHORS
     ]
     assert [c["anchor"] for c in body["gate_dependent"]] == [
-        a.key for a in GATE_DEPENDENT_ANCHORS
+        a.key for a in gate_dependent_anchors(UNIVERSE_APP)
     ]
     assert body["arms_anchored"] == list(ANCHOR_ARMS)
     assert body["arms_measured_never_anchored"] == [ARM_A]
@@ -10278,7 +10296,7 @@ def test_the_command_writes_a_stamped_result_when_every_anchor_is_offered(
     field.write_text(json.dumps({
         "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
         "in_field": {"in_field": 395, "of": 656, "gap_pp": 1.9,
-                     "field": "whole", "detector_version": 3},
+                     "field": "whole", "universe": UNIVERSE_APP, "detector_version": 3},
     }))
     out_json = tmp_path / "anchors.json"
 
@@ -10316,7 +10334,7 @@ def test_the_command_fails_on_a_field_anchor_from_the_wrong_version(tmp_path):
     field.write_text(json.dumps({
         "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
         "in_field": {"in_field": 349, "of": 656, "gap_pp": 2.02,
-                     "field": "whole", "detector_version": 2},
+                     "field": "whole", "universe": UNIVERSE_APP, "detector_version": 2},
     }))
 
     code = anchors_main([
@@ -10376,7 +10394,8 @@ def test_the_command_enforces_the_same_two_gates_its_adapters_do(tmp_path, capsy
     truncated.write_text(json.dumps({
         "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
         "in_field": {"in_field": 397, "of": 656, "gap_pp": 1.95,
-                     "field": "truncated", "detector_version": 3},
+                     "field": "truncated", "universe": UNIVERSE_APP,
+                     "detector_version": 3},
     }))
     assert anchors_main(["--store", str(path), "--reference", str(reference),
                          "--field-measurements", str(truncated), *explain]) == 1
@@ -10386,7 +10405,8 @@ def test_the_command_enforces_the_same_two_gates_its_adapters_do(tmp_path, capsy
     wrong_stage.write_text(json.dumps({
         "detection_recall": {"passed": 549, "of": 656, "stage": "liquidity"},
         "in_field": {"in_field": 397, "of": 656, "gap_pp": 1.95,
-                     "field": "whole", "detector_version": 3},
+                     "field": "whole", "universe": UNIVERSE_APP,
+                     "detector_version": 3},
     }))
     assert anchors_main(["--store", str(path), "--reference", str(reference),
                          "--field-measurements", str(wrong_stage), *explain]) == 1
@@ -10429,6 +10449,195 @@ def test_the_arms_never_anchored_are_derived_once():
     place — applied to the complement as well as to the set."""
     assert MEASURED_NEVER_ANCHORED == (ARM_A,)
     assert set(MEASURED_NEVER_ANCHORED) | set(ANCHOR_ARMS) == set(ARM_SPECS)
+
+
+# -- the two universes, and the anchor scoped to each ---------------------------
+
+
+def _stateless_cell(**overrides) -> CellMeasurement:
+    """A grid cell landing on the pair the contract's own universe measured.
+
+    ``in_field`` 165 of 503, and shares whose difference is §4b's gap with the
+    sign #211 attributed to the ADR floor and the trend gate together.
+    """
+    return _cell(**{
+        "in_field": 165, "picks_share": 0.1335, "field_share": 0.1836,
+        **overrides,
+    })
+
+
+def _stateless_measurements(**overrides) -> list[Measurement]:
+    """Every anchor's measurement for a run over the contract's stateless universe.
+
+    Coverage and recall are left at their committed values: neither moves with the
+    universe, and holding them still is what keeps these tests about the one
+    anchor that does.
+    """
+    return [
+        *_geometry_measurements(**overrides.pop("geometry", {})),
+        _coverage_measurement(),
+        recall_measurement(_recall()),
+        in_field_measurement(
+            _stateless_cell(**overrides.pop("cell", {})),
+            replayable=overrides.pop("replayable", 503),
+            universe=UNIVERSE_CONTRACT,
+        ),
+    ]
+
+
+def test_the_table_scopes_in_field_to_the_universe_it_was_measured_over():
+    """§4b's +1.95pp and the run's own −5.01pp are one quantity over two different
+    universes, and #211 measured that the pair is what the number is a property
+    of. Two anchors, each naming its universe, is that finding as data: a run is
+    checked against the pin measured over the universe it actually ran."""
+    app = ANCHORS_BY_KEY["in_field"]
+    stateless = ANCHORS_BY_KEY["in_field_stateless"]
+
+    assert app.universe == UNIVERSE_APP
+    assert stateless.universe == UNIVERSE_CONTRACT
+    assert app.quantity == stateless.quantity == QUANTITY_IN_FIELD
+    assert app.committed["gap_pp"] == 1.95
+    assert stateless.committed["in_field"] == 165
+    assert stateless.committed["of"] == 503
+
+
+def test_the_geometry_anchors_hold_over_either_universe():
+    """They are medians off his bars and no gate touches them, so scoping them to
+    a universe would invent a distinction the measurement does not have."""
+    assert all(a.universe is None for a in GEOMETRY_ANCHORS)
+
+
+def test_a_run_is_checked_against_the_pin_measured_over_its_own_universe():
+    """The whole point of the second pin: the contract's stateless run reproduces
+    −5.01pp and settles, without §4b's +1.95pp ever being quoted at it."""
+    report = check_anchors(_stateless_measurements(), universe=UNIVERSE_CONTRACT)
+
+    assert report.passes
+    assert report.universe == UNIVERSE_CONTRACT
+    assert [c.anchor.key for c in report.gate_dependent] == [
+        "coverage_blind_spot", "detection_recall", "in_field_stateless",
+    ]
+
+
+def test_the_app_universe_run_still_anchors_on_findings_4b():
+    """The second pin adds a row; it does not move the first one. A run over the
+    app's universe is checked against §4b exactly as it was before."""
+    report = check_anchors(_all_measurements(), universe=UNIVERSE_APP)
+
+    assert report.passes
+    assert [c.anchor.key for c in report.gate_dependent] == [
+        "coverage_blind_spot", "detection_recall", "in_field",
+    ]
+
+
+def test_a_stateless_measurement_offered_against_findings_4b_is_refused():
+    """The category error #211 named, made unrepresentable. Quoting §4b's gap at a
+    measurement taken over the contract's universe is not a failing anchor, it is
+    two different numbers being compared — so it raises rather than reporting a
+    sign flip and charging it to the pipeline."""
+    with pytest.raises(DriftError) as exc:
+        check_anchors(_stateless_measurements(), universe=UNIVERSE_APP)
+
+    assert UNIVERSE_APP in str(exc.value)
+    assert UNIVERSE_CONTRACT in str(exc.value)
+
+
+def test_the_stateless_pin_keeps_its_own_sign_check():
+    """The guard is scoped, never dropped. −5.01pp is what the contract's universe
+    is pinned at, so a run coming back positive there has moved something and
+    fails for it — the same refusal, now asked over the right pair."""
+    flipped = {"picks_share": 0.1836, "field_share": 0.1335}
+
+    with pytest.raises(DriftError) as exc:
+        check_anchors(
+            _stateless_measurements(cell=flipped), universe=UNIVERSE_CONTRACT
+        )
+
+    assert "sign" in str(exc.value).lower()
+
+
+def test_a_sign_flip_on_the_stateless_pin_is_still_unwaivable():
+    """A written cause does not settle it, exactly as before. What #211 changed is
+    which pin a run is compared against, not whether a flip can be explained."""
+    flipped = {"picks_share": 0.1836, "field_share": 0.1335}
+
+    with pytest.raises(DriftError):
+        check_anchors(
+            _stateless_measurements(cell=flipped),
+            universe=UNIVERSE_CONTRACT,
+            explained={"in_field_stateless": "a cause written down"},
+        )
+
+
+def test_the_stateless_pin_says_it_is_a_first_measurement():
+    """It was measured once, by the run it now anchors. That makes it a drift
+    detector from here on rather than an independent check of this run, and the
+    row says so rather than letting a reader assume otherwise."""
+    stateless = ANCHORS_BY_KEY["in_field_stateless"]
+
+    assert stateless.first_measurement
+    text = format_anchors(
+        check_anchors(_stateless_measurements(), universe=UNIVERSE_CONTRACT)
+    )
+
+    assert "first measurement" in text
+    assert UNIVERSE_CONTRACT in text
+
+
+def test_a_field_measurement_must_name_the_universe_it_was_counted_over():
+    """No default, because the same grid measures both universes against two
+    different stores — #211's isolation ran ``run_grid`` over the backtest store —
+    so there is no universe a caller can be assumed to have meant."""
+    with pytest.raises(TypeError):
+        in_field_measurement(_cell(), replayable=656)
+
+
+def test_the_serialised_report_names_the_universe_it_anchored():
+    """#211's rule is that §4b's gap may not be cited without naming the field it
+    was measured over. A payload carrying the verdict and not the universe is
+    exactly that citation, so the universe rides on the result."""
+    body = anchors_report(
+        DEFAULT_CONTRACT,
+        check_anchors(_stateless_measurements(), universe=UNIVERSE_CONTRACT),
+    )
+
+    assert body["universe"] == UNIVERSE_CONTRACT
+    row = next(
+        c for c in body["gate_dependent"] if c["anchor"] == "in_field_stateless"
+    )
+    assert row["universe"] == UNIVERSE_CONTRACT
+    assert json.loads(json.dumps(body)) == body
+
+
+def test_the_field_measurement_file_must_name_its_universe(tmp_path):
+    """The documented reproduction command reads this file, so a guard that only
+    holds for in-process callers does not hold on the path that matters."""
+    path = tmp_path / "field.json"
+    path.write_text(json.dumps({
+        "in_field": {"in_field": 165, "of": 503, "gap_pp": -5.01,
+                     "field": "whole", "detector_version": 3}
+    }))
+
+    with pytest.raises(DriftError) as exc:
+        _field_measurements(str(path))
+
+    assert "universe" in str(exc.value)
+
+
+def test_the_field_measurement_file_routes_by_the_universe_it_names(tmp_path):
+    """The file names a universe and the row it becomes follows from it, so the
+    one path the reproduction command uses cannot land on the wrong pin."""
+    path = tmp_path / "field.json"
+    path.write_text(json.dumps({
+        "in_field": {"in_field": 165, "of": 503, "gap_pp": -5.01,
+                     "field": "whole", "detector_version": 3,
+                     "universe": UNIVERSE_CONTRACT}
+    }))
+
+    [measurement] = _field_measurements(str(path))
+
+    assert measurement.anchor == "in_field_stateless"
+    assert measurement.universe == UNIVERSE_CONTRACT
 
 
 # -- bounding the survivorship hole (issue #196) --------------------------------
@@ -11259,8 +11468,12 @@ def _fixture_contract(dates: list[date]) -> RunContract:
 
 
 def _settled() -> AnchorReport:
-    """An anchor report in which all six anchors matched."""
-    return check_anchors(_all_measurements())
+    """An anchor report in which all six anchors matched.
+
+    Over the **contract's** universe, because that is the field this run screens:
+    an app-universe report anchors a different run, however green it is.
+    """
+    return check_anchors(_stateless_measurements(), universe=UNIVERSE_CONTRACT)
 
 
 def _unsettled() -> AnchorReport:
@@ -11613,7 +11826,8 @@ def test_a_divergence_with_a_written_cause_settles_the_anchors(store, denominato
     """
     dates = _seed_two_market_store(store)
     explained = check_anchors(
-        _all_measurements(geometry={"three": 1.20}),
+        _stateless_measurements(geometry={"three": 1.20}),
+        universe=UNIVERSE_CONTRACT,
         explained={
             "median_range_3bar_adr": "the backtest store excludes the reference "
             "ETFs his entries include (#162)"
@@ -11746,6 +11960,59 @@ def test_four_of_six_read_off_disk_is_not_an_anchored_run(tmp_path, store, denom
     run = run_full(store, denominator, _fixture_contract(dates), anchors=outcome)
     with pytest.raises(AnchorsNotSettled, match="four of six"):
         full_run_report(run)
+
+
+def test_the_payload_names_the_universe_the_run_was_anchored_over(
+    store, denominator
+):
+    """#211's rule, carried on the artefact a later phase actually reads. A
+    settled-ness flag with no universe beside it is the citation that rule
+    forbids: §4b's gap is +1.95pp under one universe and −5.01pp under the other,
+    so "the anchors settled" is only a fact once it says which field."""
+    dates = _seed_two_market_store(store)
+    run = run_full(store, denominator, _fixture_contract(dates), anchors=_settled())
+
+    body = full_run_report(run)["anchors"]
+
+    assert body["settled"] is True
+    assert body["universe"] == UNIVERSE_CONTRACT
+    assert f"{UNIVERSE_CONTRACT} universe" in format_full_run(run)
+
+
+def test_a_green_report_over_the_app_universe_does_not_anchor_this_run(
+    store, denominator
+):
+    """The one failure a *passing* report can carry.
+
+    Every anchor in it matched — over the app's universe, which is not the field
+    this run screened. #211 measured that in_field and §4b's gap are properties of
+    the pair, so a report over the other universe anchors a different run however
+    green it is, and the gate has to see the difference between a report that
+    passed and a report that passed about something else.
+    """
+    dates = _seed_two_market_store(store)
+    app_universe = check_anchors(_all_measurements(), universe=UNIVERSE_APP)
+    assert app_universe.passes is True
+
+    run = run_full(
+        store, denominator, _fixture_contract(dates), anchors=app_universe
+    )
+
+    with pytest.raises(AnchorsNotSettled, match=UNIVERSE_APP):
+        format_full_run(run)
+
+
+def test_an_anchor_report_written_before_the_second_pin_is_refused(tmp_path):
+    """A report on disk with no ``universe`` key was written before #211 split the
+    pin, so it anchored §4b's figure over whatever field it happened to have. It
+    reads back as the app's universe — the honest default — rather than as this
+    run's, so the gate refuses it instead of believing it."""
+    body = anchors_report(DEFAULT_CONTRACT, check_anchors(_all_measurements()))
+    del body["universe"]
+    path = tmp_path / "anchors.json"
+    path.write_text(json.dumps(body))
+
+    assert read_anchor_report(path).universe == UNIVERSE_APP
 
 
 def test_the_run_reports_which_anchors_were_not_settled(store, denominator):

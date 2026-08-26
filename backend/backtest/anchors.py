@@ -1,5 +1,5 @@
 """Anchor before believing: the six committed figures a new run must reproduce
-(issue #197, PRD #182 Phase 6).
+(issue #197, PRD #182 Phase 6; the ``in_field`` pin split per universe by #211).
 
 The run overlaps ground the reference study already measured. Before any new
 figure from it is read, it reproduces the figures already committed to this repo
@@ -62,6 +62,35 @@ the trade count did. **Nor can a write-up waive it** — every other divergence 
 be explained in writing and recorded as a divergence, but a failure a free-text
 argument can wave through is not a failure, and this is the one the table exists
 to find.
+
+One quantity, two universes, two pins
+-------------------------------------
+For a while that sign check failed on #198's full run, and what it had caught was
+not a bug. #211 measured that ``in_field`` and §4b's gap are properties of the
+**pair** (rubric, universe) rather than of the rubric: +1.95pp under the app's
+universe, −5.01pp under the contract's stateless one, the reversal attributable to
+the ADR20 floor and the trend gate acting together, each duplicating a rubric
+dimension and lifting the field's hit rate on it until no spread is left. A
+property of the method under the contracted gates, not a defect in the field.
+
+So holding a contract-universe run to §4b's app-universe figure was never a
+failing anchor. It was a subtraction between two numbers that were never the same
+number — the #165 conflation one level down, with the field rather than the
+quantity as the thing being conflated. ``in_field`` is therefore **two anchors**,
+each naming its :attr:`Anchor.universe`, and :func:`gate_dependent_anchors`
+selects the one that holds over the field a run actually screened. A run is still
+checked against six anchors; the seventh row is the other universe's pin.
+
+Nothing was widened to get there. Both pins keep zero tolerance on their counts
+and both keep the sign check on the gap, so a contract-universe run coming back
+positive fails exactly as before. A measurement counted over one universe and
+offered against the other's pin is **refused** rather than reported as a
+divergence, because a mismatch there says nothing about the pipeline.
+
+The contract's pin is a first measurement, made by the run it now anchors, so it
+detects drift from here on rather than confirming that run. What corroborates the
+run is on the other universe: §4b's own 397/656 reproduced exactly, and 324/503
+(+1.86pp) with the population held fixed.
 
 Arms B and C only
 -----------------
@@ -141,6 +170,28 @@ QUANTITY_COVERAGE = "reference-coverage"
 QUANTITY_DETECTION_RECALL = "detection-recall (gate-invariant)"
 QUANTITY_IN_FIELD = "field-membership (gate-dependent)"
 
+# -- the two universes a field figure can be counted over ----------------------
+#
+# #211 measured that ``in_field`` and §4b's gap are properties of the *pair*
+# (rubric, universe) rather than of the rubric alone: +1.95pp under the app's
+# universe, −5.01pp under the contract's stateless one. The reversal is the ADR20
+# floor and the trend gate acting together, and it is a property of the method
+# under those gates rather than a defect in how the field is built
+# (``references/backtest_gate_isolation.md``).
+#
+# So a field figure that does not name its universe is not a number anyone can
+# check. These two names are what makes the pair explicit, and they are why
+# ``in_field`` is two anchors below rather than one: comparing a run over one
+# universe against a pin measured over the other is not a failing anchor, it is
+# two different quantities being subtracted.
+UNIVERSE_APP = "app"
+UNIVERSE_CONTRACT = "contract-stateless"
+
+# The universes an anchor may be scoped to. An anchor scoped to neither holds
+# over both — the geometry rows are medians off his bars and no gate touches
+# them, so scoping them would invent a distinction the measurement does not have.
+UNIVERSES = (UNIVERSE_APP, UNIVERSE_CONTRACT)
+
 # The `in_field` band the #162 reference contamination is allowed to move the count
 # by. The published values were measured on a store that ranks five references in a
 # ranked population of ~1,000, so percentile denominators shift by ~0.5%. Applied to
@@ -192,6 +243,14 @@ class Anchor:
     detection recall, which is gate-invariant and holds at v2 and v3 alike.
     ``sign_checked`` names components whose *sign* must reproduce regardless of
     tolerance.
+
+    ``universe`` names the field the figure was counted over, for the anchors
+    where that is part of what the number *is* (:data:`UNIVERSE_APP`,
+    :data:`UNIVERSE_CONTRACT`). ``None`` means the anchor holds over both, which
+    is the honest answer for every row no gate touches. It sits beside
+    ``quantity`` because it does the same job one level down: ``quantity`` keeps
+    recall and field membership from being conflated (#165), and ``universe``
+    keeps two field-membership figures from being conflated (#211).
     """
 
     key: str
@@ -203,6 +262,7 @@ class Anchor:
     unit: str
     source: str
     measured_at: tuple[int, ...]
+    universe: str | None = None
     first_measurement: bool = False
     tolerance_reason: str | None = None
     sign_checked: tuple[str, ...] = ()
@@ -356,9 +416,14 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
     ),
     Anchor(
         key="in_field",
-        label="Trades in the replayed field (A2 in_field)",
+        label="Trades in the replayed field (A2 in_field), app universe",
         kind=GATE_DEPENDENT,
         quantity=QUANTITY_IN_FIELD,
+        # §4b counted this over the *app's* universe, and #211 measured that the
+        # figure is a property of that pairing rather than of the rubric. Naming
+        # the universe here is what stops it being quoted at a run that screened
+        # its field differently.
+        universe=UNIVERSE_APP,
         # The gap rides on the same anchor as the count, because the count's
         # tolerance is only defensible while the gap's sign holds.
         committed={"in_field": 397, "of": 656, "gap_pp": 1.95},
@@ -400,11 +465,82 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
                 "measured before #139 re-pinned the replayable population"),
         ),
     ),
+    Anchor(
+        key="in_field_stateless",
+        label="Trades in the replayed field (A2 in_field), contract universe",
+        kind=GATE_DEPENDENT,
+        quantity=QUANTITY_IN_FIELD,
+        universe=UNIVERSE_CONTRACT,
+        committed={"in_field": 165, "of": 503, "gap_pp": -5.01},
+        tolerance={
+            # Zero on both counts, and deliberately not the app row's
+            # contamination band: that band exists because both committed values
+            # were measured on a store ranking five references as candidates
+            # (#162), and the backtest store is the fresh build where that is
+            # already fixed. There is nothing here for it to absorb.
+            "in_field": 0,
+            "of": 0,
+            "gap_pp": FREE,
+        },
+        unit="trades",
+        source="#198's full run, attributed by #211",
+        measured_at=(3,),
+        first_measurement=True,
+        sign_checked=("gap_pp",),
+        note=(
+            "the same quantity as the row above, counted over the contract's "
+            "stateless universe instead of the app's. The negative sign is the "
+            "measured property, not a failure: #211 attributed it to the ADR20 "
+            "floor and the trend gate acting together, each of which duplicates a "
+            "rubric dimension and lifts the field's hit rate on it until no "
+            "spread is left. Neither gate alone restores the sign and no constant "
+            "was moved (references/backtest_gate_isolation.md)"
+        ),
+        tolerance_reason=(
+            "a first measurement anchoring against the run that produced it, so "
+            "it detects drift from here on rather than confirming this run. Two "
+            "measurements #211 made over the app's universe are what corroborate "
+            "it instead: §4b's own 397/656 (+1.95pp) reproduced exactly, and the "
+            "same 503 names held fixed giving 324/503 (+1.86pp) — the pin is "
+            "sound and the sign belongs to the pair of universes, not to a bug"
+        ),
+    ),
 )
 
 ANCHORS: tuple[Anchor, ...] = GEOMETRY_ANCHORS + GATE_DEPENDENT_ANCHORS
 
 ANCHORS_BY_KEY: Mapping[str, Anchor] = {a.key: a for a in ANCHORS}
+
+
+# Which field-membership row a measurement belongs to, by the universe it names.
+# Derived from the table rather than written out again, so a third universe would
+# arrive here by adding an anchor and not by remembering to edit a second map.
+IN_FIELD_ANCHOR_BY_UNIVERSE: Mapping[str, str] = {
+    a.universe: a.key
+    for a in ANCHORS
+    if a.quantity == QUANTITY_IN_FIELD and a.universe is not None
+}
+
+
+def gate_dependent_anchors(universe: str) -> tuple[Anchor, ...]:
+    """The gate-dependent anchors that hold over ``universe``, in table order.
+
+    Coverage and recall are universe-independent and appear whatever is asked
+    for; ``in_field`` appears once, as whichever of its two rows was counted over
+    the universe the run actually screened its field with. A run is therefore
+    checked against **six** anchors, never seven — the second field row is a
+    second pin for a different universe, not a second thing to satisfy.
+    """
+    if universe not in UNIVERSES:
+        raise DriftError(
+            f"unknown universe {universe!r}; a field figure is counted over "
+            f"{' or '.join(UNIVERSES)} and a run that names neither cannot be "
+            "anchored on a field row at all"
+        )
+    return tuple(
+        a for a in GATE_DEPENDENT_ANCHORS
+        if a.universe is None or a.universe == universe
+    )
 
 
 # -- measurements: the existing types, adapted --------------------------------
@@ -426,6 +562,11 @@ class Measurement:
     values: Mapping[str, float]
     arm: str | None = None
     detector_version: int | None = None
+    # The universe the figure was counted over, where that is part of what the
+    # figure is. Set by the adapter alongside ``anchor``, so the two cannot
+    # disagree about which pin this measurement is for; ``None`` on every
+    # quantity no gate touches.
+    universe: str | None = None
 
 
 @dataclass(frozen=True)
@@ -620,6 +761,7 @@ def field_membership_measurement(
     replayable: int,
     gap_pp: float | None,
     field_source: str,
+    universe: str,
     detector_version: int | None,
     arm: str | None = None,
 ) -> Measurement:
@@ -633,14 +775,28 @@ def field_membership_measurement(
     The field must be the **whole** one: the truncated field is the population
     #164 found the two-year rank retention had emptied on 316 of 821 sessions, and
     every figure taken over it is superseded.
+
+    ``universe`` says which of the two pins this measurement is for, and has no
+    default. The same grid measures both — #211's isolation ran
+    :func:`~replay.discrimination_grid.run_grid` over the backtest store, and
+    §4b's own figure came off it over the replay store — so there is no universe a
+    caller can be assumed to have meant, and guessing wrong is precisely the
+    conflation the second pin exists to prevent.
     """
     if field_source != FIELD_WHOLE.name:
         raise DriftError(
             f"in_field is anchored on the whole field; got the "
             f"{field_source!r} field, whose figures are superseded"
         )
+    if universe not in IN_FIELD_ANCHOR_BY_UNIVERSE:
+        raise DriftError(
+            f"in_field must name the universe it was counted over "
+            f"({' or '.join(UNIVERSES)}); got {universe!r}. #211 measured that "
+            "the figure is a property of the pair, so one without a universe is "
+            "not a number that can be checked against anything"
+        )
     return Measurement(
-        anchor="in_field",
+        anchor=IN_FIELD_ANCHOR_BY_UNIVERSE[universe],
         quantity=QUANTITY_IN_FIELD,
         values={
             "in_field": in_field,
@@ -649,6 +805,7 @@ def field_membership_measurement(
         },
         arm=arm,
         detector_version=detector_version,
+        universe=universe,
     )
 
 
@@ -660,19 +817,28 @@ def recall_measurement(stage: StageRecall, *, arm: str | None = None) -> Measure
 
 
 def in_field_measurement(
-    cell: CellMeasurement, *, replayable: int, arm: str | None = None
+    cell: CellMeasurement,
+    *,
+    replayable: int,
+    universe: str,
+    arm: str | None = None,
 ) -> Measurement:
     """``in_field`` and §4b's gap, read off one grid cell.
 
     The gap is the cell's own
     :meth:`~replay.discrimination_grid.CellMeasurement.edge` under the rubric §4b
     published it with, so the sign this anchor guards is the sign §4b states.
+
+    ``universe`` is required and is not inferred from the cell: a cell knows which
+    store and which detector it came from, and nothing in it records which set of
+    gates screened the field underneath. That is the caller's fact to state.
     """
     return field_membership_measurement(
         in_field=cell.in_field,
         replayable=replayable,
         gap_pp=cell.edge(PUBLISHED_RUBRIC),
         field_source=cell.field_source.name,
+        universe=universe,
         detector_version=cell.detector.version,
         arm=arm,
     )
@@ -775,6 +941,11 @@ class AnchorReport:
     gate_dependent: tuple[AnchorCheck, ...]
     geometry_only: bool = False
     sample: GeometrySample | None = None
+    # Which universe the field rows were counted over. On the report rather than
+    # left to the caller because #211's rule is that §4b's gap may not be cited
+    # without naming the field it was measured over, and this report is the
+    # citation every later phase reads.
+    universe: str = UNIVERSE_APP
 
     @property
     def checks(self) -> tuple[AnchorCheck, ...]:
@@ -836,6 +1007,17 @@ def _check_one(
             f"measurement offered is {measurement.quantity!r}. These are "
             "different quantities and were conflated once already (#165): "
             "detection recall is gate-invariant, in_field moves with every gate"
+        )
+    if anchor.universe is not None and measurement.universe != anchor.universe:
+        raise DriftError(
+            f"anchor {anchor.key!r} is pinned over the {anchor.universe!r} "
+            f"universe, but the measurement offered was counted over "
+            f"{measurement.universe!r}. These are the same quantity over two "
+            "different fields, and #211 measured that the figure is a property "
+            "of the pair — +1.95pp under the app's universe, −5.01pp under the "
+            "contract's. Comparing them is not a failing anchor, it is a "
+            "subtraction between two numbers that were never the same number; "
+            "anchor the run against the pin measured over the universe it ran"
         )
     if measurement.arm is not None and measurement.arm not in ANCHOR_ARMS:
         raise DriftError(
@@ -980,6 +1162,32 @@ def _check_group(
     )
 
 
+def _refuse_foreign_universe(
+    by_anchor: Mapping[str, Measurement], universe: str
+) -> None:
+    """Refuse a field figure counted over a universe other than the run's.
+
+    Without this the mismatch arrives as "anchor ``in_field`` has no measurement",
+    which reads as a caller who forgot a row rather than as a caller who handed
+    over the other universe's — and the second is the mistake worth naming,
+    because it is the one that used to surface as a sign flip charged to the
+    pipeline.
+    """
+    wanted = IN_FIELD_ANCHOR_BY_UNIVERSE[universe]
+    for key, measurement in by_anchor.items():
+        if measurement.quantity != QUANTITY_IN_FIELD or key == wanted:
+            continue
+        raise DriftError(
+            f"the run was anchored over the {universe!r} universe, but the "
+            f"field-membership measurement offered was counted over "
+            f"{measurement.universe!r}. #211 measured that in_field and §4b's "
+            "gap are properties of the pair (rubric, universe) — +1.95pp under "
+            "the app's, −5.01pp under the contract's — so these were never the "
+            f"same number. Anchor over {measurement.universe!r}, or hand over "
+            f"the figures the {universe!r} universe produced"
+        )
+
+
 def check_anchors(
     measurements: Iterable[Measurement],
     *,
@@ -987,6 +1195,7 @@ def check_anchors(
     explained: Mapping[str, str] | None = None,
     arms: Sequence[str] = ANCHOR_ARMS,
     sample: GeometrySample | None = None,
+    universe: str = UNIVERSE_APP,
 ) -> AnchorReport:
     """Check every anchor, geometry first, and fail loudly on a mismatch.
 
@@ -1000,9 +1209,17 @@ def check_anchors(
     is recorded as a divergence and does not raise (the plan's "reproduce it, or
     explain the divergence in writing"); it never prints as a match. A divergence
     without one raises.
+
+    ``universe`` names the field the run screened, and selects which of the two
+    ``in_field`` pins it is held to (:func:`gate_dependent_anchors`). It is
+    checked against what the measurement itself says it counted, so a caller who
+    names one universe and hands over the other's figures is refused rather than
+    reported as a sign flip.
     """
     explained = dict(explained or {})
     by_anchor = _index(measurements, explained=explained, arms=arms)
+    gate_dependent_set = gate_dependent_anchors(universe)
+    _refuse_foreign_universe(by_anchor, universe)
 
     geometry = _check_group(
         GEOMETRY_ANCHORS, by_anchor, detector_version=detector_version,
@@ -1019,7 +1236,7 @@ def check_anchors(
         )
 
     gate_dependent = _check_group(
-        GATE_DEPENDENT_ANCHORS, by_anchor, detector_version=detector_version,
+        gate_dependent_set, by_anchor, detector_version=detector_version,
         explained=explained,
     )
     failed = [c for c in gate_dependent if not c.passes]
@@ -1036,6 +1253,7 @@ def check_anchors(
         geometry=geometry,
         gate_dependent=gate_dependent,
         sample=sample,
+        universe=universe,
     )
 
 
@@ -1061,6 +1279,7 @@ def _check_dict(check: AnchorCheck) -> dict[str, Any]:
         "label": a.label,
         "kind": a.kind,
         "quantity": a.quantity,
+        "universe": a.universe,
         "unit": a.unit,
         "source": a.source,
         "detector_stamp": a.detector_stamp,
@@ -1085,6 +1304,7 @@ def anchors_report(contract: RunContract, report: AnchorReport) -> dict[str, Any
     """
     body: dict[str, Any] = {
         "detector_version": report.detector_version,
+        "universe": report.universe,
         "arms_anchored": list(report.arms),
         "arms_measured_never_anchored": list(MEASURED_NEVER_ANCHORED),
         "geometry": [_check_dict(c) for c in report.geometry],
@@ -1106,6 +1326,8 @@ def anchors_report(contract: RunContract, report: AnchorReport) -> dict[str, Any
 def _format_check(check: AnchorCheck) -> list[str]:
     a = check.anchor
     lines = [f"  {a.label}", f"    stamp     {a.detector_stamp} — {a.source}"]
+    if a.universe is not None:
+        lines.append(f"    universe  {a.universe}")
     for c in check.components:
         mark = "ok " if c.matched else "!! "
         measured = "n/a" if isnan(c.measured) else f"{c.measured:.6g}"
@@ -1138,6 +1360,7 @@ def format_anchors(report: AnchorReport) -> str:
     """The anchor table as a page a terminal can print, in the plan's order."""
     lines = [
         f"anchors — detector v{report.detector_version}, "
+        f"universe {report.universe}, "
         f"arms {', '.join(report.arms)} "
         f"(arm{'s' if len(ARM_SPECS) - len(ANCHOR_ARMS) > 1 else ''} "
         f"{', '.join(a for a in sorted(ARM_SPECS) if a not in ANCHOR_ARMS)} "
@@ -1191,11 +1414,18 @@ def _field_measurements(path: str) -> list[Measurement]:
     ``in_field`` key and be believed, and the command is the one path the
     documented reproduction uses.
 
+    Since #211 the ``in_field`` row must also name the **universe** it screened
+    its field with, for the same reason it must name the field: the file is the
+    one path the documented reproduction uses, and a row without a universe is a
+    figure that could be checked against either pin and would be believed against
+    whichever one it was handed to.
+
     Schema — the numbers the two passes already print, and what they were::
 
         {"detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
          "in_field": {"in_field": 397, "of": 656, "gap_pp": 1.95,
-                      "field": "whole", "detector_version": 3}}
+                      "field": "whole", "universe": "app",
+                      "detector_version": 3}}
     """
     body = json.loads(Path(path).read_text())
     out: list[Measurement] = []
@@ -1209,12 +1439,21 @@ def _field_measurements(path: str) -> list[Measurement]:
         )
     if "in_field" in body:
         row = body["in_field"]
+        if "universe" not in row:
+            raise DriftError(
+                f"{path}: the in_field row does not name the universe it was "
+                f"counted over. Since #211 that is part of what the figure is — "
+                f"+1.95pp under {UNIVERSE_APP!r}, −5.01pp under "
+                f"{UNIVERSE_CONTRACT!r} — so a row without it cannot be checked "
+                "against either pin"
+            )
         out.append(
             field_membership_measurement(
                 in_field=row["in_field"],
                 replayable=row["of"],
                 gap_pp=row["gap_pp"],
                 field_source=row["field"],
+                universe=row["universe"],
                 detector_version=row.get("detector_version"),
                 arm=row.get("arm"),
             )
@@ -1237,6 +1476,11 @@ def main(argv: list[str] | None = None) -> int:
     reference study's outputs would anchor the new pipeline against the old one.
     Without them the command reports what it checked and exits non-zero, because a
     partially anchored run is not an anchored run.
+
+    That file also names the **universe** the run screened its field with, and the
+    command takes it from there rather than from a flag of its own — which of
+    ``in_field``'s two pins applies is a fact the run recorded, not a choice the
+    person typing the command gets to make (#211).
     """
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--store", required=True, help="path to the backtest bar store")
@@ -1295,9 +1539,20 @@ def main(argv: list[str] | None = None) -> int:
         # name the whole field, or a recall row that does not name the detection
         # stage, is a refusal of the same kind and reads better as one printed
         # line than as a traceback.
-        measurements += _field_measurements(args.field_measurements)
+        field_rows = _field_measurements(args.field_measurements)
+        measurements += field_rows
+        # The universe comes off the file rather than off a flag of its own.
+        # The file is where the run recorded which gates screened its field, and
+        # a flag beside it could only ever agree with that or contradict it.
+        universe = next(
+            (
+                m.universe for m in field_rows
+                if m.quantity == QUANTITY_IN_FIELD and m.universe
+            ),
+            UNIVERSE_APP,
+        )
         report = check_anchors(
-            measurements, explained=explained, sample=geometry
+            measurements, explained=explained, sample=geometry, universe=universe
         )
     except DriftError as exc:
         print(str(exc))

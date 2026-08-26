@@ -681,6 +681,21 @@ def in_field_measurement(
 # -- the check ----------------------------------------------------------------
 
 
+# The three verdicts an anchor can carry, named because they are also read back
+# off the serialised report by whoever is deciding whether a run may be believed
+# (:func:`backtest.full_run.read_anchor_report`). A verdict compared against a
+# string literal on the far side of a JSON file is a match nobody would notice
+# breaking.
+VERDICT_MATCH = "match"
+VERDICT_EXPLAINED = "diverged (explained)"
+VERDICT_FAILED = "FAILED"
+
+# The verdicts that license reading a figure: reproduced, or diverged with a
+# cause written down. The plan's "reproduce it, or explain the divergence in
+# writing", as data.
+SETTLED_VERDICTS = (VERDICT_MATCH, VERDICT_EXPLAINED)
+
+
 @dataclass(frozen=True)
 class ComponentCheck:
     """One component of one anchor: what was committed, what came back, and why
@@ -737,10 +752,10 @@ class AnchorCheck:
     @property
     def verdict(self) -> str:
         if self.matched:
-            return "match"
+            return VERDICT_MATCH
         if self.explained:
-            return "diverged (explained)"
-        return "FAILED"
+            return VERDICT_EXPLAINED
+        return VERDICT_FAILED
 
 
 @dataclass(frozen=True)
@@ -768,6 +783,27 @@ class AnchorReport:
     @property
     def passes(self) -> bool:
         return not self.geometry_only and all(c.passes for c in self.checks)
+
+    @property
+    def failed(self) -> tuple[str, ...]:
+        """The anchors that neither matched nor carry a written cause.
+
+        Beside :attr:`passes`, because it answers the follow-up question — *which
+        ones* — and a caller deriving it for itself has to walk from the report to
+        each check to its anchor to its key, which is a path this class should not
+        be exporting.
+        """
+        return tuple(c.anchor.key for c in self.checks if not c.passes)
+
+    @property
+    def explained(self) -> tuple[str, ...]:
+        """The anchors that diverged and carry a written cause.
+
+        The other half of :attr:`failed`: together they are the difference between
+        the plan's two ways of passing, and every result built over this report
+        reports them.
+        """
+        return tuple(c.anchor.key for c in self.checks if c.explained)
 
 
 def _matches(value: float, committed: float, tolerance: float | None) -> bool:

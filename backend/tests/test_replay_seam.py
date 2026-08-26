@@ -7525,3 +7525,443 @@ def test_the_price_scale_count_rides_on_the_figures_it_qualifies(
     assert us.price_scale_dropped == len(us.arms)
     assert report["markets"][0]["price_scale_dropped"] == len(us.arms)
     assert "price-scale flag would drop" in format_figures(report)
+
+
+# -- does the rubric rank, out of sample? (issue #194) -------------------------
+#
+# Phase 5's ranking cell, and the out-of-sample test §4a's claim has never had.
+# §4a asked whether the star score separates the trader's *picks* from the field,
+# on the same field the v2 weights had been fitted to — a fit statistic dressed as
+# a test, and marginal anyway at p = 0.055. Here the outcome variable is R, which
+# no weight was fitted to and which no detection's score could see. That is the
+# whole point of the measurement, and it is why the two figures are carried side
+# by side in the output rather than left for a reader to conflate.
+#
+# Three claims are load-bearing:
+#
+#   * **A tie never splits.** The replayed score is seven dimensions of eight
+#     integral points, so its distribution is coarse and true deciles do not
+#     exist. Every trade on the same score lands in the same bucket, the buckets
+#     collapse to fewer than ten, and the decile positions each one covers are
+#     named — a cut that split a tie would report two buckets differing by nothing
+#     but which rows the sort happened to put first.
+#   * **The score is the seven-dimension replayed one.** Never the app's nine
+#     points: ≥3.5★ is 7 of 8 here and 7 of 9 there, and a ceiling read off the
+#     wrong scale mislabels every band.
+#   * **Clustered by symbol, as everywhere else.** A name detected three times in
+#     a fortnight is one observation's worth of independence, not three.
+
+from backtest.ranking import (
+    APP_MAX_POINTS,
+    IN_SAMPLE_GAP,
+    SCORE_DIMENSIONS,
+    SCORE_LABEL,
+    SCORE_MAX_POINTS,
+    VERDICT_NO_EVIDENCE,
+    VERDICT_RANKS,
+    VERDICT_TOO_THIN,
+    Band,
+    ScoredTrade,
+    bands,
+    bootstrap_symbol_statistic,
+    check_seven_dimension_score,
+    format_ranking,
+    market_ranking,
+    outcomes,
+    rank_correlation,
+    ranking_report,
+    score_index,
+    scored_trades,
+    symbol_clusters,
+    top_minus_bottom,
+)
+
+
+def _score(points: int) -> SevenDimScore:
+    """A seven-dimension score worth exactly ``points``, out of eight.
+
+    The breakdown is not read by anything under test — the buckets are cut on the
+    total — so it is left empty rather than authored dimension by dimension, which
+    would make every fixture below an assertion about the rubric instead of about
+    the bucketing.
+    """
+    return SevenDimScore(
+        stars=points / 2,
+        points=points,
+        max_points=SEVEN_DIM_MAX_POINTS,
+        breakdown=[],
+        label=SEVEN_DIM_LABEL,
+    )
+
+
+def _rtrade(
+    symbol: str,
+    points: int,
+    r: float,
+    *,
+    year: int = 2016,
+    market: str = "US",
+    month: int = 3,
+    arm: str = ARM_B,
+) -> ScoredTrade:
+    """One arm-B trade at a known score and a known before-cost R.
+
+    Authored on :func:`_mtrade`, the metric section's own fixture, because the
+    ranking is arithmetic over the same trades priced the same way — a second
+    trade fixture here would be a second cost model nobody compared.
+    """
+    return ScoredTrade(
+        trade=_mtrade(symbol, year, r, market=market, arm=arm, month=month),
+        score=_score(points),
+    )
+
+
+def _ladder(points_to_r: dict[int, float], *, per_score: int = 6) -> list[ScoredTrade]:
+    """A cohort with ``per_score`` distinct symbols on each score, each paying its
+    score's R. Enough symbols per band to clear the bootstrap's cluster floor."""
+    return [
+        _rtrade(f"S{points}_{i}", points, r)
+        for points, r in points_to_r.items()
+        for i in range(per_score)
+    ]
+
+
+def test_outcomes_are_bucketed_by_star_score_decile_with_n_on_every_bucket(store):
+    """The measurement itself: buckets in ascending score order, each carrying the
+    count behind it.
+
+    n rides on every bucket because a bucket's expectancy is unreadable without it
+    — one trade at +4R and six hundred at +0.1R print the same headline — and the
+    counts sum to the cohort, so no trade is silently dropped between the cut and
+    the report.
+    """
+    cohort = _ladder({2: -0.5, 4: 0.2, 6: 1.5})
+
+    body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
+
+    buckets = body["buckets"]
+    assert [b["low_points"] for b in buckets] == [2, 4, 6]
+    assert [b["closed"] for b in buckets] == [6, 6, 6]
+    assert sum(b["trades"] for b in buckets) == len(cohort)
+    assert [b["symbols"] for b in buckets] == [6, 6, 6]
+    # Ascending in score, and the expectancy follows it here by construction.
+    values = [b["expectancy_r"] for b in buckets]
+    assert values == sorted(values)
+
+
+def test_a_tie_never_splits_across_two_buckets(store):
+    """The replayed score is eight integral points, so true deciles do not exist.
+
+    A cut that split a tie would put two trades scoring identically in different
+    buckets and report a difference between them, which would be a difference in
+    sort order and nothing else. So a score value is atomic: the buckets collapse
+    to fewer than ten and each one names the decile positions it covers.
+    """
+    # 80% of the cohort on one score: no decile boundary can pass through it.
+    cohort = [_rtrade(f"L{i}", 3, 0.1) for i in range(80)]
+    cohort += [_rtrade(f"H{i}", 6, 2.0) for i in range(20)]
+
+    cut = bands(cohort)
+
+    assert all(isinstance(b, Band) for b in cut)
+    assert len(cut) < 10
+    assert [(b.low_points, b.high_points) for b in cut] == [(3, 3), (6, 6)]
+    # The band that swallowed eight deciles says so, rather than reporting as one.
+    assert cut[0].deciles == tuple(range(1, 9))
+    assert cut[1].deciles == (9, 10)
+
+
+def test_the_bucket_a_trade_lands_in_never_depends_on_the_order_it_arrived(store):
+    """Determinism, stated as the property the tie rule buys.
+
+    The cut is a function of the score distribution, so shuffling the cohort moves
+    nothing. A cut that read the incoming order would produce a different set of
+    buckets on a re-run of the same data, with nothing in the output to show it.
+    """
+    cohort = _ladder({1: -1.0, 3: 0.0, 5: 1.0, 7: 2.0})
+    shuffled = list(reversed(cohort))
+
+    assert bands(cohort) == bands(shuffled)
+    assert market_ranking(DEFAULT_CONTRACT, cohort, market="US") == market_ranking(
+        DEFAULT_CONTRACT, shuffled, market="US"
+    )
+
+
+def test_a_score_that_ranks_shows_a_positive_gap_and_a_positive_rho(store):
+    """The claim under test, in the shape that would confirm it.
+
+    The top band beats the bottom, the rank correlation between score and outcome
+    is positive, and both intervals sit above zero — which is the only combination
+    the verdict rule reads as "ranks".
+    """
+    cohort = _ladder({1: -1.0, 3: -0.2, 5: 0.6, 7: 1.8}, per_score=8)
+
+    body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
+
+    assert body["gap"]["value"] > 0
+    assert body["gap"]["bootstrap"]["ci_low"] > 0
+    assert body["spearman"]["rho"] > 0
+    assert body["spearman"]["bootstrap"]["ci_low"] > 0
+    assert body["verdict"] == VERDICT_RANKS
+
+
+def test_a_score_that_does_not_rank_reports_no_evidence_rather_than_a_null_result(store):
+    """A rubric whose bands pay the same is the outcome §4a's claim risks.
+
+    The gap straddles zero, so the verdict says there is no evidence the score
+    ranks — not that it is proven flat, which is a stronger claim than a bootstrap
+    over one sample can license.
+
+    Every band draws the *same* spread of outcomes, so the score carries no
+    information about R and the true gap is zero. The spread inside a band is what
+    makes the interval an interval: a band whose every trade paid the same would
+    resample to a single number and print a certainty it has not earned.
+    """
+    spread = (-1.0, -1.0, -0.6, 0.3, 0.8, 2.2, -0.7, 1.1)
+    cohort = [
+        _rtrade(f"S{points}_{i}", points, r)
+        for points in (1, 3, 5, 7)
+        for i, r in enumerate(spread)
+    ]
+
+    body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
+
+    assert body["gap"]["bootstrap"]["ci_low"] < 0 < body["gap"]["bootstrap"]["ci_high"]
+    assert body["verdict"] == VERDICT_NO_EVIDENCE
+    assert "no evidence" in format_ranking(
+        ranking_report(DEFAULT_CONTRACT, cohort, markets=("US",))
+    )
+
+
+def test_significance_is_clustered_by_symbol_not_by_row(store):
+    """One name detected twenty times is not twenty independent observations.
+
+    The same data bootstrapped by row and by symbol must not produce the same
+    interval: the clustered one is wider and its p-value higher, and that widening
+    *is* the correction. Run on the gap rather than on a mean, because the gap is
+    the statistic the verdict is read off.
+    """
+    # One hot name at the top band, twenty times over, beside four cold names in
+    # the same band; twenty distinct names at the bottom. By row the top band is
+    # its hot name's twenty rows and the gap is decisive. By symbol the whole
+    # result turns on whether that one name was drawn, and a third of the time it
+    # is not — which is what the interval has to show.
+    cohort = [_rtrade("HOT", 7, 3.0, month=1 + (i % 12)) for i in range(20)]
+    cohort += [_rtrade(f"T{i}", 7, -1.5) for i in range(4)]
+    cohort += [_rtrade(f"C{i}", 1, -1.0) for i in range(20)]
+    cut = bands(cohort)
+    clustered = symbol_clusters(cohort, DEFAULT_CONTRACT)
+
+    by_symbol = bootstrap_symbol_statistic(
+        clustered, lambda rows: top_minus_bottom(rows, cut)
+    )
+    by_row = bootstrap_symbol_statistic(
+        [(row,) for cluster in clustered for row in cluster],
+        lambda rows: top_minus_bottom(rows, cut),
+    )
+
+    assert by_symbol["clusters"] == 25
+    assert by_row["clusters"] == 44
+    assert (by_symbol["ci_high"] - by_symbol["ci_low"]) > (
+        by_row["ci_high"] - by_row["ci_low"]
+    )
+    assert by_symbol["p_value"] > by_row["p_value"]
+    assert by_symbol["cluster"] == BOOTSTRAP_CLUSTER
+
+
+def test_a_bucket_too_thin_to_bootstrap_says_so_and_still_reports_its_n(store):
+    """Per-year buckets are exactly where the symbol count goes thin.
+
+    A single symbol resampled two thousand times returns its own mean two thousand
+    times — a zero-width interval that prints as certainty from one observation.
+    So the interval is refused and the count is not: "too few symbols to say" and
+    "no result" are different findings.
+    """
+    cohort = [_rtrade("ONE", 6, 2.0, month=1 + i) for i in range(3)]
+    cohort += _ladder({2: -1.0}, per_score=6)
+
+    body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
+
+    top = body["buckets"][-1]
+    assert top["closed"] == 3
+    assert top["symbols"] == 1
+    assert top["bootstrap"]["ci_low"] is None
+    assert "too thin" in top["bootstrap"]["suppressed"]
+    assert body["verdict"] == VERDICT_TOO_THIN
+    assert "too thin" in format_ranking(
+        ranking_report(DEFAULT_CONTRACT, cohort, markets=("US",))
+    )
+
+
+def test_every_year_of_the_measured_window_gets_a_row_on_the_same_bands(store):
+    """Per market *and* per year, and the bands are cut once on the market's whole
+    window.
+
+    Cutting per year would make "the top bucket" a different score band in every
+    row, so a year-on-year comparison would compare two different questions. The
+    years run from the contract's measured start, so a market that traded nothing
+    until later has its silent years on the page rather than missing from it.
+    """
+    cohort = _ladder({2: -0.5, 6: 1.5}, per_score=6)
+    cohort += [_rtrade(f"N{i}", 6, 1.0, year=2017) for i in range(6)]
+
+    body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
+
+    years = {y["year"]: y for y in body["years"]}
+    assert min(years) == int(DEFAULT_CONTRACT.value(WINDOW_MEASURED_START_KEY)[:4])
+    assert max(years) == 2017
+    window_bands = [b["band"] for b in body["buckets"]]
+    for year in years.values():
+        assert [b["band"] for b in year["buckets"]] == window_bands
+    # 2017 traded only the top band; the bottom band's row is a zero, not a gap.
+    assert [b["closed"] for b in years[2017]["buckets"]] == [0, 6]
+
+    # On the page a silent year is one line rather than a band per bucket: it
+    # stays visible — it is a measurement, and possibly a data hole — without
+    # burying the years that traded under fourteen empty ladders.
+    printed = format_ranking(
+        ranking_report(DEFAULT_CONTRACT, cohort, markets=("US",))
+    ).splitlines()
+    assert "    2013  no trades" in printed
+    assert sum(1 for line in printed if line.startswith("    2013")) == 1
+
+
+def test_us_and_idx_never_pool(store):
+    """findings §8 measured that magnitudes do not transfer, so a mean across the
+    two markets is a number about neither — and a bucket built from both would
+    hide it inside a band label that looked ordinary."""
+    with pytest.raises(ValueError):
+        market_ranking(
+            DEFAULT_CONTRACT,
+            [_rtrade("AAA", 6, 1.0), _rtrade("BBB.JK", 6, 1.0, market="IDX")],
+            market="US",
+        )
+
+
+def test_the_ranking_is_arm_bs_and_refuses_another_arm(store):
+    """Arm B is the pre-registered arm, and an arm A trade averaged into it would
+    report a figure no arm produced under arm B's name."""
+    with pytest.raises(ValueError):
+        market_ranking(
+            DEFAULT_CONTRACT,
+            [_rtrade("AAA", 6, 1.0), _rtrade("BBB", 6, 1.0, arm=ARM_A)],
+            market="US",
+        )
+
+
+def test_the_score_is_the_seven_dimension_one_and_the_apps_ceiling_is_named(store):
+    """≥3.5★ is 7 of 8 here and 7 of 9 in the app. A band read off the wrong
+    ceiling mislabels every bucket, so both scales ride on the output and the
+    replayed one is labelled wherever it is printed."""
+    report = ranking_report(
+        DEFAULT_CONTRACT, _ladder({2: -0.5, 6: 1.5}), markets=("US",)
+    )
+
+    score = report["score"]
+    assert score["label"] == SCORE_LABEL == SEVEN_DIM_LABEL
+    assert score["dimensions"] == SCORE_DIMENSIONS == 7
+    assert score["max_points"] == SCORE_MAX_POINTS == SEVEN_DIM_MAX_POINTS
+    assert score["app_max_points"] == APP_MAX_POINTS == SCORE_MAX_POINTS + 1
+    assert score["max_stars"] == 4.0
+    printed = format_ranking(report)
+    assert SEVEN_DIM_LABEL in printed
+    assert "not the app's" in printed
+
+
+def test_a_score_on_the_apps_nine_point_ceiling_is_drift_not_a_ninth_point(store):
+    """The replayed score drops `Sector` and totals out of eight. A nine-point row
+    arriving here means the field was scored by something else, and reading it as
+    a seven-dimension one would re-base every band silently."""
+    nine = SevenDimScore(
+        stars=4.5, points=9, max_points=9, breakdown=[], label="star score"
+    )
+
+    check_seven_dimension_score(_score(6))
+    with pytest.raises(ContractDrift):
+        check_seven_dimension_score(nine)
+
+
+def test_the_result_is_stated_against_4as_in_sample_gap(store):
+    """The two are not the same measurement and must not be read as one.
+
+    §4a's +5.59pp is a separation the v2 weights were *fitted* to, on the field
+    they were fitted on, at p = 0.055. This one's outcome variable is R, which no
+    weight ever saw. So §4a's figures ride on the payload with the reason they are
+    not comparable, rather than being left for a reader to line up.
+    """
+    report = ranking_report(
+        DEFAULT_CONTRACT, _ladder({2: -0.5, 6: 1.5}), markets=("US",)
+    )
+
+    prior = report["in_sample_reference"]
+    assert prior["gap_pp"] == IN_SAMPLE_GAP["gap_pp"] == 5.59
+    assert prior["p_value"] == 0.055
+    assert "§4a" in prior["source"]
+    assert "fitted" in prior["why_it_is_not_this_measurement"]
+    printed = format_ranking(report)
+    assert "§4a" in printed
+    assert "in-sample" in printed
+
+
+def test_a_trade_with_no_score_row_is_a_failure_rather_than_a_silent_drop(store):
+    """The join between a trade and the detection that produced it is total.
+
+    A trade whose detection row is missing is a broken denominator, and dropping
+    it quietly would shrink the cohort the ranking is measured on with nothing in
+    the output to show which trades left.
+    """
+    trade = _mtrade("AAA", 2016, 1.0)
+    scores = {(trade.detection_session, "AAA"): _score(6)}
+
+    assert [s.score.points for s in scored_trades([trade], scores)] == [6]
+    with pytest.raises(ValueError):
+        scored_trades([trade], {})
+
+
+def test_rho_reads_the_score_against_the_outcome_and_ties_are_averaged(store):
+    """The rank correlation is the statistic that answers "does a higher score
+    predict a better result" over the whole cohort rather than at its two edges.
+
+    Ties are the common case on an eight-point score, so they take the average
+    rank: a tie broken by arrival order would make rho depend on the sort.
+    """
+    rising = _ladder({1: -1.0, 3: 0.0, 5: 1.0, 7: 2.0}, per_score=3)
+    falling = _ladder({1: 2.0, 3: 1.0, 5: 0.0, 7: -1.0}, per_score=3)
+    rho = lambda cohort: rank_correlation(outcomes(cohort, DEFAULT_CONTRACT))
+
+    assert rho(rising) == pytest.approx(1.0)
+    assert rho(falling) == pytest.approx(-1.0)
+    # One score only: no variance in the ranks, so no correlation exists to report.
+    assert rho(_ladder({4: 1.0})) is None
+
+
+def test_the_ranking_report_is_stamped_and_serialises(store):
+    """Like every figure the package emits: the contract rides on it, and two runs
+    under different contracts differ in their output alone."""
+    report = ranking_report(
+        DEFAULT_CONTRACT, _ladder({2: -0.5, 6: 1.5}), markets=("US", "IDX")
+    )
+
+    assert report[CONTRACT_KEY] == DEFAULT_CONTRACT.to_dict()
+    assert [m["market"] for m in report["markets"]] == ["US", "IDX"]
+    assert json.loads(json.dumps(report)) == report
+
+
+def test_the_ranking_runs_off_the_denominator_end_to_end(store, denominator):
+    """The seam that matters: persisted detections, their scores, and the trades
+    the simulator took off them, joined by the session they were decided on."""
+    det = _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                            _FIG_FLAT + _FIG_WIN)
+    trades = simulate_market(
+        store, denominator, "US", DEFAULT_CONTRACT, arms=(ARM_B,)
+    )
+    scores = score_index(denominator, "US")
+
+    cohort = scored_trades(trades, scores)
+
+    assert [s.trade.symbol for s in cohort] == ["AAA"]
+    assert cohort[0].score.points == seven_dimension_score(
+        det, prior_move=False
+    ).points
+    body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
+    assert sum(b["trades"] for b in body["buckets"]) == 1

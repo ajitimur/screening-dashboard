@@ -528,8 +528,36 @@ in one name are not independent observations — a stock throwing three signals 
 fortnight contributes three correlated rows — so bootstrapping *rows* makes the effective
 sample larger than it is and flatters every p-value. Seeded, and the seed and resample
 count ride on every cell, because a significance figure that moved between two runs of the
-same data would be unreproducible with nothing in the output to show it.
+same data would be unreproducible with nothing in the output to show it. A statistic that is
+not a mean — a **score band** gap, a rank correlation — is resampled the same way through
+`backtest.ranking.bootstrap_symbol_statistic`, on the metric's own seed and cluster floor, so
+two intervals in one report were never built differently.
 _Avoid_: bootstrapping the trades, resampling the rows — the row is not the unit.
+
+**Score band**:
+One bucket of the **out-of-sample ranking test**'s cut (`backtest.ranking.Band`): a
+contiguous run of star scores, and the decile positions it covers. A score value is
+**atomic** — it never splits across two bands — because the replayed score is seven
+dimensions of eight *integral* points, so a distribution most of which sits on one score has
+no tenth to cut at, and splitting one would report a difference between two buckets that is a
+difference in sort order and nothing else. The bands therefore **collapse to fewer than ten**
+and each says which deciles it swallowed. Cut **once on a market's whole measured window** and
+applied to every year, so a band names the same score in every row.
+_Avoid_: decile bucket on its own — there are rarely ten of them; score quintile.
+
+**Out-of-sample ranking test**:
+The measurement of whether a higher star score predicts a better result (PRD #182 story 93,
+`backtest.ranking`): outcomes bucketed by **score band**, per market and per year, with n on
+every bucket and the **clustered bootstrap** on both the top-minus-bottom gap and Spearman's
+rho. The verdict needs **both** intervals above zero — a gap can rest on one hot name at the
+top and a rho can be positive and negligible — and "no evidence it ranks" is never "the score
+does not rank". It is **not** findings §4a: that measured a rate of scores between his picks
+and the field, on the field v2's weights had been *fitted* to, at p = 0.055; this measures
+after-cost R by score band on trades nobody selected, so the outcome variable is independent
+of the weights. §4a's figures ride on the payload precisely so the two are never lined up as
+one.
+_Avoid_: the ranking result, the decile test; and never quote it against §4a's **+5.59pp**
+as though the two were comparable.
 
 **Not-taken detection**:
 A member of the replayed field on a session where he entered something else. Not a

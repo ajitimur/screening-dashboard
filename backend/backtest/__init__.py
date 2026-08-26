@@ -101,6 +101,25 @@ already keep :mod:`backtest.simulate` out: it is a command
 documented command warn on every invocation. The entry point is
 ``backtest.metric.metric_report``.
 
+Issue #194 lands Phase 5's ranking cell: :mod:`backtest.ranking`, the out-of-sample
+test §4a's claim has never had. Outcomes bucketed by star-score decile, per market
+and per year, with n on every bucket and significance bootstrapped clustered by
+symbol. §4a asked whether the rubric separates his *picks* from the field, on the
+field the v2 weights had been fitted to — a fit statistic, and marginal at
+p = 0.055 even so. Here the outcome variable is R after costs, which no weight was
+fitted to and no detection's score could see, so §4a's figures ride on the payload
+with the reason they are not comparable rather than being left for a reader to line
+up. The score is coarse — seven dimensions of eight integral points — so a score
+value is never split across two buckets: the buckets collapse to fewer than ten and
+each names the decile positions it covers, which is the honest reading of a
+distribution most of which can sit on one score.
+
+:mod:`backtest.ranking`'s names are **not** re-exported here, for the reasons that
+already keep :mod:`backtest.metric` out: it is a command
+(``python -m backtest.ranking``) and it imports both that module and
+:class:`~backtest.run.ContractDrift`. The entry point is
+``backtest.ranking.ranking_report``.
+
 The universe's names are not re-exported, and the reason is naming rather than
 import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean
 something else one import away (:mod:`screener.universe`, :mod:`replay.reference`),

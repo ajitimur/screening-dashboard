@@ -5211,3 +5211,539 @@ def test_the_detections_per_session_series_is_serialised(store, denominator):
 
     assert list(series) == [d.isoformat() for d in dates[-5:]]
     assert set(series.values()) == {1}
+
+
+# -- arm B, end to end, and the proof there is no look-ahead (issue #189) ------
+#
+# Phase 4 of PRD #182. The denominator says which setups the detector named; this
+# turns each of them into a trade and denominates the result in R.
+#
+# One entry and one stop are shared by every arm — #190 adds A and C onto exactly
+# these — so a difference between arms is attributable to the exit alone. Arm B is
+# the pure 10MA trail, and the arm the pre-registered primary metric is computed
+# on.
+#
+# The load-bearing test in this block is
+# ``test_shifting_a_future_bar_into_an_entry_decision_changes_nothing``. Every
+# other test here asserts that the simulator computes what the contract says; that
+# one asserts it cannot see what it must not see. A look-ahead bug produces a
+# beautiful equity curve and no error message, so it is the only bug in this phase
+# that no amount of reading the output would catch.
+
+from screener.indicators import ADR_WINDOW, adr_abs, sma
+
+from backtest.chain import trailing_bars
+from backtest.contract import EXIT_ARM_B_KEY, EXIT_TRAIL_MECHANIC_KEY
+from backtest.run import ContractDrift as SimContractDrift
+from backtest.simulate import (
+    ARM_B,
+    EXIT_STOP,
+    EXIT_TRAIL,
+    PRICE_SCALE_MAX,
+    PRICE_SCALE_MIN,
+    TRAIL_MECHANIC,
+    Decision,
+    SimulatedTrade,
+    check_trail_mechanic,
+    price_scale_drops,
+    simulate_arm_b,
+    simulate_market,
+    simulate_report,
+    trail_ma,
+    trail_ma_window,
+)
+
+
+def _sim_bar(session: date, o: float, h: float, l: float, c: float) -> Bar:
+    """One authored bar. ``adj_close`` is deliberately set *away* from ``close``:
+    the trail and the trigger live in the unadjusted series, so a simulator that
+    reached for ``adj_close`` would produce visibly different numbers here rather
+    than agreeing by coincidence on a fixture where the two were equal."""
+    return Bar(
+        session=session, open=o, high=h, low=l, close=c,
+        adj_close=c * 0.5, volume=1_000_000,
+    )
+
+
+def _flat_then(dates: list[date], closes: list[float]) -> list[Bar]:
+    """Bars whose every OHLC is driven by one close per session.
+
+    ``high``/``low`` straddle the close by 2%, which gives the 20-bar ADR a value
+    to be measured in without letting the intraday range reach a stop the closes
+    never approach — so a test that is about the trail is never quietly decided by
+    the stop.
+    """
+    return [
+        _sim_bar(d, c, c * 1.02, c * 0.98, c)
+        for d, c in zip(dates, closes)
+    ]
+
+
+# The authored trade every arm-B test below runs on.
+#
+# 40 bars flat at 100 give the ADR and the 10MA a settled history. The detection is
+# named on the last of them with a trigger of 102. The next session closes at 110 —
+# through the trigger, so it breaks — and the one after opens at 111, which is the
+# fill. Price then runs to 130 and rolls over, closing back under its own 10MA on a
+# session the test can name.
+SIM_TRIGGER = 102.0
+SIM_STOP_WIDTH = 6.0          # stop price 96.0, six under the trigger
+SIM_STOPW_ADR = 0.3
+_SIM_FLAT = [100.0] * 40
+_SIM_RUN = [110.0, 111.0, 118.0, 124.0, 130.0, 129.0, 128.0, 127.0]
+# Then a slide that drags the close under the rising 10MA.
+_SIM_FADE = [120.0, 112.0, 104.0, 100.0, 98.0, 97.0, 96.5, 96.2]
+
+
+def _sim_dates(n: int) -> list[date]:
+    return _daily(date(2021, 3, 1), n)
+
+
+def _sim_closes() -> list[float]:
+    return _SIM_FLAT + _SIM_RUN + _SIM_FADE
+
+
+def _sim_bars(closes: list[float] | None = None) -> list[Bar]:
+    closes = closes or _sim_closes()
+    return _flat_then(_sim_dates(len(closes)), closes)
+
+
+def _sim_detection(bars: list[Bar], *, close: float | None = None) -> Detection:
+    """The detection the simulator is handed: named on bar 39, trigger 102.
+
+    Hand-authored rather than detected, so the trigger, the stop and the stop width
+    in ADR are the fixture's own choices and every figure asserted below is
+    arithmetic a reader can check. ``close`` is the detection's *recorded* close,
+    which is what the price-scale flag compares against the bar.
+    """
+    return dataclasses.replace(
+        _det("BASE", 5),
+        session=bars[39].session,
+        trigger=SIM_TRIGGER,
+        stop=SIM_STOP_WIDTH,
+        stopw_adr=SIM_STOPW_ADR,
+        close=bars[39].close if close is None else close,
+        cluster_high=SIM_TRIGGER,
+    )
+
+
+def test_a_persisted_detection_becomes_a_trade_on_its_own_trigger_and_stop(store):
+    """The acceptance criterion, whole: trigger, fill, stop and 10MA trail.
+
+    The detection names a trigger of 102 on bar 39. Bar 40 closes at 110 — through
+    it — which is the break, and the fill is bar 41's open at 111. The stop is the
+    detection's own, unmodified: ``trigger − stop`` = 96. The trail then signals on
+    the first close under the 10MA and fills at the next open.
+    """
+    bars = _sim_bars()
+    det = _sim_detection(bars)
+
+    trade = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
+
+    assert trade is not None
+    assert trade.arm == ARM_B
+    assert trade.symbol == "BASE"
+    assert trade.trigger.price == SIM_TRIGGER
+    # The break is a close through the trigger, and the fill is the next open —
+    # the same signal-then-fill shape the trail uses, one session apart.
+    assert trade.breakout.session == bars[40].session
+    assert trade.breakout.price == 110.0
+    assert trade.entry.session == bars[41].session
+    assert trade.entry.price == bars[41].open == 111.0
+    # The detection's own stop, used unmodified: trigger less the stop budget.
+    assert trade.stop.price == det.stop_price == 96.0
+    assert trade.exit_reason == EXIT_TRAIL
+
+
+def test_the_trail_signals_on_a_close_through_the_ma_and_fills_at_the_next_open(store):
+    """The contract's trail mechanic, asserted against the fixture's own arithmetic.
+
+    The exit session is not asserted as a constant: it is recomputed here from the
+    same closes the fixture authors, so a test that agreed with the simulator by
+    copying its answer would disagree the moment either side moved.
+    """
+    bars = _sim_bars()
+    det = _sim_detection(bars)
+
+    trade = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
+
+    window = trail_ma_window(DEFAULT_CONTRACT)
+    assert window == 10
+    signal = next(
+        i for i in range(41, len(bars))
+        if (ma := trail_ma(bars[: i + 1], window)) is not None and bars[i].close < ma
+    )
+    assert trade.exit is not None
+    assert trade.exit.session == bars[signal + 1].session
+    assert trade.exit.price == bars[signal + 1].open
+    # The signal session is carried too, so the decision and its fill are separable.
+    assert trade.exit_signal.session == bars[signal].session
+
+
+def test_the_trail_reads_the_unadjusted_close_the_trigger_lives_in(store):
+    """The 10MA trails the same series the trigger and the stop are quoted in.
+
+    ``screener.indicators.sma`` averages **adjusted** closes, because returns need
+    a dividend-continuous series. A trail compared against a trigger must not: the
+    fixture's ``adj_close`` is half its ``close``, so a trail built on the adjusted
+    series would sit permanently under every close and never signal at all.
+    """
+    bars = _sim_bars()
+
+    assert trail_ma(bars[:41], 10) == sum(b.close for b in bars[31:41]) / 10
+    assert trail_ma(bars[:41], 10) != sma(bars[:41], 10)
+    # And it is undefined rather than approximated before the window is full.
+    assert trail_ma(bars[:9], 10) is None
+
+
+def test_the_stop_is_the_detections_own_and_takes_precedence_within_a_session(store):
+    """A session that trades through the stop exits there, whatever its close does.
+
+    The stop is intraday and the trail is a closing decision, so a bar that touches
+    the stop and then closes back above the MA is a stopped-out trade, not a held
+    one. Deciding it the other way would let a losing trade be rescued by the very
+    bar that ended it.
+    """
+    closes = _SIM_FLAT + [110.0, 111.0]
+    bars = _sim_bars(closes)
+    # A session that dips to 95 — under the 96 stop — and recovers to close at 111.
+    bars.append(_sim_bar(_sim_dates(len(closes) + 1)[-1], 111.0, 112.0, 95.0, 111.0))
+    det = _sim_detection(bars)
+
+    trade = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
+
+    assert trade.exit_reason == EXIT_STOP
+    assert trade.exit.session == bars[42].session
+    assert trade.exit.price == det.stop_price == 96.0
+
+
+def test_a_session_that_gaps_under_the_stop_fills_at_the_open_not_the_stop(store):
+    """A stop is an order, not a guarantee. A market that opens under it fills there.
+
+    Filling at the stop price would credit the simulation with liquidity that did
+    not exist, and it would do so precisely on the worst trades — the ones a gap
+    ran away from — which is the direction that flatters an equity curve.
+    """
+    closes = _SIM_FLAT + [110.0, 111.0]
+    bars = _sim_bars(closes)
+    bars.append(_sim_bar(_sim_dates(len(closes) + 1)[-1], 90.0, 91.0, 88.0, 89.0))
+    det = _sim_detection(bars)
+
+    trade = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
+
+    assert trade.exit_reason == EXIT_STOP
+    assert trade.exit.price == 90.0 < det.stop_price
+
+
+def test_a_detection_whose_next_session_does_not_break_produces_no_trade(store):
+    """No break, no trade — and that is a measurement, not a dropped row.
+
+    The share of detections that trigger is one of the denominator figures the
+    whole exercise exists to produce (PRD Phase 5). Entering a setup that never
+    traded through its own trigger would put that figure at 100% by construction.
+    """
+    bars = _sim_bars(_SIM_FLAT + [101.0, 105.0, 110.0])
+    det = _sim_detection(bars)
+
+    assert simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT) is None
+
+
+def test_r_is_denominated_off_the_detections_own_stop_in_adr_units(store):
+    """R's denominator is the detection's stop width in ADR, priced off the bars.
+
+    ``stopw_adr`` is the detection's own stop expressed in the unit the whole
+    system is denominated in, and ADR is measured on the bars at the session that
+    decided the trade. Both terms of the ratio therefore live in the *bar* series,
+    so an unlabelled retroactive rescale moves them together and R is unchanged —
+    which is what "keep the geometry in ADR units" buys (story 83).
+    """
+    bars = _sim_bars()
+    det = _sim_detection(bars)
+
+    trade = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
+
+    at_decision = trailing_bars(bars, det.session, ADR_WINDOW)
+    expected_risk = det.stopw_adr * adr_abs(at_decision)
+    assert trade.risk == pytest.approx(expected_risk)
+    assert trade.r_multiple == pytest.approx(
+        (trade.exit.price - trade.entry.price) / expected_risk
+    )
+
+
+def test_r_is_unchanged_when_the_whole_bar_series_is_rescaled(store):
+    """The rescale immunity the ADR denominator exists for, asserted directly.
+
+    Yahoo's rights-issue rescale multiplies a symbol's whole history by a constant
+    and says nothing. Under that transform every price in the trade moves and R
+    does not — because numerator and denominator are both prices from the same
+    series. This is the reason the denominator is not a stored absolute figure.
+    """
+    scale = 10 / 11
+    bars = _sim_bars()
+    det = _sim_detection(bars)
+    rescaled = [
+        _sim_bar(b.session, b.open * scale, b.high * scale, b.low * scale, b.close * scale)
+        for b in bars
+    ]
+    rescaled_det = dataclasses.replace(
+        det,
+        trigger=det.trigger * scale,
+        stop=det.stop * scale,
+        close=det.close * scale,
+    )
+
+    plain = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
+    shifted = simulate_arm_b(
+        rescaled, rescaled_det, market="US", contract=DEFAULT_CONTRACT
+    )
+
+    assert shifted.r_multiple == pytest.approx(plain.r_multiple)
+    assert shifted.exit.session == plain.exit.session
+
+
+def test_every_decision_carries_the_session_it_was_made_on(store):
+    """The audit trail (acceptance criterion): five decisions, five sessions.
+
+    A trade whose prices cannot be traced back to the sessions that produced them
+    cannot be reconciled against the bars, which makes every figure derived from it
+    unfalsifiable. The stop is stamped with the *detection's* session, because that
+    is when it was decided — not when it was hit.
+    """
+    bars = _sim_bars()
+    det = _sim_detection(bars)
+
+    trade = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
+
+    assert trade.detection_session == det.session
+    assert trade.trigger.session == det.session
+    assert trade.stop.session == det.session
+    assert trade.breakout.session == bars[40].session
+    assert trade.entry.session == bars[41].session
+    assert trade.exit.session > trade.entry.session
+    for decision in (trade.trigger, trade.stop, trade.breakout, trade.entry, trade.exit):
+        assert isinstance(decision, Decision)
+        assert isinstance(decision.session, date)
+
+
+def test_shifting_a_future_bar_into_an_entry_decision_changes_nothing(store):
+    """**The most important test in the run** (acceptance criterion, story 80/81).
+
+    A look-ahead bug produces a beautiful equity curve and no error message, so the
+    point-in-time claim is proved rather than cared about. Every bar after the fill
+    is replaced with an absurd one — a 10× spike — and the entry decision is
+    asserted identical. Anything that reached forward from the break or the fill
+    would move here and nowhere else.
+    """
+    bars = _sim_bars()
+    det = _sim_detection(bars)
+    plain = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
+
+    tampered = list(bars)
+    for i in range(42, len(tampered)):
+        b = tampered[i]
+        tampered[i] = _sim_bar(
+            b.session, b.open * 10, b.high * 10, b.low * 10, b.close * 10
+        )
+    shifted = simulate_arm_b(tampered, det, market="US", contract=DEFAULT_CONTRACT)
+
+    assert shifted.breakout == plain.breakout
+    assert shifted.entry == plain.entry
+    assert shifted.stop == plain.stop
+    assert shifted.trigger == plain.trigger
+    # The risk is measured at the decision session too, so it cannot move either.
+    assert shifted.risk == pytest.approx(plain.risk)
+
+
+def test_appending_later_sessions_never_moves_a_settled_trade(store):
+    """The same guard from the other side: a longer store, an identical trade.
+
+    Re-running the simulation months later reads a store that has grown. If any
+    decision were taken over the whole series rather than the part of it that
+    existed at the time, a settled trade would silently re-price — and the run
+    would stop being reproducible without ever failing.
+    """
+    bars = _sim_bars()
+    det = _sim_detection(bars)
+    plain = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
+
+    longer = _sim_bars(_sim_closes() + [200.0] * 30)
+    grown = simulate_arm_b(longer, det, market="US", contract=DEFAULT_CONTRACT)
+
+    assert grown == plain
+
+
+def test_a_trade_still_open_at_the_end_of_the_store_carries_no_r(store):
+    """A trade the bars run out under is open, and an open trade has no result.
+
+    Marking it closed at the last close would invent an exit the rules never gave
+    and would do it for every name still running at the end of the window — a
+    systematic bias toward whatever the last session happened to be.
+    """
+    bars = _sim_bars(_SIM_FLAT + _SIM_RUN)
+    det = _sim_detection(bars)
+
+    trade = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
+
+    assert trade.open_at_end
+    assert trade.exit is None
+    assert trade.exit_reason is None
+    assert trade.r_multiple is None
+
+
+def test_the_price_scale_flag_rides_on_the_trade_and_its_drops_are_counted(store):
+    """The one absolute-price comparison the ADR geometry cannot make immune.
+
+    The trigger is imported from a detection persisted earlier; the bars are read
+    now. A rescale between the two leaves the two on different scales, and the
+    trigger-versus-close comparison that decides the break is then meaningless. It
+    is flagged rather than dropped — the prototype this borrows from does the same
+    — and the count it would drop is reported beside the result.
+    """
+    bars = _sim_bars()
+    ok = simulate_arm_b(
+        bars, _sim_detection(bars), market="US", contract=DEFAULT_CONTRACT
+    )
+    # A detection recorded at a tenth of the bar's price: a scale, not a move.
+    rescaled = _sim_detection(bars, close=bars[39].close / 10)
+    flagged = simulate_arm_b(bars, rescaled, market="US", contract=DEFAULT_CONTRACT)
+
+    assert ok.price_scale == pytest.approx(1.0)
+    assert ok.price_scale_ok
+    assert not flagged.price_scale_ok
+    assert PRICE_SCALE_MIN < ok.price_scale < PRICE_SCALE_MAX
+    assert price_scale_drops([ok, flagged]) == 1
+
+
+def test_the_report_carries_the_contract_and_the_dropped_count(store):
+    """Every figure the package emits carries the contract that produced it, and
+    the price-scale count travels with it rather than in a commit message."""
+    bars = _sim_bars()
+    trades = [
+        simulate_arm_b(
+            bars, _sim_detection(bars), market="US", contract=DEFAULT_CONTRACT
+        ),
+        simulate_arm_b(
+            bars, _sim_detection(bars, close=bars[39].close / 10),
+            market="US", contract=DEFAULT_CONTRACT,
+        ),
+    ]
+
+    report = simulate_report(DEFAULT_CONTRACT, trades)
+
+    assert report[CONTRACT_KEY] == DEFAULT_CONTRACT.to_dict()
+    assert report["arm"] == ARM_B
+    assert report["trades"] == 2
+    assert report["price_scale_dropped"] == 1
+
+
+def test_a_changed_trail_mechanic_is_contract_drift_not_a_silent_reinterpretation(store):
+    """The mechanic is a contract cell, and the code says which one it implements.
+
+    "Close through the MA, fill at the next open" is recorded as *arbitrary* so a
+    later run can vary it deliberately. Varying the cell without varying the code
+    would leave a run whose contract and behaviour disagree while both look right.
+    """
+    check_trail_mechanic(DEFAULT_CONTRACT)
+    assert DEFAULT_CONTRACT.value(EXIT_TRAIL_MECHANIC_KEY) == TRAIL_MECHANIC
+
+    drifted = RunContract(
+        contract_version=DEFAULT_CONTRACT.contract_version,
+        label=DEFAULT_CONTRACT.label,
+        cells=tuple(
+            Cell(
+                key=c.key,
+                value="close_through_ma_fills_same_close",
+                justification=c.justification,
+            )
+            if c.key == EXIT_TRAIL_MECHANIC_KEY else c
+            for c in DEFAULT_CONTRACT.cells
+        ),
+    )
+    with pytest.raises(SimContractDrift):
+        check_trail_mechanic(drifted)
+
+
+def test_arm_b_reads_its_window_from_the_contract_not_from_a_constant(store):
+    """The 10 in "10MA" belongs to the contract, so a sweep changes one cell."""
+    assert (
+        trail_ma_window(DEFAULT_CONTRACT)
+        == DEFAULT_CONTRACT.value(EXIT_ARM_B_KEY)["trail_ma"]
+    )
+
+
+def _breakout_tail_hlc():
+    """The base fixture, plus a tail that actually breaks and then rolls over.
+
+    ``_wide_base_hlc`` ends on a flat top at 100 under a cluster high of ~102, so a
+    denominator built on it names detections that never trade through their own
+    trigger. That is a fair fixture for #188, which is about the field, and a
+    useless one for #189, which is about what happens after: it would let the
+    end-to-end test pass on an empty list of trades.
+
+    So the tail here breaks through the top, runs to 130 and slides back under its
+    own 10MA — the whole life of an arm-B trade, in the same authored geometry.
+    """
+    hlc = _wide_base_hlc()
+    for c in (108.0, 115.0, 122.0, 130.0, 120.0, 110.0, 100.0, 95.0, 92.0, 90.0):
+        hlc.append((c * 1.02, c * 0.98, c))
+    return hlc
+
+
+def _seed_breakout_store(store: Store, *, market: str = "US"):
+    """The #188 seeder, over a series whose base breaks out near the end."""
+    hlc = _breakout_tail_hlc()
+    dates = _daily(date(2020, 1, 1), len(hlc))
+    store.append_bars(market, "BASE", _bars_from_hlc(dates, hlc))
+    store.append_bars(
+        market,
+        MARKET_INDEX[market],
+        _bars_from_hlc(dates, _flat_index_hlc(len(hlc))),
+    )
+    return dates
+
+
+def test_the_denominators_detections_simulate_end_to_end(store, denominator):
+    """The whole path the acceptance criterion names: persisted rows in, trades out.
+
+    Nothing here is hand-authored — the detector names the setup, ``run_denominator``
+    persists it, and the simulator reads it back out of the store. It is the only
+    test in this block that would notice the two halves disagreeing about what a
+    detection is.
+
+    The measured window deliberately straddles the break: the detections on the flat
+    top before it are measured too, and they produce nothing, because a detection
+    whose next session does not close through its trigger is not a trade. So this
+    also pins the count — a simulator that entered every detection would return
+    five trades here instead of one.
+    """
+    dates = _seed_breakout_store(store)
+    run = run_denominator(
+        store, denominator, "US", DEFAULT_CONTRACT,
+        start=dates[0], end=dates[-1], measured_start=dates[100],
+    )
+    measured_detections = sum(
+        len(denominator.detections("US", r.session)) for r in run.measured
+    )
+    assert measured_detections > 1
+
+    trades = simulate_market(store, denominator, "US", DEFAULT_CONTRACT)
+
+    # The one detection whose next session broke: bar 104's, filled at bar 106.
+    (trade,) = trades
+    assert isinstance(trade, SimulatedTrade)
+    assert trade.arm == ARM_B
+    assert trade.symbol == "BASE"
+    assert trade.detection_session == dates[104]
+    assert trade.breakout.session == dates[105]
+    assert trade.entry.session == dates[106]
+    assert trade.entry.price == 115.0
+    # The stop is the detection's own, and R comes off it.
+    (scored,) = denominator.detections("US", dates[104])
+    assert trade.stop.price == scored.detection.stop_price
+    assert trade.exit_reason == EXIT_TRAIL
+    assert trade.r_multiple is not None
+    assert trade.price_scale_ok
+
+    # Burn-in sessions are never traded off: a result resting on an unsettled
+    # chain is exactly what the burn-in flag exists to keep out of the measurement.
+    assert all(t.detection_session >= dates[100] for t in trades)

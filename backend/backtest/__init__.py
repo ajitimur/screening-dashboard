@@ -78,6 +78,29 @@ mechanical reason as :mod:`backtest.simulate`'s: it is a command
 (``python -m backtest.figures``) and it imports that module, so the entry point is
 reached as ``backtest.figures.figures_for_market``.
 
+Issue #191 lands Phase 5's **pre-registered** cell: :mod:`backtest.metric`, the one
+metric the run promised in advance — arm B's after-cost expectancy in R, per market
+per year. It reads no bar either. The simulator already denominated each trade in R,
+so this module is arithmetic over those trades: the contract's per-market commission
+and slippage charged on both sides and divided by the trade's own stop width, the
+win rate and the R-distribution reported beside every expectancy, per year always
+and the 2020–21-excluded figure beside the full-window one, and significance
+bootstrapped by resampling **symbols** rather than rows. It computes and records the
+headline **before any swept variant exists**, and says so with the count of variants
+behind it.
+
+The two Phase 5 modules divide by what they measure rather than by when they ran:
+:mod:`backtest.figures` reports what the denominator *found* — detections, the share
+that trigger, precision — and :mod:`backtest.metric` reports what trading it *paid*,
+after costs, on the one arm the contract pre-registered.
+
+:mod:`backtest.metric`'s names are **not** re-exported here for the reasons that
+already keep :mod:`backtest.simulate` out: it is a command
+(``python -m backtest.metric``) and it imports both that module and
+:class:`~backtest.run.ContractDrift`, so re-exporting it would make either
+documented command warn on every invocation. The entry point is
+``backtest.metric.metric_report``.
+
 The universe's names are not re-exported, and the reason is naming rather than
 import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean
 something else one import away (:mod:`screener.universe`, :mod:`replay.reference`),

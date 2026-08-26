@@ -108,10 +108,10 @@ so it is the one defect here that reading the output can never catch.
 
 What this module does not do
 ----------------------------
-Costs (#191) are not here: every figure this module reports is before commission
-and slippage, and the contract's ``costs`` cell is applied by the phase that
-computes the primary metric. So ``total_r`` here is not the headline and must not
-be read as one.
+Costs are not here: every figure this module reports is before commission and
+slippage. The contract's ``costs`` cell is applied by :mod:`backtest.metric`, which
+computes the pre-registered primary metric off arm B's trades (#191). So
+``total_r`` here is not the headline and must not be read as one.
 """
 
 from __future__ import annotations

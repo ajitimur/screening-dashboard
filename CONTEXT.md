@@ -482,6 +482,55 @@ trigger persisted earlier against a bar read now. Flagged, never silently droppe
 count it would drop is reported beside every result**.
 _Avoid_: adjustment flag, bad data — the trade is not wrong, its scale is unverified.
 
+**Pre-registered metric**:
+The one headline the run promised in advance (PRD #182, `backtest.metric`): **arm B's
+after-cost expectancy in R, per market per year**. Arm B because it is the reference
+set's primary **simulated exit**, which keeps the headline comparable to figures already
+committed here. It is computed and recorded **before any swept variant exists**, and every
+report carries the count of variants standing behind it — every threshold tried is a test,
+and enough of them produce a winner from noise. A trade counts in the year of its **entry
+session**, the year the decision was taken, so a trade's year never moves with the exit
+rule under test.
+_Avoid_: the headline number, our main result — and never quote a **swept variant** under
+this name.
+
+**Swept variant**:
+A result recomputed at a threshold other than the contract's, after the
+**pre-registered metric** has been computed and recorded. Always reported with the count
+of variants tried, because every threshold tried is a test and enough of them produce a
+winner from noise. The word narrows the **exit arm** entry's `_Avoid_: variant` rather
+than contradicting it: an arm is a *rule* the contract froze in Phase 0, a swept variant
+is a *threshold* moved afterwards, and calling an arm a variant is what that `_Avoid_`
+exists to stop.
+_Avoid_: variant on its own — unqualified it reads as an exit arm.
+
+**After-cost expectancy**:
+The mean R of the closed **simulated trades** in one cell, net of the contract's own
+per-market commission and slippage. Both are bps of the traded price **charged on each
+side** — the entry once for the whole position and every **exit leg** weighted by its
+share — divided by the trade's stop width, which keeps the cost in R and immune to a
+retroactive rescale. IDX carries real fees and spread against US's near-zero; a market the
+`costs.per_market` cell does not name is drift, never a free trade. Never reported without
+the **win rate and the R-distribution** behind it: 22.7% of his trades made money and his
+mean R was positive anyway, so a 20% win rate is not a broken method — a 20% win rate with
+a small right tail is. **Never pooled only**: per market, per year, and the
+**2020–21-excluded** figure beside the full-window one, because that tape rewarded momentum
+nearly everywhere and the window also holds a crash. An **open** trade has no R and is
+counted as open, never marked to the last close.
+_Avoid_: net expectancy, edge per trade; and never average US and IDX — findings §8
+measured that magnitudes do not transfer.
+
+**Clustered bootstrap**:
+The run's significance test (`backtest.metric.bootstrap_expectancy`): resample **symbols**
+with replacement, pooling every row inside a drawn symbol, and read the interval and the
+one-sided p off the resampled means. The cluster is the symbol because overlapping signals
+in one name are not independent observations — a stock throwing three signals in a
+fortnight contributes three correlated rows — so bootstrapping *rows* makes the effective
+sample larger than it is and flatters every p-value. Seeded, and the seed and resample
+count ride on every cell, because a significance figure that moved between two runs of the
+same data would be unreproducible with nothing in the output to show it.
+_Avoid_: bootstrapping the trades, resampling the rows — the row is not the unit.
+
 **Not-taken detection**:
 A member of the replayed field on a session where he entered something else. Not a
 declined setup — he may never have seen it — so it is a comparison group, never a

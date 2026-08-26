@@ -437,11 +437,23 @@ One of three exit rules — A, B and C — run off **one shared entry and one sh
 difference between them is attributable to the exit alone. **B is a pure 10MA trail** and the
 arm the pre-registered primary metric is computed on; A is the trader's documented behaviour
 (50% off at the close of the fifth session after entry, remainder trailed on a 10MA) and C a
-pure 20MA trail. A trail **signals on a close through the MA and fills at the next open**, and
-that mechanic — like "day 5" — is recorded as *arbitrary*, so a later run varies it
-deliberately instead of rediscovering it. The trail reads the **unadjusted** close the trigger
-and the stop are quoted in, never `indicators.sma`'s adjusted one.
+pure 20MA trail. B and C are the two directly comparable to the reference set's **simulated
+exits**, which is what keeps its anchors usable; **A has no counterpart there, so it is
+measured and never anchored**. A trail **signals on a close through the MA and fills at the
+next open**, and that mechanic — like "day 5" — is recorded as *arbitrary*, so a later run
+varies it deliberately instead of rediscovering it. The trail reads the **unadjusted** close
+the trigger and the stop are quoted in, never `indicators.sma`'s adjusted one.
 _Avoid_: exit strategy, variant.
+
+**Exit leg**:
+One part of a position coming off, carrying **the share of the position it was** (`ExitLeg`).
+Arm A takes its position off in two legs, so its R is **position-weighted per leg and
+summed** — half a position exiting at +2R contributes **1R**, not 2R and not the average of
+the legs. A trade whose legs do not add up to a whole position is still **open** and has no R:
+an equity curve built from the legs that happened to close is the same bias as marking an
+open trade at the last close, only harder to see, because the trade would look closed.
+_Avoid_: partial, tranche; and never call a **scale** an exit — it is a planned partial taken
+because the calendar said so, not because the market did anything.
 
 **Price-scale validity**:
 The per-trade flag saying whether a **simulated trade**'s absolute-price comparison can be

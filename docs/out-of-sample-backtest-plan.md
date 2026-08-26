@@ -190,6 +190,16 @@ Two consequences to carry:
 | **Kill criterion** | Arm B's after-cost expectancy ≤ 0 in **both** markets, on the **full window and with 2020–21 excluded**, measured on the **survivor-biased store** | Below |
 | **Ship criterion** | Arm B's after-cost expectancy > 0 in a market across both windows, **and** the pessimistic bound from Phase 2 keeps it above 0 | A positive run that survives its own bias is the only kind that licenses a change |
 
+**Neither criterion reads the rubric, and #211 is the reason that is worth saying.**
+The gate isolation ([`backtest_gate_isolation.md`](../references/backtest_gate_isolation.md))
+found that the rubric's edge over the field reverses inside this run's own universe, and
+that this is a property of the contracted gates rather than a defect. That changes
+nothing here — ship and kill are both expectancy on arm B, plus Phase 2's bound — and the
+three-outcome table above already contemplates the rubric ranking rather than deciding.
+What it does change is how findings §4b's gap may be cited: **never without naming the
+field it was measured over**, since it is +1.95pp under the app's universe and −5.01pp
+under the contract's.
+
 **Why the kill line is drawn on the survivor-biased number.** Survivorship inflates results in
 a known direction: the missing names are disproportionately the ones that died. So a failure
 there is decisive — the honest figure can only be worse. A *pass* proves much less, which is

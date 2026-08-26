@@ -39,7 +39,9 @@ attributed to "the universe".
 :func:`replay.gate_sweep.build_sweep_sessions` reads membership off the store's
 persisted ``universe`` rows, and those rows are the *intersection* of every gate.
 Adding a gate to them is a filter; **dropping** one admits names the run never
-stored, so this module recomputes membership from the candidate bars instead.
+stored, so this module recomputes membership from the candidate bars and hands it
+to that same function through its ``members_for`` hook. The sweep itself — ranks,
+decile gate, detector — is not reimplemented here.
 
 That reconstruction is the load-bearing claim here, so it is checked rather than
 trusted, in two independent ways:
@@ -89,7 +91,11 @@ from screener.detection import detect, detection_gate
 from screener.indicators import ADR_WINDOW
 from screener.ranks import rank_table
 from screener.store import Store
-from screener.universe import LIQUIDITY_WINDOW, is_common_stock
+from screener.universe import (
+    LIQUIDITY_WINDOW,
+    _median as app_median,
+    is_common_stock,
+)
 
 from replay.caching_store import CachingStore
 from replay.discrimination_grid import (
@@ -101,7 +107,7 @@ from replay.discrimination_grid import (
     build_grid,
     sessions_with_stored_ranks,
 )
-from replay.gate_sweep import SweepSession, gate_membership
+from replay.gate_sweep import SweepSession, build_sweep_sessions
 from replay.placement import field_match
 from replay.reference import (
     DEFAULT_REFERENCE_JSON,
@@ -136,13 +142,16 @@ ANCHOR_FIELD = "whole"
 # -- the gates, as a set that can have one member removed ---------------------
 
 # The three gates :mod:`backtest.universe` intersects on US, named so a variant can
-# drop exactly one.
-TREND, ADR, LIQUIDITY = "trend", "adr", "liquidity"
-ALL_GATES = frozenset({TREND, ADR, LIQUIDITY})
+# drop exactly one. The middle one is ``VOLATILITY`` rather than ``ADR`` because that
+# is what the contract calls it (``universe.volatility_gate``) and because ADR is the
+# *quantity* it is measured with — this module also imports ``ADR_FLOOR`` and
+# ``ADR_WINDOW``, and one label cannot mean both the gate and the number.
+TREND, VOLATILITY, LIQUIDITY = "trend", "volatility", "liquidity"
+ALL_GATES = frozenset({TREND, VOLATILITY, LIQUIDITY})
 
 
 @dataclass(frozen=True)
-class GateVariant:
+class UniverseGateSet:
     """One universe rule: the run's gates, minus at most one of them.
 
     ``dropped`` is the whole point — a variant that drops nothing is the run's own
@@ -163,23 +172,23 @@ class GateVariant:
 # The baseline first, then one variant per gate. Each note says what the app's
 # universe does with the same gate, because the divergence being explained is
 # against the app's field.
-VARIANTS: tuple[GateVariant, ...] = (
-    GateVariant(
+VARIANTS: tuple[UniverseGateSet, ...] = (
+    UniverseGateSet(
         "all-three",
         ALL_GATES,
         "the run's own field — reproduces the committed -5.01pp",
     ),
-    GateVariant(
+    UniverseGateSet(
         "no-adr",
-        ALL_GATES - {ADR},
+        ALL_GATES - {VOLATILITY},
         "drops the 3.5% ADR20 floor, which the app's universe does not have",
     ),
-    GateVariant(
+    UniverseGateSet(
         "no-trend",
         ALL_GATES - {TREND},
         "drops close > SMA50, which the app's universe does not have",
     ),
-    GateVariant(
+    UniverseGateSet(
         "no-liquidity",
         ALL_GATES - {LIQUIDITY},
         "drops the $10M ADTV floor, which the app sets at $20M instead",
@@ -190,7 +199,7 @@ VARIANTS: tuple[GateVariant, ...] = (
     # This is the app's shape reached from inside the run's own field — liquidity
     # alone, without the two gates the app has no counterpart for — so it separates
     # "those two jointly" from "the field is narrow at all".
-    GateVariant(
+    UniverseGateSet(
         "liquidity-only",
         frozenset({LIQUIDITY}),
         "drops both gates the app lacks, keeping only a liquidity floor",
@@ -199,22 +208,6 @@ VARIANTS: tuple[GateVariant, ...] = (
 
 
 # -- one candidate's gate inputs ----------------------------------------------
-
-
-def _median(values: Sequence[float]) -> float:
-    """:func:`screener.universe._median`, which is private and must not be forked.
-
-    Restated rather than imported because it is not part of that module's surface;
-    a seam test pins the two against each other so this copy cannot drift.
-    """
-    n = len(values)
-    if n == 0:
-        return 0.0
-    ordered = sorted(values)
-    mid = n // 2
-    if n % 2:
-        return ordered[mid]
-    return (ordered[mid - 1] + ordered[mid]) / 2
 
 
 @dataclass(frozen=True)
@@ -275,7 +268,7 @@ class CandidateSeries:
         moment the ``no-trend`` variant drops it, so copying the app's shortfall
         behaviour rather than tidying it is what keeps that variant honest.
         """
-        return _median(self.dollar_volume[max(0, k - LIQUIDITY_WINDOW):k]) >= floor
+        return app_median(self.dollar_volume[max(0, k - LIQUIDITY_WINDOW):k]) >= floor
 
     def flags(self, session: date, floor: float) -> tuple[bool, bool, bool] | None:
         """The three gate answers at ``session``, or ``None`` if no variant can pass.
@@ -315,10 +308,10 @@ class CandidateSeries:
 
 def passes_under(flags: tuple[bool, bool, bool], gates: frozenset[str]) -> bool:
     """Do ``flags`` clear ``gates``? The only place a variant's rule is applied."""
-    trend, adr, liquidity = flags
+    trend, volatility, liquidity = flags
     return (
         (trend or TREND not in gates)
-        and (adr or ADR not in gates)
+        and (volatility or VOLATILITY not in gates)
         and (liquidity or LIQUIDITY not in gates)
     )
 
@@ -480,38 +473,23 @@ def variant_sweep(
     lookbacks: Sequence[str],
     progress: Callable[[int, int, date], None] | None = None,
 ) -> list[SweepSession]:
-    """:func:`replay.gate_sweep.build_sweep_sessions`, with membership handed in.
+    """This variant's field, through the sweep the run's own field is built with.
 
-    The one line that differs from the original is where ``members`` comes from —
-    this variant's gates rather than ``store.universe`` — and everything downstream
-    of it (the rank table, the decile gate, the detector) is the app's own code
-    reached the same way. So a cell measured here differs from the run's own field by
-    the membership rule and by nothing else.
+    :func:`replay.gate_sweep.build_sweep_sessions` does the work; the only thing
+    handed in is where membership comes from. Reusing it rather than reimplementing
+    the loop is what makes "only the gate set moved" true of the *code* as well as
+    of the intent — the rank table, the decile gate and the detector are literally
+    the same statements for a variant field as for the run's own.
     """
-    out: list[SweepSession] = []
-    for i, (session, members) in enumerate(zip(sessions, memberships), start=1):
-        members = list(members)
-        bars = {symbol: store.bars(market, symbol) for symbol in members}
-        ranks = rank_table(bars, session)
-        gated = detection_gate(ranks, lookbacks=lookbacks)
-        detections = [
-            found
-            for symbol in members
-            if symbol in gated
-            and (found := detect(symbol, bars[symbol], session)) is not None
-        ]
-        out.append(
-            SweepSession(
-                session=session,
-                members=members,
-                ranks=ranks,
-                membership=gate_membership(ranks),
-                detections=detections,
-            )
-        )
-        if progress is not None:
-            progress(i, len(sessions), session)
-    return out
+    by_session = dict(zip(sessions, memberships))
+    return build_sweep_sessions(
+        store,
+        market,
+        sessions,
+        lookbacks=lookbacks,
+        members_for=lambda session: by_session[session],
+        progress=progress,
+    )
 
 
 @dataclass(frozen=True)
@@ -539,7 +517,7 @@ class DimensionContrast:
 class VariantResult:
     """One variant's cell at the anchor's detector and field."""
 
-    variant: GateVariant
+    variant: UniverseGateSet
     members_per_session: float
     field_detections: int
     in_field: int
@@ -618,10 +596,9 @@ def measure_variant(
     sessions: Sequence[date],
     memberships: Sequence[Sequence[str]],
     *,
-    variant: GateVariant,
+    variant: UniverseGateSet,
     replayable: Sequence[ExecutedTrade],
     calendar: Sequence[date],
-    blind_spot_count: int = 0,
     progress: Callable[[int, int, date], None] | None = None,
 ) -> VariantResult:
     """Build ``variant``'s field over ``sessions`` and read the anchor's cell off it."""
@@ -639,7 +616,7 @@ def measure_variant(
         replayable=replayable,
         calendar=calendar,
         stored_rank_sessions=stored_ranks,
-        blind_spot_count=blind_spot_count,
+        blind_spot_count=0,
         grid=[(ANCHOR_DETECTOR, field)],
     )
     cell = grid.cells[0]
@@ -685,7 +662,7 @@ def run_isolation(
     *,
     contract: RunContract = DEFAULT_CONTRACT,
     trades: Sequence[ExecutedTrade] | None = None,
-    variants: Sequence[GateVariant] = VARIANTS,
+    variants: Sequence[UniverseGateSet] = VARIANTS,
     sessions: Sequence[date] | None = None,
     progress: Callable[[str], None] | None = None,
 ) -> Isolation:

@@ -8,9 +8,9 @@ to hold, and both are pinned here rather than assumed:
 
 - **Its gates are :mod:`backtest.universe`'s gates.** The module holds each
   candidate's bars as parallel lists and indexes them per session instead of
-  re-slicing the symbol's history, and it carries its own copy of the app's private
-  ``_median``. These tests put both against the originals on the same bars and
-  require the same answer, so neither can drift from what it stands in for.
+  re-slicing the symbol's history. These tests put the two orders side by side on the
+  same bars and require the same answer, so the indexed path cannot drift from the
+  classifier it stands in for.
 - **Every variant reads one shared evaluation of the gates.** The predicates do not
   depend on the variant, so they are computed once and each variant is a boolean
   ``and`` over the same flags. That batch path must agree with the direct one, or
@@ -45,14 +45,13 @@ from backtest.universe import (
     passes_trend_gate,
 )
 from backtest.field_gate_isolation import (
-    ADR,
     ALL_GATES,
     LIQUIDITY,
     TREND,
     VARIANTS,
-    GateVariant,
+    VOLATILITY,
     ReconstructionFailed,
-    _median,
+    UniverseGateSet,
     gate_flags_by_session,
     members_at,
     memberships_under,
@@ -141,7 +140,7 @@ def test_the_liquidity_gate_medians_a_short_window_exactly_as_the_app_does():
 
     Unreachable while the trend gate is in force — it needs 50 bars — and reachable
     the moment the ``no-trend`` variant drops it, which is why the shortfall
-    behaviour is copied rather than tidied.
+    behaviour is reused rather than tidied.
     """
     bars = _bars(sessions=SESSIONS[:6])
     series = series_of("AAA", bars)
@@ -204,23 +203,6 @@ def test_a_non_positive_low_fails_the_adr_gate_rather_than_raising():
     bars[30] = Bar(bars[30].session, 50.0, 50.0, 0.0, 50.0, 50.0, 1_000_000)
     series = series_of("AAA", bars)
     assert series.passes_adr(series.prefix_len(bars[40].session)) is False
-
-
-@pytest.mark.parametrize(
-    "values",
-    [[], [1.0], [1.0, 3.0], [3.0, 1.0, 2.0], [4.0, 1.0, 3.0, 2.0], [5.0] * 20],
-)
-def test_the_median_copy_is_the_app_s_median(values):
-    """The app's ``_median`` is private, so this module copies it — and is pinned.
-
-    Compared through :func:`screener.universe.median_dollar_volume`, which is the
-    public function that median exists to serve, so the pin does not depend on a
-    private name staying importable.
-    """
-    bars = [
-        Bar(SESSIONS[i], 1.0, 1.0, 1.0, 1.0, 1.0, int(v)) for i, v in enumerate(values)
-    ]
-    assert _median([b.close * b.volume for b in bars]) == median_dollar_volume(bars)
 
 
 # -- every variant reads one shared evaluation of the gates -------------------
@@ -289,7 +271,7 @@ def test_each_dropped_gate_admits_the_name_that_gate_alone_rejects():
     """The isolation only means something if each drop moves its own name and no other."""
     series = _four_names()
     assert members_at(series, SIGNAL, ALL_GATES, US_FLOOR) == ["PASS"]
-    assert members_at(series, SIGNAL, ALL_GATES - {ADR}, US_FLOOR) == ["DULL", "PASS"]
+    assert members_at(series, SIGNAL, ALL_GATES - {VOLATILITY}, US_FLOOR) == ["DULL", "PASS"]
     assert members_at(series, SIGNAL, ALL_GATES - {TREND}, US_FLOOR) == [
         "FALLING",
         "PASS",
@@ -388,6 +370,6 @@ def test_the_isolation_stops_when_the_rebuild_misses_the_store_s_own_rows():
             "US",
             trades=[],
             sessions=[SIGNAL],
-            variants=[GateVariant("all-three", ALL_GATES, "")],
+            variants=[UniverseGateSet("all-three", ALL_GATES, "")],
         )
     assert "does not reproduce" in str(excinfo.value)

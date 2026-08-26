@@ -21,9 +21,9 @@
   {
    "name": "all-three",
    "gates": [
-    "adr",
     "liquidity",
-    "trend"
+    "trend",
+    "volatility"
    ],
    "dropped": [],
    "note": "the run's own field \u2014 reproduces the committed -5.01pp",
@@ -94,7 +94,7 @@
     "trend"
    ],
    "dropped": [
-    "adr"
+    "volatility"
    ],
    "note": "drops the 3.5% ADR20 floor, which the app's universe does not have",
    "members_per_session": 906.1534713763702,
@@ -160,8 +160,8 @@
   {
    "name": "no-trend",
    "gates": [
-    "adr",
-    "liquidity"
+    "liquidity",
+    "volatility"
    ],
    "dropped": [
     "trend"
@@ -230,8 +230,8 @@
   {
    "name": "no-liquidity",
    "gates": [
-    "adr",
-    "trend"
+    "trend",
+    "volatility"
    ],
    "dropped": [
     "liquidity"
@@ -303,8 +303,8 @@
     "liquidity"
    ],
    "dropped": [
-    "adr",
-    "trend"
+    "trend",
+    "volatility"
    ],
    "note": "drops both gates the app lacks, keeping only a liquidity floor",
    "members_per_session": 1687.8197320341048,

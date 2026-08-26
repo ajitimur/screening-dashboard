@@ -101,8 +101,17 @@ that matters, and the `liquidity only` row keeps it and still lands positive.
 **The two-gate row is the app's shape, and it lands where the app lands.** `liquidity
 only` gives `in_field` 322 of 503 — 64.0% — against the app's own 324 of 503, 64.4%. Two
 trades apart, from a different store by a different route. So this row is the app-shaped
-field reached from inside the run's own store, and the two gates are the whole of the
-difference that matters.
+field reached from inside the run's own store.
+
+**Hysteresis is not isolated here, and its exoneration is inferential.** The third
+difference the divergence page names is that the contract drops the app's membership
+hysteresis band, and no variant above restores it — the contract's classifier is
+stateless by construction (`backtest.universe.classify` takes no `prior_members`), so
+adding the band back is not a gate that can be switched off. What bounds it is the row
+above: `liquidity only` reaches the app's own `in_field` to within two trades **without**
+hysteresis, which leaves little room for the band to be carrying the sign. That is a
+bound, not a measurement, and it is the one difference of the four this page has not
+varied directly.
 
 **The movement is entirely in the field, not in his picks.** Across every row his picks
 sit between 13.35% and 16.58% — a narrow band with no trend. The field swings from
@@ -227,6 +236,10 @@ here.** Against `data/replay.duckdb` under the app's universe:
 | --- | ---: | ---: |
 | all 656 replayable trades | 397/656 (60.5%) | **+1.95pp** |
 | the same 503 the backtest store can rank | 324/503 (64.4%) | **+1.86pp** |
+
+Both come from `replay.discrimination_grid.run_grid` rather than from this page's own
+module, so they are **not** in `backtest_gate_isolation.json` — the command that
+reproduces them is under "Reproducing this page" below.
 
 The first reproduces the committed figure exactly. The second holds the population fixed
 at the backtest store's 503 names and returns the same sign within a hair — so the pin is

@@ -108,7 +108,7 @@ import urllib.request
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Literal, Mapping, Sequence
 
 from replay.reference import BarSpan
 from screener.store import Store
@@ -120,8 +120,8 @@ from .contract import (
     WINDOW_MEASURED_START_KEY,
     RunContract,
 )
-from .crawl import Enumeration, enumeration_path
-from .metric import FULL_WINDOW, NO_BOUND_LINE
+from .crawl import UNREAD_REFERENCE, Enumeration, enumeration_path
+from .metric import BIAS_BOUND_KEY, FULL_WINDOW, format_metric
 from .result import stamp_result
 
 # -- what the listing spine is, and where it comes from ------------------------
@@ -252,6 +252,55 @@ class ListingSpine:
     def ordered(self) -> tuple[Snapshot, ...]:
         return tuple(sorted(self.snapshots, key=lambda s: (s.as_of, s.file)))
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "market": self.market,
+            "source": self.source,
+            "snapshots": [
+                {
+                    "as_of": s.as_of.isoformat(),
+                    "file": s.file,
+                    "symbols": list(s.symbols),
+                }
+                for s in self.ordered()
+            ],
+            "unread": [list(row) for row in self.unread],
+        }
+
+    @staticmethod
+    def from_dict(d: dict) -> "ListingSpine":
+        return ListingSpine(
+            market=d["market"],
+            source=d["source"],
+            snapshots=tuple(
+                Snapshot(
+                    as_of=date.fromisoformat(s["as_of"]),
+                    file=s["file"],
+                    symbols=tuple(s["symbols"]),
+                )
+                for s in d["snapshots"]
+            ),
+            unread=tuple(tuple(row) for row in d.get("unread", ())),
+        )
+
+    def to_json(self, *, indent: int = 1) -> str:
+        return json.dumps(self.to_dict(), indent=indent) + "\n"
+
+    def write(self, path: str | Path) -> None:
+        """Cache the spine beside the store.
+
+        Cached rather than re-fetched, for the reason the coverage ledger is
+        committed: a count whose inputs are re-downloaded on every read is a count
+        that can change without anyone changing anything. The archive is not a
+        fixed corpus either — a capture can be added or withdrawn between two runs —
+        so "re-fetch and recompute" is not reproduction.
+        """
+        Path(path).write_text(self.to_json())
+
+    @staticmethod
+    def load(path: str | Path) -> "ListingSpine":
+        return ListingSpine.from_dict(json.loads(Path(path).read_text()))
+
     def coverage(self, window_start: date, window_end: date) -> SpineCoverage:
         """What the spine covers, whether or not that is enough.
 
@@ -367,6 +416,30 @@ class Absence:
         }
 
 
+def todays_roster(enumeration: Enumeration) -> set[str]:
+    """Every name the provider **lists today**, which is what "absent" is measured against.
+
+    Not the fetch set, and the difference is the whole reason this function exists.
+    :func:`~screener.pipeline.fetch_set` drops two slices the crawl has no use for:
+    references nothing reads, and listings the instrument-type rule excludes. An ETF
+    in the first slice is *listed* today — it simply is not fetched — so counting it
+    absent would report several thousand live listings as companies that died, and
+    every share built on that count would be wrong by that much.
+
+    So the reference slice is folded back in. The instrument-type slice is not, and
+    the reason is symmetry rather than taste: :func:`parse_snapshot` narrows the
+    spine's own snapshots by the same :func:`~screener.universe.is_common_stock`
+    rule, so a warrant is missing from both sides and cancels. A name dropped from
+    one side and kept on the other is the only way this count can be wrong by
+    construction, and these two slices are where that could happen.
+    """
+    return set(enumeration.fetched) | {
+        symbol
+        for symbol, reason in enumeration.excluded
+        if reason == UNREAD_REFERENCE
+    }
+
+
 def absences(
     spine: VerifiedSpine,
     *,
@@ -417,7 +490,19 @@ NO_BARS = "no_bars"
 BARS_BEGIN_AFTER = "bars_begin_after_session"
 BARS_END_BEFORE = "bars_end_before_session"
 
-BLIND_SPOT_VERDICTS = (NO_BARS, BARS_BEGIN_AFTER, BARS_END_BEFORE)
+# The vocabulary as a type, so the annotation carries it the way
+# :data:`~backtest.store.RefusalReason` does: a verdict that is not one of these
+# four cannot be spelled, rather than being caught by whatever reads it next.
+Verdict = Literal[
+    "covered",
+    "no_bars",
+    "bars_begin_after_session",
+    "bars_end_before_session",
+]
+
+BLIND_SPOT_VERDICTS: tuple[Verdict, ...] = (
+    NO_BARS, BARS_BEGIN_AFTER, BARS_END_BEFORE
+)
 
 
 def span_of(store: Store, market: str, symbol: str) -> BarSpan | None:
@@ -430,7 +515,7 @@ def span_of(store: Store, market: str, symbol: str) -> BarSpan | None:
     return BarSpan.of(store.bars(market, symbol))
 
 
-def session_verdict(span: BarSpan | None, session: date) -> str:
+def session_verdict(span: BarSpan | None, session: date) -> Verdict:
     """Does this symbol's bar history cover the session being replayed?
 
     **Not** "does the provider still return this symbol?" — the question findings
@@ -451,50 +536,101 @@ def session_verdict(span: BarSpan | None, session: date) -> str:
     return COVERED
 
 
-def is_blind_spot(verdict: str) -> bool:
-    """True for every verdict that is not :data:`COVERED`."""
+def is_blind_spot(verdict: Verdict) -> bool:
+    """True for the three verdicts that mean the session is not covered.
+
+    Membership in :data:`BLIND_SPOT_VERDICTS` rather than "anything but
+    :data:`COVERED`": the two differ only on a verdict that is not in the
+    vocabulary at all, and a string nobody defined should not be silently promoted
+    to a blind spot — the count it lands in is the deliverable.
+    """
     return verdict in BLIND_SPOT_VERDICTS
 
 
-def recycled_symbols(
+@dataclass(frozen=True)
+class Census:
+    """Today's tradeable names, split by whether the bars cover the window's start.
+
+    The population count, and it is decided by :func:`session_verdict` on every
+    name rather than by whether the symbol resolves. That distinction is the one
+    findings §2 had to switch to, and it is easy to lose here: a name the crawl
+    asked about and got *nothing* for still resolves, and counting it covered would
+    denominate the whole hole on symbol resolution one layer above the test that
+    gets it right.
+
+    ``unlisted`` are names in today's fetch set the spine never saw at all — a
+    listing newer than the spine's last capture, or a symbol form the two sources
+    spell differently. They are held apart rather than folded into either side,
+    because "the spine cannot speak to this name" is not a finding about the name.
+    """
+
+    covered: tuple[str, ...]
+    recycled: tuple[str, ...]
+    no_bars: tuple[str, ...]
+    unlisted: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "covered": len(self.covered),
+            "recycled": len(self.recycled),
+            "no_bars": len(self.no_bars),
+            "unlisted_in_spine": len(self.unlisted),
+        }
+
+
+def coverage_census(
     store: Store,
     market: str,
     symbols: Iterable[str],
     *,
     spine: "VerifiedSpine",
     window_start: date,
-) -> tuple[str, ...]:
-    """Names in today's enumeration whose bars begin after the spine already saw them.
+) -> Census:
+    """Split today's tradeable names by :func:`session_verdict` at their first sighting.
 
-    The silent half of the hole, and the only half no absence list can find: the
-    ticker was reassigned to an unrelated listing, so it resolves today, it has
-    bars, and for part of the window the bars are a different company's.
+    The sighting is the earliest date inside the window at which the spine saw the
+    symbol listed. Asking the verdict *there* is what separates the two shapes that
+    look identical in the bars alone:
 
-    The spine is what makes this decidable, and nothing else can. A first bar in
-    2019 on its own says only "no bars before 2019" — which is exactly what a
-    genuine 2019 IPO looks like, and an IPO is no survivorship hole at all: the
-    company did not exist, and a run with no bars for it is right rather than
-    blind. The pair is the evidence: the spine listed this symbol on a dated
-    snapshot, the store's bars for it start after that date, so on that date the
-    symbol was some other listing. `FUSE` is the name that shape is drawn from.
+    * A name the spine listed in 2013 whose bars begin in 2019 is **recycled** — on
+      the 2013 sighting the symbol was somebody else's listing.
+    * A name the spine first listed in 2019 whose bars begin in 2019 is an ordinary
+      **IPO**, and a run with no bars before it is right rather than blind.
 
-    Snapshots before ``window_start`` are not consulted, because the store's own
-    history starts at the contract's store window and a name listed since 2005
-    would otherwise be flagged for the years the crawl was never asked about.
+    A name with no bars at all is a blind spot too, and it is the case that makes
+    this a census rather than a filter: it resolves, the crawl asked about it, and
+    it can price nothing.
     """
     listings = spine.listings()
-    out = []
+    covered, recycled, no_bars, unlisted = [], [], [], []
     for symbol in symbols:
         listing = listings.get(symbol)
-        span = span_of(store, market, symbol)
-        if listing is None or span is None:
+        if listing is None:
+            unlisted.append(symbol)
             continue
-        # The earliest dated sighting inside the window; a first sighting before it
-        # says nothing the store was crawled to answer.
         sighted = max(listing.first_listed, window_start)
-        if sighted <= listing.last_listed and span.first > sighted:
-            out.append(symbol)
-    return tuple(sorted(out))
+        if sighted > listing.last_listed:
+            # Listed only before the window opened; the window has no sighting to
+            # ask the verdict at, so this name is not the window's business.
+            unlisted.append(symbol)
+            continue
+        verdict = session_verdict(span_of(store, market, symbol), sighted)
+        if verdict == BARS_BEGIN_AFTER:
+            recycled.append(symbol)
+        elif verdict == NO_BARS:
+            no_bars.append(symbol)
+        else:
+            # COVERED, and BARS_END_BEFORE — a name whose series stops mid-window is
+            # covered *at its sighting*, which is what this census asks. Its later
+            # silence is a delisting the absence count holds if the provider has
+            # dropped it, and a stale series otherwise.
+            covered.append(symbol)
+    return Census(
+        covered=tuple(sorted(covered)),
+        recycled=tuple(sorted(recycled)),
+        no_bars=tuple(sorted(no_bars)),
+        unlisted=tuple(sorted(unlisted)),
+    )
 
 
 # -- the hole, and findings §2's floor -----------------------------------------
@@ -558,6 +694,14 @@ class SurvivorshipHole:
     absent_names: int
     recycled_names: int | None
     basis: str
+    no_bars_names: int = 0
+    """Names the crawl asked about and got nothing for.
+
+    Part of the hole, not part of the covered population. They *resolve* — the
+    provider lists them and the crawl asked — and they can price nothing, which is
+    exactly the difference between the question findings §2 started with and the
+    one it had to switch to.
+    """
 
     @property
     def recycled_measured(self) -> bool:
@@ -565,7 +709,7 @@ class SurvivorshipHole:
 
     @property
     def missing_names(self) -> int:
-        return self.absent_names + (self.recycled_names or 0)
+        return self.absent_names + (self.recycled_names or 0) + self.no_bars_names
 
     @property
     def total_names(self) -> int:
@@ -586,6 +730,7 @@ class SurvivorshipHole:
             "missing_names": self.missing_names,
             "total_names": self.total_names,
             "share": self.share,
+            "no_bars_names": self.no_bars_names,
         }
 
 
@@ -603,13 +748,14 @@ def hole_from_counts(
     absent_names: int,
     recycled_names: int | None,
     basis: str = BASIS_SPINE,
+    no_bars_names: int = 0,
 ) -> SurvivorshipHole:
     """Assemble a hole from its counts, refusing a negative one.
 
     A constructor rather than the dataclass directly, so the one invariant worth
     checking is checked in the one place holes are made.
     """
-    counted = [covered_names, absent_names]
+    counted = [covered_names, absent_names, no_bars_names]
     if recycled_names is not None:
         counted.append(recycled_names)
     if min(counted) < 0:
@@ -623,6 +769,7 @@ def hole_from_counts(
         absent_names=absent_names,
         recycled_names=recycled_names,
         basis=basis,
+        no_bars_names=no_bars_names,
     )
 
 
@@ -871,13 +1018,13 @@ def attach_bias_bound(
         markets.append(
             {
                 **body,
-                "bias_bound": bias_bound(
+                BIAS_BOUND_KEY: bias_bound(
                     full, market=body["market"], hole_share=share
                 ).to_dict(),
                 "years": [
                     {
                         **cell,
-                        "bias_bound": bias_bound(
+                        BIAS_BOUND_KEY: bias_bound(
                             cell, market=body["market"], hole_share=share
                         ).to_dict(),
                     }
@@ -1059,55 +1206,30 @@ def spine_path(store_path: str | Path) -> Path:
     return out.with_name(out.name + ".spine.json")
 
 
-def write_spine(spine: ListingSpine, path: str | Path) -> None:
-    Path(path).write_text(
-        json.dumps(
-            {
-                "market": spine.market,
-                "source": spine.source,
-                "snapshots": [
-                    {
-                        "as_of": s.as_of.isoformat(),
-                        "file": s.file,
-                        "symbols": list(s.symbols),
-                    }
-                    for s in spine.ordered()
-                ],
-                "unread": [list(row) for row in spine.unread],
-            },
-            indent=1,
-        )
-        + "\n"
-    )
-
-
-def read_spine(path: str | Path) -> ListingSpine:
-    raw = json.loads(Path(path).read_text())
-    return ListingSpine(
-        market=raw["market"],
-        source=raw["source"],
-        snapshots=tuple(
-            Snapshot(
-                as_of=date.fromisoformat(s["as_of"]),
-                file=s["file"],
-                symbols=tuple(s["symbols"]),
-            )
-            for s in raw["snapshots"]
-        ),
-        unread=tuple(tuple(row) for row in raw.get("unread", ())),
-    )
-
-
 # -- the report, and the command that produces it ------------------------------
+
+
+def holes_by_market(report: Mapping[str, Any]) -> dict[str, float]:
+    """Each market's hole share, keyed the way :func:`attach_bias_bound` wants it.
+
+    The join between the two deliverables, and it is a function rather than a line
+    at a call site so the count and the bound cannot be wired to different markets.
+    """
+    return {
+        body["market"]: body["hole"]["share"]
+        for body in report["markets"]
+        if body["hole"]
+    }
 
 
 def survivorship_report(
     contract: RunContract,
     *,
     holes: Sequence[SurvivorshipHole],
-    absences: Mapping[str, Sequence[Absence]],
+    absent: Mapping[str, Sequence[Absence]],
     coverage: Mapping[str, SpineCoverage],
     gaps: Sequence[EnumerationGap],
+    censuses: Mapping[str, "Census"] = {},
 ) -> dict[str, Any]:
     """Both deliverables as one stamped payload, market by market.
 
@@ -1117,11 +1239,10 @@ def survivorship_report(
     """
     by_market = {hole.market: hole for hole in holes}
     gap_by_market = {gap.market: gap for gap in gaps}
-    absent_by_market = absences
     markets = []
     for market in contract.value(SCOPE_MARKETS_KEY):
         hole = by_market.get(market)
-        found = absent_by_market.get(market, ())
+        found = absent.get(market, ())
         markets.append(
             {
                 "market": market,
@@ -1129,6 +1250,9 @@ def survivorship_report(
                     coverage[market].to_dict() if market in coverage else None
                 ),
                 "hole": hole.to_dict() if hole else None,
+                "census": (
+                    censuses[market].to_dict() if market in censuses else None
+                ),
                 "versus_findings_floor": against_floor(hole) if hole else None,
                 "absences": [a.to_dict() for a in found],
                 "absent_count": len(found),
@@ -1235,21 +1359,33 @@ def main(argv: list[str] | None = None) -> int:
         "--out-json", default=None,
         help="where to write the machine-readable, contract-stamped result",
     )
+    parser.add_argument(
+        "--metric-json", default=None,
+        help="a metric report from `python -m backtest.metric --out-json`; its "
+             "headline is re-run against the measured hole and reprinted with the "
+             "bound on it",
+    )
+    parser.add_argument(
+        "--out-metric-json", default=None,
+        help="where to write the bounded metric report (needs --metric-json)",
+    )
     args = parser.parse_args(argv)
 
     contract = DEFAULT_CONTRACT
     window_start = date.fromisoformat(str(contract.value(WINDOW_MEASURED_START_KEY)))
     cache = spine_path(args.store)
     if args.fetch_spine:
-        spine = fetch_spine(progress=lambda line: print(line))
-        write_spine(spine, cache)
-    spine = read_spine(cache) if cache.exists() else None
+        fetch_spine(progress=print).write(cache)
+    # Read back from the cache either way, so the figures are the ones a later run
+    # reproduces from the committed file rather than the ones in memory now.
+    spine = ListingSpine.load(cache) if cache.exists() else None
 
     store = Store.open(args.store)
     try:
         holes: list[SurvivorshipHole] = []
         found: dict[str, tuple[Absence, ...]] = {}
         coverage: dict[str, SpineCoverage] = {}
+        censuses: dict[str, Census] = {}
         gaps: list[EnumerationGap] = []
         for market in contract.value(SCOPE_MARKETS_KEY):
             enumeration = Enumeration.load(enumeration_path(args.store, market))
@@ -1260,7 +1396,13 @@ def main(argv: list[str] | None = None) -> int:
             # listed and the crawl asked about. The excluded slice is deliberately
             # not folded in — a warrant the crawl dropped is not a company that
             # survived, and counting it as one would deflate every share below.
-            today = set(enumeration.fetched)
+            # Two rosters, because they answer two questions. ``listed`` is what
+            # "absent from today's enumeration" is measured against — everything
+            # the provider lists, references folded back in. ``tradeable`` is the
+            # fetch set, the names the run can actually price, and it is what the
+            # covered population is counted from.
+            listed = todays_roster(enumeration)
+            tradeable = sorted(enumeration.fetched)
             sessions = store.sessions(market)
             window_end = sessions[-1] if sessions else window_start
             if spine is not None and market == spine.market:
@@ -1268,19 +1410,21 @@ def main(argv: list[str] | None = None) -> int:
                 coverage[market] = verified.coverage
                 found[market] = absences(
                     verified,
-                    enumerated_today=today,
+                    enumerated_today=listed,
                     window=(window_start, window_end),
                 )
-                recycled = recycled_symbols(
-                    store, market, sorted(today), spine=verified,
+                census = coverage_census(
+                    store, market, tradeable, spine=verified,
                     window_start=window_start,
                 )
+                censuses[market] = census
                 holes.append(
                     hole_from_counts(
                         market=market,
-                        covered_names=len(today) - len(recycled),
+                        covered_names=len(census.covered),
                         absent_names=len(found[market]),
-                        recycled_names=len(recycled),
+                        recycled_names=len(census.recycled),
+                        no_bars_names=len(census.no_bars),
                         basis=BASIS_SPINE,
                     )
                 )
@@ -1304,13 +1448,28 @@ def main(argv: list[str] | None = None) -> int:
         store.close()
 
     report = survivorship_report(
-        contract, holes=holes, absences=found, coverage=coverage, gaps=gaps
+        contract, holes=holes, absent=found, coverage=coverage, gaps=gaps,
+        censuses=censuses,
     )
     if args.out_json:
         Path(args.out_json).write_text(json.dumps(report, indent=1) + "\n")
     print(format_survivorship(report))
     if args.out_json:
         print(f"\nwrote {args.out_json}")
+
+    # The second deliverable, and it is produced by the same command rather than by
+    # glue somebody writes later: the measured hole goes straight onto the
+    # pre-registered headline, and the bounded report is what gets read.
+    if args.metric_json:
+        bounded = attach_bias_bound(
+            json.loads(Path(args.metric_json).read_text()), holes_by_market(report)
+        )
+        if args.out_metric_json:
+            Path(args.out_metric_json).write_text(json.dumps(bounded, indent=1) + "\n")
+        print()
+        print(format_metric(bounded))
+        if args.out_metric_json:
+            print(f"\nwrote {args.out_metric_json}")
     return 0
 
 

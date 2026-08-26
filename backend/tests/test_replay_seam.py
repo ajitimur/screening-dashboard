@@ -7549,7 +7549,8 @@ def test_the_price_scale_count_rides_on_the_figures_it_qualifies(
 #     reaches further back than the reference study's four years, so a *smaller*
 #     hole is a reason for suspicion rather than a result.
 
-from backtest.crawl import Enumeration
+from backtest.crawl import NOT_COMMON_STOCK, UNREAD_REFERENCE, Enumeration
+from backtest.metric import NO_BOUND_LINE
 from backtest.survivorship import (
     BARS_BEGIN_AFTER,
     BARS_END_BEFORE,
@@ -7557,7 +7558,6 @@ from backtest.survivorship import (
     FINDINGS_FLOOR,
     FLOOR_SUSPICION_NOTE,
     NO_BARS,
-    NO_BOUND_LINE,
     PESSIMISTIC_OUTCOME,
     PESSIMISTIC_R,
     SPINE_SOURCE,
@@ -7576,17 +7576,17 @@ from backtest.survivorship import (
     enumeration_gap,
     format_survivorship,
     hole_from_counts,
+    holes_by_market,
     is_blind_spot,
     missing_trade_count,
+    coverage_census,
     fetch_spine,
     parse_snapshot,
-    read_spine,
-    recycled_symbols,
     session_verdict,
     span_of,
     spine_path,
     survivorship_report,
-    write_spine,
+    todays_roster,
 )
 
 _WINDOW = (date(2012, 1, 1), date(2026, 8, 26))
@@ -7940,8 +7940,8 @@ def test_the_survivorship_report_states_the_hole_against_the_floor(store: Store)
     report = survivorship_report(
         DEFAULT_CONTRACT,
         holes=[hole],
-        absences={"US": absences(spine.verify(*_WINDOW),
-                                 enumerated_today=["ALIVE", "EDGE"], window=_WINDOW)},
+        absent={"US": absences(spine.verify(*_WINDOW),
+                               enumerated_today=["ALIVE", "EDGE"], window=_WINDOW)},
         coverage={"US": spine.verify(*_WINDOW).coverage},
         gaps=[],
     )
@@ -8064,16 +8064,22 @@ def test_a_recycled_name_never_counts_toward_the_covered_population(store: Store
     store.append_bars("US", "RECY", [_bar(d) for d in _daily(date(2019, 6, 3), 3)])
     store.append_bars("US", "IPO", [_bar(d) for d in _daily(date(2019, 6, 3), 3)])
     spine = _bracketing(
-        _snap(date(2013, 2, 1), "LIVE", "RECY"),
-        _snap(date(2020, 2, 1), "LIVE", "RECY", "IPO"),
+        _snap(date(2013, 2, 1), "LIVE", "RECY", "SILENT"),
+        _snap(date(2020, 2, 1), "LIVE", "RECY", "IPO", "SILENT"),
     ).verify(*_WINDOW)
 
-    recycled = recycled_symbols(
-        store, "US", ["LIVE", "RECY", "IPO"], spine=spine,
+    census = coverage_census(
+        store, "US", ["LIVE", "RECY", "IPO", "SILENT"], spine=spine,
         window_start=date(2012, 1, 1),
     )
 
-    assert recycled == ("RECY",)
+    assert census.recycled == ("RECY",)
+    assert census.covered == ("IPO", "LIVE")
+    # `SILENT` is listed and the crawl asked about it and got nothing. It resolves,
+    # it can price nothing, and it belongs in the hole rather than the denominator —
+    # which is the difference between the two questions findings §2 had to switch
+    # between.
+    assert census.no_bars == ("SILENT",)
 
 
 def test_an_unmeasured_recycled_half_is_not_reported_as_none_of_them(store: Store):
@@ -8111,8 +8117,63 @@ def test_the_spine_round_trips_through_the_cache_beside_the_store(tmp_path):
     )
     path = spine_path(tmp_path / "backtest.duckdb")
 
-    write_spine(spine, path)
+    spine.write(path)
 
     assert path.name == "backtest.duckdb.spine.json"
-    assert read_spine(path).ordered() == spine.ordered()
-    assert read_spine(path).unread == spine.unread
+    assert ListingSpine.load(path).ordered() == spine.ordered()
+    assert ListingSpine.load(path).unread == spine.unread
+
+
+def test_a_listed_etf_is_not_a_company_that_died(store: Store):
+    """"Absent from today's enumeration" means the provider does not list it, not
+    that the crawl declined to fetch it.
+
+    `fetch_set` drops references nothing reads — several thousand US ETFs — and they
+    are *listed* today. Counting them absent would report a live listing as a company
+    that died, on a scale that would swamp the real hole. The instrument-type slice is
+    a different case and stays dropped, because `parse_snapshot` narrows the spine by
+    the same rule, so a warrant is missing from both sides and cancels.
+    """
+    enumeration = Enumeration(
+        market="US",
+        listed=5,
+        fetched=("^IXIC", "ALIVE", "EDGE"),
+        excluded=(("SPY", UNREAD_REFERENCE), ("ALIVEW", NOT_COMMON_STOCK)),
+    )
+
+    roster = todays_roster(enumeration)
+
+    assert roster == {"^IXIC", "ALIVE", "EDGE", "SPY"}
+    # And the count run against it leaves the ETF alone while still finding the
+    # name that really left.
+    spine = _bracketing(_snap(date(2013, 2, 1), "ALIVE", "SPY", "GONE"))
+    found = absences(spine.verify(*_WINDOW), enumerated_today=roster, window=_WINDOW)
+    assert [a.symbol for a in found] == ["GONE"]
+
+
+def test_the_measured_hole_reaches_the_headline_without_hand_written_glue(store: Store):
+    """The two deliverables join inside the package, not at a call site.
+
+    `holes_by_market` is the join, and it is a function rather than a line somebody
+    writes later so the count and the bound cannot be wired to different markets —
+    the one way this pair goes wrong silently, since a mismatched bound still prints
+    a plausible number.
+    """
+    hole = hole_from_counts(market="US", covered_names=3, absent_names=1,
+                            recycled_names=0)
+    report = survivorship_report(
+        DEFAULT_CONTRACT, holes=[hole], absent={}, coverage={}, gaps=[]
+    )
+
+    shares = holes_by_market(report)
+
+    assert shares == {"US": 0.25}
+    bounded = attach_bias_bound(
+        metric_report(DEFAULT_CONTRACT, [_mtrade("AAA", 2015, 1.0)], markets=["US"]),
+        shares,
+    )
+    printed = format_metric(bounded)
+    assert NO_BOUND_LINE not in printed
+    # The per-year cell carries its own bound too, not only the window figure a
+    # reader skims to.
+    assert printed.count("bound") >= 2

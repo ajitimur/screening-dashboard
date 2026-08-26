@@ -671,10 +671,21 @@ def _cell_line(cell: dict[str, Any], *, width: int = 22) -> str:
         # symbols to say", and those are different findings.
         else f"{boot['clusters']} {boot['cluster']}s — too thin for an interval"
     )
+    # The cell's own bound, where one was attached — every result carries it, not
+    # only the window figure a reader skims to. Compact and on the same line, for
+    # the reason the win rate is: a pair split from its figure is a pair somebody
+    # quotes half of.
+    bound = cell.get(BIAS_BOUND_KEY)
+    bounded = (
+        f"  bound {bound['pessimistic_r']:+.3f}R"
+        if bound and bound["pessimistic_r"] is not None
+        else ""
+    )
     return (
         f"  {cell['label']:<{width}} {cell['expectancy_r']:+.3f}R  "
         f"win {cell['win_rate']:.1%}  n={cell['closed']}  "
         f"med {dist['median']:+.2f} p90 {dist['p90']:+.2f} max {dist['max']:+.2f}  {ci}"
+        f"{bounded}"
     )
 
 

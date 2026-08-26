@@ -3,6 +3,7 @@
   "start": "2019-04-01",
   "end": "2022-12-30",
   "burn_in": 126,
+  "band_warm_up": 126,
   "market": "US"
  },
  "detector_version": 3,
@@ -85,7 +86,8 @@
      "field": 0.9071228573379772,
      "gap_pp": -1.0153160368280179
     }
-   ]
+   ],
+   "hysteresis": false
   },
   {
    "name": "no-adr",
@@ -155,7 +157,8 @@
      "field": 0.6632773550249278,
      "gap_pp": 11.809916319369574
     }
-   ]
+   ],
+   "hysteresis": false
   },
   {
    "name": "no-trend",
@@ -225,7 +228,8 @@
      "field": 0.8442551102696259,
      "gap_pp": 3.8861772847257225
     }
-   ]
+   ],
+   "hysteresis": false
   },
   {
    "name": "no-liquidity",
@@ -295,7 +299,8 @@
      "field": 0.929384965831435,
      "gap_pp": -4.337460313713448
     }
-   ]
+   ],
+   "hysteresis": false
   },
   {
    "name": "liquidity-only",
@@ -365,7 +370,185 @@
      "field": 0.6128126181602117,
      "gap_pp": 15.737371724351501
     }
+   ],
+   "hysteresis": false
+  },
+  {
+   "name": "all-three+band",
+   "gates": [
+    "liquidity",
+    "trend",
+    "volatility"
+   ],
+   "dropped": [],
+   "note": "the run's own field, plus the app's 0.8-1.0x hysteresis band",
+   "hysteresis": true,
+   "members_per_session": 369.884287454324,
+   "field_detections": 36858,
+   "in_field": 167,
+   "placed": 503,
+   "in_field_share": 0.3320079522862823,
+   "picks_share": 0.1437125748502994,
+   "field_share": 0.19422922789206518,
+   "gap_pp": -5.051665304176578,
+   "dimensions": [
+    {
+     "dimension": "Tightness",
+     "weight": 2,
+     "picks": 0.4251497005988024,
+     "field": 0.2518033662837296,
+     "gap_pp": 17.334633431507278
+    },
+    {
+     "dimension": "Orderliness",
+     "weight": 1,
+     "picks": 0.40718562874251496,
+     "field": 0.4337429869088966,
+     "gap_pp": -2.655735816638166
+    },
+    {
+     "dimension": "Prior move",
+     "weight": 1,
+     "picks": 1.0,
+     "field": 1.0,
+     "gap_pp": 0.0
+    },
+    {
+     "dimension": "Base length",
+     "weight": 0,
+     "picks": 0.5209580838323353,
+     "field": 0.673657493988779,
+     "gap_pp": -15.269941015644372
+    },
+    {
+     "dimension": "MA support",
+     "weight": 1,
+     "picks": 0.8562874251497006,
+     "field": 0.8539941223617419,
+     "gap_pp": 0.22933027879586954
+    },
+    {
+     "dimension": "Volume",
+     "weight": 1,
+     "picks": 0.25748502994011974,
+     "field": 0.322201442693027,
+     "gap_pp": -6.4716412752907235
+    },
+    {
+     "dimension": "ADR",
+     "weight": 2,
+     "picks": 0.8982035928143712,
+     "field": 0.9080951108736308,
+     "gap_pp": -0.9891518059259585
+    }
    ]
+  },
+  {
+   "name": "liquidity-only+band",
+   "gates": [
+    "liquidity"
+   ],
+   "dropped": [
+    "trend",
+    "volatility"
+   ],
+   "note": "the app's full shape \u2014 its gate set and its band \u2014 from the run's store",
+   "hysteresis": true,
+   "members_per_session": 1752.0109622411694,
+   "field_detections": 184494,
+   "in_field": 324,
+   "placed": 503,
+   "in_field_share": 0.6441351888667992,
+   "picks_share": 0.13271604938271606,
+   "field_share": 0.1250021629665519,
+   "gap_pp": 0.7713886416164162,
+   "dimensions": [
+    {
+     "dimension": "Tightness",
+     "weight": 2,
+     "picks": 0.4012345679012346,
+     "field": 0.2079216486996245,
+     "gap_pp": 19.331291920161007
+    },
+    {
+     "dimension": "Orderliness",
+     "weight": 1,
+     "picks": 0.345679012345679,
+     "field": 0.3702652662179232,
+     "gap_pp": -2.4586253872244224
+    },
+    {
+     "dimension": "Prior move",
+     "weight": 1,
+     "picks": 1.0,
+     "field": 1.0,
+     "gap_pp": 0.0
+    },
+    {
+     "dimension": "Base length",
+     "weight": 0,
+     "picks": 0.4660493827160494,
+     "field": 0.5695696561748369,
+     "gap_pp": -10.352027345878751
+    },
+    {
+     "dimension": "MA support",
+     "weight": 1,
+     "picks": 0.7839506172839507,
+     "field": 0.682372687788756,
+     "gap_pp": 10.157792949519461
+    },
+    {
+     "dimension": "Volume",
+     "weight": 1,
+     "picks": 0.3549382716049383,
+     "field": 0.4012216435085048,
+     "gap_pp": -4.6283371903566515
+    },
+    {
+     "dimension": "ADR",
+     "weight": 2,
+     "picks": 0.7685185185185185,
+     "field": 0.6132442767905038,
+     "gap_pp": 15.527424172801474
+    }
+   ]
+  }
+ ],
+ "band_effects": [
+  {
+   "variant": "all-three+band",
+   "baseline": "all-three",
+   "gates": [
+    "liquidity",
+    "trend",
+    "volatility"
+   ],
+   "members_delta": 7.2667478684531375,
+   "in_field": 167,
+   "baseline_in_field": 165,
+   "placed": 503,
+   "in_field_delta": 2,
+   "in_field_delta_pp": 0.3976143141153081,
+   "gap_pp": -5.051665304176578,
+   "baseline_gap_pp": -5.006549825234521,
+   "gap_delta_pp": -0.0451154789420567
+  },
+  {
+   "variant": "liquidity-only+band",
+   "baseline": "liquidity-only",
+   "gates": [
+    "liquidity"
+   ],
+   "members_delta": 64.19123020706456,
+   "in_field": 324,
+   "baseline_in_field": 322,
+   "placed": 503,
+   "in_field_delta": 2,
+   "in_field_delta_pp": 0.3976143141153081,
+   "gap_pp": 0.7713886416164162,
+   "baseline_gap_pp": 0.7178716897386972,
+   "gap_delta_pp": 0.05351695187771899
   }
  ]
 }

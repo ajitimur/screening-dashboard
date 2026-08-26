@@ -152,6 +152,34 @@ already keep :mod:`backtest.metric` out: it is a command
 :class:`~backtest.run.ContractDrift`. The entry point is
 ``backtest.ranking.ranking_report``.
 
+Issue #197 lands Phase 6: :mod:`backtest.anchors`, the six committed figures this
+run reproduces before any new figure from it is read. Three are geometry measured
+from his bars — they hold whatever the detector does, so they anchor the store and
+the indicators and are checked first and reported apart; a failure there stops the
+check, because nothing downstream is worth investigating yet. Three move with
+coverage and with the gates, so each carries the detector version it was measured
+at and every superseded pin beside its live value. Detection recall and ``in_field``
+are kept as different quantities and can never be checked against each other — the
+conflation #165 fixed, made unrepresentable — and the ``in_field`` row's #162
+tolerance covers a few trades' worth of denominator shift but never a flip in the
+sign of §4b's gap. Anchoring is against arms B and C, derived from
+:data:`~backtest.simulate.ARM_SPECS` rather than restated: arm A has no counterpart
+in the reference set, so it is measured and never anchored.
+
+Nothing in it re-measures what already has a home. The anchors arrive as the
+existing measurement types — the funnel's :class:`~replay.funnel.StageRecall`, the
+grid's :class:`~replay.discrimination_grid.CellMeasurement`, the reference
+module's :class:`~replay.reference.ReferenceReport` — and a mismatch raises
+:class:`~replay.reference.DriftError`, the mechanism the study has failed loudly on
+since #114. The geometry is the one exception, and only because its committed
+figures came from a throwaway prototype rather than from a module anything can call.
+
+:mod:`backtest.anchors`'s names are **not** re-exported here, for the reasons that
+already keep :mod:`backtest.metric` out: it is a command
+(``python -m backtest.anchors``) and it imports :mod:`backtest.simulate`, which
+imports :class:`~backtest.run.ContractDrift`. The entry point is
+``backtest.anchors.check_anchors``.
+
 The universe's names are not re-exported, and the reason is naming rather than
 import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean
 something else one import away (:mod:`screener.universe`, :mod:`replay.reference`),

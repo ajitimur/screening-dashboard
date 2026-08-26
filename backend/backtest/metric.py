@@ -220,6 +220,36 @@ def check_costs(contract: RunContract, market: str) -> None:
             )
 
 
+def check_one_market_one_arm(
+    trades: Sequence[SimulatedTrade], *, market: str, what: str
+) -> None:
+    """Refuse a cohort spanning two markets or two arms, whatever is measuring it.
+
+    Both refusals exist because neither failure has a shape a reader could catch
+    afterwards. A mean across the two markets is the figure findings §8 forbids —
+    magnitudes do not transfer — and it would print as an ordinary number. A mean
+    across two arms would report a figure no arm produced, under the name of the
+    one the run pre-registered.
+
+    ``what`` names the caller in the message, because the same refusal now guards
+    two different measurements (:func:`expectancy_cell` and the ranking's cohort)
+    and "one market's" is unhelpful when a reader cannot tell which one refused.
+    """
+    foreign = {t.market for t in trades} - {market}
+    if foreign:
+        raise ValueError(
+            f"{what} is one market's: {market!r} was asked for and "
+            f"{sorted(foreign)} arrived too; US and IDX never pool"
+        )
+    other_arms = {t.arm for t in trades} - {PRIMARY_ARM}
+    if other_arms:
+        raise ValueError(
+            f"{what} is measured on arm {PRIMARY_ARM}, the pre-registered arm: "
+            f"{sorted(other_arms)} arrived too, and no arm produced the average "
+            "of them"
+        )
+
+
 def per_side_cost_bps(contract: RunContract, market: str) -> float:
     """Commission plus slippage for one side of a trade in ``market``, in bps.
 
@@ -448,19 +478,7 @@ def expectancy_cell(
     same output as a slice nobody computed.
     """
     check_costs(contract, market)
-    foreign = {t.market for t in trades} - {market}
-    if foreign:
-        raise ValueError(
-            f"an expectancy cell is one market's: {market!r} was asked for and "
-            f"{sorted(foreign)} arrived too; US and IDX never pool"
-        )
-    other_arms = {t.arm for t in trades} - {PRIMARY_ARM}
-    if other_arms:
-        raise ValueError(
-            f"the pre-registered metric is arm {PRIMARY_ARM}'s: "
-            f"{sorted(other_arms)} arrived too, and no arm produced the average "
-            "of them"
-        )
+    check_one_market_one_arm(trades, market=market, what="an expectancy cell")
 
     closed = [t for t in trades if t.r_multiple is not None]
     rs = [after_cost_r(t, contract) for t in closed]

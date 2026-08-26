@@ -119,6 +119,7 @@ from .metric import (
     PRIMARY_ARM,
     after_cost_r,
     check_costs,
+    check_one_market_one_arm,
     expectancy_cell,
     measured_years,
     quantile,
@@ -133,9 +134,24 @@ from .simulate import SimulatedTrade, simulate_market
 # app's nine minus the struck ``Sector`` row, which the store cannot recover
 # because the labels table carries no history (findings §1, PRD "Out of Scope").
 SCORE_LABEL = SEVEN_DIM_LABEL
-SCORE_DIMENSIONS = 7
+# Derived from the rubric's own table rather than typed, the way
+# :data:`replay.field.SEVEN_DIM_MAX_POINTS` is: a dimension added or retired
+# carries here instead of leaving a stale count printing in every payload.
+SCORE_DIMENSIONS = len(DIMENSIONS) - 1
 SCORE_MAX_POINTS = SEVEN_DIM_MAX_POINTS
-SCORE_MAX_STARS = SCORE_MAX_POINTS / 2
+
+
+def stars(points: int) -> float:
+    """Points as stars — the one site in this module that owns the ``÷ 2``.
+
+    :mod:`screener.score` keeps the division in a single place so the live rubric
+    cannot drift from the version table it is keyed in; a module that spelled it
+    at three sites would be three places for a re-based scale to be half-applied.
+    """
+    return points / 2
+
+
+SCORE_MAX_STARS = stars(SCORE_MAX_POINTS)
 
 # The app's own ceiling, derived from the live weight table rather than typed, so a
 # weight change moves it here too. Carried beside the replayed one because ≥3.5★
@@ -244,11 +260,11 @@ class Band:
 
     @property
     def low_stars(self) -> float:
-        return self.low_points / 2
+        return stars(self.low_points)
 
     @property
     def high_stars(self) -> float:
-        return self.high_points / 2
+        return stars(self.high_points)
 
     @property
     def label(self) -> str:
@@ -301,20 +317,33 @@ class ScoredTrade:
 def bands(cohort: Sequence[ScoredTrade], *, deciles: int = DECILES) -> tuple[Band, ...]:
     """The cut: score bands in ascending order, no score split across two of them.
 
+    Cut over the **closed** trades, because those are the outcomes being bucketed
+    and a trade still running contributes to no statistic in the report. Including
+    the open ones would let a population that pays nothing move every boundary the
+    measured population is then read against — and the open trades are not a random
+    sample of the field, since a name still running at the window's end is one the
+    trail never took out.
+
     Walks the distinct scores upward, accumulating until the cumulative share
-    crosses the next decile boundary, then closes a band covering every decile
-    position it reached. A score that carries more than a tenth of the cohort
+    crosses the next decile boundary, then closes a band carrying every decile
+    boundary that fell inside it. A score carrying more than a tenth of the cohort
     therefore swallows several deciles at once and the result has fewer than
-    ``deciles`` bands — which is a fact about an eight-point score, not a defect in
-    the cut.
+    ``deciles`` bands — a fact about an eight-point score, not a defect in the cut.
+
+    The bands **partition** the ten decile positions exactly: each boundary lands in
+    the band that contains it, and the last band always closes on the tenth. So a
+    band's decile span is where its share of the cohort sits, not a rounding of that
+    share — a band holding 49% carries the four boundaries below it and the fifth
+    belongs to its neighbour.
 
     A function of the score distribution alone, so shuffling the cohort moves
     nothing: a cut that read arrival order would produce different buckets on a
     re-run of the same data with nothing in the output to show it.
     """
-    if not cohort:
+    closed = [s for s in cohort if s.trade.r_multiple is not None]
+    if not closed:
         return ()
-    counts = Counter(s.points for s in cohort)
+    counts = Counter(s.points for s in closed)
     total = sum(counts.values())
     out: list[Band] = []
     cumulative = 0
@@ -460,6 +489,25 @@ def rank_correlation(rows: Sequence[Outcome]) -> float | None:
 
 # -- the bootstrap, over a statistic rather than over a mean -------------------
 
+# How much of a resample distribution may be undefined before the interval built
+# on the rest of it is refused.
+#
+# A resample is undefined exactly when it drew no symbol from the top band or none
+# from the bottom — the draws that carry the most uncertainty about a gap resting
+# on a thin edge. Dropping them and reading the interval off what is left
+# *conditions on the statistic having been computable*, which renormalises the
+# distribution towards the cases where it was, and those are the confident ones.
+# The correction goes the wrong way: it tightens the interval exactly where the
+# data is weakest.
+#
+# There is no honest value to substitute for an undefined draw — zero is a
+# measurement nobody made — so the remedy is to refuse the interval rather than to
+# repair it. A tenth is a judgement and is recorded as one: below it the
+# renormalisation moves a percentile bound by less than the resampling noise around
+# it, and above it the interval is describing a sub-population of the resamples.
+# The count always rides on the output, so a cell just under the line reads as one.
+MAX_UNDEFINED_SHARE = 0.10
+
 
 def bootstrap_symbol_statistic(
     clusters: Sequence[Sequence[Outcome]],
@@ -470,6 +518,7 @@ def bootstrap_symbol_statistic(
     confidence: float = BOOTSTRAP_CONFIDENCE,
     cluster: str = BOOTSTRAP_CLUSTER,
     min_clusters: int = BOOTSTRAP_MIN_CLUSTERS,
+    max_undefined_share: float = MAX_UNDEFINED_SHARE,
 ) -> dict[str, Any]:
     """A clustered bootstrap of an arbitrary statistic over the pooled rows.
 
@@ -487,9 +536,12 @@ def bootstrap_symbol_statistic(
     whether it pays differently.
 
     A resample the statistic cannot evaluate (an empty edge band, no variance) is
-    counted under ``undefined`` and left out of the interval rather than defaulted
-    to zero, because a resample that could not answer is not a resample that
-    answered no. If every resample is undefined the interval is refused outright.
+    counted under ``undefined`` rather than defaulted to zero, because a resample
+    that could not answer is not a resample that answered no. Past
+    :data:`MAX_UNDEFINED_SHARE` of the draws the interval is **refused**: reading it
+    off the draws that did compute would condition on the statistic having been
+    computable, which is a condition satisfied disproportionately by the confident
+    draws. See that constant for the argument.
 
     Below ``min_clusters`` no interval is reported at all, for the reason the
     metric records: one symbol resampled two thousand times returns its own mean
@@ -508,6 +560,7 @@ def bootstrap_symbol_statistic(
         "confidence": confidence,
         "min_clusters": min_clusters,
         "undefined": 0,
+        "max_undefined_share": max_undefined_share,
         "suppressed": None,
     }
     empty = {**body, "ci_low": None, "ci_high": None, "p_value": None}
@@ -531,13 +584,16 @@ def bootstrap_symbol_statistic(
             undefined += 1
             continue
         drawn_values.append(value)
-    if not drawn_values:
+    share_undefined = undefined / resamples if resamples else 1.0
+    if not drawn_values or share_undefined > max_undefined_share:
         return {
             **empty,
             "undefined": undefined,
             "suppressed": (
-                f"every resample was undefined over {n} {cluster}s: no interval "
-                "exists to report"
+                f"{share_undefined:.1%} of resamples could not be evaluated over "
+                f"{n} {cluster}s, past the {max_undefined_share:.0%} the interval "
+                "is allowed: reading it off the rest would condition on the draws "
+                "where the statistic was computable, which are the confident ones"
             ),
         }
 
@@ -563,9 +619,14 @@ VERDICT_RULE = (
     "symbol-clustered intervals both entirely above zero; either one alone is "
     "'no evidence it ranks', because a gap can rest on one hot name at the top "
     "and a rho can be positive and negligible. A cohort whose top or bottom band "
-    "is below the cluster floor is 'too thin to say' — the gap is computed "
-    "between those two bands. 'no evidence it ranks' is never 'the score does not "
-    "rank': one sample cannot license that"
+    "is below the cluster floor, or whose interval was refused for undefined "
+    "resamples, is 'too thin to say' — the gap is computed between those two "
+    "bands. The verdict reads the 95% interval's lower bound, which is a "
+    "one-sided 2.5% test and is deliberately stricter than the one-sided p "
+    "printed beside it: a cell can therefore show p just under 0.05 and still "
+    "read 'no evidence it ranks', and the interval is the one that governs. 'no "
+    "evidence it ranks' is never 'the score does not rank': one sample cannot "
+    "license that"
 )
 
 
@@ -651,24 +712,14 @@ def scored_trades(
 def check_cohort(cohort: Sequence[ScoredTrade], *, market: str) -> None:
     """Refuse a cohort spanning two markets or two arms, before anything is cut.
 
-    Checked over the whole cohort rather than per bucket, because a foreign trade
-    that happened to land in a band nobody read would pass a per-bucket check and
-    still move the cut every other band was made against. findings §8 measured that
-    magnitudes do not transfer between the markets, and the pre-registered arm is
-    arm B's — a ranking averaged over two arms would rank a result no arm produced.
+    The metric's own refusal (:func:`~backtest.metric.check_one_market_one_arm`),
+    called on the whole cohort rather than left to fire per bucket: a foreign trade
+    landing in a band nobody read would pass a per-bucket check and still have moved
+    the cut every other band was made against.
     """
-    foreign = {s.market for s in cohort} - {market}
-    if foreign:
-        raise ValueError(
-            f"a ranking is one market's: {market!r} was asked for and "
-            f"{sorted(foreign)} arrived too; US and IDX never pool"
-        )
-    other_arms = {s.trade.arm for s in cohort} - {PRIMARY_ARM}
-    if other_arms:
-        raise ValueError(
-            f"the ranking is measured on arm {PRIMARY_ARM}, the pre-registered "
-            f"arm: {sorted(other_arms)} arrived too"
-        )
+    check_one_market_one_arm(
+        [s.trade for s in cohort], market=market, what="a ranking"
+    )
 
 
 def bucket_cell(
@@ -686,6 +737,12 @@ def bucket_cell(
     headline is comparing two figures built the same way.
     """
     in_band = [s for s in cohort if band.holds(s.points)]
+    # Off the closed trades on both sides, because that is the population the cut
+    # was made over and the one every figure in the cell is computed from. A share
+    # whose numerator counted outcomes and whose denominator counted entries would
+    # not sum to 1 across the bands, and the gap would read as a rounding error.
+    closed_in_band = sum(1 for s in in_band if s.trade.r_multiple is not None)
+    closed_total = sum(1 for s in cohort if s.trade.r_multiple is not None)
     return {
         "bucket": band.index,
         "deciles": list(band.deciles),
@@ -694,7 +751,7 @@ def bucket_cell(
         "high_points": band.high_points,
         "low_stars": band.low_stars,
         "high_stars": band.high_stars,
-        "share_of_cohort": (len(in_band) / len(cohort)) if cohort else 0.0,
+        "share_of_closed": (closed_in_band / closed_total) if closed_total else 0.0,
         **expectancy_cell(
             contract, [s.trade for s in in_band], market=market, label=band.label
         ),
@@ -733,7 +790,7 @@ def _rho_cell(
     }
 
 
-def _slice(
+def _slice_cell(
     contract: RunContract,
     cohort: Sequence[ScoredTrade],
     cut: Sequence[Band],
@@ -747,6 +804,14 @@ def _slice(
     return {
         "trades": len(cohort),
         "symbols": len({s.symbol for s in cohort}),
+        # A trade whose score no band holds, and the count that makes the buckets
+        # add up. Only an **open** trade can be one: the cut is taken over the
+        # closed trades, so every closed score is inside some band by construction.
+        # It is reported rather than filed under the nearest edge, because a band
+        # labelled 1.0★ holding a 3.5★ trade would be a mislabel, and rather than
+        # dropped, because then the buckets would sum to less than the field with
+        # nothing saying where the difference went.
+        "outside_the_cut": len(cohort) - sum(b["trades"] for b in buckets),
         "buckets": buckets,
         "gap": gap,
         "spearman": rho,
@@ -793,17 +858,36 @@ def market_ranking(
         ),
         "cut_on": "the market's whole measured window, so a band means the same "
                   "score in every year",
-        **_slice(contract, cohort, cut, market=market),
+        **_slice_cell(contract, cohort, cut, market=market),
         "years": [
             {
                 "year": year,
-                **_slice(
+                **_slice_cell(
                     contract, by_year.get(year, []), cut, market=market
                 ),
             }
             for year in measured_years(contract, [s.trade for s in cohort])
         ],
     }
+
+
+def _intervals_reported(markets_body: Sequence[dict[str, Any]]) -> int:
+    """How many significance intervals this report actually states.
+
+    Every bucket, gap and rho in every slice — the window rows and each year's —
+    because each is a statement made at nominal alpha and the multiple-testing
+    budget is the count of them, not the count of the ones a reader happens to
+    quote. Suppressed intervals are not counted: a cell that refused to say
+    anything made no claim to correct for.
+    """
+    def in_slice(body: dict[str, Any]) -> int:
+        cells = [*body["buckets"], body["gap"], body["spearman"]]
+        return sum(1 for c in cells if c["bootstrap"]["ci_low"] is not None)
+
+    return sum(
+        in_slice(market) + sum(in_slice(year) for year in market["years"])
+        for market in markets_body
+    )
 
 
 def ranking_report(
@@ -820,6 +904,12 @@ def ranking_report(
     stop a pooled number being quoted is for it never to have been computed.
     """
     named = tuple(markets) if markets else tuple(contract.value(SCOPE_MARKETS_KEY))
+    markets_body = [
+        market_ranking(
+            contract, [s for s in cohort if s.market == market], market=market
+        )
+        for market in named
+    ]
     return stamp_result(
         contract,
         {
@@ -838,7 +928,23 @@ def ranking_report(
             "out_of_sample": OUT_OF_SAMPLE_NOTE,
             "in_sample_reference": IN_SAMPLE_GAP,
             "verdict_rule": VERDICT_RULE,
-            "multiple_testing": MULTIPLE_TESTING_NOTE,
+            "multiple_testing": {
+                "note": MULTIPLE_TESTING_NOTE,
+                # Counted rather than described. Every year of every market gets
+                # its own gap, rho and verdict, so a report over fourteen years and
+                # two markets makes scores of significance statements at nominal
+                # alpha and some of them come up positive by construction. A budget
+                # a reader has to infer from the length of the page is a budget
+                # nobody is keeping, so the number rides on the payload beside the
+                # note that says why it matters.
+                "intervals_reported": _intervals_reported(markets_body),
+                "alpha_is_nominal": True,
+                "reading": (
+                    "the window rows are the measurement; a per-year row is a "
+                    "diagnostic and one positive year among many is what this "
+                    "count exists to make visible"
+                ),
+            },
             "kill_criterion": KILL_CRITERION_NOTE,
             "bootstrap": {
                 "cluster": BOOTSTRAP_CLUSTER,
@@ -847,14 +953,7 @@ def ranking_report(
                 "confidence": BOOTSTRAP_CONFIDENCE,
             },
             "year_attributed_to": "entry_session",
-            "markets": [
-                market_ranking(
-                    contract,
-                    [s for s in cohort if s.market == market],
-                    market=market,
-                )
-                for market in named
-            ],
+            "markets": markets_body,
         },
     )
 

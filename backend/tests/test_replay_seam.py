@@ -7554,6 +7554,7 @@ def test_the_price_scale_count_rides_on_the_figures_it_qualifies(
 from backtest.ranking import (
     APP_MAX_POINTS,
     IN_SAMPLE_GAP,
+    MAX_UNDEFINED_SHARE,
     SCORE_DIMENSIONS,
     SCORE_LABEL,
     SCORE_MAX_POINTS,
@@ -7603,6 +7604,7 @@ def _rtrade(
     market: str = "US",
     month: int = 3,
     arm: str = ARM_B,
+    open_at_end: bool = False,
 ) -> ScoredTrade:
     """One arm-B trade at a known score and a known before-cost R.
 
@@ -7611,7 +7613,10 @@ def _rtrade(
     trade fixture here would be a second cost model nobody compared.
     """
     return ScoredTrade(
-        trade=_mtrade(symbol, year, r, market=market, arm=arm, month=month),
+        trade=_mtrade(
+            symbol, year, r, market=market, arm=arm, month=month,
+            open_at_end=open_at_end,
+        ),
         score=_score(points),
     )
 
@@ -7933,6 +7938,114 @@ def test_rho_reads_the_score_against_the_outcome_and_ties_are_averaged(store):
     assert rho(falling) == pytest.approx(-1.0)
     # One score only: no variance in the ranks, so no correlation exists to report.
     assert rho(_ladder({4: 1.0})) is None
+
+
+def test_the_cut_is_taken_over_outcomes_and_an_open_trade_moves_no_boundary(store):
+    """A trade still running has no R and contributes to no statistic in the report.
+
+    Letting it move a boundary would cut the measured population against a
+    distribution that includes one that pays nothing — and the open trades are not
+    a random sample of the field, since a name still running at the window's end is
+    one the trail never took out.
+    """
+    closed = [_rtrade(f"C{i}", 2, 0.5) for i in range(9)]
+    still_running = ScoredTrade(
+        trade=_mtrade("OPEN", 2016, 3.0, open_at_end=True), score=_score(7)
+    )
+
+    assert [(b.low_points, b.high_points) for b in bands(closed)] == [(2, 2)]
+    assert bands(closed + [still_running]) == bands(closed)
+
+    body = market_ranking(DEFAULT_CONTRACT, closed + [still_running], market="US")
+    only = body["buckets"][0]
+    assert only["trades"] == 9
+    assert only["closed"] == 9
+    assert only["share_of_closed"] == 1.0
+    # Its score is above every band the closed trades produced, so no bucket holds
+    # it. It is counted rather than dropped or filed under the nearest edge: the
+    # buckets have to add up to the field, and a 1.0★ band holding a 3.5★ trade
+    # would be a mislabel.
+    assert body["outside_the_cut"] == 1
+    assert sum(b["trades"] for b in body["buckets"]) + body["outside_the_cut"] == 10
+
+
+def test_an_interval_built_mostly_on_resamples_that_could_not_answer_is_refused(store):
+    """A resample is undefined exactly when it drew no symbol from an edge band.
+
+    Those are the draws carrying the most uncertainty about a gap resting on a thin
+    edge, so reading the interval off the rest conditions on the statistic having
+    been computable — which is a condition the confident draws satisfy. The remedy
+    is to refuse the interval, not to repair it: there is no honest value to
+    substitute, and zero is a measurement nobody made.
+    """
+    # One symbol alone in the top band: better than a third of resamples of 7
+    # symbols draw none of it, and the gap is undefined in every one of those.
+    cohort = [_rtrade("ONE", 6, 2.0, month=1 + i) for i in range(3)]
+    cohort += _ladder({2: -1.0}, per_score=6)
+    cut = bands(cohort)
+
+    boot = bootstrap_symbol_statistic(
+        symbol_clusters(cohort, DEFAULT_CONTRACT),
+        lambda rows: top_minus_bottom(rows, cut),
+    )
+
+    assert boot["clusters"] >= BOOTSTRAP_MIN_CLUSTERS
+    assert boot["undefined"] / boot["resamples"] > MAX_UNDEFINED_SHARE
+    assert (boot["ci_low"], boot["ci_high"], boot["p_value"]) == (None, None, None)
+    assert "could not be evaluated" in boot["suppressed"]
+
+    # And a cohort whose bands are always drawable gets its interval.
+    wide = _ladder({2: -1.0, 6: 2.0}, per_score=8)
+    wide_cut = bands(wide)
+    healthy = bootstrap_symbol_statistic(
+        symbol_clusters(wide, DEFAULT_CONTRACT),
+        lambda rows: top_minus_bottom(rows, wide_cut),
+    )
+    assert healthy["undefined"] == 0
+    assert healthy["ci_low"] is not None
+
+
+def test_the_bands_partition_the_ten_decile_positions_exactly(store):
+    """Each band carries the decile boundaries that fall inside it, and between them
+    the bands account for all ten.
+
+    A band holding 49% carries the four boundaries below it and the fifth belongs to
+    its neighbour — so a band's decile span says where its share sits rather than
+    rounding that share, and no decile position goes unreported.
+    """
+    for cohort in (
+        _ladder({1: -1.0, 3: 0.0, 5: 1.0, 7: 2.0}),
+        [_rtrade(f"L{i}", 3, 0.1) for i in range(49)]
+        + [_rtrade(f"H{i}", 6, 2.0) for i in range(51)],
+        _ladder({4: 1.0}),
+    ):
+        covered = [d for band in bands(cohort) for d in band.deciles]
+        assert covered == list(range(1, 11))
+
+
+def test_the_count_of_intervals_the_report_states_rides_on_it(store):
+    """Every year of every market gets its own gap, rho and verdict, so a report
+    over fourteen years makes scores of significance statements at nominal alpha and
+    some come up positive by construction. A budget a reader has to infer from the
+    length of the page is a budget nobody is keeping."""
+    report = ranking_report(
+        DEFAULT_CONTRACT, _ladder({2: -0.5, 6: 1.5}, per_score=8), markets=("US",)
+    )
+
+    budget = report["multiple_testing"]
+    assert budget["intervals_reported"] > 1
+    assert budget["alpha_is_nominal"] is True
+    assert "sweep" in budget["note"]
+    # A suppressed cell states nothing, so it is not in the count of claims made.
+    stated = sum(
+        1
+        for market in report["markets"]
+        for slice_body in [market, *market["years"]]
+        for cell in [*slice_body["buckets"], slice_body["gap"],
+                     slice_body["spearman"]]
+        if cell["bootstrap"]["ci_low"] is not None
+    )
+    assert budget["intervals_reported"] == stated
 
 
 def test_the_ranking_report_is_stamped_and_serialises(store):

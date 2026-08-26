@@ -535,15 +535,28 @@ two intervals in one report were never built differently.
 _Avoid_: bootstrapping the trades, resampling the rows — the row is not the unit.
 
 **Score band**:
-One bucket of the **out-of-sample ranking test**'s cut (`backtest.ranking.Band`): a
-contiguous run of star scores, and the decile positions it covers. A score value is
-**atomic** — it never splits across two bands — because the replayed score is seven
-dimensions of eight *integral* points, so a distribution most of which sits on one score has
-no tenth to cut at, and splitting one would report a difference between two buckets that is a
-difference in sort order and nothing else. The bands therefore **collapse to fewer than ten**
-and each says which deciles it swallowed. Cut **once on a market's whole measured window** and
-applied to every year, so a band names the same score in every row.
-_Avoid_: decile bucket on its own — there are rarely ten of them; score quintile.
+A contiguous run of star scores in the **out-of-sample ranking test**'s cut
+(`backtest.ranking.Band`), and the decile positions it covers. A score value is **atomic** —
+it never splits across two bands — because the replayed score is seven dimensions of eight
+*integral* points, so a distribution most of which sits on one score has no tenth to cut at,
+and splitting one would report a difference between two bands that is a difference in sort
+order and nothing else. The bands therefore **collapse to fewer than ten**, they **partition
+all ten decile positions** between them, and each says which ones fell inside it. Cut **once
+on a market's whole measured window** and over its **closed** trades only, then applied to
+every year — so a band names the same score in every row, and a trade still running never
+moved a boundary the measured population is read against.
+_Avoid_: score quintile; and do not call a band a **bucket** — the band is the score range,
+the bucket is that range *with the outcomes in it*.
+
+**Bucket**:
+One reported row of the **out-of-sample ranking test**: a **score band** together with the
+outcomes that landed in it — n taken, n closed, symbols, after-cost expectancy, win rate,
+R-distribution and clustered interval, in the same shape a **pre-registered metric** cell
+reports. A trade the cut holds no band for is counted in `outside_the_cut` rather than filed
+under the nearest edge, which would be a mislabel, or dropped, which would leave the buckets
+summing to less than the field. Only an **open** trade can be one, since the cut is taken over
+the closed ones.
+_Avoid_: decile bucket on its own — there are rarely ten of them.
 
 **Out-of-sample ranking test**:
 The measurement of whether a higher star score predicts a better result (PRD #182 story 93,

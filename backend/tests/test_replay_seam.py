@@ -3667,3 +3667,420 @@ def test_the_universe_excludes_what_is_not_common_stock_using_the_apps_test():
         [_candidate("AAA"), _candidate("^IXIC"), _candidate("DBRG$H")],
         _U_SIGNAL,
     ) == ["AAA"]
+
+
+# -- the paced bar fetcher and its refusal ledger (issue #186) --------------
+#
+# Phase 1 of PRD #182: fill a purpose-built backtest store by fetching through the
+# app's own source layer, paced, with every enumerated symbol ending in either
+# bars or a refusal row. Tests seed the one source seam (a fake client) and assert
+# on the emitted rows — the store's bars and the coverage ledger — never on how
+# the fetch got there, exactly as the replay seam does above.
+
+from datetime import datetime, timezone
+
+from backtest import (
+    BuildCoverage,
+    Refusal,
+    build_backtest_store,
+    market_symbol,
+)
+from screener.source import (
+    DEFAULT_MAX_ATTEMPTS,
+    PermanentlyUnavailableError,
+    RateLimitedError,
+    Source,
+)
+
+# A time far past any fixture bar, so the finality rule never trims a synthetic
+# session — the backtest crawls historical data, where every bar is final.
+_BUILD_NOW = datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+
+def _bar_row(session: date, *, volume: int = 1_000_000, close: float = 10.0) -> dict:
+    """One raw yfinance-style source row, the shape :func:`parse_bars` consumes."""
+    return {
+        "Date": session,
+        "Open": close,
+        "High": close,
+        "Low": close,
+        "Close": close,
+        "Adj Close": close,
+        "Volume": volume,
+    }
+
+
+class _FetchClient:
+    """Fakes the one network operation the fetcher drives: per-symbol ``fetch``.
+
+    ``responses`` maps a symbol to its fetch outcome — a list of raw bar rows
+    (resolved), an empty list (silence -> unresolved), the string ``"429"``
+    (raises, a throttled silence) or ``"refused"`` (a stated refusal). A symbol
+    with no entry answers empty, i.e. unresolved. ``enumerate`` is unused here:
+    the backtest fetcher takes an explicit enumeration, so the seam is the fetch
+    boundary alone.
+    """
+
+    def __init__(self, responses: dict[str, object]) -> None:
+        self._responses = responses
+        self.fetched: list[str] = []
+
+    def enumerate(self, market):  # pragma: no cover - not exercised by the fetcher
+        raise NotImplementedError
+
+    def fetch(self, symbol, start=None):
+        self.fetched.append(symbol)
+        outcome = self._responses.get(symbol, [])
+        if outcome == "429":
+            raise RateLimitedError(symbol)
+        if outcome == "refused":
+            raise PermanentlyUnavailableError(f"{symbol}: period 'max' is invalid")
+        return outcome
+
+
+def _fetch_source(responses: dict[str, object]) -> Source:
+    """A real :class:`Source` — pacing, backoff and the resolution policy — over a
+    fake client, with no backoff sleeps so the tests do not idle on silence."""
+    return Source(_FetchClient(responses), backoff_base=0.0, sleep=lambda _s: None)
+
+
+def test_idx_suffix_convention_is_applied_at_the_fetch_boundary():
+    """The IDX exchange suffix is applied where the symbol is fetched and stored:
+    an enumeration of bare IDX symbols is fetched as ``.JK`` and keyed by it, while
+    US symbols and already-suffixed IDX ones are untouched (PRD story 50)."""
+    assert market_symbol("IDX", "BBCA") == "BBCA.JK"
+    assert market_symbol("IDX", "BBRI.JK") == "BBRI.JK"  # already suffixed
+    assert market_symbol("IDX", "^JKSE") == "^JKSE"  # a reference takes no suffix
+    assert market_symbol("US", "AAPL") == "AAPL"
+
+
+def test_build_fetches_idx_symbols_under_the_jk_suffix(tmp_path):
+    """A bare IDX enumeration resolves against the ``.JK`` wire form and stores its
+    bars under it — the fetch went through the suffix convention, not around it."""
+    client = _FetchClient({"BBCA.JK": [_bar_row(date(2015, 6, 1))]})
+    source = Source(client, backoff_base=0.0, sleep=lambda _s: None)
+
+    coverage = build_backtest_store(
+        source, ["BBCA"], tmp_path / "backtest.duckdb",
+        market="IDX", now=_BUILD_NOW,
+    )
+
+    assert client.fetched == ["BBCA.JK"]  # the suffix reached the wire
+    store = Store.open(tmp_path / "backtest.duckdb")
+    try:
+        assert store.bars("IDX", "BBCA.JK") == [_bar(date(2015, 6, 1))]
+    finally:
+        store.close()
+    assert coverage.stored == ("BBCA.JK",)
+
+
+def test_every_enumerated_symbol_ends_in_bars_or_a_refusal_row(tmp_path):
+    """Each enumerated symbol resolves to either bars in the store or a refusal row
+    carrying its reason — silence, a stated 429, and a stated refusal each named
+    (PRD story 53)."""
+    source = _fetch_source(
+        {
+            "GOOD": [_bar_row(date(2015, 6, 1)), _bar_row(date(2015, 6, 2))],
+            "SILENT": [],  # empty answer -> unresolved
+            "HOT": "429",  # a stated 429 -> throttled silence
+            "REFUSED": "refused",  # a stated refusal
+        }
+    )
+
+    coverage = build_backtest_store(
+        source, ["GOOD", "SILENT", "HOT", "REFUSED"],
+        tmp_path / "backtest.duckdb", market="US", now=_BUILD_NOW,
+    )
+
+    assert coverage.stored == ("GOOD",)
+    by_symbol = {r.symbol: r.reason for r in coverage.refusals}
+    assert by_symbol == {
+        "SILENT": "unresolved",
+        "HOT": "throttled",
+        "REFUSED": "refused",
+    }
+
+    store = Store.open(tmp_path / "backtest.duckdb")
+    try:
+        assert len(store.bars("US", "GOOD")) == 2
+        assert store.bars("US", "SILENT") == []
+        assert store.bars("US", "REFUSED") == []
+    finally:
+        store.close()
+
+
+def test_the_bar_and_refusal_counts_sum_to_the_enumeration(tmp_path):
+    """The bars count and the refusal count sum to the enumeration (PRD story 54,
+    acceptance criterion), and the sum is asserted by ``check`` before the coverage
+    is even returned."""
+    enumeration = ["A", "B", "C", "D", "E"]
+    source = _fetch_source(
+        {
+            "A": [_bar_row(date(2015, 6, 1))],
+            "B": [_bar_row(date(2015, 6, 1))],
+            "C": [],  # unresolved
+            "D": "refused",
+            # "E" absent -> unresolved
+        }
+    )
+
+    coverage = build_backtest_store(
+        source, enumeration, tmp_path / "backtest.duckdb",
+        market="US", now=_BUILD_NOW,
+    )
+
+    assert len(coverage.stored) + len(coverage.refusals) == len(enumeration)
+    assert coverage.enumerated == len(enumeration)
+    # And the check is not merely descriptive: a coverage that does not sum raises.
+    with pytest.raises(ValueError, match="does not sum"):
+        BuildCoverage("US", enumerated=3, stored=("A",), refusals=()).check()
+
+
+def test_zero_volume_phantom_bars_are_removed_at_ingest(tmp_path):
+    """Zero-volume phantom bars are removed at ingest and never zero-filled or
+    carried forward (PRD story 55): a mixed series stores only its traded bars, and
+    a wholly-phantom series stores nothing and lands in the ledger as ``no_bars``."""
+    source = _fetch_source(
+        {
+            "MIXED": [
+                _bar_row(date(2015, 6, 1), volume=1_000_000),
+                _bar_row(date(2015, 6, 2), volume=0),  # phantom — dropped
+                _bar_row(date(2015, 6, 3), volume=2_000_000),
+            ],
+            "PHANTOM": [_bar_row(date(2015, 6, 1), volume=0)],  # all phantom
+        }
+    )
+
+    coverage = build_backtest_store(
+        source, ["MIXED", "PHANTOM"], tmp_path / "backtest.duckdb",
+        market="US", now=_BUILD_NOW,
+    )
+
+    store = Store.open(tmp_path / "backtest.duckdb")
+    try:
+        sessions = [b.session for b in store.bars("US", "MIXED")]
+        assert sessions == [date(2015, 6, 1), date(2015, 6, 3)]  # the phantom is gone
+        assert store.bars("US", "PHANTOM") == []
+    finally:
+        store.close()
+
+    assert coverage.stored == ("MIXED",)
+    assert Refusal("PHANTOM", "no_bars") in coverage.refusals
+
+
+def test_a_repeated_build_does_not_duplicate_rows(tmp_path):
+    """A resumed or repeated build does not duplicate rows (acceptance criterion):
+    the second build re-fetches the same series and the store holds each bar once,
+    because ``append_bars`` is idempotent."""
+    out = tmp_path / "backtest.duckdb"
+    responses = {"AAA": [_bar_row(date(2015, 6, 1)), _bar_row(date(2015, 6, 2))]}
+
+    first = build_backtest_store(
+        _fetch_source(responses), ["AAA"], out, market="US", now=_BUILD_NOW
+    )
+    second = build_backtest_store(
+        _fetch_source(responses), ["AAA"], out, market="US", now=_BUILD_NOW
+    )
+
+    store = Store.open(out)
+    try:
+        assert len(store.bars("US", "AAA")) == 2  # not four
+    finally:
+        store.close()
+    assert first == second  # the coverage is stable across a repeat
+
+
+def test_the_build_leaves_a_live_store_byte_identical(tmp_path):
+    """The build reaches only the source and its own fresh store, so a live store
+    sitting beside it is byte-identical after a build — the run is structurally
+    incapable of corrupting live history (PRD story 49)."""
+    live_path = tmp_path / "live.duckdb"
+    live = Store.open(live_path)
+    live.append_bars("US", "AAA", [_bar(date(2020, 6, 1))])
+    live.close()
+
+    before = hashlib.sha256(live_path.read_bytes()).hexdigest()
+    build_backtest_store(
+        _fetch_source({"ZZZ": [_bar_row(date(2015, 6, 1))]}),
+        ["ZZZ"], tmp_path / "backtest.duckdb", market="US", now=_BUILD_NOW,
+    )
+    after = hashlib.sha256(live_path.read_bytes()).hexdigest()
+
+    assert before == after
+
+
+def test_the_fetch_reports_progress_during_a_long_run(tmp_path):
+    """A long fetch reports progress as it goes, so a multi-hour crawl is not killed
+    for having printed nothing (PRD story 52). The pull's closing line always lands,
+    marking the end of the pull and naming the running resolved/silent/refused
+    split; the sweep then speaks for itself, so the build's last word is what the
+    sweep got back rather than a tally the sweep has since revised."""
+    lines: list[str] = []
+    responses = {f"S{i}": [_bar_row(date(2015, 6, 1))] for i in range(3)}
+    responses["S1"] = []  # one silence, so the split is not trivial
+
+    build_backtest_store(
+        _fetch_source(responses), ["S0", "S1", "S2"],
+        tmp_path / "backtest.duckdb", market="US", now=_BUILD_NOW,
+        progress=lines.append,
+    )
+
+    assert lines  # progress was emitted
+    pull_close = next(line for line in lines if "US: pull 3/3" in line)
+    assert "2 resolved" in pull_close and "1 silent" in pull_close
+    assert "sweep recovered 0 of 1 silent symbols" in lines[-1]
+
+
+def test_the_coverage_round_trips_through_json(tmp_path):
+    """The coverage is a committable value: both counts and every refusal row
+    survive a JSON round-trip, so the store's coverage can be committed beside it
+    rather than recomputed on trust (PRD story 54)."""
+    coverage = build_backtest_store(
+        _fetch_source({"A": [_bar_row(date(2015, 6, 1))], "B": "refused"}),
+        ["A", "B"], tmp_path / "backtest.duckdb", market="US", now=_BUILD_NOW,
+    )
+
+    restored = BuildCoverage.from_dict(json.loads(json.dumps(coverage.to_dict())))
+
+    assert restored == coverage
+
+
+class _VirtualClock:
+    """A clock that only moves when something waits on it.
+
+    Pacing is a claim about *time between requests*, and the fetcher's own
+    wall-clock elapsed is not evidence for it — a test that timed a real pull
+    would be asserting the machine's speed. So the source's clock is injected: the
+    only thing that can advance it is a wait the pacer itself decided to take.
+    """
+
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.now += max(0.0, seconds)
+
+
+def test_the_fetch_is_paced_rather_than_bursted(tmp_path):
+    """A run of symbols is spread across the provider's sustained rate rather than
+    fired at once (PRD story 51): at two requests a second, six symbols cannot have
+    been asked for in under the five intervals that separate them.
+
+    This is what lets a fourteen-year crawl finish rather than stall — a burst
+    earns the throttle wall the pacer exists to stay under.
+    """
+    clock = _VirtualClock()
+    symbols = [f"S{i}" for i in range(6)]
+    source = Source(
+        _FetchClient({s: [_bar_row(date(2015, 6, 1))] for s in symbols}),
+        rate_per_sec=2.0,
+        backoff_base=0.0,
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+    )
+
+    build_backtest_store(
+        source, symbols, tmp_path / "backtest.duckdb",
+        market="US", now=_BUILD_NOW, workers=1,
+    )
+
+    # Every symbol resolved first time, so no backoff ran: the whole of the clock's
+    # advance is pacing, and it spans the five gaps between six paced requests.
+    assert clock.now >= (len(symbols) - 1) / 2.0
+
+
+class _TailSilenceClient:
+    """A client whose silence is a fact about the *pull*, not about the symbol.
+
+    The first ``silent_asks`` fetches raise a stated 429; every ask after that
+    answers in full. That is the shape issue #104 measured — a provider that has
+    stopped answering a long crawl serves the very same request once it has been
+    left alone for a minute — and it is the shape a fetcher that writes its tail
+    off where it fell would record as a permanent absence.
+    """
+
+    def __init__(self, rows: list[dict], *, silent_asks: int) -> None:
+        self._rows = rows
+        self._silent_asks = silent_asks
+        self.asks = 0
+
+    def enumerate(self, market):  # pragma: no cover - not exercised by the fetcher
+        raise NotImplementedError
+
+    def fetch(self, symbol, start=None):
+        self.asks += 1
+        if self.asks <= self._silent_asks:
+            raise RateLimitedError(symbol)
+        return self._rows
+
+
+def test_a_throttled_tail_is_swept_before_it_is_ledgered_as_an_absence(tmp_path):
+    """Silence that survives a symbol's own retries is re-asked after a rest, and
+    the answer supersedes the verdict the pull reached (issue #104).
+
+    This is the ledger's honesty, not a recovery nicety. A crawl's tail silence is
+    overwhelmingly the provider's exhaustion rather than a listing with no
+    history, so a fetcher that stops at the first pass writes throttled names into
+    the ledger as refusals — and Phase 2 reads that inflated count as the
+    survivorship bound. An absence has to be a fact about the symbol.
+    """
+    # Silent for the whole of the first pass's retry budget, answering only once
+    # the sweep has rested and asked again.
+    client = _TailSilenceClient([_bar_row(date(2015, 6, 1))], silent_asks=DEFAULT_MAX_ATTEMPTS)
+    source = Source(client, backoff_base=0.0, sleep=lambda _s: None)
+
+    coverage = build_backtest_store(
+        source, ["TAIL"], tmp_path / "backtest.duckdb",
+        market="US", now=_BUILD_NOW,
+    )
+
+    assert coverage.stored == ("TAIL",)
+    assert coverage.refusals == ()  # not written off where it fell
+    coverage.check()
+
+    store = Store.open(tmp_path / "backtest.duckdb")
+    try:
+        assert store.bars("US", "TAIL") == [_bar(date(2015, 6, 1))]
+    finally:
+        store.close()
+
+
+def test_the_sweep_revises_a_verdict_rather_than_adding_one(tmp_path):
+    """A swept symbol is one symbol however many times it was asked: the recovered
+    name appears once in the coverage, and the sum invariant still holds over an
+    enumeration whose tail was swept."""
+    client = _TailSilenceClient([_bar_row(date(2015, 6, 1))], silent_asks=DEFAULT_MAX_ATTEMPTS)
+    source = Source(client, backoff_base=0.0, sleep=lambda _s: None)
+
+    coverage = build_backtest_store(
+        source, ["TAIL"], tmp_path / "backtest.duckdb",
+        market="US", now=_BUILD_NOW,
+    )
+
+    assert coverage.enumerated == 1
+    assert len(coverage.stored) + len(coverage.refusals) == 1
+
+
+def test_a_name_enumerated_twice_is_one_symbol_with_one_verdict(tmp_path):
+    """A duplicated enumeration entry — including one listed once bare and once
+    already suffixed — is one symbol, asked once and ledgered once.
+
+    The sum invariant is the thing being protected: counting a name twice in the
+    enumeration while the ledger holds one verdict for it would make the invariant
+    unsatisfiable, and an invariant that cannot hold reports nothing about coverage.
+    """
+    client = _FetchClient({"BBCA.JK": [_bar_row(date(2015, 6, 1))]})
+    source = Source(client, backoff_base=0.0, sleep=lambda _s: None)
+
+    coverage = build_backtest_store(
+        source, ["BBCA", "BBCA.JK", "BBCA"], tmp_path / "backtest.duckdb",
+        market="IDX", now=_BUILD_NOW,
+    )
+
+    assert client.fetched == ["BBCA.JK"]  # asked once, not three times
+    assert coverage.enumerated == 1
+    assert coverage.stored == ("BBCA.JK",)
+    coverage.check()

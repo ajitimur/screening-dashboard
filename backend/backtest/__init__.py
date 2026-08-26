@@ -18,10 +18,16 @@ recorded beside the old one, and that is only enforceable if the contract
 travels with the results it produced (:func:`stamp_result`).
 
 Issue #185 lands the second: :mod:`backtest.universe`, the contract's stateless
-universe classifier. It is imported from its own module rather than re-exported
-here, because it reaches into :mod:`screener.universe` and so pulls the
-duckdb-backed store layer in behind it — and the contract must stay importable
-without that weight.
+universe classifier. Issue #186 lands the third: :mod:`backtest.store`, the paced
+bar fetcher and its refusal ledger, whose names *are* re-exported below.
+
+The universe's are not, and the reason is naming rather than weight: ``classify``,
+``Candidate`` and ``is_member`` each already mean something else one import away
+(:mod:`screener.universe`, :mod:`replay.reference`), so they are worth the module
+qualifier — ``backtest.universe.classify`` says which universe it classifies.
+There is no import-weight argument to make either way: :mod:`backtest.store`
+reaches the duckdb-backed store layer, so importing this package has pulled it in
+since #186 regardless.
 """
 
 from __future__ import annotations
@@ -33,6 +39,13 @@ from .contract import (
     RunContract,
 )
 from .result import stamp_result
+from .store import (
+    IDX_SUFFIX,
+    BuildCoverage,
+    Refusal,
+    build_backtest_store,
+    market_symbol,
+)
 
 __all__ = [
     "Cell",
@@ -40,4 +53,9 @@ __all__ = [
     "DEFAULT_CONTRACT",
     "DEFAULT_CONTRACT_JSON",
     "stamp_result",
+    "IDX_SUFFIX",
+    "BuildCoverage",
+    "Refusal",
+    "build_backtest_store",
+    "market_symbol",
 ]

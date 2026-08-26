@@ -3326,3 +3326,299 @@ def test_two_runs_under_different_contracts_are_distinguishable_from_output_alon
 
     assert a != b
     assert other != DEFAULT_CONTRACT
+
+
+# -- the backtest's stateless universe (issue #185) -------------------------
+#
+# Phase 0's second half: a universe classifier that reads no prior membership.
+# These extend the one replay seam beside the contract's tests above. The
+# classifier is pure, so every case here is authored bars and a signal session —
+# no store, no calendar, no yesterday.
+
+import inspect
+
+from screener import universe as app_universe
+from screener.score import ADR_MIN
+from backtest.contract import (
+    UNIVERSE_IDX_PRICE_FLOOR_KEY,
+    UNIVERSE_IDX_PRICE_FLOOR_ROLE_KEY,
+    UNIVERSE_STATELESSNESS_KEY,
+    UNIVERSE_VOLATILITY_GAP_REASON_KEY,
+    UNIVERSE_VOLATILITY_GATE_KEY,
+)
+from backtest import universe as backtest_universe
+from backtest.universe import (
+    TREND_WINDOW,
+    VOLATILITY_FLOOR,
+    Candidate as UniverseCandidate,
+    classify as classify_universe,
+    is_member,
+)
+
+# 60 bars through t−1, plus session t itself — so every case can be asked both
+# "what was knowable the night before" and "what does day t's own bar do", and
+# the answer to the second must always be "nothing".
+_U_SESSIONS = _daily(date(2020, 1, 1), 61)
+_U_SIGNAL = _U_SESSIONS[-1]
+
+
+def _universe_bars(
+    *,
+    price: float = 50.0,
+    drift: float = 0.002,
+    adr_pct: float = 0.05,
+    dollar_volume: float = 50_000_000.0,
+    sessions: list[date] | None = None,
+) -> list[Bar]:
+    """Bars that clear every gate by default, one knob per gate.
+
+    ``drift`` sets the trend (a rise puts the close above its SMA50), ``adr_pct``
+    is exactly the ADR the series prints (every bar spans ``high/low − 1 ==
+    adr_pct``), ``price`` is the nominal quote the IDX trim reads, and
+    ``dollar_volume`` is the turnover on every bar, so the 20-day median is that
+    number. Unadjusted and adjusted closes are equal — no split is in play here.
+    """
+    out = []
+    for i, s in enumerate(sessions or _U_SESSIONS):
+        p = price * (1 + drift) ** i
+        out.append(
+            Bar(
+                session=s,
+                open=p,
+                high=p * (1 + adr_pct),
+                low=p,
+                close=p,
+                adj_close=p,
+                volume=max(1, round(dollar_volume / p)),
+            )
+        )
+    return out
+
+
+def _candidate(symbol: str = "AAA", **kwargs) -> UniverseCandidate:
+    return UniverseCandidate(symbol=symbol, name="", bars=_universe_bars(**kwargs))
+
+
+def test_the_backtest_universe_reads_no_prior_membership():
+    """Classifying the same session twice from different prior-membership states
+    returns identical membership (acceptance criterion).
+
+    There is nowhere to *put* a prior state: the signature carries no
+    ``prior_members``, which is the structural half of the claim. The behavioural
+    half is a name parked inside what would be the contract floor's hysteresis
+    band (0.8–1.0 × $10M) — exactly where a stateful classifier's answer depends
+    on yesterday's — answered the same way both times.
+    """
+    assert "prior_members" not in inspect.signature(classify_universe).parameters
+    assert "prior_members" in inspect.signature(app_universe.classify).parameters
+
+    in_band = _candidate("BAND", dollar_volume=9_000_000.0)
+    clear = _candidate("CLEAR", dollar_volume=50_000_000.0)
+    candidates = [in_band, clear]
+
+    first = classify_universe("US", candidates, _U_SIGNAL)
+    second = classify_universe("US", list(reversed(candidates)), _U_SIGNAL)
+
+    assert first == second == ["CLEAR"]
+
+
+def test_each_universe_gate_excludes_for_its_own_reason():
+    """A name failing each gate is excluded, one gate at a time (acceptance
+    criterion): below the ADTV floor, below ADR20 3.5%, below its SMA50, and —
+    on IDX only — below Rp 100. Every other name here is a member, so each
+    exclusion is attributable to the one knob that was turned.
+    """
+    assert classify_universe(
+        "US",
+        [
+            _candidate("MEMBER"),
+            _candidate("THIN", dollar_volume=5_000_000.0),
+            _candidate("QUIET", adr_pct=0.02),
+            _candidate("FALLING", drift=-0.002),
+        ],
+        _U_SIGNAL,
+    ) == ["MEMBER"]
+
+    idx = dict(price=500.0, dollar_volume=50_000_000_000.0)
+    assert classify_universe(
+        "IDX",
+        [_candidate("MEMBER", **idx), _candidate("PENNY", **{**idx, "price": 80.0})],
+        _U_SIGNAL,
+    ) == ["MEMBER"]
+
+    # The Rp 100 trim is IDX's alone: the same nominal quote is a US member.
+    assert is_member(_candidate("CHEAP", price=80.0), "US", _U_SIGNAL) is True
+
+
+def test_the_universe_floors_are_the_contracts_and_never_the_apps():
+    """Both market floors are the contract's values, and the app's are not
+    consulted (acceptance criterion) — proven in both directions, since the two
+    markets' floors move opposite ways.
+
+    US: the contract's $10M is *looser* than the app's $20M, so a name at $15M is
+    a member here and would not be there. IDX: the contract's Rp 10B is *tighter*
+    than the app's Rp 1B, so a name at Rp 5B is excluded here and would be a
+    member there. Reading either floor off ``screener.universe.LIQUIDITY_FLOOR``
+    flips one of these.
+    """
+    assert app_universe.LIQUIDITY_FLOOR == {"US": 20_000_000.0, "IDX": 1_000_000_000.0}
+
+    assert is_member(_candidate("US15M", dollar_volume=15_000_000.0), "US", _U_SIGNAL) is True
+    assert is_member(
+        _candidate("IDX5B", price=500.0, dollar_volume=5_000_000_000.0), "IDX", _U_SIGNAL
+    ) is False
+
+
+def test_universe_adtv_is_the_apps_median_so_a_block_trade_cannot_lift_a_name():
+    """ADTV is the 20-day median of unadjusted close × volume, reusing the app's
+    function, so one block trade cannot lift an illiquid name over the floor
+    (acceptance criterion).
+
+    The reuse is asserted by identity, not by resemblance. The behaviour is
+    asserted on a name whose typical day is $1M and whose one block trade is
+    $1B: the mean of that window is ~$51M, over the floor, and the median is $1M,
+    under it.
+    """
+    assert backtest_universe.median_dollar_volume is app_universe.median_dollar_volume
+
+    bars = _universe_bars(dollar_volume=1_000_000.0)
+    block = bars[-2]
+    bars[-2] = dataclasses.replace(block, volume=round(1_000_000_000.0 / block.close))
+    window = [b.dollar_volume for b in bars[:-1][-20:]]
+    assert sum(window) / len(window) > 10_000_000.0  # a mean would admit it
+
+    assert is_member(UniverseCandidate("BLOCK", "", bars), "US", _U_SIGNAL) is False
+
+
+def test_every_universe_gate_reads_only_bars_through_t_minus_1():
+    """Every gate reads only bars at or before t−1 (acceptance criterion), so a
+    signal on session *t* uses only what was knowable the night before.
+
+    Session *t*'s own bar is authored to fail every gate at once — a limit-down,
+    zero-range, near-untraded crash — and membership for a signal on *t* is
+    unchanged. A gate that peeked at *t* would drop the name.
+    """
+    bars = _universe_bars()
+    knowable = UniverseCandidate("AAA", "", bars[:-1])
+    crash = dataclasses.replace(
+        bars[-1], open=1.0, high=1.0, low=1.0, close=1.0, adj_close=1.0, volume=1
+    )
+    with_crash = UniverseCandidate("AAA", "", bars[:-1] + [crash])
+
+    assert classify_universe("US", [with_crash], _U_SIGNAL) == ["AAA"]
+    assert classify_universe("US", [with_crash], _U_SIGNAL) == classify_universe(
+        "US", [knowable], _U_SIGNAL
+    )
+    # …and the very same crash bar *is* read once it falls on the night before.
+    assert classify_universe("US", [with_crash], _U_SIGNAL + timedelta(days=1)) == []
+
+
+def test_the_apps_universe_classifier_is_still_sticky_and_hysteretic():
+    """The app's own classifier still returns sticky, hysteretic membership
+    (acceptance criterion): the backtest's statelessness is a new classifier
+    beside it, never an edit to it.
+
+    A name at $17M sits inside the app's own band (0.8–1.0 × $20M): held if it
+    was a member, refused if it was not. An unresolved name carries yesterday's
+    classification either way.
+    """
+    sessions = _U_SESSIONS[:-1]
+    held = app_universe.Candidate(
+        symbol="BAND", name="", resolved=True, bars=_universe_bars(
+            dollar_volume=17_000_000.0, sessions=sessions
+        )
+    )
+    silent = dataclasses.replace(held, symbol="SILENT", resolved=False)
+
+    assert app_universe.classify("US", [held], sessions, {"BAND"}) == ["BAND"]
+    assert app_universe.classify("US", [held], sessions, set()) == []
+    assert app_universe.classify("US", [silent], sessions, {"SILENT"}) == ["SILENT"]
+    assert app_universe.classify("US", [silent], sessions, set()) == []
+
+
+def test_the_universe_records_its_gap_below_the_rubrics_adr_floor():
+    """The gap between the 3.5% floor and the rubric's 5% is recorded with its
+    reason (acceptance criterion), so nobody later "fixes" the two to match.
+
+    The gap is real (3.5% < 5%), and the reason travels with the run rather than
+    living only in a comment: it is a contract cell, and the cell's justification
+    names findings §6's measurement of what the 5% floor withholds.
+    """
+    assert VOLATILITY_FLOOR == 0.035
+    assert VOLATILITY_FLOOR < ADR_MIN == 0.05
+
+    reason = DEFAULT_CONTRACT.cell(UNIVERSE_VOLATILITY_GAP_REASON_KEY)
+    assert "31%" in reason.justification
+    assert "findings §6" in reason.justification
+    assert VOLATILITY_FLOOR == 0.035 and "3.5%" in DEFAULT_CONTRACT.value(
+        UNIVERSE_VOLATILITY_GATE_KEY
+    )
+
+
+def test_the_universe_records_the_churn_statelessness_reintroduces():
+    """The churn the stateless gate reintroduces is recorded as a known
+    difference from the app (acceptance criterion) rather than fixed.
+
+    The app damps it with :data:`~screener.universe.HYSTERESIS_EXIT`; this
+    universe has no such band, and the contract says so — naming the hysteresis
+    difference, the churn, and why it is nearly free at signal level.
+    """
+    assert app_universe.HYSTERESIS_EXIT == 0.8
+    assert not hasattr(backtest_universe, "HYSTERESIS_EXIT")
+
+    cell = DEFAULT_CONTRACT.cell(UNIVERSE_STATELESSNESS_KEY)
+    assert cell.value == "stateless_gates_through_t_minus_1"
+    assert "hysteresis" in cell.justification
+    assert "churn" in cell.justification
+    assert "signal level" in cell.justification
+
+
+def test_the_idx_price_trim_is_recorded_as_data_validity_not_cost_control():
+    """The Rp 100 trim is described as data validity wherever it surfaces, so no
+    reader takes it for a penny-stock filter with an implied cost story.
+
+    It is applied to the split-corrected series — a name whose *unadjusted* quote
+    is under Rp 100 but whose split-corrected close is over it stays a member,
+    which is the half of the claim a raw-close trim would get wrong.
+    """
+    assert DEFAULT_CONTRACT.value(UNIVERSE_IDX_PRICE_FLOOR_KEY) == 100.0
+    assert DEFAULT_CONTRACT.value(UNIVERSE_IDX_PRICE_FLOOR_ROLE_KEY) == "data_validity"
+    assert "cost control" in DEFAULT_CONTRACT.cell(
+        UNIVERSE_IDX_PRICE_FLOOR_ROLE_KEY
+    ).justification
+    assert "data validity" in backtest_universe.passes_price_gate.__doc__
+
+    # A 10-for-1 split: the raw quote is a tenth of the split-corrected one, and
+    # the share count — so the turnover the liquidity gate reads — is unchanged.
+    split = [
+        dataclasses.replace(b, close=b.close / 10.0, volume=b.volume * 10)
+        for b in _universe_bars(price=500.0, dollar_volume=50_000_000_000.0)
+    ]
+    assert split[-2].close < 100.0 <= split[-2].adj_close
+    assert is_member(UniverseCandidate("SPLIT", "", split), "IDX", _U_SIGNAL) is True
+
+
+def test_the_universe_needs_fifty_bars_before_it_will_admit_a_name():
+    """SMA50 is also the binding listing-age floor: a name with fewer than 50
+    traded bars has no SMA50 to be above, so it cannot be a member. The app's
+    20-bar minimum is not what governs here.
+    """
+    assert TREND_WINDOW == 50
+    short = _universe_bars(sessions=_U_SESSIONS[-41:])  # 40 bars through t−1
+    assert is_member(UniverseCandidate("NEW", "", short), "US", _U_SIGNAL) is False
+
+    just_enough = _universe_bars(sessions=_U_SESSIONS[-51:])  # 50 bars through t−1
+    assert is_member(UniverseCandidate("OLD", "", just_enough), "US", _U_SIGNAL) is True
+
+
+def test_the_universe_excludes_what_is_not_common_stock_using_the_apps_test():
+    """Instrument type is the app's own :func:`~screener.universe.is_common_stock`,
+    reused by identity — so the index and the benchmark ETFs the contract's
+    reference exclusion names cannot be ranked here either (#162).
+    """
+    assert backtest_universe.is_common_stock is app_universe.is_common_stock
+    assert classify_universe(
+        "US",
+        [_candidate("AAA"), _candidate("^IXIC"), _candidate("DBRG$H")],
+        _U_SIGNAL,
+    ) == ["AAA"]

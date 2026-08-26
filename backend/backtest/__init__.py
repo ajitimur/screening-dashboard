@@ -16,6 +16,12 @@ carrying its one-line justification. The contract is *data*, not module-level
 constants, because the plan requires that a later contract change be a new run
 recorded beside the old one, and that is only enforceable if the contract
 travels with the results it produced (:func:`stamp_result`).
+
+Issue #185 lands the second: :mod:`backtest.universe`, the contract's stateless
+universe classifier. It is imported from its own module rather than re-exported
+here, because it reaches into :mod:`screener.universe` and so pulls the
+duckdb-backed store layer in behind it — and the contract must stay importable
+without that weight.
 """
 
 from __future__ import annotations

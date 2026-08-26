@@ -6861,6 +6861,8 @@ def _seed_figure_name(
     *,
     burn_in: bool = False,
     detect: bool = True,
+    rs_line: bool | None = False,
+    relative_move: float | None = None,
 ) -> Detection:
     """One authored name: its bars in the bar store, its detection in the denominator.
 
@@ -6874,6 +6876,11 @@ def _seed_figure_name(
     ``detect=False`` seeds the sessions and no detection, which is how a year gets
     a full trading calendar and an empty field — the shape a collapsed count has
     when it is a data hole rather than a short year.
+
+    The two candidate values default to what a name with no benchmark history
+    carries — a miss on ``rs_line``, absent on ``relative_move`` — and are
+    overridable, because the candidate-outcome section below reads exactly those
+    two columns off the persisted row.
     """
     bars = _fig_bars(start, closes)
     store.append_bars(market, symbol, bars)
@@ -6892,7 +6899,8 @@ def _seed_figure_name(
             ScoredDetection(
                 symbol=symbol, detection=det,
                 score=seven_dimension_score(det, prior_move=False),
-                star_rank=1, not_taken=False, rs_line=False, relative_move=None,
+                star_rank=1, not_taken=False, rs_line=rs_line,
+                relative_move=relative_move,
             )
         ])
     return det
@@ -8848,3 +8856,640 @@ def test_the_ranking_runs_off_the_denominator_end_to_end(store, denominator):
     ).points
     body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
     assert sum(b["trades"] for b in body["buckets"]) == 1
+
+
+# -- do the registered candidates predict, or only select? (issue #195) --------
+#
+# ADR 0005 admits a dimension on a **selection contrast** — taken detections
+# against not-taken ones, no outcome variable — because when it was written no
+# outcome variable existed. Both registered candidates were measured on that
+# instrument and neither shipped: `RS line` refused on criterion 4 for a wrong-way
+# gap (findings §5d), `Relative move` positive on both fields and then stalled
+# 0.06pp inside the one threshold the ADR itself calls a judgement (§5e).
+#
+# This section gives the same two dimensions an **outcome** variable. Four claims
+# are load-bearing, and each is an acceptance criterion of #195:
+#
+#   * **Both registered candidates, per market.** The list is derived from
+#     `replay.contrast.CANDIDATES` rather than typed here, so a registration this
+#     module cannot read is drift rather than a silently missing column.
+#   * **The cut is applied at read time**, off the value the persisted row
+#     carries, by the rubric's own reader. No row is re-denominated retroactively.
+#   * **Absence is absence.** `relative_move` is `None` when the name had not
+#     listed six months back — and zero is a real value sitting exactly on the
+#     pre-registered cut, so a coerced absence would be a hit-or-miss verdict
+#     nobody measured. It gets its own group, its own n, and it enters no gap.
+#   * **The outcome claim is never merged with the selection contrast.** They are
+#     two different claims about one dimension, and a reader who lines them up as
+#     one has read a stronger claim than either supports.
+#
+# Nothing here admits a dimension. `check_not_admitted` makes that executable
+# rather than a sentence in a docstring.
+
+from backtest.candidates import (
+    ADMISSION_NOTE,
+    CANDIDATES_UNDER_TEST,
+    GROUP_ABSENT,
+    GROUP_HIT,
+    GROUP_MISS,
+    GROUPS,
+    SELECTION_CONTRAST,
+    VALUE_BOOLEAN,
+    VALUE_GRADED,
+    VERDICT_RULE as VERDICT_RULE_CANDIDATES,
+    # Aliased for the reason the ranking section aliases its own: three verdict
+    # vocabularies now live in this namespace, and an unqualified
+    # `VERDICT_TOO_THIN` would let one section's assertion test another's
+    # constant.
+    VERDICT_NO_EVIDENCE as CANDIDATE_NO_EVIDENCE,
+    VERDICT_PREDICTS as CANDIDATE_PREDICTS,
+    VERDICT_TOO_THIN as CANDIDATE_TOO_THIN,
+    CandidateTrade,
+    candidate_index,
+    candidate_trades,
+    candidates_report,
+    check_not_admitted,
+    check_registry,
+    format_candidates,
+    group_of,
+    market_candidate,
+    named_candidate,
+    outcome_gap,
+    outcomes as candidate_outcomes,
+    rubric_reading_gap,
+    split,
+    value_correlation,
+)
+from backtest.ranking import spearman
+from replay.contrast import CANDIDATE_DIMENSIONS
+
+
+_RS_LINE = "RS line"
+_RELATIVE_MOVE = "Relative move"
+
+
+def _cdetection(
+    symbol: str,
+    session: date,
+    *,
+    rs_line: bool | None = None,
+    relative_move: float | None = None,
+) -> ScoredDetection:
+    """A persisted detection row carrying nothing but its two candidate values.
+
+    The detector record and the score are the fixture's filler — this section
+    measures what the candidate columns predict, and authoring a geometry to reach
+    them would put the detector's behaviour inside a test about outcomes.
+    """
+    det = Detection(
+        symbol=symbol, session=session, detector_version=DETECTOR_VERSION,
+        trigger=10.0, stop=9.0, stopw_adr=1.0,
+        base_len=10, move_gain=0.5, adr=0.05, close=9.5, cluster_k=3,
+        cluster_high=10.0, cluster_low=9.0, cluster_range_adr=1.0,
+        range_3bar_adr=1.0, line_ok=True, touch_zones=2, overshoot_adr=0.1,
+        slope=0.0, line_end=9.5, base_low=9.0, churn_l=0.2, sma20_rising=True,
+        dryup=0.8,
+    )
+    return ScoredDetection(
+        symbol=symbol,
+        detection=det,
+        score=SevenDimScore(
+            stars=2.0, points=4, max_points=SEVEN_DIM_MAX_POINTS,
+            breakdown=[], label=SEVEN_DIM_LABEL,
+        ),
+        star_rank=1,
+        not_taken=False,
+        rs_line=rs_line,
+        relative_move=relative_move,
+    )
+
+
+def _ctrade(
+    symbol: str,
+    r: float,
+    *,
+    rs_line: bool | None = None,
+    relative_move: float | None = None,
+    year: int = 2016,
+    month: int = 3,
+    market: str = "US",
+    arm: str = ARM_B,
+) -> CandidateTrade:
+    """One arm-B trade beside the persisted row that produced it.
+
+    Authored on :func:`_mtrade`, the metric section's own fixture, for the reason
+    the ranking section gives: the measurement is arithmetic over trades priced the
+    metric's way, and a second trade fixture would be a second cost model.
+    """
+    trade = _mtrade(symbol, year, r, market=market, arm=arm, month=month)
+    return CandidateTrade(
+        trade=trade,
+        detection=_cdetection(
+            symbol, trade.detection_session,
+            rs_line=rs_line, relative_move=relative_move,
+        ),
+    )
+
+
+def _ccohort(
+    hits: dict[str, float],
+    misses: dict[str, float],
+    absent: dict[str, float] | None = None,
+    *,
+    market: str = "US",
+) -> list[CandidateTrade]:
+    """A cohort split three ways on ``Relative move``'s stored value.
+
+    A hit is a positive value, a miss a negative one, and an absent row carries
+    ``None`` — never 0.0, which is a real value sitting exactly on the cut and is
+    the confusion this whole section exists to prevent.
+    """
+    rows = [_ctrade(s, r, relative_move=+1.5, market=market)
+            for s, r in hits.items()]
+    rows += [_ctrade(s, r, relative_move=-1.5, market=market)
+             for s, r in misses.items()]
+    rows += [_ctrade(s, r, relative_move=None, market=market)
+             for s, r in (absent or {}).items()]
+    return rows
+
+
+def _spread(prefix: str, r: float, n: int) -> dict[str, float]:
+    """``n`` distinct symbols all paying ``r`` — enough clusters to bootstrap."""
+    return {f"{prefix}{i}": r for i in range(n)}
+
+
+def _cbody(
+    cohort: list[CandidateTrade], name: str, *, market: str = "US"
+) -> dict[str, Any]:
+    """One candidate's cell over one market — the shape most tests below read."""
+    return market_candidate(
+        DEFAULT_CONTRACT, named_candidate(name), cohort, market=market
+    )
+
+
+def _cfind(report: dict[str, Any], market: str, name: str) -> dict[str, Any]:
+    """One candidate's cell out of a whole report."""
+    body = next(m for m in report["markets"] if m["market"] == market)
+    return next(c for c in body["candidates"] if c["candidate"] == name)
+
+
+def test_both_registered_candidates_are_measured_against_outcomes_per_market():
+    """#195's first criterion, and the reason the list is derived rather than typed.
+
+    The candidates under test are exactly the ones ADR 0005 has registered, read
+    off `replay.contrast.CANDIDATES`. A module holding its own list would keep
+    measuring a retired candidate, or quietly miss a third one, with nothing in the
+    output to say so.
+    """
+    assert [c.name for c in CANDIDATES_UNDER_TEST] == [
+        name for name, _weight in CANDIDATE_DIMENSIONS
+    ]
+    assert {c.name for c in CANDIDATES_UNDER_TEST} == {_RS_LINE, _RELATIVE_MOVE}
+
+    report = candidates_report(
+        DEFAULT_CONTRACT,
+        _ccohort(_spread("H", 1.0, 6), _spread("M", -0.2, 6)),
+        markets=("US", "IDX"),
+    )
+
+    assert [m["market"] for m in report["markets"]] == ["US", "IDX"]
+    for body in report["markets"]:
+        assert [c["candidate"] for c in body["candidates"]] == [
+            _RS_LINE, _RELATIVE_MOVE
+        ]
+
+
+def test_a_registration_this_module_cannot_read_is_drift_not_a_missing_column():
+    """A third candidate registered upstream must stop this measurement, loudly.
+
+    The registry here supplies what `CANDIDATES` does not — how to read the
+    **value** off the row, and what absence means for it — so a name it has never
+    heard of cannot be measured. Reporting the two it knows and dropping the third
+    would answer #195's "both registered candidates" with a number that had quietly
+    stopped meaning it.
+    """
+    with pytest.raises(ContractDrift, match="Third candidate"):
+        check_registry((("Third candidate", 0, lambda d: True),))
+
+
+def test_the_cut_is_applied_at_read_time_off_the_value_the_row_carries():
+    """#195's second criterion: the row owns the value, the reader owns the verdict.
+
+    Two rows on either side of the pre-registered cut land in different groups
+    while carrying their stored values unchanged — so a later argument about where
+    the cut belongs re-reads these rows rather than re-denominating them.
+    """
+    candidate = named_candidate(_RELATIVE_MOVE)
+    above = _cdetection("AAA", date(2016, 3, 1), relative_move=+0.25)
+    below = _cdetection("BBB", date(2016, 3, 1), relative_move=-0.25)
+
+    assert group_of(candidate, above) == GROUP_HIT
+    assert group_of(candidate, below) == GROUP_MISS
+    # The value is untouched by the reading: the cut is a question asked of the
+    # row, never a rewrite of it.
+    assert candidate.value(above) == +0.25
+    assert candidate.value(below) == -0.25
+
+
+def test_absence_is_its_own_group_and_never_a_value_sitting_on_the_cut():
+    """#195's third criterion, and the one with a trap under it.
+
+    ``Relative move``'s cut is **zero**. So an absent value coerced to 0.0 would
+    not merely be a guess — it would land exactly on the boundary, and the
+    strictness of the comparison would decide a verdict nobody measured. Absence
+    therefore gets its own group, and a row in it enters no gap.
+    """
+    candidate = named_candidate(_RELATIVE_MOVE)
+    missing = _cdetection("AAA", date(2016, 3, 1), relative_move=None)
+
+    assert group_of(candidate, missing) == GROUP_ABSENT
+    assert candidate.value(missing) is None
+
+    cohort = _ccohort(
+        _spread("H", 1.0, 6), _spread("M", -0.2, 6), _spread("Z", 9.9, 6)
+    )
+    groups = split(candidate, cohort)
+
+    assert sorted(groups) == sorted(GROUPS)
+    assert [len(groups[g]) for g in (GROUP_HIT, GROUP_MISS, GROUP_ABSENT)] == [6, 6, 6]
+    # The absent rows pay +9.9R and move the gap by nothing at all.
+    rows = candidate_outcomes(candidate, cohort, DEFAULT_CONTRACT)
+    asked = [row for row in rows if row.group != GROUP_ABSENT]
+    assert outcome_gap(rows) == outcome_gap(asked)
+
+
+def test_every_trade_lands_in_exactly_one_group_and_the_counts_add_up():
+    """The three groups partition the cohort, so nothing leaves between the split
+    and the report — and the absent count is reported rather than inferred from a
+    subtraction a reader has to perform."""
+    cohort = _ccohort(
+        _spread("H", 1.0, 6), _spread("M", -0.2, 5), _spread("Z", 0.4, 4)
+    )
+
+    body = _cbody(cohort, _RELATIVE_MOVE)
+
+    counts = {g: body["groups"][g]["trades"] for g in GROUPS}
+    assert counts == {GROUP_HIT: 6, GROUP_MISS: 5, GROUP_ABSENT: 4}
+    assert sum(counts.values()) == len(cohort) == body["trades"]
+
+
+def test_the_rubric_reading_folds_absence_into_the_miss_side_and_says_which():
+    """What the dimension would do **as shipped**, reported and never conflated.
+
+    The pre-registered readers score an absent value ``False``
+    (:func:`~screener.relative_strength.relative_move_hit`), so a shipped boolean
+    would put those rows on the miss side. That reading is worth having — it is the
+    one a rubric would actually apply — but it answers a different question from
+    "does the measured quantity predict", so it rides beside the primary gap under
+    its own name and never sets the verdict.
+    """
+    # The absent rows pay well, so folding them into the miss side must move the
+    # secondary gap and leave the primary one exactly where it was.
+    cohort = _ccohort(
+        _spread("H", 1.0, 6), _spread("M", -1.0, 6), _spread("Z", 3.0, 6)
+    )
+    candidate = named_candidate(_RELATIVE_MOVE)
+    rows = candidate_outcomes(candidate, cohort, DEFAULT_CONTRACT)
+
+    body = _cbody(cohort, _RELATIVE_MOVE)
+
+    assert body["gap"]["value"] == pytest.approx(outcome_gap(rows))
+    assert body["rubric_reading"]["value"] == pytest.approx(rubric_reading_gap(rows))
+    assert body["gap"]["value"] > body["rubric_reading"]["value"]
+    assert "absent" in body["rubric_reading"]["reads_absence_as"]
+    # And it is explicitly outside the verdict.
+    assert body["rubric_reading"]["enters_the_verdict"] is False
+
+
+def test_a_candidate_that_predicts_shows_a_gap_whose_interval_clears_zero():
+    """The claim under test, in the shape that would confirm it: the hit group
+    out-earns the miss group and the clustered interval sits entirely above zero."""
+    cohort = _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8))
+
+    body = _cbody(cohort, _RELATIVE_MOVE)
+
+    assert body["gap"]["value"] > 0
+    assert body["gap"]["bootstrap"]["ci_low"] > 0
+    assert body["verdict"] == CANDIDATE_PREDICTS
+
+
+def test_a_candidate_that_does_not_predict_reports_no_evidence_not_a_null_result():
+    """"No evidence it predicts" is never "the dimension does not predict".
+
+    One sample cannot license the second, and the vocabulary is where that
+    discipline lives — a report saying "no" would be a claim this run has no
+    standing to make.
+    """
+    cohort = _ccohort(_spread("H", 0.1, 8), _spread("M", 0.1, 8))
+
+    body = _cbody(cohort, _RELATIVE_MOVE)
+
+    assert body["verdict"] == CANDIDATE_NO_EVIDENCE
+    assert "never" in VERDICT_RULE_CANDIDATES
+    ci_low = body["gap"]["bootstrap"]["ci_low"]
+    assert ci_low is None or ci_low <= 0
+
+
+def test_a_side_too_thin_to_bootstrap_says_so_and_still_reports_its_n():
+    """A gap is taken **between** two sides, so a thin one makes it unreadable
+    however wide the other is. The n stays on the page: a thin cell is visible as
+    thin rather than absent."""
+    cohort = _ccohort(_spread("H", 2.0, 8), {"M0": -1.0, "M1": -1.0})
+
+    body = _cbody(cohort, _RELATIVE_MOVE)
+
+    assert body["verdict"] == CANDIDATE_TOO_THIN
+    assert body["groups"][GROUP_MISS]["closed"] == 2
+    assert body["groups"][GROUP_MISS]["bootstrap"]["suppressed"] is not None
+
+
+def test_significance_is_clustered_by_symbol_never_by_row():
+    """One name signalling repeatedly is one observation's worth of independence.
+
+    Two cohorts with the same rows and different symbol counts must not produce the
+    same interval — bootstrapping rows would make the second look as firm as the
+    first.
+    """
+    spread = _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8))
+    one_name = [
+        _ctrade("SAME", 2.0, relative_move=+1.5, month=1 + i) for i in range(8)
+    ] + [
+        _ctrade("OTHER", -1.0, relative_move=-1.5, month=1 + i) for i in range(8)
+    ]
+
+    wide = _cbody(spread, _RELATIVE_MOVE)
+    narrow = _cbody(one_name, _RELATIVE_MOVE)
+
+    assert wide["gap"]["bootstrap"]["clusters"] == 16
+    assert narrow["gap"]["bootstrap"]["clusters"] == 2
+    assert narrow["gap"]["bootstrap"]["suppressed"] is not None
+    assert narrow["verdict"] == CANDIDATE_TOO_THIN
+
+
+def test_the_stored_value_is_correlated_with_the_outcome_where_one_exists():
+    """The grading question ADR 0004 would ask later, asked here on the stored value.
+
+    ``Relative move`` persists a real number in ADR units, so the degree can be
+    ranked against the outcome. This is the statement the boolean cannot make, and
+    it runs over the rows where the value **exists** — an absent row is not a low
+    one.
+    """
+    cohort = [
+        _ctrade("A", -1.0, relative_move=-2.0),
+        _ctrade("B", 0.0, relative_move=-0.5),
+        _ctrade("C", 1.0, relative_move=+0.5),
+        _ctrade("D", 2.0, relative_move=+2.0),
+        _ctrade("E", 9.9, relative_move=None),
+    ]
+    candidate = named_candidate(_RELATIVE_MOVE)
+    rows = candidate_outcomes(candidate, cohort, DEFAULT_CONTRACT)
+
+    rho = value_correlation(rows)
+
+    assert rho == pytest.approx(1.0)
+    # The absent row is excluded rather than ranked at the bottom: it pays the
+    # most, and ranking it anywhere would move the figure.
+    assert rho == pytest.approx(
+        spearman(
+            [-2.0, -0.5, 0.5, 2.0], [r.r for r in rows if r.value is not None]
+        )
+    )
+
+
+def test_a_candidate_storing_only_a_boolean_reports_no_correlation_and_why():
+    """``RS line`` persists a boolean, not a degree.
+
+    So there is no value to rank, and the cell says that rather than printing a
+    correlation between a verdict and an outcome — which would be the gap again
+    under a second name, and would read as a second piece of evidence.
+    """
+    cohort = [
+        _ctrade("A", -1.0, rs_line=False),
+        _ctrade("B", 2.0, rs_line=True),
+    ]
+
+    body = _cbody(cohort, _RS_LINE)
+
+    assert named_candidate(_RS_LINE).value_kind == VALUE_BOOLEAN
+    assert named_candidate(_RELATIVE_MOVE).value_kind == VALUE_GRADED
+    assert body["value_correlation"]["rho"] is None
+    assert "boolean" in body["value_correlation"]["unavailable"]
+
+
+def test_the_verdict_is_the_gaps_and_the_correlation_is_stated_beside_it():
+    """One statistic decides, and the rule says which.
+
+    The gap is the claim ADR 0005 would act on — the dimension is admitted as a
+    boolean — so it is the gap's interval that reads the verdict. The correlation
+    is a statement about a *graded* form nothing has proposed, and only one of the
+    two candidates even has a value to compute it on; letting it into the verdict
+    would make the rule mean different things for the two dimensions.
+    """
+    cohort = _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8))
+
+    body = _cbody(cohort, _RELATIVE_MOVE)
+
+    assert body["verdict"] == CANDIDATE_PREDICTS
+    assert body["value_correlation"]["enters_the_verdict"] is False
+    assert "gap" in VERDICT_RULE_CANDIDATES
+
+
+def test_the_outcome_claim_is_reported_separately_from_the_selection_contrast():
+    """#195's fourth criterion: two claims about one dimension, never merged.
+
+    The published selection figures ride on the payload — the instrument, the Δ,
+    and the verdict ADR 0005 reached on it — beside a sentence saying why the two
+    cannot be added up. They are not the same claim: one says the trader picked
+    these names, the other says the names paid.
+    """
+    report = candidates_report(
+        DEFAULT_CONTRACT,
+        _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8)),
+        markets=("US",),
+    )
+
+    body = _cfind(report, "US", _RELATIVE_MOVE)
+    prior = body["selection_contrast"]
+
+    assert prior["instrument"] == "selection contrast"
+    assert prior["delta_pp"] == pytest.approx(3.6)
+    assert prior["adr_0005_verdict"] == "not admitted"
+    assert "different claim" in report["selection_contrast_note"]
+    # The two verdicts are separate keys, and neither is derived from the other.
+    assert body["verdict"] != prior["adr_0005_verdict"]
+    assert "selection" in format_candidates(report)
+
+
+def test_the_published_selection_figures_are_the_ones_5d_and_5e_measured():
+    """Quoted from the findings rather than recomputed, and pinned so a typo here
+    cannot rewrite a published result on its way onto this payload."""
+    assert SELECTION_CONTRAST[_RS_LINE]["delta_pp"] == pytest.approx(-2.1)
+    assert SELECTION_CONTRAST[_RS_LINE]["source"].endswith("§5d")
+    assert SELECTION_CONTRAST[_RELATIVE_MOVE]["delta_pp"] == pytest.approx(3.6)
+    assert SELECTION_CONTRAST[_RELATIVE_MOVE][
+        "not_taken_hit_rate"
+    ] == pytest.approx(0.8494)
+    assert SELECTION_CONTRAST[_RELATIVE_MOVE]["source"].endswith("§5e")
+
+
+def test_nothing_here_admits_a_dimension_to_the_rubric():
+    """#195's fifth criterion, made executable rather than promised in prose.
+
+    A candidate that had entered `screener.score.DIMENSIONS` would mean this
+    measurement was reporting on a live rubric row, which is a different thing
+    entirely — so it is refused at the door, and the payload states that admission
+    is ADR 0005's instrument and not this one's.
+    """
+    check_not_admitted()
+    assert all(weight == 0 for _name, weight in CANDIDATE_DIMENSIONS)
+    live = {name for name, _weight in DIMENSIONS}
+    assert live.isdisjoint({c.name for c in CANDIDATES_UNDER_TEST})
+
+    report = candidates_report(
+        DEFAULT_CONTRACT, _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8))
+    )
+
+    assert report["admission"] == ADMISSION_NOTE
+    assert "admits no dimension" in ADMISSION_NOTE
+
+
+def test_a_candidate_that_had_entered_the_rubric_is_refused():
+    """The other half of the same guard: the check has to be able to fire."""
+    with pytest.raises(ContractDrift, match="Relative move"):
+        check_not_admitted(dimensions=(("Relative move", 1),))
+
+
+def test_us_and_idx_never_pool_and_there_is_no_top_level_gap():
+    """Findings §8 measured that magnitudes do not transfer, so the way to stop a
+    pooled figure being quoted is for it never to have been computed."""
+    cohort = _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8))
+    cohort += _ccohort(_spread("J", 2.0, 8), _spread("K", -1.0, 8), market="IDX")
+
+    report = candidates_report(DEFAULT_CONTRACT, cohort, markets=("US", "IDX"))
+
+    assert "gap" not in report
+    assert "verdict" not in report
+    assert _cfind(report, "US", _RELATIVE_MOVE)["groups"][GROUP_HIT]["symbols"] == 8
+    assert _cfind(report, "IDX", _RELATIVE_MOVE)["groups"][GROUP_HIT]["symbols"] == 8
+
+
+def test_the_measurement_is_arm_bs_and_refuses_another_arms_trades():
+    """The pre-registered arm, for the reason the ranking gives: a cohort of arm A
+    trades under this banner would price a dimension against a result no headline
+    names."""
+    cohort = _ccohort(_spread("H", 2.0, 6), _spread("M", -1.0, 6))
+    cohort.append(_ctrade("X", 1.0, relative_move=+1.0, arm=ARM_A))
+
+    with pytest.raises(ValueError, match="arm"):
+        _cbody(cohort, _RELATIVE_MOVE)
+
+
+def test_a_market_that_produced_no_trade_reports_its_zeros_rather_than_vanishing():
+    """A silent market is a measurement — and possibly a data hole. An absent row
+    and a market nobody measured are indistinguishable after the fact."""
+    report = candidates_report(
+        DEFAULT_CONTRACT,
+        _ccohort(_spread("H", 2.0, 6), _spread("M", -1.0, 6)),
+        markets=("US", "IDX"),
+    )
+
+    idx = _cfind(report, "IDX", _RELATIVE_MOVE)
+    assert idx["trades"] == 0
+    assert idx["verdict"] == CANDIDATE_TOO_THIN
+    assert all(idx["groups"][g]["trades"] == 0 for g in GROUPS)
+
+
+def test_the_report_says_why_it_is_not_also_cut_per_year():
+    """The ranking reports per year and this does not, so the difference is stated
+    rather than left as an omission a reader has to notice."""
+    report = candidates_report(
+        DEFAULT_CONTRACT, _ccohort(_spread("H", 2.0, 6), _spread("M", -1.0, 6))
+    )
+
+    assert "per year" in report["not_cut_per_year"]
+    assert report["multiple_testing"]["intervals_reported"] >= 1
+
+
+def test_the_count_of_intervals_the_candidate_report_states_rides_on_it():
+    """Every group, gap and correlation is a claim at nominal alpha, so the budget
+    is counted rather than left for a reader to infer from the page's length."""
+    report = candidates_report(
+        DEFAULT_CONTRACT,
+        _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8)),
+        markets=("US",),
+    )
+
+    counted = 0
+    for body in report["markets"]:
+        for cell in body["candidates"]:
+            counted += sum(
+                1 for g in GROUPS
+                if cell["groups"][g]["bootstrap"]["ci_low"] is not None
+            )
+            counted += sum(
+                1
+                for key in ("gap", "rubric_reading", "value_correlation")
+                if cell[key]["bootstrap"]["ci_low"] is not None
+            )
+    assert report["multiple_testing"]["intervals_reported"] == counted
+
+
+def test_a_trade_with_no_persisted_detection_row_is_a_failure_not_a_drop():
+    """The join from trade to row is **total** or the denominator is broken.
+
+    Dropping an unmatched trade would shrink the cohort with nothing in the output
+    to say which trades left, and the ones most likely to go missing are not a
+    random sample.
+    """
+    with pytest.raises(ValueError, match="AAA"):
+        candidate_trades([_mtrade("AAA", 2016, 1.0)], {})
+
+
+def test_the_candidates_report_is_stamped_and_serialises():
+    """Stamped with the contract that produced it, like every other result in the
+    run, and JSON-clean so it can be committed beside them."""
+    report = candidates_report(
+        DEFAULT_CONTRACT, _ccohort(_spread("H", 2.0, 6), _spread("M", -1.0, 6))
+    )
+
+    assert report[CONTRACT_KEY] == DEFAULT_CONTRACT.to_dict()
+    assert json.loads(json.dumps(report)) == report
+
+
+def test_the_printed_page_shows_every_group_with_its_n_and_both_claims():
+    """A group's expectancy without its count is unreadable — six trades and six
+    hundred print the same number — and the selection contrast prints above the
+    outcome figures so a reader meets the older claim before the newer one."""
+    report = candidates_report(
+        DEFAULT_CONTRACT,
+        _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8), _spread("Z", 0.1, 3)),
+        markets=("US",),
+    )
+
+    page = format_candidates(report)
+
+    assert _RELATIVE_MOVE in page and _RS_LINE in page
+    assert "n=8" in page
+    assert "absent" in page
+    assert page.index("selection") < page.index("gap")
+
+
+def test_the_candidate_measurement_runs_off_the_denominator_end_to_end(
+    store, denominator
+):
+    """The seam that matters: persisted candidate values, the trades the simulator
+    took off the same detections, joined by the session they were decided on."""
+    _seed_figure_name(
+        store, denominator, "US", "AAA", date(2020, 1, 1), _FIG_FLAT + _FIG_WIN,
+        relative_move=+1.25,
+    )
+    trades = simulate_market(
+        store, denominator, "US", DEFAULT_CONTRACT, arms=(ARM_B,)
+    )
+
+    cohort = candidate_trades(trades, candidate_index(denominator, "US"))
+
+    assert [c.trade.symbol for c in cohort] == ["AAA"]
+    assert cohort[0].detection.relative_move == pytest.approx(1.25)
+    body = _cbody(cohort, _RELATIVE_MOVE)
+    assert body["groups"][GROUP_HIT]["trades"] == 1

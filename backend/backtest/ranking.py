@@ -102,7 +102,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence, TypeVar
 
 from replay.field import SEVEN_DIM_LABEL, SEVEN_DIM_MAX_POINTS, SevenDimScore
 from screener.score import DIMENSIONS
@@ -439,12 +439,16 @@ def top_minus_bottom(
     return sum(top) / len(top) - sum(bottom) / len(bottom)
 
 
-def _ranks(values: Sequence[float]) -> list[float]:
+def ranks(values: Sequence[float]) -> list[float]:
     """Fractional ranks, ties taking the average of the positions they occupy.
 
     Ties are the common case on an eight-point score, so this is the whole of why
     the correlation is meaningful here: breaking them by arrival order would make
     rho a function of the sort.
+
+    Public because :mod:`backtest.candidates` ranks a candidate dimension's stored
+    value against the same outcome, and a second implementation of a tie rule is a
+    second place for two rhos in one run to have been computed differently.
     """
     order = sorted(range(len(values)), key=lambda i: values[i])
     out = [0.0] * len(values)
@@ -460,23 +464,27 @@ def _ranks(values: Sequence[float]) -> list[float]:
     return out
 
 
-def rank_correlation(rows: Sequence[Outcome]) -> float | None:
-    """Spearman's rho between score and outcome — the whole-cohort ranking claim.
+def spearman(xs: Sequence[float], ys: Sequence[float]) -> float | None:
+    """Spearman's rho between two paired series, ties averaged.
 
-    Reported beside the gap because the two can disagree, and the disagreement is
-    informative: a rubric whose extremes separate while its middle is noise is a
-    different finding from one that ranks throughout, and the gap alone cannot
-    tell them apart.
+    The arithmetic alone, so the two callers that need it — the score against the
+    outcome here, and a candidate dimension's stored value against the same
+    outcome in :mod:`backtest.candidates` — read one tie rule and one variance
+    refusal rather than two that could drift apart.
 
-    ``None`` when either side has no variance — one score, or every trade paying
-    the same. There is no correlation to report there, and a zero would read as
-    "measured and found nothing" rather than "not measurable".
+    ``None`` when either side has no variance. There is no correlation to report
+    there, and a zero would read as "measured and found nothing" rather than "not
+    measurable".
     """
-    if len(rows) < 2:
+    if len(xs) != len(ys):
+        raise ValueError(
+            f"a correlation needs paired series; {len(xs)} against {len(ys)} "
+            "is a join that lost rows on one side"
+        )
+    if len(xs) < 2:
         return None
-    x = _ranks([float(row.points) for row in rows])
-    y = _ranks([row.r for row in rows])
-    n = len(rows)
+    x, y = ranks(xs), ranks(ys)
+    n = len(xs)
     mx, my = sum(x) / n, sum(y) / n
     dx = [a - mx for a in x]
     dy = [b - my for b in y]
@@ -487,7 +495,29 @@ def rank_correlation(rows: Sequence[Outcome]) -> float | None:
     return sum(a * b for a, b in zip(dx, dy)) / (sx * sy)
 
 
+def rank_correlation(rows: Sequence[Outcome]) -> float | None:
+    """Spearman's rho between score and outcome — the whole-cohort ranking claim.
+
+    Reported beside the gap because the two can disagree, and the disagreement is
+    informative: a rubric whose extremes separate while its middle is noise is a
+    different finding from one that ranks throughout, and the gap alone cannot
+    tell them apart.
+
+    ``None`` when either side has no variance — one score, or every trade paying
+    the same.
+    """
+    return spearman([float(row.points) for row in rows], [row.r for row in rows])
+
+
 # -- the bootstrap, over a statistic rather than over a mean -------------------
+
+# The bootstrap resamples clusters and hands the pooled rows to a statistic; it
+# reads no field of a row itself. So the row type is the caller's — an
+# :class:`Outcome` here, a candidate dimension's outcome in
+# :mod:`backtest.candidates` — and saying so in the signature is what keeps the
+# second caller from needing a second bootstrap with the same seed.
+Row = TypeVar("Row")
+
 
 # How much of a resample distribution may be undefined before the interval built
 # on the rest of it is refused.
@@ -510,8 +540,8 @@ MAX_UNDEFINED_SHARE = 0.10
 
 
 def bootstrap_symbol_statistic(
-    clusters: Sequence[Sequence[Outcome]],
-    statistic: Callable[[Sequence[Outcome]], float | None],
+    clusters: Sequence[Sequence[Row]],
+    statistic: Callable[[Sequence[Row]], float | None],
     *,
     resamples: int = BOOTSTRAP_RESAMPLES,
     seed: int = BOOTSTRAP_SEED,
@@ -519,6 +549,7 @@ def bootstrap_symbol_statistic(
     cluster: str = BOOTSTRAP_CLUSTER,
     min_clusters: int = BOOTSTRAP_MIN_CLUSTERS,
     max_undefined_share: float = MAX_UNDEFINED_SHARE,
+    unavailable: str | None = None,
 ) -> dict[str, Any]:
     """A clustered bootstrap of an arbitrary statistic over the pooled rows.
 
@@ -547,6 +578,13 @@ def bootstrap_symbol_statistic(
     metric records: one symbol resampled two thousand times returns its own mean
     two thousand times, which prints as a zero-width interval at p = 0 and is one
     independent observation.
+
+    ``unavailable`` refuses before any resampling, for a statistic that could not
+    be computed on this cohort whatever was drawn — :mod:`backtest.candidates`
+    passes it for a rank correlation against a candidate that persists no degree.
+    The refusal is stated in the caller's words but reported in this function's
+    shape, so a cell that never ran a bootstrap and one that ran and refused are
+    read the same way by anything downstream.
     """
 
     n = len(clusters)
@@ -564,6 +602,8 @@ def bootstrap_symbol_statistic(
         "suppressed": None,
     }
     empty = {**body, "ci_low": None, "ci_high": None, "p_value": None}
+    if unavailable is not None:
+        return {**empty, "suppressed": unavailable}
     if n < min_clusters:
         return {
             **empty,

@@ -6230,3 +6230,442 @@ def test_an_arm_that_ran_and_traded_nothing_reports_zeros_rather_than_vanishing(
     assert (quiet["trades"], quiet["closed"], quiet["total_r"]) == (0, 0, 0)
     # And an arm that never ran is absent, which is the distinction being kept.
     assert [r["arm"] for r in ran_one["arms"]] == [ARM_B]
+
+
+# -- the pre-registered headline metric (issue #191) ---------------------------
+#
+# Phase 5's first cell, and the only metric the run promised in advance: arm B's
+# after-cost expectancy in R, per market per year. Everything here is arithmetic
+# over trades the simulator already produced — no bar is read — which is why the
+# fixtures below author trades directly rather than running a chain to reach them.
+#
+# Three claims are load-bearing and each has a test that would fail loudly if the
+# code drifted from it:
+#
+#   * **Costs are the contract's own, per market.** IDX carries real fees and
+#     spread; US is near-zero. A market the cell does not name is drift, never a
+#     free trade.
+#   * **Never pooled only.** The window holds a crash and a mania, so a pooled
+#     fourteen-year figure describes neither. Per year always, and the
+#     2020–21-excluded figure beside the full-window one.
+#   * **Clustered by symbol, not by row.** A stock throwing three signals in a
+#     fortnight is not three independent observations, and bootstrapping the rows
+#     flatters every p-value.
+
+from backtest.contract import COSTS_KEY, METRIC_PRIMARY_KEY
+from backtest.metric import (
+    BOOTSTRAP_CLUSTER,
+    BOOTSTRAP_RESAMPLES,
+    BOOTSTRAP_SEED,
+    EXCLUDED_YEARS,
+    EXCLUDED_YEARS_WINDOW,
+    FULL_WINDOW,
+    PRIMARY_ARM,
+    after_cost_r,
+    bootstrap_expectancy,
+    check_costs,
+    check_primary_metric,
+    clusters_by_symbol,
+    cost_r,
+    expectancy_cell,
+    format_metric,
+    market_report,
+    metric_report,
+    per_side_cost_bps,
+)
+
+# The authored trade every metric test runs on: entry at 100 with a stop width of
+# 10, so a trade's *before-cost* R is exactly the number the fixture asks for and
+# every figure below is arithmetic a reader can check without a bar series.
+_M_ENTRY = 100.0
+_M_STOP_WIDTH = 10.0
+
+
+def _mtrade(
+    symbol: str,
+    year: int,
+    r: float,
+    *,
+    market: str = "US",
+    arm: str = ARM_B,
+    price_scale_ok: bool = True,
+    open_at_end: bool = False,
+    month: int = 3,
+) -> SimulatedTrade:
+    """One arm-B trade whose before-cost R is exactly ``r``.
+
+    Authored rather than simulated: the metric is arithmetic over trades, so a
+    fixture that ran the simulator to reach them would put a second phase's bugs
+    inside this one's tests. ``open_at_end`` leaves half the position on, which is
+    how a trade with no R is spelled — its legs do not add up to a whole one.
+    """
+    entry_session = date(year, month, 1)
+    exit_session = date(year, month, 20)
+    exit_price = _M_ENTRY + r * _M_STOP_WIDTH
+    weight = 0.5 if open_at_end else 1.0
+    leg = ExitLeg(
+        weight=weight,
+        signal=Decision(session=exit_session, price=exit_price),
+        exit=Decision(session=exit_session, price=exit_price),
+        reason=EXIT_TRAIL,
+    )
+    return SimulatedTrade(
+        market=market,
+        symbol=symbol,
+        arm=arm,
+        detection_session=date(year, month, 1),
+        trigger=Decision(session=date(year, month, 1), price=_M_ENTRY),
+        break_signal=Decision(session=date(year, month, 1), price=_M_ENTRY),
+        entry=Decision(session=entry_session, price=_M_ENTRY),
+        stop_price=Decision(
+            session=date(year, month, 1), price=_M_ENTRY - _M_STOP_WIDTH
+        ),
+        stop_width=_M_STOP_WIDTH,
+        legs=(leg,),
+        price_scale=1.0,
+        price_scale_ok=price_scale_ok,
+    )
+
+
+def test_the_primary_metric_is_the_contracts_own_and_is_arm_bs(store):
+    """The headline is the contract's cell, read rather than restated.
+
+    The metric that gets reported and the metric that was pre-registered are the
+    same string, or the run has quietly chosen its headline after the fact — which
+    is the one thing pre-registration exists to prevent.
+    """
+    assert PRIMARY_ARM == ARM_B
+    report = metric_report(DEFAULT_CONTRACT, [_mtrade("AAA", 2015, 1.0)])
+
+    assert report["metric"] == DEFAULT_CONTRACT.value(METRIC_PRIMARY_KEY)
+    assert report["arm"] == ARM_B
+    check_primary_metric(DEFAULT_CONTRACT)
+
+
+def test_a_contract_whose_primary_metric_moved_is_drift_not_a_new_headline(store):
+    """Changing the cell without changing the code leaves a run whose contract and
+    behaviour disagree while both look right — a new run recorded beside the old
+    one is the remedy, never a silent reinterpretation."""
+    moved = RunContract(
+        contract_version=DEFAULT_CONTRACT.contract_version,
+        label=DEFAULT_CONTRACT.label,
+        cells=tuple(
+            Cell(
+                key=c.key,
+                value="arm_a_after_cost_expectancy_r",
+                justification=c.justification,
+            )
+            if c.key == METRIC_PRIMARY_KEY else c
+            for c in DEFAULT_CONTRACT.cells
+        ),
+    )
+    with pytest.raises(ContractDrift):
+        check_primary_metric(moved)
+
+
+def test_costs_are_the_contracts_own_per_market_and_paid_on_both_sides(store):
+    """IDX's real fees and spread are not modelled with US's near-zero assumptions.
+
+    Commission and slippage are both per-side bps of the traded price, so a round
+    trip pays on the entry and on every leg that comes off. In R that is the cost
+    in price divided by the stop width, which keeps the figure in the unit the
+    result is denominated in.
+    """
+    us_costs = DEFAULT_CONTRACT.value(COSTS_KEY)["US"]
+    idx_costs = DEFAULT_CONTRACT.value(COSTS_KEY)["IDX"]
+    assert per_side_cost_bps(DEFAULT_CONTRACT, "US") == (
+        us_costs["commission_bps"] + us_costs["slippage_bps"]
+    )
+    assert per_side_cost_bps(DEFAULT_CONTRACT, "IDX") == (
+        idx_costs["commission_bps"] + idx_costs["slippage_bps"]
+    )
+
+    us = _mtrade("AAA", 2015, 1.0, market="US")
+    idx = _mtrade("BBB", 2015, 1.0, market="IDX")
+
+    # Entry at 100, exit at 110, stop width 10: (100 + 110) × rate / 10.
+    assert cost_r(us, DEFAULT_CONTRACT) == pytest.approx(
+        (100.0 + 110.0) * (5.0 / 10_000.0) / 10.0
+    )
+    assert cost_r(idx, DEFAULT_CONTRACT) == pytest.approx(
+        (100.0 + 110.0) * (40.0 / 10_000.0) / 10.0
+    )
+    # Jakarta pays materially more for the same trade, which is the whole reason
+    # the cell is per market.
+    assert cost_r(idx, DEFAULT_CONTRACT) > cost_r(us, DEFAULT_CONTRACT) * 5
+
+
+def test_a_market_the_costs_cell_does_not_name_is_drift_not_a_free_trade(store):
+    """An unnamed market priced at zero would report the most flattering
+    expectancy in the run and look like a clean result. So it is refused."""
+    with pytest.raises(ContractDrift):
+        check_costs(DEFAULT_CONTRACT, "LSE")
+    with pytest.raises(ContractDrift):
+        cost_r(_mtrade("AAA", 2015, 1.0, market="LSE"), DEFAULT_CONTRACT)
+
+
+def test_the_reported_expectancy_is_after_cost_and_lower_than_before_cost(store):
+    """The headline is the after-cost number, and it is the one in the cell."""
+    trades = [_mtrade("AAA", 2015, 1.0), _mtrade("BBB", 2015, -1.0)]
+
+    cell = expectancy_cell(DEFAULT_CONTRACT, trades, market="US", label="2015")
+
+    before = sum(t.r_multiple for t in trades) / len(trades)
+    after = sum(after_cost_r(t, DEFAULT_CONTRACT) for t in trades) / len(trades)
+    assert cell["expectancy_r_before_cost"] == pytest.approx(before)
+    assert cell["expectancy_r"] == pytest.approx(after)
+    assert cell["expectancy_r"] < cell["expectancy_r_before_cost"]
+    assert cell["cost_r"] == pytest.approx(before - after)
+
+
+def test_the_win_rate_and_the_r_distribution_ride_with_the_expectancy(store):
+    """A 20% win rate is not a broken method; a 20% win rate with a small right
+    tail is. So the expectancy never travels without the shape behind it.
+
+    Eight losers at −1R and two winners at +8R: one in five made money and the
+    mean R is positive anyway, which is the reference set's own shape (22.7% at a
+    positive mean) and the reason the win rate alone decides nothing.
+    """
+    trades = [_mtrade(f"L{i}", 2016, -1.0) for i in range(8)]
+    trades += [_mtrade(f"W{i}", 2016, 8.0) for i in range(2)]
+
+    cell = expectancy_cell(DEFAULT_CONTRACT, trades, market="US", label="2016")
+
+    assert cell["win_rate"] == pytest.approx(0.2)
+    assert cell["wins"] == 2 and cell["losses"] == 8
+    assert cell["expectancy_r"] > 0
+    dist = cell["distribution"]
+    assert dist["median"] < 0 < dist["max"]
+    assert dist["p90"] > 0
+    assert dist["mean_win"] > 0 > dist["mean_loss"]
+
+
+def test_the_same_win_rate_with_a_thin_tail_is_a_different_result(store):
+    """The distribution is what separates the two, and only one of them is a
+    method worth trading — which is why the win rate is never reported alone."""
+    fat = [_mtrade(f"L{i}", 2016, -1.0) for i in range(8)]
+    fat += [_mtrade(f"W{i}", 2016, 8.0) for i in range(2)]
+    thin = [_mtrade(f"L{i}", 2016, -1.0) for i in range(8)]
+    thin += [_mtrade(f"W{i}", 2016, 1.2) for i in range(2)]
+
+    fat_cell = expectancy_cell(DEFAULT_CONTRACT, fat, market="US", label="2016")
+    thin_cell = expectancy_cell(DEFAULT_CONTRACT, thin, market="US", label="2016")
+
+    assert fat_cell["win_rate"] == thin_cell["win_rate"]
+    assert fat_cell["expectancy_r"] > 0 > thin_cell["expectancy_r"]
+    assert fat_cell["distribution"]["max"] > thin_cell["distribution"]["max"]
+
+
+def test_the_2020_21_excluded_figure_is_reported_beside_the_full_window_one(store):
+    """That tape rewarded momentum nearly everywhere, so it cannot carry the
+    conclusion alone — and the way to stop it is to print both figures together."""
+    trades = [_mtrade("AAA", 2016, -0.5), _mtrade("BBB", 2020, 6.0)]
+
+    body = market_report(DEFAULT_CONTRACT, trades, market="US")
+
+    windows = {w["label"]: w for w in body["windows"]}
+    assert set(windows) == {FULL_WINDOW, EXCLUDED_YEARS_WINDOW}
+    assert EXCLUDED_YEARS == (2020, 2021)
+    assert windows[EXCLUDED_YEARS_WINDOW]["excluded_years"] == list(EXCLUDED_YEARS)
+    # The mania year carried the full-window figure, and dropping it flips the sign.
+    assert windows[FULL_WINDOW]["expectancy_r"] > 0
+    assert windows[EXCLUDED_YEARS_WINDOW]["expectancy_r"] < 0
+    assert windows[EXCLUDED_YEARS_WINDOW]["closed"] == 1
+
+
+def test_a_market_is_never_reported_pooled_only(store):
+    """Per year always, in the payload and on the printed page both.
+
+    A pooled fourteen-year number over a window holding a crash and a mania
+    describes neither, so a reader must not be able to reach one without the years
+    beside it.
+    """
+    trades = [_mtrade("AAA", 2016, 1.0), _mtrade("BBB", 2020, -1.0)]
+
+    body = market_report(DEFAULT_CONTRACT, trades, market="US")
+
+    years = [y["label"] for y in body["years"]]
+    assert years == [str(y) for y in range(2016, 2021)]
+    printed = format_metric(metric_report(DEFAULT_CONTRACT, trades))
+    for label in years:
+        assert label in printed
+
+
+def test_a_year_inside_the_span_with_no_trades_reports_zero_rather_than_vanishing(store):
+    """A quiet year is a measurement; a missing year is a gap in the report.
+
+    Absent rows collapse the two into the same output, and the years between the
+    first and last trade are exactly where a data hole would hide.
+    """
+    trades = [_mtrade("AAA", 2016, 1.0), _mtrade("BBB", 2019, 1.0)]
+
+    body = market_report(DEFAULT_CONTRACT, trades, market="US")
+
+    quiet = {y["label"]: y for y in body["years"]}["2017"]
+    assert (quiet["trades"], quiet["closed"]) == (0, 0)
+    assert quiet["expectancy_r"] is None
+    assert quiet["win_rate"] is None
+
+
+def test_us_and_idx_are_reported_separately_including_in_the_summary(store):
+    """findings §8 measured that magnitudes do not transfer, so an average across
+    the two markets is a number about neither."""
+    trades = [
+        _mtrade("AAA", 2016, 2.0, market="US"),
+        _mtrade("BBB", 2016, -1.0, market="IDX"),
+    ]
+
+    report = metric_report(DEFAULT_CONTRACT, trades)
+
+    markets = {m["market"]: m for m in report["markets"]}
+    assert set(markets) == {"US", "IDX"}
+    us = {w["label"]: w for w in markets["US"]["windows"]}[FULL_WINDOW]
+    idx = {w["label"]: w for w in markets["IDX"]["windows"]}[FULL_WINDOW]
+    assert us["expectancy_r"] > 0 > idx["expectancy_r"]
+    # And nothing anywhere in the payload pools them.
+    assert "expectancy_r" not in report
+    printed = format_metric(report)
+    assert "US" in printed and "IDX" in printed
+
+
+def test_a_cell_that_spans_two_markets_is_refused(store):
+    """The separation is enforced where the arithmetic happens, not remembered at
+    the call site — a mean across two markets is the exact figure story 4 forbids,
+    and it has no shape that would make it visible afterwards."""
+    trades = [
+        _mtrade("AAA", 2016, 1.0, market="US"),
+        _mtrade("BBB", 2016, 1.0, market="IDX"),
+    ]
+    with pytest.raises(ValueError):
+        expectancy_cell(DEFAULT_CONTRACT, trades, market="US", label="2016")
+
+
+def test_a_cell_that_spans_two_arms_is_refused(store):
+    """The pre-registered metric is arm B's. Averaging an arm A trade into it
+    would report a number no arm produced, under arm B's name."""
+    trades = [
+        _mtrade("AAA", 2016, 1.0),
+        _mtrade("BBB", 2016, 1.0, arm=ARM_A),
+    ]
+    with pytest.raises(ValueError):
+        expectancy_cell(DEFAULT_CONTRACT, trades, market="US", label="2016")
+
+
+def test_significance_is_bootstrapped_clustered_by_symbol_not_by_row(store):
+    """A stock throwing twenty signals is not twenty independent observations.
+
+    One hot name at +3R twenty times over, against twenty different names at −1R
+    each. Resampling *rows* treats the hot name's run as forty independent draws
+    and returns a tight interval and a tiny p-value; resampling *symbols* asks the
+    question that was actually asked — would another market have thrown up that
+    name at all — and the interval widens accordingly.
+    """
+    trades = [_mtrade("HOT", 2016, 3.0, month=1 + i % 12) for i in range(20)]
+    trades += [_mtrade(f"C{i}", 2016, -1.0) for i in range(20)]
+
+    by_symbol = bootstrap_expectancy(clusters_by_symbol(trades, DEFAULT_CONTRACT))
+    by_row = bootstrap_expectancy(
+        [(after_cost_r(t, DEFAULT_CONTRACT),) for t in trades], cluster="row"
+    )
+
+    assert by_symbol["cluster"] == BOOTSTRAP_CLUSTER == "symbol"
+    assert by_symbol["clusters"] == 21
+    assert by_row["clusters"] == 40
+    widened = (by_symbol["ci_high"] - by_symbol["ci_low"]) > (
+        by_row["ci_high"] - by_row["ci_low"]
+    )
+    assert widened
+    # And the flattering p-value is exactly what row-counting buys.
+    assert by_symbol["p_value"] > by_row["p_value"]
+
+
+def test_the_bootstrap_is_deterministic_under_its_seed(store):
+    """A significance figure that moved between two runs of the same data would
+    make every result unreproducible, and nothing in the output would show it."""
+    trades = [_mtrade(f"S{i}", 2016, 1.0 if i % 3 else -1.0) for i in range(30)]
+    clusters = clusters_by_symbol(trades, DEFAULT_CONTRACT)
+
+    first = bootstrap_expectancy(clusters)
+    second = bootstrap_expectancy(clusters)
+
+    assert first == second
+    assert first["resamples"] == BOOTSTRAP_RESAMPLES
+    assert first["seed"] == BOOTSTRAP_SEED
+    # And it rides on every cell rather than being computed on request.
+    cell = expectancy_cell(DEFAULT_CONTRACT, trades, market="US", label="2016")
+    assert cell["bootstrap"]["clusters"] == 30
+
+
+def test_an_open_trade_has_no_r_and_is_counted_rather_than_marked_to_market(store):
+    """Closing a running trade at the last close would invent an exit the rules
+    never gave — systematically, for every name still running at the end of the
+    window. So it is excluded from the expectancy and reported as open."""
+    trades = [_mtrade("AAA", 2016, 1.0), _mtrade("BBB", 2016, 5.0, open_at_end=True)]
+
+    cell = expectancy_cell(DEFAULT_CONTRACT, trades, market="US", label="2016")
+
+    assert (cell["trades"], cell["closed"], cell["open_at_end"]) == (2, 1, 1)
+    assert cell["expectancy_r"] == pytest.approx(
+        after_cost_r(trades[0], DEFAULT_CONTRACT)
+    )
+
+
+def test_the_price_scale_dropped_count_travels_with_every_cell(store):
+    """The flag's whole purpose is to make the comparisons that are *not*
+    rescale-immune visible, so its count rides beside every figure derived from
+    the trades it flags — never in a commit message."""
+    trades = [
+        _mtrade("AAA", 2016, 1.0),
+        _mtrade("BBB", 2016, 1.0, price_scale_ok=False),
+    ]
+
+    body = market_report(DEFAULT_CONTRACT, trades, market="US")
+
+    window = {w["label"]: w for w in body["windows"]}[FULL_WINDOW]
+    assert window["price_scale_dropped"] == 1
+    assert {y["label"]: y for y in body["years"]}["2016"]["price_scale_dropped"] == 1
+    # Flagged, never silently dropped: both trades are still in the expectancy.
+    assert window["closed"] == 2
+
+
+def test_the_metric_is_recorded_before_any_swept_variant_exists(store):
+    """Every threshold tried is a test, and enough of them produce a winner from
+    noise. So the headline is computed and recorded first, and the report says so
+    with the count of variants that stood behind it — zero, here, because none
+    exists yet."""
+    report = metric_report(DEFAULT_CONTRACT, [_mtrade("AAA", 2016, 1.0)])
+
+    assert report["pre_registered"] is True
+    assert report["sweep"]["variants_tried"] == 0
+    assert "before" in report["sweep"]["note"]
+
+
+def test_the_metric_report_is_stamped_with_the_contract(store):
+    """Like every other figure the package emits: two runs under different
+    contracts are distinguishable from their serialised output alone."""
+    report = metric_report(DEFAULT_CONTRACT, [_mtrade("AAA", 2016, 1.0)])
+
+    assert report[CONTRACT_KEY] == DEFAULT_CONTRACT.to_dict()
+    assert json.loads(json.dumps(report)) == report
+
+
+def test_the_metric_runs_off_the_simulator_end_to_end(store):
+    """The seam that matters: trades the simulator produced, priced and measured.
+
+    Every other test here authors its trades so the arithmetic is checkable; this
+    one proves the two phases actually join, and that the headline the run reports
+    is arm B's own trade after the contract's costs.
+    """
+    bars = _sim_bars()
+    det = _sim_detection(bars)
+    trade = simulate_arm_b(bars, det, market="US", contract=DEFAULT_CONTRACT)
+
+    report = metric_report(DEFAULT_CONTRACT, [trade])
+
+    body = {m["market"]: m for m in report["markets"]}["US"]
+    window = {w["label"]: w for w in body["windows"]}[FULL_WINDOW]
+    assert window["closed"] == 1
+    assert window["expectancy_r"] == pytest.approx(
+        trade.r_multiple - cost_r(trade, DEFAULT_CONTRACT)
+    )
+    assert [y["label"] for y in body["years"]] == [str(trade.entry.session.year)]

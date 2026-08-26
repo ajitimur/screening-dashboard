@@ -65,6 +65,24 @@ reason is now doubled: it is a command in its own right
 documented command warn on every invocation. The entry point is reached as
 ``backtest.simulate.simulate_market``.
 
+Issue #191 lands the first cell of Phase 5: :mod:`backtest.metric`, the one metric
+the run promised in advance — arm B's after-cost expectancy in R, per market per
+year. It reads no bar. The simulator already denominated each trade in R, so this
+module is arithmetic over those trades: the contract's per-market commission and
+slippage charged on both sides and divided by the trade's own stop width, the win
+rate and the R-distribution reported beside every expectancy, per year always and
+the 2020–21-excluded figure beside the full-window one, and significance
+bootstrapped by resampling **symbols** rather than rows. It computes and records the
+headline **before any swept variant exists**, and says so with the count of variants
+behind it.
+
+:mod:`backtest.metric`'s names are **not** re-exported here for the reasons that
+already keep :mod:`backtest.simulate` out: it is a command
+(``python -m backtest.metric``) and it imports both that module and
+:class:`~backtest.run.ContractDrift`, so re-exporting it would make either
+documented command warn on every invocation. The entry point is
+``backtest.metric.metric_report``.
+
 The universe's names are not re-exported, and the reason is naming rather than
 import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean
 something else one import away (:mod:`screener.universe`, :mod:`replay.reference`),

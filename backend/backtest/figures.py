@@ -81,16 +81,24 @@ A count that collapses in a given year is a data hole, and it reads as a quiet
 market until someone looks (story 77). Two flags, because two different things
 collapse and only one of them is about the field:
 
-- :attr:`YearFigures.sessions_collapsed` — the year holds far fewer sessions than
-  the market's median year. A hole in the *store*: a rate computed over it is a
-  rate over a year that never happened.
+- :attr:`YearFigures.sessions_collapsed` — the year holds far fewer sessions per
+  day of window than the market's median year. A hole in the *store*: a rate
+  computed over it is a rate over a year that never happened.
 - :attr:`YearFigures.detections_collapsed` — the year's detections-per-session sits
   far under the market's median year. A hole in the *field*, with the calendar
   intact.
 
-The window opens and closes mid-year by design, so its first and last years are
-short on purpose and are never session-flagged. Flagging them would cry wolf on
-every run and teach a reader to skip the one flag that means something.
+Sessions are judged as a **density** — per day of the year the window actually
+covers — so the window's first and last years, which are short by design, are
+flagged on the same rule as every other year rather than exempted from it. The
+exemption is the tempting shortcut and it is a hole: a store that lost a quarter of
+the window's opening year drops that year's sessions and its detections together,
+so the rate barely moves and neither flag fires.
+
+Every year between the window's first session and its last gets a row, including
+one the store missed **entirely**. Such a year would otherwise produce no row, no
+flag and no contribution to the median — the worst hole the report exists to catch
+would be the one case it could not.
 
 Neither fraction is a contract cell, and that is deliberate. The contract holds
 the choices that decide a *measurement*, and these decide only which rows get a
@@ -102,6 +110,7 @@ the result rather than trusted.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 from collections import Counter
 from dataclasses import dataclass
@@ -117,8 +126,11 @@ from .denominator import DenominatorStore, denominator_path
 from .result import stamp_result
 from .simulate import (
     ARMS,
+    ENTRY_UNFILLED,
     DetectionOutcome,
     SimulatedTrade,
+    closed_trades,
+    price_scale_drops,
     walk_detections,
 )
 
@@ -151,6 +163,11 @@ SESSION_COLLAPSE_FRACTION = 0.5
 # and looks like a slow year.
 BARS = "▁▂▃▄▅▆▇█"
 HOLE_MARK = "·"
+# A measured zero, drawn so it cannot be mistaken for an unmeasured span. The year
+# the field went to zero is the row a reader is scanning for, and an empty cell
+# beside an empty cell hides it. A sliver rather than a digit, because it sits in
+# the bar column and a "0" there reads as the rate printed twice.
+ZERO_MARK = "▏"
 PLOT_WIDTH = 34
 
 
@@ -189,21 +206,34 @@ def favourable(trade: SimulatedTrade) -> bool:
     ``False`` for a trade still running, which is the honest reading and not a
     convenience — an open trade has no R at all, and the caller keeps it out of
     precision's denominator rather than letting this function decide it lost.
+
+    A function here rather than a property on :class:`SimulatedTrade`, though it
+    reads only that trade's ``r_multiple``. The rule is a **measurement decision**
+    and this is the phase that makes it; the simulator deliberately emits values
+    and no verdicts about them, the same separation the score breakdown keeps when
+    it stores a dimension's value and never one rubric's judgement of it (#154).
+    Putting the threshold on the trade would let a later phase that wanted a
+    different one find it already decided.
     """
     r = trade.r_multiple
     return r is not None and r > 0
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class ArmFigures:
     """One arm's outcome figures over one market and one span.
 
-    The counts are a funnel and they add up: of the entries that ``filled``, each
-    is either ``closed`` or still ``open_at_end``, and of the closed ones
+    The counts are a funnel and they reconcile: of the entries that ``filled``,
+    each is either ``closed`` or still ``open_at_end``, and of the closed ones
     ``favourable`` made money. ``answered`` is the count precision is measured
-    against and includes the detections that never broke — a setup that failed to
-    trigger is an answer, and leaving it out would measure only the setups that got
-    far enough to be judged.
+    against — the ``closed`` ones plus every detection that was asked and never
+    triggered, which :attr:`Figures.no_break` holds. A setup that failed to trigger
+    *is* an answer, and leaving it out would measure only the setups that got far
+    enough to be judged.
+
+    ``filled`` is this module's name for what :func:`~backtest.simulate.arm_report`
+    calls ``trades``. The two are the same count; the names differ because here it
+    is one stage of an entry funnel and there it is the whole population.
     """
 
     arm: str
@@ -235,20 +265,37 @@ class ArmFigures:
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Figures:
     """The three figures over one span: a year, or a whole market's window.
 
     ``sessions`` and ``detections`` are the coverage everything else is measured
     against, which is why they are fields rather than something a reader derives.
-    ``undecided`` is the detections the bars could not answer — reported, never
-    folded into the trigger share's miss.
+
+    **Every detection is in exactly one of four buckets, and all four are
+    reported**, because a bucket with no count is a population that quietly leaves
+    the arithmetic:
+
+    - ``no_break`` — asked, and the market said no. A resolved miss, and it is in
+      precision's denominator on every arm.
+    - ``unfilled`` — it triggered, and the window ended before a session opened to
+      fill it. In the trigger share (it *did* trigger) and in no precision
+      denominator, because no position was ever taken.
+    - ``undecided`` — the bars could not answer: the window ended on it, or the
+      store never covered its session. In no denominator at all.
+    - filled — became a position, and each arm then reports it as ``closed`` or
+      ``open_at_end`` (:class:`ArmFigures`).
+
+    ``detections == no_break + unfilled + undecided + filled``, and
+    :attr:`reconciles` asserts it rather than leaving a reader to add up.
     """
 
     sessions: int
     detections: int
     triggered: Share
     undecided: int
+    no_break: int
+    unfilled: int
     arms: dict[str, ArmFigures]
 
     @property
@@ -256,30 +303,58 @@ class Figures:
         """The headline count, or ``None`` over a span holding no sessions."""
         return self.detections / self.sessions if self.sessions else None
 
+    def reconciles(self, arm: str) -> bool:
+        """Whether every detection lands in exactly one bucket, on this arm.
+
+        The arithmetic the docstring above claims, checkable rather than asserted.
+        A run where this is false has a population going somewhere unreported,
+        which is the failure the four buckets exist to make impossible.
+        """
+        a = self.arms[arm]
+        return (
+            self.no_break + self.unfilled + self.undecided + a.filled
+            == self.detections
+        )
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "sessions": self.sessions,
             "detections": self.detections,
             "detections_per_session": self.detections_per_session,
             "triggered": self.triggered.to_dict(),
+            "no_break": self.no_break,
+            "unfilled": self.unfilled,
             "undecided": self.undecided,
             "arms": [self.arms[a].to_dict() for a in ARMS if a in self.arms],
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class YearFigures(Figures):
     """One year's figures, and whether its counts collapsed.
 
     The unit the PRD requires every result be reported in — per market and per
     year, never pooled only, so that a window holding a crash and a mania is not
     described by a single number that fits neither.
+
+    ``covered_days`` is how much of the calendar year the measured window actually
+    spans, and it is what the session count is judged against. Judging against the
+    whole year instead would flag the window's first and last years on every run,
+    since they are short by design — and exempting them from the flag instead, as
+    this first did, leaves a real hole at either end of the window catchable by
+    nothing. A density handles both without an exemption.
     """
 
-    market: str = ""
-    year: int = 0
+    market: str
+    year: int
+    covered_days: int
     sessions_collapsed: bool = False
     detections_collapsed: bool = False
+
+    @property
+    def sessions_per_covered_day(self) -> float | None:
+        """The session density: what a hole in the store actually moves."""
+        return self.sessions / self.covered_days if self.covered_days else None
 
     @property
     def flags(self) -> tuple[str, ...]:
@@ -304,13 +379,15 @@ class YearFigures(Figures):
             "market": self.market,
             "year": self.year,
             **super().to_dict(),
+            "covered_days": self.covered_days,
+            "sessions_per_covered_day": self.sessions_per_covered_day,
             "sessions_collapsed": self.sessions_collapsed,
             "detections_collapsed": self.detections_collapsed,
             "flags": list(self.flags),
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class MonthPoint:
     """One month of the plotted series, and whether the store covered it at all.
 
@@ -334,8 +411,14 @@ class MonthPoint:
         return self.detections / self.sessions if self.sessions else None
 
     def to_dict(self) -> dict[str, Any]:
+        # ``year`` and ``month`` ride as numbers as well as in the label. The
+        # label alone would make every reader of the payload — the plot included —
+        # split a string back into the two integers that produced it, which is a
+        # parse that can fail on a value that cannot.
         return {
             "month": f"{self.year:04d}-{self.month:02d}",
+            "year": self.year,
+            "month_of_year": self.month,
             "sessions": self.sessions,
             "detections": self.detections,
             "detections_per_session": self.per_session,
@@ -343,16 +426,22 @@ class MonthPoint:
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class MarketFigures(Figures):
     """One market's whole window: its totals, its years, and its monthly series.
 
     Reported per market and never pooled with the other, because findings §8
     measured that magnitudes do not transfer between them — a US figure averaged
     with a Jakarta one describes neither market.
+
+    ``price_scale_dropped`` is the count of this market's trades whose one
+    absolute-price comparison could not be verified. It rides here because the
+    house rule is that the flag is reported beside **every** result built on it,
+    and precision is built on entries priced in absolute terms.
     """
 
-    market: str = ""
+    market: str
+    price_scale_dropped: int
     years: tuple[YearFigures, ...] = ()
     months: tuple[MonthPoint, ...] = ()
 
@@ -361,6 +450,7 @@ class MarketFigures(Figures):
             "market": self.market,
             "sma50_overlap": SMA50_OVERLAP_NOTE,
             **super().to_dict(),
+            "price_scale_dropped": self.price_scale_dropped,
             "years": [y.to_dict() for y in self.years],
             "months": [m.to_dict() for m in self.months],
         }
@@ -368,32 +458,46 @@ class MarketFigures(Figures):
 
 def _tally(
     outcomes: Sequence[DetectionOutcome], sessions: int, arms: Sequence[str]
-) -> tuple[int, Share, int, dict[str, ArmFigures]]:
-    """The counts behind one span's figures, from its detections' outcomes.
+) -> Figures:
+    """One span's figures, from its detections' outcomes.
 
     One pass, because the three figures share a population and computing them
-    apart would let them disagree about which detections were in the span.
+    apart would let them disagree about which detections were in the span. Returns
+    the :class:`Figures` rather than the counts behind it: the four values *are*
+    that type, and handing them back as a tuple only to be unpacked into it at each
+    call site is the same object spelled twice.
     """
     decided = [o for o in outcomes if o.entry.decided]
     triggered = Share(sum(1 for o in decided if o.entry.triggered), len(decided))
     # An answer that is not a trade: the setup never broke. It belongs in
     # precision's denominator on every arm, because the detector named it and the
     # market said no.
-    no_trade = sum(1 for o in decided if not o.entry.triggered)
+    no_break = sum(1 for o in decided if not o.entry.triggered)
+    # It triggered and the window ended before a session opened to fill it. In the
+    # trigger share, and in no precision denominator: no position was taken, so
+    # there is no outcome to be favourable or otherwise.
+    unfilled = sum(1 for o in decided if o.entry.outcome == ENTRY_UNFILLED)
     figures: dict[str, ArmFigures] = {}
     for arm in arms:
         trades = [o.trades[arm] for o in outcomes if arm in o.trades]
-        closed = [t for t in trades if t.r_multiple is not None]
-        hits = sum(1 for t in closed if favourable(t))
+        closed = closed_trades(trades)
         figures[arm] = ArmFigures(
             arm=arm,
             filled=len(trades),
             closed=len(closed),
             open_at_end=len(trades) - len(closed),
-            favourable=hits,
-            answered=no_trade + len(closed),
+            favourable=sum(1 for t in closed if favourable(t)),
+            answered=no_break + len(closed),
         )
-    return len(outcomes), triggered, len(outcomes) - len(decided), figures
+    return Figures(
+        sessions=sessions,
+        detections=len(outcomes),
+        triggered=triggered,
+        undecided=len(outcomes) - len(decided),
+        no_break=no_break,
+        unfilled=unfilled,
+        arms=figures,
+    )
 
 
 def _months(session_dates: Sequence[date], by_session: Counter) -> tuple[MonthPoint, ...]:
@@ -451,6 +555,12 @@ def figures_for_market(
     from the detections, so a year in which nothing detected still contributes its
     calendar — which is the whole of how a collapsed field is told apart from a
     short year.
+
+    Every year between the window's first session and its last gets a row, whether
+    the store covered it or not. A year the store missed **entirely** would
+    otherwise produce no row, no flag and no contribution to the median — so the
+    worst hole the report exists to catch would be the one case it could not, and
+    it would survive only as a blank line in the monthly grid.
     """
     headers = denominator.sessions(
         market, burn_in=None if include_burn_in else False
@@ -469,24 +579,63 @@ def figures_for_market(
         by_year_outcomes.setdefault(o.session.year, []).append(o)
 
     years: list[YearFigures] = []
-    for year in sorted(by_year_sessions):
-        n, triggered, undecided, arm_figures = _tally(
-            by_year_outcomes.get(year, []), by_year_sessions[year], ran
-        )
+    for year in _window_years(session_dates):
+        span = _tally(by_year_outcomes.get(year, []), by_year_sessions[year], ran)
         years.append(
             YearFigures(
-                sessions=by_year_sessions[year], detections=n, triggered=triggered,
-                undecided=undecided, arms=arm_figures, market=market, year=year,
+                **_fields(span), market=market, year=year,
+                covered_days=_covered_days(year, session_dates),
             )
         )
-    years = _flag_collapses(years)
 
-    n, triggered, undecided, arm_figures = _tally(outcomes, len(session_dates), ran)
+    span = _tally(outcomes, len(session_dates), ran)
     return MarketFigures(
-        sessions=len(session_dates), detections=n, triggered=triggered,
-        undecided=undecided, arms=arm_figures, market=market,
-        years=tuple(years), months=_months(session_dates, by_session),
+        **_fields(span), market=market,
+        price_scale_dropped=sum(
+            price_scale_drops(list(o.trades.values())) for o in outcomes
+        ),
+        years=tuple(_flag_collapses(years)),
+        months=_months(session_dates, by_session),
     )
+
+
+def _fields(span: Figures) -> dict[str, Any]:
+    """A :class:`Figures`'s own fields, for a subclass that extends it.
+
+    Named rather than ``dataclasses.asdict``, which would recurse into ``Share``
+    and ``ArmFigures`` and hand back dicts where the constructor wants values.
+    """
+    return {
+        "sessions": span.sessions,
+        "detections": span.detections,
+        "triggered": span.triggered,
+        "undecided": span.undecided,
+        "no_break": span.no_break,
+        "unfilled": span.unfilled,
+        "arms": span.arms,
+    }
+
+
+def _window_years(session_dates: Sequence[date]) -> list[int]:
+    """Every year the window touches, including the ones the store never covered."""
+    if not session_dates:
+        return []
+    return list(range(session_dates[0].year, session_dates[-1].year + 1))
+
+
+def _covered_days(year: int, session_dates: Sequence[date]) -> int:
+    """How many days of ``year`` the measured window actually spans.
+
+    The denominator the session count is judged against. A year the window only
+    half-covers should be half as long, and a year it covers whole should not — so
+    comparing raw session counts would flag the window's first and last years on
+    every single run, which is how a flag becomes noise.
+    """
+    if not session_dates:
+        return 0
+    start = max(session_dates[0], date(year, 1, 1))
+    end = min(session_dates[-1], date(year, 12, 31))
+    return max(0, (end - start).days + 1)
 
 
 def _flag_collapses(years: Sequence[YearFigures]) -> list[YearFigures]:
@@ -497,41 +646,58 @@ def _flag_collapses(years: Sequence[YearFigures]) -> list[YearFigures]:
     calendar and a Jakarta one do not hold the same number of sessions, and a floor
     that fitted one would fire every year on the other.
 
-    The first and last years are never session-flagged: the window opens and
-    closes mid-year by design, so they are short on purpose. Their *field* is still
-    flagged if it collapses, because a partial year with a full calendar and no
-    detections is a hole wherever it sits.
+    Sessions are judged as a **density** — sessions per day of the year the window
+    actually covers — and not as a raw count. That is what lets the window's first
+    and last years be flagged like any other: they hold fewer sessions because they
+    are shorter, and dividing by their own span removes exactly that difference and
+    nothing else. The obvious alternative, exempting the two edge years from the
+    flag, leaves a real hole at either end of the window catchable by neither flag —
+    a missing quarter drops sessions and detections together, so the rate barely
+    moves and the detections flag stays silent too.
     """
     if len(years) < 2:
         # One year has nothing to collapse relative to, and a median of itself
         # would flag nothing however empty it was. Better no claim than a false one.
         return list(years)
-    session_median = median(y.sessions for y in years)
-    rates = [y.detections_per_session for y in years]
-    detection_median = median(r for r in rates if r is not None) if any(
-        r is not None for r in rates
-    ) else None
-    out: list[YearFigures] = []
-    for i, y in enumerate(years):
-        interior = 0 < i < len(years) - 1
-        sessions_collapsed = bool(
-            interior and y.sessions < SESSION_COLLAPSE_FRACTION * session_median
+    session_median = _median_of(y.sessions_per_covered_day for y in years)
+    detection_median = _median_of(y.detections_per_session for y in years)
+    return [
+        dataclasses.replace(
+            y,
+            sessions_collapsed=_under(
+                y.sessions_per_covered_day, session_median,
+                SESSION_COLLAPSE_FRACTION,
+            ),
+            detections_collapsed=_under(
+                y.detections_per_session, detection_median,
+                DETECTION_COLLAPSE_FRACTION,
+            ),
         )
-        rate = y.detections_per_session
-        detections_collapsed = bool(
-            detection_median
-            and rate is not None
-            and rate < DETECTION_COLLAPSE_FRACTION * detection_median
-        )
-        out.append(
-            YearFigures(
-                sessions=y.sessions, detections=y.detections, triggered=y.triggered,
-                undecided=y.undecided, arms=y.arms, market=y.market, year=y.year,
-                sessions_collapsed=sessions_collapsed,
-                detections_collapsed=detections_collapsed,
-            )
-        )
-    return out
+        for y in years
+    ]
+
+
+def _median_of(values: Any) -> float | None:
+    """The median of the values that exist, or ``None`` if none do.
+
+    ``None`` is absent — a year with no covered days has no density, and a year
+    with no sessions has no detection rate — and averaging absence in as a zero
+    would drag the median down until nothing could clear a quarter of it.
+    """
+    present = [v for v in values if v is not None]
+    return median(present) if present else None
+
+
+def _under(value: float | None, reference: float | None, fraction: float) -> bool:
+    """Whether ``value`` collapsed against ``reference``.
+
+    ``False`` when either is absent: a span nothing was measured over has not
+    collapsed, it is simply unmeasured, and a flag that cannot tell the two apart
+    is a flag that fires on the window's own edges.
+    """
+    if value is None or not reference:
+        return False
+    return value < fraction * reference
 
 
 def figures_report(
@@ -572,10 +738,19 @@ def figures_report(
 
 
 def _bar(value: float | None, peak: float | None) -> str:
-    """One year's bar, scaled to the tallest year in the market."""
-    if not value or not peak:
+    """One year's bar, scaled to the tallest year in the market.
+
+    A measured zero draws as :data:`ZERO_MARK` and an unmeasured year as nothing at
+    all. Drawing both as an empty cell would put the module's own rule — that a
+    ``0`` and an absent value are different claims — on the wrong side of its most
+    visible output, and the year where the field went to zero is precisely the row
+    a reader is scanning for.
+    """
+    if value is None or not peak:
         return ""
-    return "█" * max(1, round(PLOT_WIDTH * value / peak))
+    if value <= 0:
+        return ZERO_MARK
+    return BARS[-1] * max(1, round(PLOT_WIDTH * value / peak))
 
 
 def _sparkline(months: Sequence[dict[str, Any]]) -> list[str]:
@@ -602,7 +777,7 @@ def _sparkline(months: Sequence[dict[str, Any]]) -> list[str]:
     peak = max((r for r in rates if r is not None), default=0.0)
     drawn: dict[tuple[int, int], str] = {}
     for m in months:
-        year, month = (int(p) for p in m["month"].split("-"))
+        year, month = m["year"], m["month_of_year"]
         if m["hole"]:
             drawn[(year, month)] = HOLE_MARK
             continue
@@ -700,9 +875,15 @@ def format_figures(report: dict[str, Any]) -> str:
             "",
             f"  sessions measured   {market['sessions']}",
             f"  detections          {market['detections']}",
-            f"  triggered           {Share(**_share(market['triggered']))}",
+            f"  triggered           {_share(market['triggered'])}",
+            f"  never broke         {market['no_break']}  "
+            "(asked, and the market said no — in precision's denominator)",
+            f"  unfilled            {market['unfilled']}  "
+            "(triggered, and the window ended before a fill)",
             f"  undecided           {market['undecided']}  "
             "(the bars could not answer these; they are not misses)",
+            f"  price-scale flag would drop {market['price_scale_dropped']} of the "
+            "trades behind these figures",
             "",
         ]
         for arm in market["arms"]:
@@ -712,22 +893,22 @@ def format_figures(report: dict[str, Any]) -> str:
                 f"    closed            {arm['closed']}",
                 f"    open at end       {arm['open_at_end']}  "
                 "(no outcome — never counted as a loss)",
-                f"    precision         {Share(**_share(arm['precision']))}"
+                f"    precision         {_share(arm['precision'])}"
                 "  — of every answered detection",
-                f"    win rate          {Share(**_share(arm['win_rate']))}"
+                f"    win rate          {_share(arm['win_rate'])}"
                 "  — of the trades taken",
             ]
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _share(body: dict[str, Any]) -> dict[str, int]:
-    """A serialised :class:`Share` back into the fields the value takes.
+def _share(body: dict[str, Any]) -> Share:
+    """A serialised :class:`Share` back into the value, for printing.
 
-    The rate is recomputed rather than read back: a rate and its counts arriving
-    from a file could disagree, and the counts are the record.
+    The rate is rebuilt from the counts rather than read back: a rate and its
+    counts arriving from a file could disagree, and the counts are the record.
     """
-    return {"hits": body["hits"], "of": body["of"]}
+    return Share(body["hits"], body["of"])
 
 
 def main(argv: list[str] | None = None) -> int:

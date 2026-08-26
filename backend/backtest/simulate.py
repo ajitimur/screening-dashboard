@@ -882,6 +882,12 @@ def simulate_market(
     nothing dropped. Those detections are not noise — the share that never
     triggered is one of the denominator's headline figures — so a caller that needs
     them takes the walk itself rather than inferring them from what is missing here.
+
+    Within one detection the arms come out in :data:`ARMS` order rather than in the
+    order ``arms`` spelled them. Changed deliberately in #193 and recorded here
+    rather than left to be noticed: it makes the output diff-stable however a
+    caller wrote its argument, which is the property :func:`simulate_report`
+    already commits to for the same reason.
     """
     return [
         outcome.trades[arm]
@@ -892,6 +898,19 @@ def simulate_market(
         for arm in ARMS
         if arm in outcome.trades
     ]
+
+
+def closed_trades(trades: Sequence[SimulatedTrade]) -> list[SimulatedTrade]:
+    """The trades whose whole position came off, and which therefore have an R.
+
+    One line, and it lives here rather than at each call site because "closed" is a
+    fact about :class:`SimulatedTrade` and two readers of it must not drift. Both
+    :func:`arm_report` and :mod:`backtest.figures` split an arm's trades this way,
+    and a second spelling of the test — ``t.closed`` rather than
+    ``t.r_multiple is not None`` — would agree today and diverge the first time a
+    trade could close with no computable R.
+    """
+    return [t for t in trades if t.r_multiple is not None]
 
 
 def price_scale_drops(trades: Sequence[SimulatedTrade]) -> int:
@@ -920,7 +939,7 @@ def arm_report(
     """
     plan = exit_plan(contract, arm)
     mine = [t for t in trades if t.arm == arm]
-    closed = [t for t in mine if t.r_multiple is not None]
+    closed = closed_trades(mine)
     body: dict[str, Any] = {
         "arm": arm,
         "trail_ma": plan.trail_ma,

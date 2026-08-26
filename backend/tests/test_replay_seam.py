@@ -6616,10 +6616,11 @@ def test_precision_is_reported_per_arm_because_it_depends_on_the_exit(
     assert set(us.arms) == {ARM_A, ARM_B, ARM_C}
     # One entry, so the trigger share is one figure and not three.
     assert us.triggered == Share(1, 1)
-    # And a precision per arm, each with its own denominator: an arm still holding
-    # the position has answered nothing yet, whatever the arm beside it did.
-    assert all(a.precision is not None for a in us.arms.values())
+    # And a precision per arm, each measured against its own answered count: an arm
+    # still holding the position has answered nothing yet, whatever the arm beside
+    # it did. The entry is shared, so `filled` cannot differ; `answered` can.
     assert us.arms[ARM_B].filled == us.arms[ARM_C].filled == 1
+    assert [us.arms[a].answered for a in (ARM_A, ARM_B, ARM_C)] == [1, 1, 1]
 
 
 def test_the_favourable_rule_rides_on_the_result(store, denominator):
@@ -6850,3 +6851,158 @@ def test_the_figures_cli_reports_and_writes_the_denominator_figures(
     written = json.loads(out_json.read_text())
     assert written["contract"] == DEFAULT_CONTRACT.to_dict()
     assert written["markets"][0]["market"] == "US"
+
+
+# -- what the #193 review found unguarded -------------------------------------
+
+
+def test_a_year_the_store_missed_entirely_still_gets_a_row_and_a_flag(
+    store, denominator
+):
+    """The worst hole is the one a year-keyed report cannot see.
+
+    A year with no sessions at all contributes no rows to group by, so a report
+    built from the years *present* would give it no line, no flag and no weight in
+    the median — and the largest data hole the criterion exists to catch would be
+    the single case it could not. It survives only as a blank stretch in the
+    monthly grid, which is not a flag.
+    """
+    for year in (2019, 2020, 2022):
+        for month in (1, 4, 7, 10):
+            _seed_figure_name(
+                store, denominator, "US", f"N{year}{month}", date(year, month, 1),
+                _FIG_FLAT + _FIG_WIN,
+            )
+
+    us = _figures(store, denominator, "US")
+
+    assert [y.year for y in us.years] == [2019, 2020, 2021, 2022]
+    assert _year(us, 2021).sessions == 0
+    assert _year(us, 2021).sessions_collapsed is True
+    # And it makes no claim it cannot support: no sessions is no rate, never zero.
+    assert _year(us, 2021).detections_per_session is None
+    assert _year(us, 2021).detections_collapsed is False
+
+
+def test_a_hole_in_the_windows_first_year_is_flagged_like_any_other(
+    store, denominator
+):
+    """The edge exemption this first shipped with was itself a hole.
+
+    Exempting the window's opening and closing years from the sessions flag reads
+    as generosity — they are short by design — but a store that lost three quarters
+    of the opening year drops its sessions *and* its detections together, so the
+    per-session rate barely moves and the detections flag stays silent too. Judging
+    the density against the span the window actually covers removes the by-design
+    shortness without removing the flag.
+    """
+    # 2019 opens the window on 1 January and then holds one stretch and nothing
+    # else — the calendar says a year, the store holds two months of it.
+    _seed_figure_name(store, denominator, "US", "HOLE", date(2019, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    for year in (2020, 2021, 2022):
+        for month in (1, 4, 7, 10):
+            _seed_figure_name(
+                store, denominator, "US", f"N{year}{month}", date(year, month, 1),
+                _FIG_FLAT + _FIG_WIN,
+            )
+
+    us = _figures(store, denominator, "US")
+
+    assert _year(us, 2019).sessions_collapsed is True
+    # Not because its field thinned — the rate is ordinary, which is exactly why
+    # the detections flag cannot stand in for the sessions one.
+    assert _year(us, 2019).detections_collapsed is False
+
+
+def test_a_year_the_window_only_half_covers_is_not_a_hole(store, denominator):
+    """The other half of the same rule. A window that opens in November holds two
+    months of that year because it opened in November, and a flag that fired on it
+    would fire on every run — which teaches a reader to skip the one that means
+    something."""
+    _seed_figure_name(store, denominator, "US", "LATE", date(2019, 11, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    for year in (2020, 2021):
+        for month in (1, 4, 7, 10):
+            _seed_figure_name(
+                store, denominator, "US", f"N{year}{month}", date(year, month, 1),
+                _FIG_FLAT + _FIG_WIN,
+            )
+
+    us = _figures(store, denominator, "US")
+
+    assert _year(us, 2019).sessions < _year(us, 2020).sessions
+    assert _year(us, 2019).sessions_collapsed is False
+
+
+def test_a_break_the_window_ended_before_filling_is_counted_and_named(
+    store, denominator
+):
+    """It triggered, and no session opened to fill it.
+
+    That detection is in the trigger share — it *did* trade through its trigger —
+    and in no arm's precision denominator, because no position was ever taken. Left
+    unnamed it would sit in neither bucket and simply vanish from the arithmetic,
+    which is how a population leaves a report without anyone noticing it went.
+    """
+    # The bars end on the session that decides the break.
+    _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                      _FIG_FLAT + [110.0])
+
+    us = _figures(store, denominator, "US")
+
+    assert us.unfilled == 1
+    assert us.triggered == Share(1, 1)
+    assert us.arms[ARM_B].filled == 0
+    assert us.arms[ARM_B].precision == Share(0, 0)
+
+
+def test_every_detection_lands_in_exactly_one_bucket(store, denominator):
+    """The four buckets are the whole population, and they add up.
+
+    A bucket that does not reconcile is a population going somewhere unreported,
+    and a rate computed over the rest is a rate over a denominator nobody can
+    reconstruct.
+    """
+    _seed_figure_name(store, denominator, "US", "WINS", date(2020, 1, 1),
+                      _FIG_FLAT + _FIG_WIN)
+    _seed_figure_name(store, denominator, "US", "NONE", date(2020, 4, 1),
+                      _FIG_FLAT + _FIG_NO_BREAK)
+    _seed_figure_name(store, denominator, "US", "EDGE", date(2020, 8, 1),
+                      _FIG_FLAT + [110.0])
+
+    us = _figures(store, denominator, "US")
+
+    assert us.detections == 3
+    assert (us.no_break, us.unfilled, us.undecided) == (1, 1, 0)
+    assert us.arms[ARM_B].filled == 1
+    assert all(us.reconciles(arm) for arm in us.arms)
+
+
+def test_the_price_scale_count_rides_on_the_figures_it_qualifies(
+    store, denominator
+):
+    """The flag is reported beside every result built on it, and precision is built
+    on entries priced in absolute terms.
+
+    Yahoo's unlabelled rights-issue rescale is not visible in the R geometry, which
+    is in ADR units and immune — but it is visible in the one absolute comparison
+    the entry cannot avoid, and a precision figure quoted without the count is a
+    figure whose inputs nobody checked.
+    """
+    det = _seed_figure_name(store, denominator, "US", "AAA", date(2020, 1, 1),
+                            _FIG_FLAT + _FIG_WIN)
+    # The same detection, re-persisted with a close three times the bar's: a
+    # rescale, not a price that moved.
+    rescaled = dataclasses.replace(det, close=det.close * 3)
+    denominator._cursor().execute(
+        "UPDATE denominator_detections SET close = ? WHERE symbol = ?",
+        [rescaled.close, "AAA"],
+    )
+
+    us = _figures(store, denominator, "US")
+    report = figures_report(DEFAULT_CONTRACT, [us])
+
+    assert us.price_scale_dropped == len(us.arms)
+    assert report["markets"][0]["price_scale_dropped"] == len(us.arms)
+    assert "price-scale flag would drop" in format_figures(report)

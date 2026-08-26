@@ -3599,3 +3599,50 @@ def test_the_coverage_round_trips_through_json(tmp_path):
     restored = BuildCoverage.from_dict(json.loads(json.dumps(coverage.to_dict())))
 
     assert restored == coverage
+
+
+class _VirtualClock:
+    """A clock that only moves when something waits on it.
+
+    Pacing is a claim about *time between requests*, and the fetcher's own
+    wall-clock elapsed is not evidence for it — a test that timed a real pull
+    would be asserting the machine's speed. So the source's clock is injected: the
+    only thing that can advance it is a wait the pacer itself decided to take.
+    """
+
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.now += max(0.0, seconds)
+
+
+def test_the_fetch_is_paced_rather_than_bursted(tmp_path):
+    """A run of symbols is spread across the provider's sustained rate rather than
+    fired at once (PRD story 51): at two requests a second, six symbols cannot have
+    been asked for in under the five intervals that separate them.
+
+    This is what lets a fourteen-year crawl finish rather than stall — a burst
+    earns the throttle wall the pacer exists to stay under.
+    """
+    clock = _VirtualClock()
+    symbols = [f"S{i}" for i in range(6)]
+    source = Source(
+        _FetchClient({s: [_bar_row(date(2015, 6, 1))] for s in symbols}),
+        rate_per_sec=2.0,
+        backoff_base=0.0,
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+    )
+
+    build_backtest_store(
+        source, symbols, tmp_path / "backtest.duckdb",
+        market="US", now=_BUILD_NOW, workers=1,
+    )
+
+    # Every symbol resolved first time, so no backoff ran: the whole of the clock's
+    # advance is pacing, and it spans the five gaps between six paced requests.
+    assert clock.now >= (len(symbols) - 1) / 2.0

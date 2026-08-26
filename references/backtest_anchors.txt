@@ -1,0 +1,52 @@
+The anchor check for the full run (PRD #182 Phase 6, issue #198)
+================================================================
+
+Committed because a failing check writes no JSON — `backtest.anchors` prints the
+refusal and exits non-zero without an `--out-json` payload — so without this file
+the repo would record that the run happened and not that it was refused. The
+machine-readable payload appears beside this file only once every anchor settles.
+
+Run 2026-08-26 against `data/backtest.duckdb`, with the run's own field
+measurements in `references/backtest_field_anchors.json`, and a written cause
+supplied for all five anchors whose divergence has one:
+
+    python -m backtest.anchors \
+        --store data/backtest.duckdb \
+        --field-measurements references/backtest_field_anchors.json \
+        --explain median_range_3bar_adr="the backtest store carries only rankable
+            candidates, so his 150 reference-ETF trades (#162) and 3
+            never-enumerated ones are absent; the 496 trades both stores measure
+            carry bit-identical geometry, and filtering the replay store to this
+            population reproduces this figure exactly" \
+        --explain median_range_5bar_adr="(as above)" \
+        --explain median_adr_at_entry_eve="(as above)" \
+        --explain coverage_blind_spot="the survivorship hole over a window
+            reaching seven years further back than findings §2's, measured not
+            fixed; #196 owns bounding it" \
+        --explain detection_recall="the same rate over a smaller population —
+            421/503 is 83.70% against the committed 83.69% — so the detector
+            reproduces and only the population moved" \
+        --out-json references/backtest_anchors.json
+
+Five of six settle. The sixth does not, and no cause can settle it:
+
+--------------------------------------------------------------------------------
+the gate-dependent anchors did not reproduce at detector v3:
+  in_field (Trades in the replayed field (A2 in_field)) — in_field: got 165,
+  committed 397 (tolerance ±7); of: got 503, committed 656 (tolerance ±0);
+  gap_pp: got -5.007, §4b committed +1.95 — the sign flipped, which the
+  reference-contamination tolerance does not cover
+--------------------------------------------------------------------------------
+
+A sign flip is the one outcome the table refuses to let a written cause waive
+(`AnchorCheck.explained` is false whenever `sign_flipped`). So the run is not
+anchored, `backtest.full_run` emits no figure, plot or payload for it, and
+`references/backtest_full_run.json` is deliberately absent.
+
+Why it flipped, and where it is not: see
+`references/backtest_anchor_divergence.md`. Holding the population fixed at the
+same 503 trades and running the same grid over `data/replay.duckdb` returns
++1.86pp — the same sign as the committed +1.95. The flip appears only when the
+field is rebuilt from the contract's stateless universe. Not the bars
+(bit-identical), not the detector (recall reproduces to four decimals), not the
+sample.

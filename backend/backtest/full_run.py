@@ -54,7 +54,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Callable, Sequence, TextIO
+from typing import Any, Callable, Sequence
 
 from backtest.anchors import (
     SETTLED_VERDICTS,
@@ -104,40 +104,20 @@ class AnchorOutcome:
 
     The counterpart to a live :class:`~backtest.anchors.AnchorReport`, for the case
     the command-line path actually has: the anchors were checked in a separate
-    invocation and all this one can see is what that invocation wrote down. It
-    answers the single question the gate asks and names what failed, so a run
-    anchored from a file is gated exactly as strictly as one anchored in process.
+    invocation and all this one can see is what that invocation wrote down.
+
+    It carries the same four names an :class:`~backtest.anchors.AnchorReport`
+    answers — ``passes``, ``failed``, ``explained``, ``geometry_only`` — so the
+    gate reads one interface and never asks which kind it was handed. A run
+    anchored from a file is gated exactly as strictly as one anchored in process,
+    and that is a property of there being no second code path rather than of two
+    code paths agreeing.
     """
 
     passes: bool
     failed: tuple[str, ...] = ()
     explained: tuple[str, ...] = ()
     geometry_only: bool = False
-
-
-def failed_anchors(anchors: AnchorReport | AnchorOutcome) -> tuple[str, ...]:
-    """The keys of the anchors that neither matched nor carry a written cause.
-
-    One function over both shapes, so :meth:`FullRun.require_settled` names what
-    failed the same way whether the check ran in this process or was read back
-    from the report a previous one wrote.
-    """
-    if isinstance(anchors, AnchorOutcome):
-        return anchors.failed
-    return tuple(c.anchor.key for c in anchors.checks if not c.passes)
-
-
-def explained_anchors(anchors: AnchorReport | AnchorOutcome) -> tuple[str, ...]:
-    """The keys of the anchors that diverged and carry a written cause.
-
-    Reported beside every result the run emits. "The anchors are settled" is a
-    tautology in a payload that could not have been built otherwise; *which*
-    anchors did not reproduce is the fact a later reader needs, and it is the
-    difference between the plan's two ways of passing.
-    """
-    if isinstance(anchors, AnchorOutcome):
-        return anchors.explained
-    return tuple(c.anchor.key for c in anchors.checks if c.explained)
 
 
 class MarketNotRun(KeyError):
@@ -241,14 +221,28 @@ def measured_end(
     hold — and :func:`~backtest.chain.check_window_covered` would refuse the
     second, loudly, for a reason that is really about the sentinel.
 
+    The contract says "latest **complete** session" and this returns the latest
+    *stored* one, which is the same session and not by luck: the store discards a
+    non-final bar at ingest (:mod:`backtest.store`, and CONTEXT.md's *Final bar*),
+    so a session only has bars once it has closed. Re-checking finality here would
+    be a second implementation of that rule, free to disagree with the one that
+    actually decided what got written.
+
     A committed date is honoured as written, so a contract that pins the window
     shut for a reproduction run does not silently reopen it.
+
+    A market the store holds no sessions for raises rather than returning ``None``,
+    which :func:`store_window_start` would have meant as "run to the store's own
+    edge" — the same empty store answered two ways by two functions in this module
+    is how a run over nothing reports a clean empty window.
     """
     declared = contract.value(WINDOW_MEASURED_END_KEY)
     if declared != LATEST_COMPLETE_SESSION:
         return date.fromisoformat(declared)
     calendar = store.sessions(market)
-    return calendar[-1] if calendar else None
+    if not calendar:
+        raise WindowNotCovered(f"the store holds no {market} sessions at all")
+    return calendar[-1]
 
 
 # -- the run ------------------------------------------------------------------
@@ -310,22 +304,23 @@ class FullRun:
                 "read: run backtest.anchors against the store first, and hand its "
                 "report here"
             )
-        if not self.anchors.passes:
-            failed = failed_anchors(self.anchors)
-            if not failed:
-                # Every row that was checked passed, and the run is still not
-                # anchored: the gate-dependent anchors were never read. Four of
-                # six is the shape that most reads like a pass.
-                raise AnchorsNotSettled(
-                    "only the geometry anchors were checked, so no figure from "
-                    "this run may be read: a run anchored on four of six is not "
-                    "an anchored run"
-                )
+        if self.anchors.passes:
+            return
+        if self.anchors.geometry_only:
+            # Read off the report rather than inferred from an empty failure
+            # list: a geometry-only check has passing rows and no failing one, so
+            # deducing it from what failed would be deducing it from the very
+            # thing that makes it read like a pass.
             raise AnchorsNotSettled(
-                "these anchors neither matched nor carry a written cause: "
-                f"{', '.join(failed)} — a figure read over them would inherit "
-                "whatever moved them"
+                "only the geometry anchors were checked, so no figure from this "
+                "run may be read: a run anchored on four of six is not an "
+                "anchored run"
             )
+        raise AnchorsNotSettled(
+            "these anchors neither matched nor carry a written cause: "
+            f"{', '.join(self.anchors.failed) or 'none named'} — a figure read "
+            "over them would inherit whatever moved them"
+        )
 
     def detections_per_session(self, market: str) -> dict[date, int]:
         """One market's measured detections per session — the plotted series."""
@@ -419,7 +414,7 @@ def full_run_report(run: FullRun) -> dict[str, Any]:
             "markets": list(run.markets),
             "anchors": {
                 "settled": True,
-                "diverged_with_cause": list(explained_anchors(run.anchors)),
+                "diverged_with_cause": list(run.anchors.explained),
             },
             "per_market": {
                 r.market: {

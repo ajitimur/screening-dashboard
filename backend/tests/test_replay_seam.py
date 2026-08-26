@@ -10454,8 +10454,6 @@ def test_the_arms_never_anchored_are_derived_once():
 
 from backtest.full_run import (
     AnchorOutcome,
-    explained_anchors,
-    failed_anchors,
     read_anchor_report,
     LATEST_COMPLETE_SESSION,
     LONGEST_CLOSURE,
@@ -10986,7 +10984,7 @@ def test_a_report_read_off_disk_gates_as_strictly_as_one_checked_in_process(tmp_
 
     assert outcome.passes is True
     assert outcome.failed == ()
-    assert failed_anchors(outcome) == ()
+    assert outcome.failed == ()
 
 
 def test_a_divergence_with_a_cause_survives_the_round_trip_to_disk(tmp_path):
@@ -11046,3 +11044,52 @@ def test_the_run_reports_which_anchors_were_not_settled(store, denominator):
 
     with pytest.raises(AnchorsNotSettled, match="in_field"):
         format_full_run(run)
+
+
+def test_a_live_report_and_one_read_off_disk_answer_the_same_four_names():
+    """The gate reads one interface, so there is no second code path to keep in
+    step with the first. `AnchorOutcome` exists because a command-line run can only
+    see what a previous invocation wrote down — not so that settled-ness can be
+    decided twice."""
+    report = check_anchors(
+        _all_measurements(geometry={"three": 1.20}),
+        explained={"median_range_3bar_adr": "scope"},
+    )
+
+    for name in ("passes", "failed", "explained", "geometry_only"):
+        assert hasattr(report, name), name
+        assert hasattr(AnchorOutcome(passes=True), name), name
+
+    assert report.passes is True
+    assert report.failed == ()
+    assert report.explained == ("median_range_3bar_adr",)
+    assert report.geometry_only is False
+
+
+def test_the_geometry_only_refusal_reads_the_flag_rather_than_an_empty_failure_list():
+    """A geometry-only report has passing rows and no failing one. Deducing "not
+    anchored" from what failed would be deducing it from the very thing that makes
+    it read like a pass, so the flag is carried and read."""
+    geometry_only = AnchorReport(
+        detector_version=DETECTOR_VERSION,
+        arms=ANCHOR_ARMS,
+        geometry=check_geometry(_geometry_measurements()),
+        gate_dependent=(),
+        geometry_only=True,
+    )
+
+    assert geometry_only.failed == ()      # nothing failed …
+    assert geometry_only.passes is False   # … and it is still not anchored.
+    assert geometry_only.geometry_only is True
+
+
+def test_a_market_the_store_holds_no_sessions_for_is_refused_by_both_bounds(store):
+    """One empty store, one answer. `measured_end` returning None where
+    `store_window_start` raises would have meant "run to the store's own edge",
+    which is how a run over nothing reports a clean empty window."""
+    store.append_bars("US", "BASE", _bars_from_hlc(_daily(date(2020, 1, 1), 5), _ramp_hlc(5)))
+
+    with pytest.raises(WindowNotCovered):
+        store_window_start(store, "IDX")
+    with pytest.raises(WindowNotCovered):
+        measured_end(store, "IDX")

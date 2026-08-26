@@ -784,6 +784,27 @@ class AnchorReport:
     def passes(self) -> bool:
         return not self.geometry_only and all(c.passes for c in self.checks)
 
+    @property
+    def failed(self) -> tuple[str, ...]:
+        """The anchors that neither matched nor carry a written cause.
+
+        Beside :attr:`passes`, because it answers the follow-up question — *which
+        ones* — and a caller deriving it for itself has to walk from the report to
+        each check to its anchor to its key, which is a path this class should not
+        be exporting.
+        """
+        return tuple(c.anchor.key for c in self.checks if not c.passes)
+
+    @property
+    def explained(self) -> tuple[str, ...]:
+        """The anchors that diverged and carry a written cause.
+
+        The other half of :attr:`failed`: together they are the difference between
+        the plan's two ways of passing, and every result built over this report
+        reports them.
+        """
+        return tuple(c.anchor.key for c in self.checks if c.explained)
+
 
 def _matches(value: float, committed: float, tolerance: float | None) -> bool:
     if isnan(value):

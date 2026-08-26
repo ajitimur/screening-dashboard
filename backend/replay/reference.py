@@ -87,7 +87,7 @@ REFERENCE_FIGURES: dict[str, float] = {
 
 # The blind-spot R share is a float; a change below this tolerance is rounding,
 # not drift (the #114 figure is quoted to 0.1%).
-_R_SHARE_TOL = 0.001
+R_SHARE_TOL = 0.001
 
 
 class DriftError(RuntimeError):
@@ -354,7 +354,7 @@ def assert_matches_reference(report: ReferenceReport) -> None:
     """Fail loudly if the recomputed counts diverge from the #114 figures.
 
     The integer counts must match exactly; the R share must match to within
-    :data:`_R_SHARE_TOL`. A mismatch means the reference set or the store moved,
+    :data:`R_SHARE_TOL`. A mismatch means the reference set or the store moved,
     which every later analysis rests on, so it raises rather than logs.
     """
     mismatches: list[str] = []
@@ -366,7 +366,7 @@ def assert_matches_reference(report: ReferenceReport) -> None:
             mismatches.append(f"{key}: got {actual}, #114 recorded {expected}")
 
     share_expected = REFERENCE_FIGURES["blind_spot_r_share"]
-    if abs(report.blind_spot_r_share - share_expected) > _R_SHARE_TOL:
+    if abs(report.blind_spot_r_share - share_expected) > R_SHARE_TOL:
         mismatches.append(
             f"blind_spot_r_share: got {report.blind_spot_r_share:.4f}, "
             f"#114 recorded {share_expected}"

@@ -627,6 +627,39 @@ this boolean have done" is a different question from "does the quantity predict"
 _Avoid_: treating absent as a miss, or as a zero; a **candidate dimension** is never carried
 forward and never excludes a name.
 
+**Anchor**:
+A figure already committed to this repo that a rebuilt pipeline must reproduce before any
+new figure from it is read (PRD #182 Phase 6, `backtest.anchors`). Six of them, checked
+through the study's existing **drift** mechanism, which raises rather than logs. Two kinds,
+and only one is stable. A **geometry anchor** — median trailing 3-bar range 1.31 ADR,
+5-bar 1.86 ADR, 20-day ADR at entry eve 6.08% — is measured from his bars and holds
+whatever the detector does, so it anchors the *store and the indicators* and is checked
+**first**; a failure there stops the check, because nothing downstream is worth
+investigating yet. A **gate-dependent anchor** — coverage, **detection recall**,
+**`in_field`** — moves with coverage and with the gates, so it carries the detector version
+it was measured at and every **superseded pin** beside its live value. An anchor quoted
+from a superseded pin fails for a reason that has nothing to do with the pipeline it is
+testing. Anchoring is against **arms B and C** only: arm A has no counterpart in the
+reference set, so it is measured and never anchored.
+_Avoid_: benchmark, target — an anchor is reproduced or its divergence is written up, and
+neither is something to aim at.
+
+**Detection recall** vs **`in_field`**:
+Two different anchors, conflated once already (#165) and now different *quantities* in
+code. **Detection recall** asks whether the detector would have fired on his name at all —
+**gate-invariant**, because the funnel evaluates every stage unconditionally, and pinned
+exactly at 549 of 656. **`in_field`** asks whether the name reached that night's field, so
+it moves with every gate and coverage change: 397 of 656 at detector **v3**, and a **first
+measurement** with no second one agreeing with it. Only `in_field` carries a tolerance, and
+only for a named reason — the published value was measured on the store that ranks five
+references as candidates (#162), so a fresh build shifts percentile denominators by ~0.5%
+and a difference of a few trades is that fix landing. What the tolerance may **never**
+absorb is a flip in the sign of findings §4b's gap, which is the bug the whole table exists
+to find — and neither may a **written divergence**: every other anchor may be reproduced *or*
+explained in writing, and that one may only be reproduced.
+_Avoid_: "trades detected", which named one and valued the other; and never check a
+rebuilt pipeline against whichever of the two is nearer.
+
 **Not-taken detection**:
 A member of the replayed field on a session where he entered something else. Not a
 declined setup — he may never have seen it — so it is a comparison group, never a

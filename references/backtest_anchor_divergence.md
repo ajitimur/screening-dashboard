@@ -162,7 +162,10 @@ trend gate acting together** — every single-gate drop leaves the gap negative,
 turns it positive — and returns the verdict **property, not defect**. What was already
 settled is where it is *not*: not the bars (bit-identical), not the detector (recall
 reproduces to four decimals), and not the population (isolated above); #211 adds that it is
-not the liquidity floor and not the membership reconstruction either.
+not the liquidity floor and not the membership reconstruction either, and #213 that it is
+not the dropped hysteresis band — worth 0.05pp of the gap and two trades of `in_field`
+against a gate's 3.5pp. All four differences this paragraph names have now been varied
+directly.
 
 **This anchor is a first measurement**, flagged as such in the table precisely so a mismatch is
 investigated in both directions rather than charged straight to the new pipeline. The committed

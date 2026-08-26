@@ -56,7 +56,10 @@ yesterday's membership for both stickiness and its hysteresis band. Dropping tha
 reintroduces the boundary churn it exists to damp — a name oscillating around a floor enters
 and leaves day by day — which is **nearly free at signal level**, since each signal is
 evaluated on its own session, and real at portfolio level. Recorded as a known difference,
-not fixed. Its 3.5% sits **deliberately below** the rubric's `score.ADR_MIN` of 5%, because
+not fixed. "Nearly free" is measured rather than asserted since #213: putting the band
+back inside the backtest's own field is worth **+0.40pp of `in_field` and 0.05pp of the
+rubric's gap**, against 3.5pp for any one gate (`references/backtest_gate_isolation.md`).
+Its 3.5% sits **deliberately below** the rubric's `score.ADR_MIN` of 5%, because
 findings §6 Finding 2 measured that 5% floor withholding a score point from 31% of his real
 entries, so a universe cut at 5% would leave the ADR dimension no spread to test.
 _Avoid_: backtest universe filter; reading the Rp 100 trim as a penny-stock filter — it is

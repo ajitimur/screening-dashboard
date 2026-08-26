@@ -623,7 +623,8 @@ only for a named reason — the published value was measured on the store that r
 references as candidates (#162), so a fresh build shifts percentile denominators by ~0.5%
 and a difference of a few trades is that fix landing. What the tolerance may **never**
 absorb is a flip in the sign of findings §4b's gap, which is the bug the whole table exists
-to find.
+to find — and neither may a **written divergence**: every other anchor may be reproduced *or*
+explained in writing, and that one may only be reproduced.
 _Avoid_: "trades detected", which named one and valued the other; and never check a
 rebuilt pipeline against whichever of the two is nearer.
 

@@ -8884,7 +8884,7 @@ from backtest.anchors import (
     QUANTITY_DETECTION_RECALL,
     QUANTITY_IN_FIELD,
     AnchorReport,
-    GeometryMeasurement,
+    GeometrySample,
     Measurement,
     anchors_report,
     check_anchors,
@@ -8898,7 +8898,7 @@ from backtest.anchors import (
     trailing_range_adr,
 )
 from backtest.anchors import main as anchors_main
-from backtest.simulate import ARM_A, ARM_B
+from backtest.simulate import ARM_A, ARM_B, ARM_C
 from replay.funnel import StageRecall
 from replay.discrimination_grid import (
     DETECTORS,
@@ -8932,6 +8932,8 @@ def _coverage_measurement(**overrides) -> Measurement:
         "blind_spot_trades": REFERENCE_FIGURES["blind_spot_trades"],
         "distinct_tickers": REFERENCE_FIGURES["distinct_tickers"],
         "total_rows": REFERENCE_FIGURES["total_rows"],
+        "rows_with_outcomes": REFERENCE_FIGURES["rows_with_outcomes"],
+        "blind_spot_r_share": REFERENCE_FIGURES["blind_spot_r_share"],
     }
     values.update(overrides)
     return Measurement(anchor="coverage_blind_spot",
@@ -9264,7 +9266,7 @@ def test_an_anchor_with_no_measurement_fails_rather_than_vanishing():
 def test_a_median_that_could_not_be_computed_fails_rather_than_passing():
     """An empty sample yields no median, which is a failure of the store — never
     an anchor quietly skipped."""
-    empty = GeometryMeasurement(
+    empty = GeometrySample(
         n=0, median_range_3bar_adr=None, median_range_5bar_adr=None,
         median_adr_at_entry_eve=None, without_bars=828, short_history=0,
         no_prior_session=0,
@@ -9311,7 +9313,7 @@ def test_an_explanation_for_an_anchor_that_does_not_exist_is_refused():
 def test_anchoring_uses_arms_b_and_c_only():
     """Arm A has no counterpart in the reference set, so it is measured and never
     anchored — and the fact is derived from the arm table, not restated here."""
-    assert ANCHOR_ARMS == (ARM_B, "C")
+    assert ANCHOR_ARMS == (ARM_B, ARM_C)
     assert ARM_A not in ANCHOR_ARMS
 
     with pytest.raises(DriftError) as excinfo:
@@ -9579,9 +9581,9 @@ def test_the_command_writes_a_stamped_result_when_every_anchor_is_offered(
     path, reference = _anchor_cli_store(tmp_path)
     field = tmp_path / "field.json"
     field.write_text(json.dumps({
-        "detection_recall": {"passed": 549, "of": 656},
+        "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
         "in_field": {"in_field": 395, "of": 656, "gap_pp": 1.9,
-                     "detector_version": 3},
+                     "field": "whole", "detector_version": 3},
     }))
     out_json = tmp_path / "anchors.json"
 
@@ -9617,9 +9619,9 @@ def test_the_command_fails_on_a_field_anchor_from_the_wrong_version(tmp_path):
     path, reference = _anchor_cli_store(tmp_path)
     field = tmp_path / "field.json"
     field.write_text(json.dumps({
-        "detection_recall": {"passed": 549, "of": 656},
+        "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
         "in_field": {"in_field": 349, "of": 656, "gap_pp": 2.02,
-                     "detector_version": 2},
+                     "field": "whole", "detector_version": 2},
     }))
 
     code = anchors_main([
@@ -9632,3 +9634,103 @@ def test_the_command_fails_on_a_field_anchor_from_the_wrong_version(tmp_path):
     ])
 
     assert code == 1
+
+
+# -- what the #197 review found unguarded --------------------------------------
+
+from backtest.anchors import MEASURED_NEVER_ANCHORED
+from backtest.simulate import ARM_SPECS
+from replay.reference import R_SHARE_TOL
+
+
+def test_a_sign_flip_cannot_be_waived_by_writing_it_up():
+    """The one failure this table exists to find, and the one no cause excuses.
+    Every other divergence may be explained in writing; a flip in the sign of
+    §4b's gap must stop the run and be investigated in the pipeline, or the anchor
+    is waivable by a free-text argument and guards nothing."""
+    flipped = _all_measurements(
+        cell={"in_field": 396, "picks_share": 0.1165, "field_share": 0.1360}
+    )
+
+    with pytest.raises(DriftError) as excinfo:
+        check_anchors(flipped, explained={"in_field": "a plausible-sounding cause"})
+
+    assert "sign" in str(excinfo.value)
+    # The same explain path *does* carry an ordinary divergence, so the refusal is
+    # specific to the sign rather than the write-up being broken.
+    assert check_anchors(
+        _all_measurements(recall={"passed": 500}),
+        explained={"detection_recall": "a written cause"},
+    ).passes
+
+
+def test_the_command_enforces_the_same_two_gates_its_adapters_do(tmp_path, capsys):
+    """The file path is the one the documented reproduction command uses, so the
+    conflation guard has to hold there too: a field row that does not name the
+    whole field, or a recall row that does not name the detection stage, is
+    refused rather than believed."""
+    path, reference = _anchor_cli_store(tmp_path)
+    explain = [
+        "--explain", "median_range_3bar_adr=one-name fixture",
+        "--explain", "median_range_5bar_adr=one-name fixture",
+        "--explain", "median_adr_at_entry_eve=one-name fixture",
+        "--explain", "coverage_blind_spot=one-name fixture",
+    ]
+
+    truncated = tmp_path / "truncated.json"
+    truncated.write_text(json.dumps({
+        "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
+        "in_field": {"in_field": 397, "of": 656, "gap_pp": 1.95,
+                     "field": "truncated", "detector_version": 3},
+    }))
+    assert anchors_main(["--store", str(path), "--reference", str(reference),
+                         "--field-measurements", str(truncated), *explain]) == 1
+    assert "whole field" in capsys.readouterr().out
+
+    wrong_stage = tmp_path / "stage.json"
+    wrong_stage.write_text(json.dumps({
+        "detection_recall": {"passed": 549, "of": 656, "stage": "liquidity"},
+        "in_field": {"in_field": 397, "of": 656, "gap_pp": 1.95,
+                     "field": "whole", "detector_version": 3},
+    }))
+    assert anchors_main(["--store", str(path), "--reference", str(reference),
+                         "--field-measurements", str(wrong_stage), *explain]) == 1
+    assert "detection stage" in capsys.readouterr().out
+
+
+def test_the_coverage_anchor_is_no_weaker_than_the_reference_assertion():
+    """It checks all five of the reference module's pins, the realised-R share
+    included. A run reproducing the counts while moving the share would have
+    changed *which* trades are missing, and a coverage check that passed it would
+    be weaker than the one this repo already had."""
+    anchor = ANCHORS_BY_KEY["coverage_blind_spot"]
+
+    assert set(anchor.committed) == set(REFERENCE_FIGURES)
+    assert anchor.committed["blind_spot_r_share"] == (
+        REFERENCE_FIGURES["blind_spot_r_share"]
+    )
+    # Pinned to the reference module's own band, not to a second one.
+    assert anchor.tolerance["blind_spot_r_share"] == R_SHARE_TOL
+
+    with pytest.raises(DriftError):
+        check_anchors(_all_measurements(coverage={"blind_spot_r_share": 0.25}))
+
+
+def test_the_contamination_tolerance_is_recorded_on_the_superseded_field_row_too():
+    """Both `in_field` values were measured on the contaminated field, so the v2
+    pin says so: a run built at v2 anchors on it under the same band, and a reader
+    who found the note only on the live row would think the pin was clean."""
+    v2 = next(
+        p for p in ANCHORS_BY_KEY["in_field"].superseded
+        if "at detector v2" in p.value
+    )
+
+    assert "#162" in v2.why
+    assert "contaminated field" in v2.why
+
+
+def test_the_arms_never_anchored_are_derived_once():
+    """The module's own rule — an arm's comparability is one fact, read in one
+    place — applied to the complement as well as to the set."""
+    assert MEASURED_NEVER_ANCHORED == (ARM_A,)
+    assert set(MEASURED_NEVER_ANCHORED) | set(ANCHOR_ARMS) == set(ARM_SPECS)

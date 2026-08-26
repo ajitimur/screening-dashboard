@@ -58,7 +58,10 @@ What the tolerance may **not** absorb is a difference large enough to flip the s
 of §4b's gap. That is the bug this table is looking for, so the gap rides on the
 same anchor as a **sign-checked** component (:attr:`Anchor.sign_checked`): its
 magnitude is free to move, its sign is not, and a flip fails the anchor whatever
-the trade count did.
+the trade count did. **Nor can a write-up waive it** — every other divergence may
+be explained in writing and recorded as a divergence, but a failure a free-text
+argument can wave through is not a failure, and this is the one the table exists
+to find.
 
 Arms B and C only
 -----------------
@@ -74,7 +77,7 @@ import argparse
 import json
 from dataclasses import dataclass
 from datetime import date
-from math import inf, isnan
+from math import isnan
 from pathlib import Path
 from statistics import median
 from typing import Any, Iterable, Mapping, Sequence
@@ -87,6 +90,7 @@ from replay.discrimination_grid import (
 from replay.funnel import STAGE_DETECTION, StageRecall
 from replay.reference import (
     DEFAULT_REFERENCE_JSON,
+    R_SHARE_TOL,
     REFERENCE_FIGURES,
     DriftError,
     ExecutedTrade,
@@ -115,6 +119,12 @@ ANCHOR_MARKET = "US"
 # the one fact that decides it.
 ANCHOR_ARMS: tuple[str, ...] = tuple(
     arm for arm, spec in sorted(ARM_SPECS.items()) if spec.comparable_to_reference
+)
+
+# The arms an anchor may never be taken against, derived from the same table for
+# the same reason: a fourth arm's comparability is one fact, read in one place.
+MEASURED_NEVER_ANCHORED: tuple[str, ...] = tuple(
+    arm for arm in sorted(ARM_SPECS) if arm not in ANCHOR_ARMS
 )
 
 # The two kinds of anchor. Geometry is measured from his bars and holds whatever
@@ -149,8 +159,11 @@ CONTAMINATION_TRADES = 7
 RANGE_TOL_ADR = 0.02
 ADR_TOL = 0.001  # 0.10 percentage points, on a fraction
 
-# The sign-checked component's own tolerance: the gap's *magnitude* is free.
-_FREE = inf
+# A component with no tolerance at all: its value is free to move and only its
+# sign is anchored. Spelled as an absence rather than an infinite float, so the
+# three readers below test for "no tolerance" instead of comparing against a
+# sentinel that could be arrived at by arithmetic.
+FREE: None = None
 
 
 @dataclass(frozen=True)
@@ -186,7 +199,7 @@ class Anchor:
     kind: str
     quantity: str
     committed: Mapping[str, float]
-    tolerance: Mapping[str, float]
+    tolerance: Mapping[str, float | None]
     unit: str
     source: str
     measured_at: tuple[int, ...]
@@ -284,12 +297,23 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
             "blind_spot_trades": REFERENCE_FIGURES["blind_spot_trades"],
             "distinct_tickers": REFERENCE_FIGURES["distinct_tickers"],
             "total_rows": REFERENCE_FIGURES["total_rows"],
+            "rows_with_outcomes": REFERENCE_FIGURES["rows_with_outcomes"],
+            # The last pin, carried so this route is no weaker than
+            # :func:`~replay.reference.assert_matches_reference`: the hole is
+            # bounded in *realised R* as well as in names, and a run that
+            # reproduced the counts while moving the share would pass a coverage
+            # check having changed which trades are missing.
+            "blind_spot_r_share": REFERENCE_FIGURES["blind_spot_r_share"],
         },
         tolerance={
             "blind_spot_tickers": 0,
             "blind_spot_trades": 0,
             "distinct_tickers": 0,
             "total_rows": 0,
+            "rows_with_outcomes": 0,
+            # A float quoted to 0.1%, so a smaller difference is rounding — the
+            # reference module's own band, read from it rather than restated.
+            "blind_spot_r_share": R_SHARE_TOL,
         },
         unit="count",
         source="findings §2",
@@ -341,7 +365,7 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
         tolerance={
             "in_field": CONTAMINATION_TRADES,
             "of": 0,
-            "gap_pp": _FREE,
+            "gap_pp": FREE,
         },
         unit="trades",
         source="findings §4b",
@@ -363,7 +387,10 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
         superseded=(
             Pin("349 of 656 at detector v2",
                 "the live gate has moved v2 → v3; the v2 → v3 widening admits 48 "
-                "more of his trades without any of them changing"),
+                "more of his trades without any of them changing. Measured on the "
+                "same contaminated field as the live value (#162), so the "
+                "tolerance above is recorded on this row too — a run built at v2 "
+                "anchors on it under exactly the same band"),
             Pin("159 of 656 at detector v2",
                 "measured on the field the two-year rank retention had truncated "
                 "(#164)"),
@@ -402,7 +429,7 @@ class Measurement:
 
 
 @dataclass(frozen=True)
-class GeometryMeasurement:
+class GeometrySample:
     """The three geometry medians, measured over his entries at the eval session.
 
     ``n`` is how many trades carried all three; ``without_bars``,
@@ -465,7 +492,7 @@ def measure_geometry(
     trades: Iterable[ExecutedTrade],
     *,
     market: str = ANCHOR_MARKET,
-) -> GeometryMeasurement:
+) -> GeometrySample:
     """Measure the three geometry anchors off ``store`` at his evaluation sessions.
 
     Point-in-time throughout: every value is read at the last session strictly
@@ -507,7 +534,7 @@ def measure_geometry(
         ranges3.append(r3)
         ranges5.append(r5)
 
-    return GeometryMeasurement(
+    return GeometrySample(
         n=len(adrs),
         median_range_3bar_adr=median(ranges3) if ranges3 else None,
         median_range_5bar_adr=median(ranges5) if ranges5 else None,
@@ -519,7 +546,7 @@ def measure_geometry(
 
 
 def geometry_measurements(
-    measured: GeometryMeasurement,
+    measured: GeometrySample,
 ) -> list[Measurement]:
     """The three geometry medians as anchor measurements.
 
@@ -556,59 +583,98 @@ def coverage_measurement(report: ReferenceReport) -> Measurement:
             "blind_spot_trades": report.blind_spot_trades,
             "distinct_tickers": report.distinct_tickers,
             "total_rows": report.total_rows,
+            "rows_with_outcomes": report.rows_with_outcomes,
+            "blind_spot_r_share": report.blind_spot_r_share,
         },
     )
 
 
-def recall_measurement(stage: StageRecall, *, arm: str | None = None) -> Measurement:
-    """Detection recall, read off the funnel's **detection** stage.
+def detection_recall_measurement(
+    *, passed: int, of: int, stage: str, arm: str | None = None
+) -> Measurement:
+    """Detection recall, from a measurement that names the **stage** it came off.
 
-    Takes a :class:`~replay.funnel.StageRecall` and nothing else, which is what
-    makes the conflation #165 fixed unrepresentable here: the field-membership
-    anchor cannot be fed from this type, and this anchor cannot be fed from a grid
-    cell. A recall offered from another stage is refused — the liquidity stage's
-    recall is a real number and is not this anchor.
+    The narrow gate every route into this anchor goes through, in-process or from
+    a file. It exists because the conflation #165 fixed cannot be prevented by a
+    parameter name: what makes recall *recall* is that it was measured at the
+    funnel's detection stage, so the caller states which stage it read and a
+    measurement from any other one is refused. The liquidity stage's recall is a
+    real number and is not this anchor.
     """
-    if stage.stage != STAGE_DETECTION:
+    if stage != STAGE_DETECTION:
         raise DriftError(
             f"detection recall must be read off the funnel's detection stage; "
-            f"got the {stage.stage!r} stage"
+            f"got the {stage!r} stage"
         )
     return Measurement(
         anchor="detection_recall",
         quantity=QUANTITY_DETECTION_RECALL,
-        values={"passed": stage.passed, "of": stage.total},
+        values={"passed": passed, "of": of},
         arm=arm,
+    )
+
+
+def field_membership_measurement(
+    *,
+    in_field: int,
+    replayable: int,
+    gap_pp: float | None,
+    field_source: str,
+    detector_version: int | None,
+    arm: str | None = None,
+) -> Measurement:
+    """``in_field`` and §4b's gap, from a measurement that names its **field**.
+
+    The counterpart gate, and the reason both exist as functions rather than as
+    type signatures alone: the command reads its field anchors from a file, and a
+    guard that only holds for in-process callers does not hold on the one path the
+    documented reproduction command uses.
+
+    The field must be the **whole** one: the truncated field is the population
+    #164 found the two-year rank retention had emptied on 316 of 821 sessions, and
+    every figure taken over it is superseded.
+    """
+    if field_source != FIELD_WHOLE.name:
+        raise DriftError(
+            f"in_field is anchored on the whole field; got the "
+            f"{field_source!r} field, whose figures are superseded"
+        )
+    return Measurement(
+        anchor="in_field",
+        quantity=QUANTITY_IN_FIELD,
+        values={
+            "in_field": in_field,
+            "of": replayable,
+            "gap_pp": float("nan") if gap_pp is None else gap_pp,
+        },
+        arm=arm,
+        detector_version=detector_version,
+    )
+
+
+def recall_measurement(stage: StageRecall, *, arm: str | None = None) -> Measurement:
+    """Detection recall, read off a funnel report's :class:`StageRecall`."""
+    return detection_recall_measurement(
+        passed=stage.passed, of=stage.total, stage=stage.stage, arm=arm
     )
 
 
 def in_field_measurement(
     cell: CellMeasurement, *, replayable: int, arm: str | None = None
 ) -> Measurement:
-    """The ``in_field`` anchor and §4b's gap, read off one grid cell.
+    """``in_field`` and §4b's gap, read off one grid cell.
 
-    The cell must be the **whole** field: the truncated field is the population
-    #164 found the two-year rank retention had emptied on 316 of 821 sessions, and
-    every figure taken over it is superseded. The gap is the cell's own
+    The gap is the cell's own
     :meth:`~replay.discrimination_grid.CellMeasurement.edge` under the rubric §4b
     published it with, so the sign this anchor guards is the sign §4b states.
     """
-    if cell.field_source is not FIELD_WHOLE:
-        raise DriftError(
-            f"in_field is anchored on the whole field; got the "
-            f"{cell.field_source.name!r} field, whose figures are superseded"
-        )
-    gap = cell.edge(PUBLISHED_RUBRIC)
-    return Measurement(
-        anchor="in_field",
-        quantity=QUANTITY_IN_FIELD,
-        values={
-            "in_field": cell.in_field,
-            "of": replayable,
-            "gap_pp": float("nan") if gap is None else gap,
-        },
-        arm=arm,
+    return field_membership_measurement(
+        in_field=cell.in_field,
+        replayable=replayable,
+        gap_pp=cell.edge(PUBLISHED_RUBRIC),
+        field_source=cell.field_source.name,
         detector_version=cell.detector.version,
+        arm=arm,
     )
 
 
@@ -623,7 +689,7 @@ class ComponentCheck:
     name: str
     committed: float
     measured: float
-    tolerance: float
+    tolerance: float | None
     matched: bool
     sign_flipped: bool
 
@@ -646,10 +712,23 @@ class AnchorCheck:
         return bool(self.components) and all(c.matched for c in self.components)
 
     @property
+    def sign_flipped(self) -> bool:
+        """Whether a sign-checked component came back with the wrong sign."""
+        return any(c.sign_flipped for c in self.components)
+
+    @property
     def explained(self) -> bool:
         """A divergence with a cause written down. Recorded as a divergence, never
-        reported as a match — the plan's "or explain the divergence in writing"."""
-        return not self.matched and bool(self.explanation)
+        reported as a match — the plan's "or explain the divergence in writing".
+
+        **A sign flip is not explainable.** The whole reason §4b's gap rides on
+        this anchor is that a flip is the bug the table exists to find, and a
+        failure a free-text argument can wave through is not a failure. So the
+        tolerance cannot absorb it and neither can a write-up: it is the one
+        outcome here that must stop the run and be investigated in the pipeline
+        rather than in the report.
+        """
+        return not self.matched and bool(self.explanation) and not self.sign_flipped
 
     @property
     def passes(self) -> bool:
@@ -680,7 +759,7 @@ class AnchorReport:
     geometry: tuple[AnchorCheck, ...]
     gate_dependent: tuple[AnchorCheck, ...]
     geometry_only: bool = False
-    sample: GeometryMeasurement | None = None
+    sample: GeometrySample | None = None
 
     @property
     def checks(self) -> tuple[AnchorCheck, ...]:
@@ -691,10 +770,10 @@ class AnchorReport:
         return not self.geometry_only and all(c.passes for c in self.checks)
 
 
-def _matches(value: float, committed: float, tolerance: float) -> bool:
+def _matches(value: float, committed: float, tolerance: float | None) -> bool:
     if isnan(value):
         return False
-    if tolerance == _FREE:
+    if tolerance is FREE:
         return True
     return abs(value - committed) <= tolerance
 
@@ -753,7 +832,7 @@ def _check_one(
                 "quoting two numbers cannot pass on one of them"
             )
         value = float(measurement.values[name])
-        tolerance = float(anchor.tolerance[name])
+        tolerance = anchor.tolerance[name]
         flipped = name in anchor.sign_checked and (
             isnan(value) or _sign(value) != _sign(committed)
         )
@@ -842,11 +921,26 @@ def check_geometry(
     infer whether it was checked.
     """
     explained = dict(explained or {})
-    by_anchor = _index(measurements, explained=explained, arms=arms)
+    return _check_group(
+        GEOMETRY_ANCHORS,
+        _index(measurements, explained=explained, arms=arms),
+        detector_version=detector_version,
+        explained=explained,
+    )
+
+
+def _check_group(
+    anchors: Sequence[Anchor],
+    by_anchor: Mapping[str, Measurement],
+    *,
+    detector_version: int,
+    explained: Mapping[str, str],
+) -> tuple[AnchorCheck, ...]:
+    """One group's checks, in the group's own order."""
     return tuple(
         _check_one(a, by_anchor.get(a.key), detector_version=detector_version,
                    explanation=explained.get(a.key))
-        for a in GEOMETRY_ANCHORS
+        for a in anchors
     )
 
 
@@ -856,7 +950,7 @@ def check_anchors(
     detector_version: int = DETECTOR_VERSION,
     explained: Mapping[str, str] | None = None,
     arms: Sequence[str] = ANCHOR_ARMS,
-    sample: GeometryMeasurement | None = None,
+    sample: GeometrySample | None = None,
 ) -> AnchorReport:
     """Check every anchor, geometry first, and fail loudly on a mismatch.
 
@@ -872,12 +966,11 @@ def check_anchors(
     without one raises.
     """
     explained = dict(explained or {})
-    measurements = list(measurements)
     by_anchor = _index(measurements, explained=explained, arms=arms)
 
-    geometry = check_geometry(
-        measurements, detector_version=detector_version, explained=explained,
-        arms=arms,
+    geometry = _check_group(
+        GEOMETRY_ANCHORS, by_anchor, detector_version=detector_version,
+        explained=explained,
     )
     failed = [c for c in geometry if not c.passes]
     if failed:
@@ -889,10 +982,9 @@ def check_anchors(
             + "\n  ".join(_describe(c) for c in failed)
         )
 
-    gate_dependent = tuple(
-        _check_one(a, by_anchor.get(a.key), detector_version=detector_version,
-                   explanation=explained.get(a.key))
-        for a in GATE_DEPENDENT_ANCHORS
+    gate_dependent = _check_group(
+        GATE_DEPENDENT_ANCHORS, by_anchor, detector_version=detector_version,
+        explained=explained,
     )
     failed = [c for c in gate_dependent if not c.passes]
     if failed:
@@ -919,7 +1011,7 @@ def _component_dict(c: ComponentCheck) -> dict[str, Any]:
         "component": c.name,
         "committed": c.committed,
         "measured": None if isnan(c.measured) else c.measured,
-        "tolerance": None if c.tolerance == _FREE else c.tolerance,
+        "tolerance": c.tolerance,
         "divergence": None if isnan(c.measured) else c.divergence,
         "matched": c.matched,
         "sign_flipped": c.sign_flipped,
@@ -958,9 +1050,7 @@ def anchors_report(contract: RunContract, report: AnchorReport) -> dict[str, Any
     body: dict[str, Any] = {
         "detector_version": report.detector_version,
         "arms_anchored": list(report.arms),
-        "arms_measured_never_anchored": [
-            arm for arm in sorted(ARM_SPECS) if arm not in ANCHOR_ARMS
-        ],
+        "arms_measured_never_anchored": list(MEASURED_NEVER_ANCHORED),
         "geometry": [_check_dict(c) for c in report.geometry],
         "gate_dependent": [_check_dict(c) for c in report.gate_dependent],
         "geometry_only": report.geometry_only,
@@ -983,7 +1073,7 @@ def _format_check(check: AnchorCheck) -> list[str]:
     for c in check.components:
         mark = "ok " if c.matched else "!! "
         measured = "n/a" if isnan(c.measured) else f"{c.measured:.6g}"
-        tolerance = "free" if c.tolerance == _FREE else f"±{c.tolerance:g}"
+        tolerance = "free" if c.tolerance is FREE else f"±{c.tolerance:g}"
         lines.append(
             f"    {mark}{c.name:<20} committed {c.committed:<10.6g} "
             f"measured {measured:<10} ({tolerance} {a.unit})"
@@ -1057,37 +1147,40 @@ def _field_measurements(path: str) -> list[Measurement]:
     (#198), not a side-car to it; inventing them here would anchor the new pipeline
     against the old pipeline's outputs and report a pass for it.
 
-    Schema — the numbers the two passes already print::
+    It goes through the same two gates an in-process caller does
+    (:func:`detection_recall_measurement`, :func:`field_membership_measurement`),
+    which is why each row must name **what it measured** rather than only its
+    numbers: the ``stage`` the recall came off and the ``field`` the membership was
+    counted over. Without those the file could offer the funnel's recall under the
+    ``in_field`` key and be believed, and the command is the one path the
+    documented reproduction uses.
 
-        {"detection_recall": {"passed": 549, "of": 656},
+    Schema — the numbers the two passes already print, and what they were::
+
+        {"detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
          "in_field": {"in_field": 397, "of": 656, "gap_pp": 1.95,
-                      "detector_version": 3}}
+                      "field": "whole", "detector_version": 3}}
     """
     body = json.loads(Path(path).read_text())
     out: list[Measurement] = []
     if "detection_recall" in body:
         row = body["detection_recall"]
         out.append(
-            Measurement(
-                anchor="detection_recall",
-                quantity=QUANTITY_DETECTION_RECALL,
-                values={"passed": row["passed"], "of": row["of"]},
+            detection_recall_measurement(
+                passed=row["passed"], of=row["of"], stage=row["stage"],
                 arm=row.get("arm"),
             )
         )
     if "in_field" in body:
         row = body["in_field"]
         out.append(
-            Measurement(
-                anchor="in_field",
-                quantity=QUANTITY_IN_FIELD,
-                values={
-                    "in_field": row["in_field"],
-                    "of": row["of"],
-                    "gap_pp": row["gap_pp"],
-                },
-                arm=row.get("arm"),
+            field_membership_measurement(
+                in_field=row["in_field"],
+                replayable=row["of"],
+                gap_pp=row["gap_pp"],
+                field_source=row["field"],
                 detector_version=row.get("detector_version"),
+                arm=row.get("arm"),
             )
         )
     return out
@@ -1161,9 +1254,12 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    measurements += _field_measurements(args.field_measurements)
-
     try:
+        # Inside the same guard as the check itself: a field row that does not
+        # name the whole field, or a recall row that does not name the detection
+        # stage, is a refusal of the same kind and reads better as one printed
+        # line than as a traceback.
+        measurements += _field_measurements(args.field_measurements)
         report = check_anchors(
             measurements, explained=explained, sample=geometry
         )

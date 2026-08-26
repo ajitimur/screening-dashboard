@@ -1,0 +1,371 @@
+{
+ "window": {
+  "start": "2019-04-01",
+  "end": "2022-12-30",
+  "burn_in": 126,
+  "market": "US"
+ },
+ "detector_version": 3,
+ "field": "whole",
+ "rubric_version": 1,
+ "stars": 3.5,
+ "reconstruction": {
+  "sessions": 821,
+  "stored": 297709,
+  "rebuilt": 297709,
+  "extra": 0,
+  "missing": 0,
+  "exact": true
+ },
+ "variants": [
+  {
+   "name": "all-three",
+   "gates": [
+    "liquidity",
+    "trend",
+    "volatility"
+   ],
+   "dropped": [],
+   "note": "the run's own field \u2014 reproduces the committed -5.01pp",
+   "members_per_session": 362.6175395858709,
+   "field_detections": 35971,
+   "in_field": 165,
+   "placed": 503,
+   "in_field_share": 0.32803180914512925,
+   "picks_share": 0.14545454545454545,
+   "field_share": 0.19552004370689066,
+   "gap_pp": -5.006549825234521,
+   "dimensions": [
+    {
+     "dimension": "Tightness",
+     "weight": 2,
+     "picks": 0.4303030303030303,
+     "field": 0.25035853308748207,
+     "gap_pp": 17.994449721554822
+    },
+    {
+     "dimension": "Orderliness",
+     "weight": 1,
+     "picks": 0.40606060606060607,
+     "field": 0.436454278494844,
+     "gap_pp": -3.039367243423791
+    },
+    {
+     "dimension": "Prior move",
+     "weight": 1,
+     "picks": 1.0,
+     "field": 1.0,
+     "gap_pp": 0.0
+    },
+    {
+     "dimension": "Base length",
+     "weight": 0,
+     "picks": 0.5212121212121212,
+     "field": 0.678139725466093,
+     "gap_pp": -15.692760425397179
+    },
+    {
+     "dimension": "MA support",
+     "weight": 1,
+     "picks": 0.8606060606060606,
+     "field": 0.8583623574404152,
+     "gap_pp": 0.2243703165645372
+    },
+    {
+     "dimension": "Volume",
+     "weight": 1,
+     "picks": 0.2606060606060606,
+     "field": 0.322679778733866,
+     "gap_pp": -6.207371812780538
+    },
+    {
+     "dimension": "ADR",
+     "weight": 2,
+     "picks": 0.896969696969697,
+     "field": 0.9071228573379772,
+     "gap_pp": -1.0153160368280179
+    }
+   ]
+  },
+  {
+   "name": "no-adr",
+   "gates": [
+    "liquidity",
+    "trend"
+   ],
+   "dropped": [
+    "volatility"
+   ],
+   "note": "drops the 3.5% ADR20 floor, which the app's universe does not have",
+   "members_per_session": 906.1534713763702,
+   "field_detections": 84329,
+   "in_field": 247,
+   "placed": 503,
+   "in_field_share": 0.49105367793240556,
+   "picks_share": 0.14979757085020243,
+   "field_share": 0.16435974809761217,
+   "gap_pp": -1.456217724740974,
+   "dimensions": [
+    {
+     "dimension": "Tightness",
+     "weight": 2,
+     "picks": 0.3967611336032389,
+     "field": 0.21641301495670429,
+     "gap_pp": 18.03481186465346
+    },
+    {
+     "dimension": "Orderliness",
+     "weight": 1,
+     "picks": 0.4008097165991903,
+     "field": 0.46428102860141696,
+     "gap_pp": -6.347131200222666
+    },
+    {
+     "dimension": "Prior move",
+     "weight": 1,
+     "picks": 1.0,
+     "field": 1.0,
+     "gap_pp": 0.0
+    },
+    {
+     "dimension": "Base length",
+     "weight": 0,
+     "picks": 0.5141700404858299,
+     "field": 0.6920755707163474,
+     "gap_pp": -17.790553023051746
+    },
+    {
+     "dimension": "MA support",
+     "weight": 1,
+     "picks": 0.8461538461538461,
+     "field": 0.8524009446339543,
+     "gap_pp": -0.6247098480108182
+    },
+    {
+     "dimension": "Volume",
+     "weight": 1,
+     "picks": 0.3360323886639676,
+     "field": 0.3745736027289425,
+     "gap_pp": -3.8541214064974905
+    },
+    {
+     "dimension": "ADR",
+     "weight": 2,
+     "picks": 0.7813765182186235,
+     "field": 0.6632773550249278,
+     "gap_pp": 11.809916319369574
+    }
+   ]
+  },
+  {
+   "name": "no-trend",
+   "gates": [
+    "liquidity",
+    "volatility"
+   ],
+   "dropped": [
+    "trend"
+   ],
+   "note": "drops close > SMA50, which the app's universe does not have",
+   "members_per_session": 771.2350791717417,
+   "field_detections": 82650,
+   "in_field": 231,
+   "placed": 503,
+   "in_field_share": 0.4592445328031809,
+   "picks_share": 0.14285714285714285,
+   "field_share": 0.1572876126363031,
+   "gap_pp": -1.4430469779160238,
+   "dimensions": [
+    {
+     "dimension": "Tightness",
+     "weight": 2,
+     "picks": 0.42857142857142855,
+     "field": 0.24259317695732968,
+     "gap_pp": 18.597825161409887
+    },
+    {
+     "dimension": "Orderliness",
+     "weight": 1,
+     "picks": 0.36363636363636365,
+     "field": 0.36005048911328497,
+     "gap_pp": 0.35858745230786804
+    },
+    {
+     "dimension": "Prior move",
+     "weight": 1,
+     "picks": 1.0,
+     "field": 1.0,
+     "gap_pp": 0.0
+    },
+    {
+     "dimension": "Base length",
+     "weight": 0,
+     "picks": 0.47619047619047616,
+     "field": 0.5647067073384524,
+     "gap_pp": -8.851623114797624
+    },
+    {
+     "dimension": "MA support",
+     "weight": 1,
+     "picks": 0.8051948051948052,
+     "field": 0.6860558886434557,
+     "gap_pp": 11.913891655134956
+    },
+    {
+     "dimension": "Volume",
+     "weight": 1,
+     "picks": 0.2987012987012987,
+     "field": 0.35314329792083027,
+     "gap_pp": -5.444199921953158
+    },
+    {
+     "dimension": "ADR",
+     "weight": 2,
+     "picks": 0.8831168831168831,
+     "field": 0.8442551102696259,
+     "gap_pp": 3.8861772847257225
+    }
+   ]
+  },
+  {
+   "name": "no-liquidity",
+   "gates": [
+    "trend",
+    "volatility"
+   ],
+   "dropped": [
+    "liquidity"
+   ],
+   "note": "drops the $10M ADTV floor, which the app sets at $20M instead",
+   "members_per_session": 985.0669914738124,
+   "field_detections": 103411,
+   "in_field": 193,
+   "placed": 503,
+   "in_field_share": 0.3836978131212724,
+   "picks_share": 0.16580310880829016,
+   "field_share": 0.18443597108051896,
+   "gap_pp": -1.8632862272228796,
+   "dimensions": [
+    {
+     "dimension": "Tightness",
+     "weight": 2,
+     "picks": 0.43523316062176165,
+     "field": 0.3104882638407448,
+     "gap_pp": 12.474489678101685
+    },
+    {
+     "dimension": "Orderliness",
+     "weight": 1,
+     "picks": 0.38860103626943004,
+     "field": 0.42562147172427456,
+     "gap_pp": -3.702043545484451
+    },
+    {
+     "dimension": "Prior move",
+     "weight": 1,
+     "picks": 1.0,
+     "field": 1.0,
+     "gap_pp": 0.0
+    },
+    {
+     "dimension": "Base length",
+     "weight": 0,
+     "picks": 0.5129533678756477,
+     "field": 0.6387293255422403,
+     "gap_pp": -12.577595766659256
+    },
+    {
+     "dimension": "MA support",
+     "weight": 1,
+     "picks": 0.8652849740932642,
+     "field": 0.8524066554422105,
+     "gap_pp": 1.287831865105371
+    },
+    {
+     "dimension": "Volume",
+     "weight": 1,
+     "picks": 0.29533678756476683,
+     "field": 0.2773843715955234,
+     "gap_pp": 1.7952415969243407
+    },
+    {
+     "dimension": "ADR",
+     "weight": 2,
+     "picks": 0.8860103626943006,
+     "field": 0.929384965831435,
+     "gap_pp": -4.337460313713448
+    }
+   ]
+  },
+  {
+   "name": "liquidity-only",
+   "gates": [
+    "liquidity"
+   ],
+   "dropped": [
+    "trend",
+    "volatility"
+   ],
+   "note": "drops both gates the app lacks, keeping only a liquidity floor",
+   "members_per_session": 1687.8197320341048,
+   "field_detections": 176643,
+   "in_field": 322,
+   "placed": 503,
+   "in_field_share": 0.6401590457256461,
+   "picks_share": 0.13354037267080746,
+   "field_share": 0.12636165577342048,
+   "gap_pp": 0.7178716897386972,
+   "dimensions": [
+    {
+     "dimension": "Tightness",
+     "weight": 2,
+     "picks": 0.40372670807453415,
+     "field": 0.20671960244152757,
+     "gap_pp": 19.700710563300657
+    },
+    {
+     "dimension": "Orderliness",
+     "weight": 1,
+     "picks": 0.3447204968944099,
+     "field": 0.37501575469489906,
+     "gap_pp": -3.029525780048914
+    },
+    {
+     "dimension": "Prior move",
+     "weight": 1,
+     "picks": 1.0,
+     "field": 1.0,
+     "gap_pp": 0.0
+    },
+    {
+     "dimension": "Base length",
+     "weight": 0,
+     "picks": 0.4658385093167702,
+     "field": 0.5778642035326528,
+     "gap_pp": -11.20256942158826
+    },
+    {
+     "dimension": "MA support",
+     "weight": 1,
+     "picks": 0.7857142857142857,
+     "field": 0.687894992707827,
+     "gap_pp": 9.781929300645874
+    },
+    {
+     "dimension": "Volume",
+     "weight": 1,
+     "picks": 0.35714285714285715,
+     "field": 0.39687426853202257,
+     "gap_pp": -3.9731411389165414
+    },
+    {
+     "dimension": "ADR",
+     "weight": 2,
+     "picks": 0.7701863354037267,
+     "field": 0.6128126181602117,
+     "gap_pp": 15.737371724351501
+    }
+   ]
+  }
+ ]
+}

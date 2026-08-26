@@ -1,0 +1,75 @@
+The gate isolation (#211) — one store, one population, one detector,
+one gate moving at a time.
+
+Full-gate rebuild vs the store's own universe rows: stored 297709, rebuilt 297709, extra 0, missing 0, over 821 sessions -> EXACT
+
+variant        members/sess  field det     in_field    picks    field       gap
+all-three             362.6      35971      165/503   14.55%   19.55%   -5.01pp
+no-adr                906.2      84329      247/503   14.98%   16.44%   -1.46pp
+no-trend              771.2      82650      231/503   14.29%   15.73%   -1.44pp
+no-liquidity          985.1     103411      193/503   16.58%   18.44%   -1.86pp
+liquidity-only       1687.8     176643      322/503   13.35%   12.64%   +0.72pp
+
+notes:
+  all-three      the run's own field — reproduces the committed -5.01pp
+  no-adr         drops the 3.5% ADR20 floor, which the app's universe does not have
+  no-trend       drops close > SMA50, which the app's universe does not have
+  no-liquidity   drops the $10M ADTV floor, which the app sets at $20M instead
+  liquidity-only drops both gates the app lacks, keeping only a liquidity floor
+
+picks/field are the share reaching >= 3.5 stars under rubric v1; gap is picks - field.
+
+Per-dimension hit rates, his picks against the field on the sessions he traded.
+A gate that duplicates a dimension shows up as that dimension's gap collapsing
+while the dimensions no gate touches stay put. Seven-dimension replayed score:
+`Sector` is cross-sectional and is not reconstructed on this path.
+
+  all-three
+    dimension     wt    picks    field       gap
+    Tightness      2    43.0%    25.0%    +18.0pp
+    Orderliness    1    40.6%    43.6%     -3.0pp
+    Prior move     1   100.0%   100.0%     +0.0pp
+    Base length    0    52.1%    67.8%    -15.7pp
+    MA support     1    86.1%    85.8%     +0.2pp
+    Volume         1    26.1%    32.3%     -6.2pp
+    ADR            2    89.7%    90.7%     -1.0pp
+
+  no-adr
+    dimension     wt    picks    field       gap
+    Tightness      2    39.7%    21.6%    +18.0pp
+    Orderliness    1    40.1%    46.4%     -6.3pp
+    Prior move     1   100.0%   100.0%     +0.0pp
+    Base length    0    51.4%    69.2%    -17.8pp
+    MA support     1    84.6%    85.2%     -0.6pp
+    Volume         1    33.6%    37.5%     -3.9pp
+    ADR            2    78.1%    66.3%    +11.8pp
+
+  no-trend
+    dimension     wt    picks    field       gap
+    Tightness      2    42.9%    24.3%    +18.6pp
+    Orderliness    1    36.4%    36.0%     +0.4pp
+    Prior move     1   100.0%   100.0%     +0.0pp
+    Base length    0    47.6%    56.5%     -8.9pp
+    MA support     1    80.5%    68.6%    +11.9pp
+    Volume         1    29.9%    35.3%     -5.4pp
+    ADR            2    88.3%    84.4%     +3.9pp
+
+  no-liquidity
+    dimension     wt    picks    field       gap
+    Tightness      2    43.5%    31.0%    +12.5pp
+    Orderliness    1    38.9%    42.6%     -3.7pp
+    Prior move     1   100.0%   100.0%     +0.0pp
+    Base length    0    51.3%    63.9%    -12.6pp
+    MA support     1    86.5%    85.2%     +1.3pp
+    Volume         1    29.5%    27.7%     +1.8pp
+    ADR            2    88.6%    92.9%     -4.3pp
+
+  liquidity-only
+    dimension     wt    picks    field       gap
+    Tightness      2    40.4%    20.7%    +19.7pp
+    Orderliness    1    34.5%    37.5%     -3.0pp
+    Prior move     1   100.0%   100.0%     +0.0pp
+    Base length    0    46.6%    57.8%    -11.2pp
+    MA support     1    78.6%    68.8%     +9.8pp
+    Volume         1    35.7%    39.7%     -4.0pp
+    ADR            2    77.0%    61.3%    +15.7pp

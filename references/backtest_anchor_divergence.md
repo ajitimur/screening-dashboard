@@ -22,6 +22,15 @@ which is the one outcome the table refuses to let a written cause waive. So:
 
 That refusal is the table working, not the table failing.
 
+**Since this page was written, #211 has established why `in_field` reverses**, and the
+answer is recorded beside it in [the gate isolation](backtest_gate_isolation.md). It is
+the contract's **ADR20 floor and trend gate acting together** — neither on its own moves
+the sign — and it is a property of the method under the gates this run is contracted to
+use, not a defect in how the field is built. That does not lift the refusal above: a sign
+flip is not waivable by a written cause, and this one is not being waived. It does mean
+the sentence "cannot be settled here" below has been answered elsewhere, and that the
+`in_field` discussion further down should be read together with that page.
+
 ## The divergence
 
 The three geometry anchors are medians measured from his bars at his entries. They hold
@@ -136,17 +145,24 @@ committed figure came from, and the gap stays positive at +1.86 — within a hai
 the same sign. The flip appears only when the field is rebuilt from the contract's stateless
 universe, which also more than halves `in_field`, 64.4% → 32.8%.
 
-That narrowing is not itself surprising: the stateless universe adds an ADR20 floor of 3.5%
-and a $10M ADTV floor and drops the app's membership hysteresis, so it is a much tighter field
-and fewer of his names reach it. What the sign says is different and is not explained by
-tightness: **inside that narrower field, the published rubric ranks his trades below the field
-average rather than above it.** The rubric's edge does not survive the gate the backtest runs
-under.
+That narrowing is not itself surprising: the stateless universe adds an ADR20 floor of 3.5%,
+adds a trend gate (`close > SMA50`), sets its ADTV floor at $10M rather than the app's $20M,
+and drops the app's membership hysteresis, so it is a much tighter field and fewer of his
+names reach it. What the sign says is different and is not explained by tightness: **inside
+that narrower field, the published rubric ranks his trades below the field average rather
+than above it.** The rubric's edge does not survive the gate the backtest runs under.
+
+*(The trend gate was omitted when this paragraph was first written — the app's universe has
+no counterpart for it at all. It turns out to be half the cause; see below.)*
 
 Whether that is a defect in the field construction or a real result about the rubric out of
-sample is exactly the open question, and it is not one this issue can settle — it is the
-question #194 asks. What is settled is where it is *not*: not the bars (bit-identical), not
-the detector (recall reproduces to four decimals), and not the population (isolated above).
+sample was the open question, and this issue could not settle it. **#211 has**:
+[the gate isolation](backtest_gate_isolation.md) attributes it to the **ADR20 floor and the
+trend gate acting together** — every single-gate drop leaves the gap negative, dropping both
+turns it positive — and returns the verdict **property, not defect**. What was already
+settled is where it is *not*: not the bars (bit-identical), not the detector (recall
+reproduces to four decimals), and not the population (isolated above); #211 adds that it is
+not the liquidity floor and not the membership reconstruction either.
 
 **This anchor is a first measurement**, flagged as such in the table precisely so a mismatch is
 investigated in both directions rather than charged straight to the new pipeline. The committed
@@ -171,7 +187,12 @@ onto the pin.
   population 23% smaller.
 - `in_field` is **not settled and cannot be settled here.** The rubric's edge reverses inside
   the contract's stateless field, and no figure from this run may be read until that is
-  understood. It is not the bars, not the detector and not the population.
+  understood. It is not the bars, not the detector and not the population. **#211 has since
+  settled *why*** — see [the gate isolation](backtest_gate_isolation.md). The short version:
+  it is the **ADR20 floor and the trend gate together**, neither alone, and it is a property
+  of the method under the contracted gates rather than a defect in the field. The anchor
+  still fails, because a sign flip is still not waivable; what changed is that the run is
+  blocked on a result rather than on a mystery.
 
 Every divergence is recorded through the mechanism rather than only here, so a reader who
 never opens this file still cannot mistake one for a match:

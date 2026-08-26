@@ -1392,10 +1392,6 @@ def main(argv: list[str] | None = None) -> int:
             gap = enumeration_gap(enumeration)
             if gap:
                 gaps.append(gap)
-            # Today's enumeration is the crawl's *fetch set*: the names the provider
-            # listed and the crawl asked about. The excluded slice is deliberately
-            # not folded in — a warrant the crawl dropped is not a company that
-            # survived, and counting it as one would deflate every share below.
             # Two rosters, because they answer two questions. ``listed`` is what
             # "absent from today's enumeration" is measured against — everything
             # the provider lists, references folded back in. ``tradeable`` is the

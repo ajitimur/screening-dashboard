@@ -500,8 +500,14 @@ def _tally(
     )
 
 
-def _months(session_dates: Sequence[date], by_session: Counter) -> tuple[MonthPoint, ...]:
+def detections_series(
+    session_dates: Sequence[date], by_session: Counter
+) -> tuple[MonthPoint, ...]:
     """The monthly series across the window, holes included.
+
+    Public because the full run (#198) plots the same series off the denominator
+    alone, without paying for the simulation :func:`figures_for_market` runs to
+    get at its own counts. One series, drawn one way, whoever asks for it.
 
     Every month between the first session and the last gets a point, whether the
     store covered it or not — a series that simply omitted the empty months would
@@ -595,7 +601,7 @@ def figures_for_market(
             price_scale_drops(list(o.trades.values())) for o in outcomes
         ),
         years=tuple(_flag_collapses(years)),
-        months=_months(session_dates, by_session),
+        months=detections_series(session_dates, by_session),
     )
 
 
@@ -753,8 +759,12 @@ def _bar(value: float | None, peak: float | None) -> str:
     return BARS[-1] * max(1, round(PLOT_WIDTH * value / peak))
 
 
-def _sparkline(months: Sequence[dict[str, Any]]) -> list[str]:
+def format_detections_grid(months: Sequence[dict[str, Any]]) -> list[str]:
     """The monthly series as a calendar grid: one row per year, twelve columns.
+
+    Public alongside :func:`detections_series` for the same reason: the full run
+    draws this grid per market, and a second implementation of it would be a
+    second set of rules about what a hole looks like.
 
     A single line across the window would run past 160 columns on a fourteen-year
     run and lose its own axis. A grid keeps every row twelve wide, so the months
@@ -871,7 +881,7 @@ def format_figures(report: dict[str, Any]) -> str:
             f"    {HOLE_MARK} is a month inside the window the store never "
             "covered — a hole, not a quiet month",
             "",
-            *_sparkline(market["months"]),
+            *format_detections_grid(market["months"]),
             "",
             f"  sessions measured   {market['sessions']}",
             f"  detections          {market['detections']}",

@@ -9734,3 +9734,609 @@ def test_the_arms_never_anchored_are_derived_once():
     place — applied to the complement as well as to the set."""
     assert MEASURED_NEVER_ANCHORED == (ARM_A,)
     assert set(MEASURED_NEVER_ANCHORED) | set(ANCHOR_ARMS) == set(ARM_SPECS)
+
+
+# -- the full run: both markets, fourteen years (issue #198) -------------------
+#
+# Phase 3 at the scope the plan actually asks about, gated by Phase 6. Issue #188
+# proved one market over a sliver of window ran; nothing below re-proves that.
+# What is new only exists once there is more than one market and more than a
+# sliver:
+#
+#   * **The window comes from the contract.** `scope.markets`, `window.store_start`,
+#     `window.measured_start` and `window.measured_end` are committed cells, so the
+#     run is reproducible from the contract and the store rather than from whoever
+#     retyped the right dates. The store start is a *calendar boundary* and the
+#     chain replays *sessions*, and 2011-01-01 is a holiday on both exchanges —
+#     the one place a fixture calendar with no weekends could not have caught it.
+#   * **The two markets are reported apart, and there is no pooled figure.**
+#     Findings §8 measured that magnitudes do not transfer, so the cheapest way to
+#     stop a combined number being read is to never build one.
+#   * **Figures are gated on the anchors.** The plan's third rule made a refusal
+#     rather than a sentence: a report over an unsettled anchor check raises.
+#     The gate sits after the replay and before the figures, because the two
+#     gate-dependent anchors are measured over the run's own field.
+
+from backtest.full_run import (
+    AnchorOutcome,
+    failed_anchors,
+    read_anchor_report,
+    LATEST_COMPLETE_SESSION,
+    LONGEST_CLOSURE,
+    AnchorsNotSettled,
+    FullRun,
+    MarketNotRun,
+    contract_markets,
+    contract_measured_start,
+    contract_store_start,
+    format_full_run,
+    full_run_report,
+    market_series,
+    measured_end,
+    run_full,
+    store_window_start,
+)
+from backtest.full_run import main as full_run_main
+from backtest.figures import detections_series, format_detections_grid
+from backtest.contract import WINDOW_MEASURED_END_KEY
+from backtest.anchors import (
+    SETTLED_VERDICTS,
+    VERDICT_EXPLAINED,
+    VERDICT_FAILED,
+)
+from collections import Counter
+
+
+def _contract_where(**by_key) -> RunContract:
+    """``DEFAULT_CONTRACT`` with several cells' values replaced, justifications kept.
+
+    The dotted contract keys are not identifiers, so they arrive as a mapping
+    rather than as keyword arguments; ``_contract_with`` above does one cell and
+    this does a window, which always moves at least two.
+    """
+    values = by_key.pop("values")
+    assert not by_key
+    return dataclasses.replace(
+        DEFAULT_CONTRACT,
+        cells=tuple(
+            dataclasses.replace(c, value=values[c.key]) if c.key in values else c
+            for c in DEFAULT_CONTRACT.cells
+        ),
+    )
+
+
+def _idx_scale(hlc):
+    """The same geometry, quoted in rupiah.
+
+    IDX's contract gates are a different size, not a different shape: the
+    liquidity floor is Rp 10B against the US's $10M and the data-validity trim is
+    Rp 100. Pricing the fixture up keeps the *shape* the tests are about — the
+    base, the run-up, the wide daily range — while clearing gates authored for a
+    market that quotes in thousands.
+    """
+    return [(h * 100, l * 100, c * 100) for h, l, c in hlc]
+
+
+def _seed_two_market_store(store: Store) -> list[date]:
+    """One detectable name and its index in each market, at each market's scale."""
+    dates = _daily(date(2020, 1, 1), FIXTURE_SESSIONS)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _wide_base_hlc()))
+    store.append_bars(
+        "US", MARKET_INDEX["US"], _bars_from_hlc(dates, _flat_index_hlc(FIXTURE_SESSIONS))
+    )
+    store.append_bars(
+        "IDX", "BASE.JK",
+        _bars_from_hlc(dates, _idx_scale(_wide_base_hlc()), volume=5_000_000),
+    )
+    store.append_bars(
+        "IDX", MARKET_INDEX["IDX"],
+        _bars_from_hlc(dates, _idx_scale(_flat_index_hlc(FIXTURE_SESSIONS))),
+    )
+    return dates
+
+
+def _fixture_contract(dates: list[date]) -> RunContract:
+    """The committed contract with its window moved onto the fixture's calendar.
+
+    Only the window moves. Every gate the run is actually exercising — the
+    stateless universe, the detection gate, the reference exclusion — stays as
+    committed, so a test that passes here is a test about the run and not about a
+    contract authored to make it pass.
+    """
+    return _contract_where(values={
+        WINDOW_STORE_START_KEY: dates[0].isoformat(),
+        WINDOW_MEASURED_START_KEY: dates[-5].isoformat(),
+        WINDOW_MEASURED_END_KEY: LATEST_COMPLETE_SESSION,
+    })
+
+
+def _settled() -> AnchorReport:
+    """An anchor report in which all six anchors matched."""
+    return check_anchors(_all_measurements())
+
+
+def _unsettled() -> AnchorReport:
+    """The report `backtest.anchors` builds when the field anchors never arrived.
+
+    Not a hand-made failure: it is the exact shape the command produces when it
+    can check four of six, which is the way an unanchored run actually reaches a
+    reader.
+    """
+    return AnchorReport(
+        detector_version=DETECTOR_VERSION,
+        arms=ANCHOR_ARMS,
+        geometry=check_geometry(_geometry_measurements()),
+        gate_dependent=(),
+        geometry_only=True,
+    )
+
+
+# -- the window comes from the contract ---------------------------------------
+
+
+def test_the_contracts_window_and_markets_are_the_runs_whole_scope():
+    """Ticket criterion: reproducible from the committed contract and the store.
+
+    Nothing about "the full run" is a command-line argument — the markets, the
+    burn-in's start and the measured start are all committed cells, so a
+    reproduction cannot quietly differ from the run it reproduces.
+    """
+    assert contract_markets() == ("US", "IDX")
+    assert contract_store_start() == date(2011, 1, 1)
+    assert contract_measured_start() == date(2012, 1, 1)
+    assert DEFAULT_CONTRACT.value(WINDOW_MEASURED_END_KEY) == LATEST_COMPLETE_SESSION
+
+
+def test_the_store_window_boundary_resolves_to_the_first_session_on_or_after_it(store):
+    """The contract names a calendar date; the chain replays sessions.
+
+    ``window.store_start`` is 2011-01-01 — New Year's Day, which neither exchange
+    has ever traded. Handed to the chain unresolved it asks for a session that
+    cannot exist and fails a run that is in fact fully covered. Every fixture
+    calendar in this file is built by `_daily`, which has no weekends and no
+    holidays, so this is a gap only a real store could have shown.
+    """
+    dates = _daily(date(2011, 1, 3), 10)
+    store.append_bars("US", "BASE", _bars_from_hlc(dates, _ramp_hlc(10)))
+    contract = _contract_where(values={WINDOW_STORE_START_KEY: "2011-01-01"})
+
+    # Two days before the first session, and covered: the exchange was shut.
+    assert store_window_start(store, "US", contract) == date(2011, 1, 3)
+
+
+def test_a_crawl_that_started_late_is_refused_rather_than_resolved_forward(store):
+    """Resolving the boundary forward must not disarm the guard it works around.
+
+    A crawl that began years after the contract's window also has a "first session
+    on or after" it, and every count over the result would be computed correctly
+    across the wrong window — the same silent failure `WindowNotCovered` exists
+    for. A closure is days; a hole is months, and the two stay distinguishable.
+    """
+    late = _daily(date(2013, 5, 2), 10)
+    store.append_bars("US", "BASE", _bars_from_hlc(late, _ramp_hlc(10)))
+    contract = _contract_where(values={WINDOW_STORE_START_KEY: "2011-01-01"})
+
+    with pytest.raises(WindowNotCovered):
+        store_window_start(store, "US", contract)
+
+    # The bound is a real closure, not a fudge: inside it, the same store is fine.
+    inside = _contract_where(values={
+        WINDOW_STORE_START_KEY: (date(2013, 5, 2) - LONGEST_CLOSURE).isoformat()
+    })
+    assert store_window_start(store, "US", inside) == date(2013, 5, 2)
+
+
+def test_the_measured_end_resolves_per_market_not_once_for_both(store):
+    """The two exchanges do not close on the same days.
+
+    ``latest_complete_session`` is a sentinel because the store's last session
+    moves every night. Resolved once and shared, it would either clip the market
+    whose crawl finished later or ask the other for a session it does not hold —
+    and `check_window_covered` would refuse the second for a reason that is really
+    about the sentinel.
+    """
+    us = _daily(date(2020, 1, 1), 10)
+    idx = _daily(date(2020, 1, 1), 8)
+    store.append_bars("US", "BASE", _bars_from_hlc(us, _ramp_hlc(10)))
+    store.append_bars("IDX", "BASE.JK", _bars_from_hlc(idx, _ramp_hlc(8)))
+
+    assert measured_end(store, "US") == us[-1]
+    assert measured_end(store, "IDX") == idx[-1]
+
+    # A contract that pins the window shut is honoured as written.
+    pinned = _contract_where(values={WINDOW_MEASURED_END_KEY: "2020-01-05"})
+    assert measured_end(store, "US", pinned) == date(2020, 1, 5)
+
+
+# -- both markets, end to end --------------------------------------------------
+
+
+def test_both_markets_replay_end_to_end_over_the_full_window(store, denominator):
+    """The acceptance criterion, whole: each market's own forward chain, persisted.
+
+    Each market is replayed separately and neither is interleaved with the other —
+    a market is a chain, and two chains sharing a session sequence would replay
+    each on the other's calendar.
+    """
+    dates = _seed_two_market_store(store)
+    contract = _fixture_contract(dates)
+
+    run = run_full(store, denominator, contract)
+
+    assert run.markets == ("US", "IDX")
+    for market in ("US", "IDX"):
+        market_run = run.for_market(market)
+        assert [r.session for r in market_run.sessions] == dates
+        assert denominator.sessions(market, burn_in=False) == list(market_run.measured)
+    # Each market's rows are its own, keyed by market in the one store.
+    assert denominator.universe("US", dates[-1]) == ["BASE"]
+    assert denominator.universe("IDX", dates[-1]) == ["BASE.JK"]
+
+
+def test_burn_in_is_persisted_and_excluded_from_measurement_in_both_markets(
+    store, denominator
+):
+    """Ticket criterion. The burn-in is a date, and it is the same date in both
+    markets — the sessions before it are computed, persisted and flagged, never
+    skipped, because a warm-up session is a fact about the window rather than a
+    hole in it."""
+    dates = _seed_two_market_store(store)
+
+    run = run_full(store, denominator, _fixture_contract(dates))
+
+    for market in ("US", "IDX"):
+        market_run = run.for_market(market)
+        assert [r.session for r in market_run.measured] == dates[-5:]
+        assert [r.session for r in market_run.burn_in] == dates[:-5]
+        assert len(denominator.sessions(market)) == len(dates)
+        assert denominator.universe(market, dates[-6]) != []
+
+
+def test_each_market_replays_its_own_calendar_and_never_the_others(store, denominator):
+    """Two markets, two calendars, and no session borrowed between them.
+
+    The gap check cannot fire here and it is important to say why: each window is
+    *sliced from* its own market's calendar, so it is contiguous by construction —
+    which is exactly the reason `check_window_covered` and the per-session
+    detection count both exist (stories 75 and 77). What can still go wrong once
+    there are two markets is subtler and is what this pins: replaying IDX across
+    US's session list. The two exchanges keep different calendars, so a shared
+    sequence would ask IDX for sessions it never traded and silently drop the ones
+    it did.
+    """
+    dates = _seed_two_market_store(store)
+    # A session IDX did not trade and US did.
+    store._con.execute(  # noqa: SLF001 — the fixture reaches in to author a closure
+        "DELETE FROM bars WHERE market = 'IDX' AND session = ?", [dates[50]]
+    )
+    idx_calendar = [d for d in dates if d != dates[50]]
+
+    run = run_full(store, denominator, _fixture_contract(dates))
+
+    assert [r.session for r in run.for_market("US").sessions] == dates
+    assert [r.session for r in run.for_market("IDX").sessions] == idx_calendar
+    # Each is its own market's calendar, read back from the store rather than
+    # asserted twice.
+    for market, calendar in (("US", dates), ("IDX", idx_calendar)):
+        assert window_sessions(
+            store, market, start=calendar[0], end=calendar[-1]
+        ) == calendar
+
+
+def test_a_gapped_session_sequence_still_fails_loudly_under_the_full_run(
+    store, denominator
+):
+    """The refusal the criterion names, reached through this module's own path.
+
+    A backtest that quietly skips a session reports on a market that took the day
+    off. `run_denominator` owns the check; what is asserted here is that the full
+    run does not route around it — the window it builds per market is handed to
+    the same chain, so a sequence with a hole in it raises before anything is
+    computed.
+    """
+    dates = _seed_two_market_store(store)
+    contract = _fixture_contract(dates)
+
+    with pytest.raises(GapError):
+        run_denominator(
+            store, denominator, "IDX", contract,
+            sessions=dates[:10] + dates[11:], measured_start=dates[-5],
+        )
+
+
+def test_no_session_is_recomputed_when_the_run_is_resumed(store, denominator, monkeypatch):
+    """Ticket criterion: no session recomputed. Also how a long run is resumed.
+
+    A fourteen-year two-market pass is measured in hours, so it has to be safe to
+    re-run — and a re-run that recomputed would both cost the hours again and be
+    unable to prove it had produced the same rows.
+    """
+    dates = _seed_two_market_store(store)
+    contract = _fixture_contract(dates)
+    first = run_full(store, denominator, contract)
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("a persisted session was reclassified, not reused")
+
+    monkeypatch.setattr("backtest.chain.classify", refuse)
+    second = run_full(store, denominator, contract)
+
+    assert [r.sessions for r in second.runs] == [r.sessions for r in first.runs]
+    for market in ("US", "IDX"):
+        assert len(denominator.sessions(market)) == len(dates)
+
+
+def test_a_market_outside_the_contracts_scope_cannot_be_run(store, denominator):
+    """`markets` narrows a run for a one-market reproduction; it never widens one.
+
+    A market the contract does not scope has no committed window to run over, so
+    running it would invent one — and the result would be stamped with a contract
+    that never authorised it.
+    """
+    dates = _seed_two_market_store(store)
+
+    with pytest.raises(ValueError):
+        run_full(store, denominator, _fixture_contract(dates), markets=["US", "XETRA"])
+
+    # Narrowing is allowed, and reports only what it ran.
+    narrowed = run_full(store, denominator, _fixture_contract(dates), markets=["IDX"])
+    assert narrowed.markets == ("IDX",)
+
+
+def test_a_market_that_was_not_run_is_not_reported_as_an_empty_one(store, denominator):
+    """A market that never ran and a market that ran and found nothing are
+    different claims. Folded together, a one-market run would print an empty
+    column for the other and read as a market that took fourteen years off."""
+    dates = _seed_two_market_store(store)
+    run = run_full(store, denominator, _fixture_contract(dates), markets=["US"])
+
+    with pytest.raises(MarketNotRun):
+        run.for_market("IDX")
+
+
+# -- detections per session, plotted, per market -------------------------------
+
+
+def test_detections_per_session_are_plotted_across_the_window_for_each_market(
+    store, denominator
+):
+    """Ticket criterion. A count that collapses in a given year is a data hole,
+    and it reads as a quiet market until someone looks — so the series is reported
+    per session and drawn across the whole window, per market."""
+    dates = _seed_two_market_store(store)
+    run = run_full(store, denominator, _fixture_contract(dates), anchors=_settled())
+
+    for market in ("US", "IDX"):
+        series = run.detections_per_session(market)
+        assert list(series) == dates[-5:]
+        months = market_series(run.for_market(market))
+        assert months, "the window produced no plotted series at all"
+        assert format_detections_grid(months), "the series did not draw"
+
+    text = format_full_run(run)
+    assert text.count("detections per session") == 2
+
+
+def test_the_plot_is_the_one_figures_draws_rather_than_a_second_one(
+    store, denominator
+):
+    """The full run plots off the denominator alone — it does not pay for the
+    simulation `figures_for_market` runs — but it must not thereby grow a second
+    set of rules about what a hole looks like. Same series, same grid."""
+    dates = _seed_two_market_store(store)
+    run = run_full(store, denominator, _fixture_contract(dates))
+    market_run = run.for_market("US")
+
+    measured = market_run.measured
+    expected = detections_series(
+        [s.session for s in measured],
+        Counter({s.session: s.detections for s in measured if s.detections}),
+    )
+
+    assert market_series(market_run) == [p.to_dict() for p in expected]
+
+
+def test_a_month_the_store_never_covered_plots_as_a_hole_not_as_a_quiet_month(
+    store, denominator
+):
+    """The distinction the plot exists for. A month with sessions and no
+    detections is a real zero; a month the window skipped entirely is a hole, and
+    a yearly mean cannot tell them apart — it drops by a twelfth and reads as a
+    slow year."""
+    # A window with a whole month missing from the middle of the calendar.
+    dates = _daily(date(2020, 1, 1), 40) + _daily(date(2020, 4, 1), 40)
+    covered = {(d.year, d.month) for d in dates}
+
+    points = detections_series(dates, Counter())
+
+    holes = {(p.year, p.month) for p in points if p.hole}
+    assert holes == {(2020, 3)} or (2020, 3) in holes
+    assert all((p.year, p.month) in covered for p in points if not p.hole)
+
+
+# -- the anchors gate ----------------------------------------------------------
+
+
+def test_no_figure_is_read_until_the_anchors_are_settled(store, denominator):
+    """Ticket criterion, and the plan's third rule made a refusal.
+
+    Reading a new figure from a pipeline whose old figures have not reproduced is
+    exactly the failure the rule exists to prevent, so the report raises rather
+    than printing numbers a reader would have no way to distrust.
+    """
+    dates = _seed_two_market_store(store)
+    run = run_full(store, denominator, _fixture_contract(dates), anchors=_unsettled())
+
+    assert run.settled is False
+    with pytest.raises(AnchorsNotSettled):
+        full_run_report(run)
+    with pytest.raises(AnchorsNotSettled):
+        format_full_run(run)
+
+
+def test_a_run_nobody_anchored_is_not_an_anchored_run(store, denominator):
+    """Anchors never checked is the same answer as anchors failed. The rule is
+    about what has been *established* before a figure is read, not about what was
+    attempted — and the replay itself still happened and still persisted, because
+    the gate is on reading, not on working."""
+    dates = _seed_two_market_store(store)
+    run = run_full(store, denominator, _fixture_contract(dates))
+
+    assert run.anchors is None
+    assert run.settled is False
+    with pytest.raises(AnchorsNotSettled):
+        full_run_report(run)
+    # The work was done regardless: the rows are on disk.
+    assert len(denominator.sessions("US")) == len(dates)
+
+
+def test_a_divergence_with_a_written_cause_settles_the_anchors(store, denominator):
+    """The plan's "reproduce it, **or** explain the divergence in writing".
+
+    A cause is not a pass — the check still records a divergence — but it is
+    enough to license reading the run, which is the whole of what the third rule
+    asks for.
+    """
+    dates = _seed_two_market_store(store)
+    explained = check_anchors(
+        _all_measurements(geometry={"three": 1.20}),
+        explained={
+            "median_range_3bar_adr": "the backtest store excludes the reference "
+            "ETFs his entries include (#162)"
+        },
+    )
+    run = run_full(store, denominator, _fixture_contract(dates), anchors=explained)
+
+    assert run.settled is True
+    assert full_run_report(run)["anchors_settled"] is True
+    # Recorded as a divergence, never reported as a match.
+    check = next(c for c in explained.checks if c.anchor.key == "median_range_3bar_adr")
+    assert check.verdict == "diverged (explained)"
+
+
+# -- reported apart, never pooled ----------------------------------------------
+
+
+def test_the_two_markets_are_reported_apart_with_no_pooled_figure(store, denominator):
+    """Ticket criterion, and findings §8's result honoured rather than averaged away.
+
+    Every count in the payload is inside a market's own block. There is no total
+    across them — not because one was forgotten, but because a figure that
+    describes neither market is worse than no figure at all.
+    """
+    dates = _seed_two_market_store(store)
+    run = run_full(store, denominator, _fixture_contract(dates), anchors=_settled())
+
+    report = full_run_report(run)
+
+    assert set(report["per_market"]) == {"US", "IDX"}
+    for market in ("US", "IDX"):
+        block = report["per_market"][market]
+        assert block["market"] == market
+        assert block["sessions_measured"] == 5
+        assert block["sessions_burn_in"] == len(dates) - 5
+    # No pooled count anywhere at the top level.
+    assert "detections" not in report
+    assert "sessions_measured" not in report
+    assert not hasattr(run, "detections")
+
+
+def test_the_payload_is_stamped_with_the_contract_that_produced_it(store, denominator):
+    """Two runs under different contracts are distinguishable from their
+    serialised output alone — the house rule for every result the package emits."""
+    dates = _seed_two_market_store(store)
+    run = run_full(store, denominator, _fixture_contract(dates), anchors=_settled())
+
+    assert CONTRACT_KEY in full_run_report(run)
+
+
+def test_the_reference_exclusion_is_reported_per_market(store, denominator):
+    """#162's exclusion is a reported fact about *this* run, per market, and not
+    only a property of the code that ran it: each market's benchmarks are its own,
+    and a reader of one market's block should not have to consult the other's."""
+    dates = _seed_two_market_store(store)
+    run = run_full(store, denominator, _fixture_contract(dates), anchors=_settled())
+
+    blocks = full_run_report(run)["per_market"]
+    assert blocks["US"]["references_excluded"] == [MARKET_INDEX["US"]]
+    assert blocks["IDX"]["references_excluded"] == [MARKET_INDEX["IDX"]]
+
+
+def test_a_report_read_off_disk_gates_as_strictly_as_one_checked_in_process(tmp_path):
+    """The gate the command-line path actually uses.
+
+    The anchors are checked in a separate invocation, so all the run can see is
+    what that invocation wrote down. The JSON here is produced by the real writer
+    rather than authored by hand, so the reader cannot drift from the shape it is
+    reading — a settled-ness check that silently stopped matching the file would
+    wave every run through.
+    """
+    path = tmp_path / "anchors.json"
+    path.write_text(
+        json.dumps(anchors_report(DEFAULT_CONTRACT, check_anchors(_all_measurements())))
+    )
+
+    outcome = read_anchor_report(path)
+
+    assert outcome.passes is True
+    assert outcome.failed == ()
+    assert failed_anchors(outcome) == ()
+
+
+def test_a_divergence_with_a_cause_survives_the_round_trip_to_disk(tmp_path):
+    """A written cause licenses the run whether the check ran here or elsewhere.
+
+    The verdict strings are the contract between the two, which is why they are
+    named constants rather than literals repeated on both sides of a JSON file.
+    """
+    report = check_anchors(
+        _all_measurements(geometry={"three": 1.20}),
+        explained={"median_range_3bar_adr": "the reference ETFs are out of scope"},
+    )
+    path = tmp_path / "anchors.json"
+    path.write_text(json.dumps(anchors_report(DEFAULT_CONTRACT, report)))
+
+    assert read_anchor_report(path).passes is True
+    assert VERDICT_EXPLAINED in SETTLED_VERDICTS
+    assert VERDICT_FAILED not in SETTLED_VERDICTS
+
+
+def test_four_of_six_read_off_disk_is_not_an_anchored_run(tmp_path, store, denominator):
+    """The shape that most reads like a pass.
+
+    A geometry-only report has three passing rows and no failing one, so a reader
+    that decided settled-ness from the verdicts alone would let it through. The
+    run is not anchored, and the refusal says which half was missing rather than
+    naming an anchor that did not fail.
+    """
+    geometry_only = AnchorReport(
+        detector_version=DETECTOR_VERSION,
+        arms=ANCHOR_ARMS,
+        geometry=check_geometry(_geometry_measurements()),
+        gate_dependent=(),
+        geometry_only=True,
+    )
+    path = tmp_path / "anchors.json"
+    path.write_text(json.dumps(anchors_report(DEFAULT_CONTRACT, geometry_only)))
+
+    outcome = read_anchor_report(path)
+    assert outcome.passes is False
+    assert outcome.geometry_only is True
+    assert outcome.failed == ()  # nothing failed; the gate-dependent half is absent
+
+    dates = _seed_two_market_store(store)
+    run = run_full(store, denominator, _fixture_contract(dates), anchors=outcome)
+    with pytest.raises(AnchorsNotSettled, match="four of six"):
+        full_run_report(run)
+
+
+def test_the_run_reports_which_anchors_were_not_settled(store, denominator):
+    """A refusal that does not name the anchor sends its reader to the whole table."""
+    dates = _seed_two_market_store(store)
+    run = run_full(
+        store, denominator, _fixture_contract(dates),
+        anchors=AnchorOutcome(passes=False, failed=("in_field",)),
+    )
+
+    with pytest.raises(AnchorsNotSettled, match="in_field"):
+        format_full_run(run)

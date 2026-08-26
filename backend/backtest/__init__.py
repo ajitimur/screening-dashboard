@@ -198,6 +198,7 @@ from .contract import (
     RunContract,
 )
 from .chain import backtest_chain, excluded_references, stateless_universe
+from .full_run import AnchorsNotSettled, FullRun, MarketNotRun, run_full
 from .result import stamp_result
 from .store import (
     BuildCoverage,
@@ -209,7 +210,11 @@ from .store import (
 )
 
 __all__ = [
+    "AnchorsNotSettled",
     "Cell",
+    "FullRun",
+    "MarketNotRun",
+    "run_full",
     "backtest_chain",
     "excluded_references",
     "stateless_universe",

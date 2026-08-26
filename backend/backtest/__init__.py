@@ -45,6 +45,22 @@ it as ``__main__`` — which Python reports as a ``RuntimeWarning`` on every
 invocation of the documented command. So the entry point is reached as
 ``backtest.run.run_denominator``.
 
+Issue #189 lands Phase 4's first arm: :mod:`backtest.simulate` turns each persisted
+detection into a trade. Entry is the detection's own trigger — a close through it
+signals, the next open fills — the stop is the detection's own unmodified, and arm B
+trails a 10MA on the same terms. The result is denominated in R off the detection's
+stop width **in ADR**, so a rescale of the bar series moves numerator and denominator
+together and R does not move at all; the one absolute-price comparison that is not
+immune rides on every trade as a price-scale flag whose dropped count is reported.
+
+:mod:`backtest.simulate`'s names are **not** re-exported here, and the mechanical
+reason is now doubled: it is a command in its own right
+(``python -m backtest.simulate``), *and* it imports
+:class:`~backtest.run.ContractDrift`, so re-exporting it would pull both it and
+``backtest.run`` into ``sys.modules`` at package-import time and make either
+documented command warn on every invocation. The entry point is reached as
+``backtest.simulate.simulate_market``.
+
 The universe's names are not re-exported, and the reason is naming rather than
 import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean
 something else one import away (:mod:`screener.universe`, :mod:`replay.reference`),

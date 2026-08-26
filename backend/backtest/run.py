@@ -31,7 +31,6 @@ silent rather than loud:
 from __future__ import annotations
 
 import argparse
-import bisect
 import json
 import sys
 from dataclasses import dataclass
@@ -42,13 +41,12 @@ from typing import Callable, Sequence, TextIO
 from replay.caching_store import CachingStore
 from replay.chain import SessionField
 from replay.field import FieldSession, build_field_sessions
-from screener.bars import Bar
 from screener.detection import DETECTION_LOOKBACKS
 from screener.regime import REGIME_WARMUP, breadth, index_broke_out, regime_state
 from screener.source import MARKET_INDEX
 from screener.store import Store
 
-from .chain import backtest_chain, excluded_references
+from .chain import backtest_chain, excluded_references, trailing_bars
 from .contract import DETECTION_GATE_KEY, DEFAULT_CONTRACT, RunContract
 from .denominator import (
     BREADTH_BASIS,
@@ -105,16 +103,6 @@ def check_detection_gate(contract: RunContract) -> None:
         )
 
 
-def _trailing(bars: Sequence[Bar], session: date, depth: int) -> list[Bar]:
-    """The last ``depth`` bars on or before ``session``, without copying the rest.
-
-    ``bisect`` over the already-sorted series, so the cut is a binary search rather
-    than a scan of fourteen years of history per symbol per session.
-    """
-    cut = bisect.bisect_right(bars, session, key=lambda b: b.session)
-    return list(bars[max(0, cut - depth) : cut])
-
-
 def session_regime(
     store: Store, market: str, session: date, members: Sequence[str]
 ) -> RegimeReading:
@@ -134,11 +122,11 @@ def session_regime(
     store's coverage, and the run reports it as an undefined regime instead of
     stopping a fourteen-year pass on a missing benchmark.
     """
-    index_bars = _trailing(
+    index_bars = trailing_bars(
         store.bars(market, MARKET_INDEX[market]), session, REGIME_TAIL
     )
     members_bars = {
-        symbol: _trailing(store.bars(market, symbol), session, REGIME_TAIL)
+        symbol: trailing_bars(store.bars(market, symbol), session, REGIME_TAIL)
         for symbol in members
     }
     return RegimeReading(

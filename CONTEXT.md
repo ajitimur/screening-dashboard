@@ -419,6 +419,41 @@ rebuild it, but the index series carries no survivorship hole, so a backtest rec
 it legitimately across the whole window.
 _Avoid_: conditioning on breadth; it conditions on the **state**.
 
+**Simulated trade**:
+One detection from the **denominator**, taken mechanically on one **exit arm** (PRD #182,
+`backtest.simulate`). Entry is the detection's own **trigger**, signalled by a close through
+it on the session after the detection and filled at the next open; the stop is the
+detection's own, unmodified. Every price it carries is stamped with the session that decided
+it, so any trade can be audited back to its inputs. A counterfactual, like a **simulated
+exit** — but a whole trade rather than an exit bolted onto one he really took, which is the
+difference between the denominator and the reference set. A detection whose next session does
+not close through its trigger produces **no trade**, and that is a measurement: the share of
+detections that trigger is one of the figures the denominator exists to produce.
+_Avoid_: backtest trade, mechanical entry — and never **executed trade**, which is observed
+fact.
+
+**Exit arm**:
+One of three exit rules — A, B and C — run off **one shared entry and one shared stop**, so a
+difference between them is attributable to the exit alone. **B is a pure 10MA trail** and the
+arm the pre-registered primary metric is computed on; A is the trader's documented behaviour
+(50% off at the close of the fifth session after entry, remainder trailed on a 10MA) and C a
+pure 20MA trail. A trail **signals on a close through the MA and fills at the next open**, and
+that mechanic — like "day 5" — is recorded as *arbitrary*, so a later run varies it
+deliberately instead of rediscovering it. The trail reads the **unadjusted** close the trigger
+and the stop are quoted in, never `indicators.sma`'s adjusted one.
+_Avoid_: exit strategy, variant.
+
+**Price-scale validity**:
+The per-trade flag saying whether a **simulated trade**'s absolute-price comparison can be
+trusted (`price_scale_ok`). Yahoo applies an *unlabelled* retroactive rescale for rights
+issues — measured on BBRI as pre-2021-09-08 OHLC scaled by exactly 10/11, with no split or
+dividend row to explain it. **Geometry in ADR units is immune**, because both terms rescale
+together, which is why R is denominated by the detection's stop width in ADR priced off the
+bars' own ADR. Absolute prices are not immune, and one such comparison is unavoidable: a
+trigger persisted earlier against a bar read now. Flagged, never silently dropped, and **the
+count it would drop is reported beside every result**.
+_Avoid_: adjustment flag, bad data — the trade is not wrong, its scale is unverified.
+
 **Not-taken detection**:
 A member of the replayed field on a session where he entered something else. Not a
 declined setup — he may never have seen it — so it is a comparison group, never a

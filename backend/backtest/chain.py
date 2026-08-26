@@ -34,6 +34,7 @@ instead.
 
 from __future__ import annotations
 
+import bisect
 from datetime import date
 from typing import Callable, Sequence
 
@@ -44,6 +45,7 @@ from replay.chain import (
     replay_references,
     synthesize_instruments,
 )
+from screener.bars import Bar
 from screener.source import Instrument
 from screener.store import Store
 
@@ -247,13 +249,57 @@ def backtest_chain(
     )
 
 
+def bar_cut(bars: Sequence[Bar], session: date) -> int:
+    """How many bars fall on or before ``session`` — the package's point-in-time cut.
+
+    **Every point-in-time decision in this package goes through this one bisect.** It
+    lives here beside the chain's own argument for handing whole bar series to a
+    classifier that slices them itself: a second copy of this arithmetic is a second
+    place the point-in-time claim can quietly stop being true, and the claim is the
+    thing the whole phase is worth nothing without.
+
+    A count rather than a slice, so a caller that needs a *position* — which bar is
+    this session's? — does not have to copy the series to find out.
+    """
+    return bisect.bisect_right(bars, session, key=lambda b: b.session)
+
+
+def bar_index(bars: Sequence[Bar], session: date) -> int | None:
+    """The position of ``session`` in ``bars``, or ``None`` if it did not trade.
+
+    Distinct from :func:`bar_cut`, which answers "how much was knowable then" and is
+    happy to land between bars. This answers "which bar is that session", and a
+    session with no bar has no answer — a market that did not trade is not the same
+    fact as the last day it did.
+    """
+    cut = bar_cut(bars, session)
+    if cut == 0 or bars[cut - 1].session != session:
+        return None
+    return cut - 1
+
+
+def trailing_bars(bars: Sequence[Bar], session: date, depth: int) -> list[Bar]:
+    """The last ``depth`` bars on or before ``session``, without copying the rest.
+
+    A binary search over the already-sorted series (:func:`bar_cut`), so the cut is
+    never a scan of fourteen years of history per symbol per session.
+    :mod:`backtest.run` denominates a session's regime with it and
+    :mod:`backtest.simulate` decides every price a trade carries with it.
+    """
+    cut = bar_cut(bars, session)
+    return list(bars[max(0, cut - depth) : cut])
+
+
 __all__ = [
     "WindowNotCovered",
     "backtest_chain",
+    "bar_cut",
+    "bar_index",
     "burn_in_count",
     "check_window_covered",
     "excluded_references",
     "stateless_universe",
     "synthesize_instruments",
+    "trailing_bars",
     "window_sessions",
 ]

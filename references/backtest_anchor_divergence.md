@@ -77,8 +77,8 @@ thing it exists to detect.
 in neither the listed nor the excluded set of `data/backtest.duckdb.enumeration.US.json`:
 it was never enumerated at all, because the crawl enumerates from a current listing snapshot
 and Bed Bath & Beyond was delisted in 2023. This is survivorship bias, it is a real defect,
-and it is **not** fixed here — [#196](../docs/out-of-sample-backtest-plan.md) owns bounding
-it.
+and it is **not** fixed here. #196 owns bounding it, and has:
+[the survivorship hole](backtest_survivorship.md).
 
 Its effect on this anchor is small (row B → row C: 0.0016 ADR, 0.0011 ADR, 0.02pp) but its
 effect on the wider run is not, and the small number here should not be read as reassurance.
@@ -108,6 +108,12 @@ of his realised R, against findings §2's 92 / 172 / 18.0% over the four-year wi
 predicted exactly this: "a 2012 start reaches further back, so expect worse — a better number
 is a reason for suspicion, not celebration." It is worse, in the direction and roughly the
 proportion expected. This is the bound #196 owns; it is measured here, not fixed here.
+
+#196 has since landed, and its number is worse than this row suggests: 51.8% of the US
+names listed inside the window are gone from today's enumeration, 37.7% weighted by how
+long each was listed, and its pessimistic twin goes negative for any headline below
+**+0.605R**. That bound is larger than the effect this run is looking for. It is a second
+reason, independent of the sign flip below, not to read a figure off this run yet.
 
 **Detection recall — reproduced.** 421 of 503 is **83.70%**; the committed 549 of 656 is
 **83.69%**. A different population returning the same rate to four decimal places is about as
@@ -158,9 +164,9 @@ onto the pin.
 - The store and the indicators are **anchored**: whatever else is wrong with this run, the
   bars are the bars the reference study measured.
 - The survivorship residual rides on every result out of this run as one line, and is
-  bounded by #196 rather than by this page. This run measures it larger than findings §2 did
-  — 136 / 325 / 25.9% against 92 / 172 / 18.0% — over a window that reaches seven years
-  further back.
+  bounded by [#196](backtest_survivorship.md) rather than by this page. This run measures it
+  larger than findings §2 did, 136 / 325 / 25.9% against 92 / 172 / 18.0%, over a window
+  reaching seven years further back — and #196's own bound is larger still.
 - The detector is **anchored**: recall reproduces its rate to four decimal places over a
   population 23% smaller.
 - `in_field` is **not settled and cannot be settled here.** The rubric's edge reverses inside

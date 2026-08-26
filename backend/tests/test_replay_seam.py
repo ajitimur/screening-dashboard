@@ -7580,10 +7580,13 @@ from backtest.survivorship import (
     missing_trade_count,
     fetch_spine,
     parse_snapshot,
+    read_spine,
     recycled_symbols,
     session_verdict,
     span_of,
+    spine_path,
     survivorship_report,
+    write_spine,
 )
 
 _WINDOW = (date(2012, 1, 1), date(2026, 8, 26))
@@ -7963,7 +7966,13 @@ File Creation Time: 0622201218:02|||||
 
 _MODERN = """ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol
 ALIVE|Alive Corp Common Stock|N|ALIVE|N|100|N|ALIVE
-File Creation Time: 0801202617:30|||||||
+File Creation Time: 0611202617:30|||||||
+"""
+
+# The live directory as served without a creation stamp, so its date can only come
+# from the caller's own today — which is the point of fetching it at all.
+_LIVE = """ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol
+ALIVE|Alive Corp Common Stock|N|ALIVE|N|100|N|ALIVE
 """
 
 
@@ -8012,21 +8021,33 @@ def test_the_spine_is_fetched_through_a_seam_and_a_dead_capture_is_skipped(store
     def get(url: str) -> str:
         calls.append(url)
         if "cdx" in url:
-            return json.dumps([["timestamp"], ["20120623141057"], ["20260801000000"]])
+            return json.dumps([["timestamp"], ["20120623141057"], ["20260611001021"]])
         if not url.endswith("nasdaqlisted.txt"):
             raise RuntimeError("no capture")
         if "/20120623" in url:
             return _ARCHIVAL_2012
+        if "web.archive.org" not in url:
+            return _LIVE  # the live directory, dated by the caller's today
         return _MODERN
 
     spine = fetch_spine(
-        files=("nasdaqlisted.txt", "otherlisted.txt"), get=get, progress=seen.append
+        files=("nasdaqlisted.txt", "otherlisted.txt"), get=get,
+        today=date(2026, 8, 26), progress=seen.append,
     )
 
     assert spine.source == SPINE_SOURCE
-    assert [s.as_of for s in spine.ordered()] == [date(2012, 6, 22), date(2026, 8, 1)]
-    # otherlisted's two captures both raised, and each is reported rather than lost.
-    assert sum("no capture" in line for line in seen) == 2
+    # Two archived captures and today's live roster, which is what brackets the far
+    # end: the archive's newest capture trails the present by months.
+    assert [s.as_of for s in spine.ordered()] == [
+        date(2012, 6, 22), date(2026, 6, 11), date(2026, 8, 26)
+    ]
+    # otherlisted's captures — two archived and the live one — all raised, and each
+    # is recorded on the spine rather than lost: a capture written off silently is
+    # a date the count would report as having held no listings.
+    assert sum("unread" in line for line in seen) == 3
+    assert [row[0] for row in spine.unread] == ["otherlisted.txt"] * 3
+    assert "no capture" in spine.unread[0][2]
+    assert spine.coverage(*_WINDOW).unread_captures == 3
 
 
 def test_a_recycled_name_never_counts_toward_the_covered_population(store: Store):
@@ -8074,3 +8095,24 @@ def test_an_unmeasured_recycled_half_is_not_reported_as_none_of_them(store: Stor
     assert idx.to_dict()["recycled_names"] is None
     assert "unmeasured" in against_floor(idx)["note"]
     assert against_floor(idx)["recycled_measured"] is False
+
+
+def test_the_spine_round_trips_through_the_cache_beside_the_store(tmp_path):
+    """The spine is committed beside the store, for the reason the coverage ledger
+    is: a count whose inputs are re-downloaded on every read is a count that can
+    change without anyone changing anything.
+
+    The archive is also not a fixed corpus — a capture can be added or withdrawn
+    between two runs — so "re-fetch and recompute" is not reproduction.
+    """
+    spine = dataclasses.replace(
+        _bracketing(_snap(date(2015, 6, 1), "AAA", "BBB")),
+        unread=(("otherlisted.txt", "20140101000000", "ConnectionResetError: reset"),),
+    )
+    path = spine_path(tmp_path / "backtest.duckdb")
+
+    write_spine(spine, path)
+
+    assert path.name == "backtest.duckdb.spine.json"
+    assert read_spine(path).ordered() == spine.ordered()
+    assert read_spine(path).unread == spine.unread

@@ -102,6 +102,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import time
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -130,7 +131,7 @@ from .result import stamp_result
 # ``screener.source.parse_us_listings`` reads these two files live — so a spine
 # built from its past snapshots is the same roster the store was crawled against,
 # read at a different date. That is what makes the two differencable.
-SPINE_SOURCE = "nasdaqtrader_symbol_directory_via_wayback"
+SPINE_SOURCE = "nasdaqtrader_symbol_directory_via_wayback_plus_live"
 SPINE_FILES: tuple[str, ...] = ("nasdaqlisted.txt", "otherlisted.txt")
 SPINE_MARKET = "US"
 
@@ -203,6 +204,7 @@ class SpineCoverage:
     brackets_window: bool
     years_without_snapshot: tuple[int, ...]
     largest_gap_days: int
+    unread_captures: int
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -215,6 +217,7 @@ class SpineCoverage:
             "brackets_window": self.brackets_window,
             "years_without_snapshot": list(self.years_without_snapshot),
             "largest_gap_days": self.largest_gap_days,
+            "unread_captures": self.unread_captures,
             "note": DENSITY_NOTE,
         }
 
@@ -237,6 +240,14 @@ class ListingSpine:
     market: str
     source: str
     snapshots: tuple[Snapshot, ...]
+    unread: tuple[tuple[str, str, str], ...] = ()
+    """Captures the archive would not replay: ``(file, timestamp, reason)``.
+
+    Recorded rather than dropped. A capture written off after its retries is a
+    date the spine cannot see, and a spine that silently skipped it would report
+    that date's listings as never having existed — which is the same back-door
+    survivorship the crawl's refusal ledger exists to close, one layer up.
+    """
 
     def ordered(self) -> tuple[Snapshot, ...]:
         return tuple(sorted(self.snapshots, key=lambda s: (s.as_of, s.file)))
@@ -270,6 +281,7 @@ class ListingSpine:
                 if y not in years
             ),
             largest_gap_days=max(gaps) if gaps else 0,
+            unread_captures=len(self.unread),
         )
 
     def verify(self, window_start: date, window_end: date) -> "VerifiedSpine":
@@ -879,18 +891,36 @@ def attach_bias_bound(
 # -- fetching the spine --------------------------------------------------------
 
 
-def _http_get(url: str) -> str:
-    """One GET, with a User-Agent that names the caller.
+# How hard a capture is tried before it is written off. The archive resets
+# connections and truncates replies under load — a first pass measured two
+# failures in seven captures — and a capture written off is a year of listings the
+# spine never saw. That is the same silent-absence failure the crawl's refusal
+# ledger exists to prevent, arriving one layer up, so it is retried and then
+# *recorded* rather than dropped.
+FETCH_ATTEMPTS = 4
+FETCH_BACKOFF_SECONDS = 5.0
 
-    Both hosts here ask for one: the Internet Archive rate-limits anonymous
-    clients, and the SEC refuses them outright. Naming the project and a contact
-    is the condition of the free access this whole phase depends on.
+
+def _http_get(url: str, *, attempts: int = FETCH_ATTEMPTS) -> str:
+    """One GET, retried, with a User-Agent that names the caller.
+
+    The archive rate-limits anonymous clients, so naming the project is the
+    condition of the free access this phase depends on. The retry is for the two
+    failures it hands back under load — a reset connection and a truncated body —
+    both of which are transient and neither of which means the capture is gone.
     """
     request = urllib.request.Request(
         url, headers={"User-Agent": "screening-dashboard backtest (#196)"}
     )
-    with urllib.request.urlopen(request, timeout=120) as response:
-        return response.read().decode("utf-8", errors="replace")
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=180) as response:
+                return response.read().decode("utf-8", errors="replace")
+        except Exception:
+            if attempt == attempts:
+                raise
+            time.sleep(FETCH_BACKOFF_SECONDS * attempt)
+    raise AssertionError("unreachable")
 
 
 def snapshot_timestamps(file: str, *, get: Callable[[str], str] = _http_get) -> tuple[str, ...]:
@@ -970,31 +1000,51 @@ def fetch_spine(
     *,
     files: Sequence[str] = SPINE_FILES,
     get: Callable[[str], str] = _http_get,
+    today: date | None = None,
     progress: Callable[[str], None] = lambda _: None,
 ) -> ListingSpine:
-    """Build the US listing spine from the archive, one snapshot per file per month.
+    """Build the US listing spine: the archive's captures, and today's live roster.
+
+    The live files are fetched as the spine's final snapshot, and that is not a
+    convenience. The archive's newest capture trails the present by months — it was
+    2026-06-11 when this was first run, against a window ending 2026-08-25 — so a
+    spine of archived captures alone cannot bracket the window and
+    :meth:`ListingSpine.verify` would refuse it. The live directory is the *same
+    source* read at today's date rather than a past one, which is exactly the far
+    bracket the verification asks for, and it is the roster "absent from today's
+    enumeration" is a claim about.
 
     ``get`` is the seam every test drives this through: the crawl is a data job with
-    no interesting branches, and the branches that *are* interesting — a header
-    without an ETF column, a file with no creation stamp — are in
-    :func:`parse_snapshot`, which needs no network at all.
+    no interesting branches, and the branches that *are* interesting — a header with
+    no ETF column, a file with no creation stamp — live in :func:`parse_snapshot`,
+    which needs no network at all.
     """
+    fetched_on = today or datetime.now(timezone.utc).date()
     snapshots: list[Snapshot] = []
+    unread: list[tuple[str, str, str]] = []
     for file in files:
-        for timestamp in snapshot_timestamps(file, get=get):
-            url = _SNAPSHOT_URL.format(timestamp=timestamp, file=file)
+        captures = [
+            (timestamp, _SNAPSHOT_URL.format(timestamp=timestamp, file=file),
+             datetime.strptime(timestamp[:8], "%Y%m%d").date())
+            for timestamp in snapshot_timestamps(file, get=get)
+        ]
+        captures.append(("live", _DIRECTORY_URL.format(file=file), fetched_on))
+        for timestamp, url, fallback in captures:
             try:
                 text = get(url)
-            except Exception as exc:  # a capture the archive cannot replay
-                progress(f"{file} {timestamp}: {type(exc).__name__} {exc}")
+            except Exception as exc:  # a capture the archive would not replay
+                unread.append((file, timestamp, f"{type(exc).__name__}: {exc}"))
+                progress(f"{file} {timestamp}: unread — {type(exc).__name__} {exc}")
                 continue
-            fallback = datetime.strptime(timestamp[:8], "%Y%m%d").date()
             snapshot = parse_snapshot(text, file=file, fallback=fallback)
             progress(f"{file} {snapshot.as_of}: {len(snapshot.symbols)} listings")
             if snapshot.symbols:
                 snapshots.append(snapshot)
     return ListingSpine(
-        market=SPINE_MARKET, source=SPINE_SOURCE, snapshots=tuple(snapshots)
+        market=SPINE_MARKET,
+        source=SPINE_SOURCE,
+        snapshots=tuple(snapshots),
+        unread=tuple(unread),
     )
 
 
@@ -1023,6 +1073,7 @@ def write_spine(spine: ListingSpine, path: str | Path) -> None:
                     }
                     for s in spine.ordered()
                 ],
+                "unread": [list(row) for row in spine.unread],
             },
             indent=1,
         )
@@ -1043,6 +1094,7 @@ def read_spine(path: str | Path) -> ListingSpine:
             )
             for s in raw["snapshots"]
         ),
+        unread=tuple(tuple(row) for row in raw.get("unread", ())),
     )
 
 
@@ -1114,7 +1166,8 @@ def format_survivorship(report: Mapping[str, Any]) -> str:
             lines.append(
                 f"  spine {spine['first']}..{spine['last']} — {spine['snapshots']} "
                 f"snapshots, largest gap {spine['largest_gap_days']}d, "
-                f"{len(spine['years_without_snapshot'])} silent years"
+                f"{len(spine['years_without_snapshot'])} silent years, "
+                f"{spine['unread_captures']} captures unread"
             )
         else:
             lines.append("  spine none — no free dated listing roster for this market")

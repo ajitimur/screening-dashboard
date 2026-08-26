@@ -3176,3 +3176,153 @@ def test_a_study_column_cannot_redefine_a_registered_candidate():
             [_scored_det("N1", 6, not_taken=True)],
             readers={"Relative move": lambda d: True},
         )
+
+
+# -- the backtest run contract (issue #184) --------------------------------
+#
+# Phase 0 of PRD #182: the whole run contract as one frozen, serialisable value.
+# These extend the one replay seam rather than starting a new file, as the PRD's
+# testing decisions require. The backtest is a *new top-level package* that
+# imports replay machinery rather than extending the replay package, so the
+# imports below reach into ``backtest``, not ``replay``.
+
+from backtest import DEFAULT_CONTRACT, Cell, RunContract, stamp_result
+from backtest.contract import (
+    DEFAULT_CONTRACT_JSON,
+    METRIC_PRIMARY_KEY,
+    SCOPE_MARKETS_KEY,
+    UNIVERSE_LIQUIDITY_FLOOR_KEY,
+    WINDOW_MEASURED_START_KEY,
+)
+from backtest.result import CONTRACT_KEY
+
+
+def test_backtest_is_a_top_level_package_importing_replay_not_extending_it():
+    """The backtest is new and top-level (PRD "Implementation Decisions").
+
+    It is imported as ``backtest``, a sibling of ``replay`` and ``screener``, and
+    it is not a submodule of ``replay``. The reuse is by import: it stands beside
+    the replay package rather than extending it.
+    """
+    import backtest
+    import replay
+
+    assert backtest.__name__ == "backtest"
+    assert not backtest.__name__.startswith("replay.")
+    assert Path(backtest.__file__).parent != Path(replay.__file__).parent
+
+
+def test_the_contract_is_frozen():
+    """One frozen contract object: neither the contract nor a cell can be mutated
+    in place, so a run cannot quietly re-decide a Phase 0 cell after the fact."""
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        DEFAULT_CONTRACT.label = "tampered"  # type: ignore[misc]
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        DEFAULT_CONTRACT.cells[0].value = "tampered"  # type: ignore[misc]
+
+
+def test_every_cell_carries_a_one_line_justification():
+    """Every Phase 0 cell records its one-line justification (user story 3), so a
+    reader can tell a measured choice from an arbitrary one — and a cell with a
+    blank justification is rejected at construction, not merely discouraged."""
+    assert DEFAULT_CONTRACT.cells  # the contract is not empty
+    for cell in DEFAULT_CONTRACT.cells:
+        assert cell.justification.strip()
+
+    with pytest.raises(ValueError, match="justification"):
+        Cell(key="x", value=1, justification="   ")
+
+
+def test_cell_keys_are_unique():
+    """A duplicate key is a second definition of the same cell, and is rejected —
+    two runs must differ in a cell's *value*, never in which cell wins a clash."""
+    assert len(DEFAULT_CONTRACT.keys()) == len(set(DEFAULT_CONTRACT.keys()))
+    with pytest.raises(ValueError, match="duplicate"):
+        RunContract(
+            contract_version="1",
+            label="dup",
+            cells=(Cell("k", 1, "why"), Cell("k", 2, "why")),
+        )
+
+
+def test_the_contract_round_trips_through_json_without_loss():
+    """The contract round-trips to and from JSON without loss (acceptance
+    criterion): the reconstruction equals the original, cells and all."""
+    restored = RunContract.from_json(DEFAULT_CONTRACT.to_json())
+
+    assert restored == DEFAULT_CONTRACT
+    assert restored.cells == DEFAULT_CONTRACT.cells
+
+
+def test_the_committed_contract_file_matches_the_object(tmp_path):
+    """The contract is fixed and committed before any code runs (user story 1):
+    the committed ``references/`` file deserialises to exactly ``DEFAULT_CONTRACT``,
+    and re-serialising the object reproduces the committed bytes — a drift guard
+    so the file and the object cannot silently disagree."""
+    assert Path(DEFAULT_CONTRACT_JSON).exists()
+    assert RunContract.load(DEFAULT_CONTRACT_JSON) == DEFAULT_CONTRACT
+
+    regenerated = tmp_path / "contract.json"
+    DEFAULT_CONTRACT.write(regenerated)
+    assert regenerated.read_text() == Path(DEFAULT_CONTRACT_JSON).read_text()
+
+
+def test_contract_values_are_the_contract_values_not_the_apps():
+    """The contract carries the deliberate Phase 0 values, read by key — in
+    particular the liquidity floors are the contract's $10M / Rp 10B, not the
+    app's inherited $20M / Rp 1B (user story 11)."""
+    assert DEFAULT_CONTRACT.value(SCOPE_MARKETS_KEY) == ["US", "IDX"]
+    assert DEFAULT_CONTRACT.value(WINDOW_MEASURED_START_KEY) == "2012-01-01"
+    floors = DEFAULT_CONTRACT.value(UNIVERSE_LIQUIDITY_FLOOR_KEY)
+    assert floors == {"US": 10_000_000.0, "IDX": 10_000_000_000.0}
+    from screener.universe import LIQUIDITY_FLOOR
+
+    assert floors["US"] != LIQUIDITY_FLOOR["US"]
+    assert floors["IDX"] != LIQUIDITY_FLOOR["IDX"]
+    # The pre-registered primary metric is arm B's after-cost expectancy.
+    assert "arm_b" in DEFAULT_CONTRACT.value(METRIC_PRIMARY_KEY)
+
+
+def test_a_missing_cell_is_a_loud_key_error():
+    """Reading a cell the run never registered fails loudly, so a typo'd key is a
+    ``KeyError`` rather than a silent ``None`` that reads as a real value."""
+    with pytest.raises(KeyError):
+        DEFAULT_CONTRACT.value("universe.no_such_gate")
+
+
+def test_every_result_the_package_emits_carries_its_contract():
+    """Any result the package emits carries the contract that produced it
+    (acceptance criterion): the stamped contract is the serialised contract, in
+    full, under a fixed key, and it round-trips back to the object."""
+    stamped = stamp_result(DEFAULT_CONTRACT, {"headline": {"expectancy_r": 0.42}})
+
+    assert stamped[CONTRACT_KEY] == DEFAULT_CONTRACT.to_dict()
+    assert stamped["headline"] == {"expectancy_r": 0.42}
+    # The contract on the result is the contract, not a lossy summary of it.
+    assert RunContract.from_dict(stamped[CONTRACT_KEY]) == DEFAULT_CONTRACT
+
+
+def test_a_result_cannot_claim_two_contracts():
+    """A payload that already carries a contract key is rejected rather than
+    silently overwritten — a result claiming two contracts is a bug."""
+    with pytest.raises(ValueError, match="two contracts"):
+        stamp_result(DEFAULT_CONTRACT, {CONTRACT_KEY: {"forged": True}})
+
+
+def test_two_runs_under_different_contracts_are_distinguishable_from_output_alone():
+    """Two runs under different contracts are distinguishable from their serialised
+    output alone (acceptance criterion): change one cell's value and the stamped
+    result's bytes change, so a revision can never be mistaken for the original."""
+    altered_cells = tuple(
+        Cell(c.key, "5000000.0-and-rp-1b", c.justification)
+        if c.key == UNIVERSE_LIQUIDITY_FLOOR_KEY
+        else c
+        for c in DEFAULT_CONTRACT.cells
+    )
+    other = RunContract(contract_version="2", label="looser floors", cells=altered_cells)
+
+    a = json.dumps(stamp_result(DEFAULT_CONTRACT, {"headline": 1}), sort_keys=True)
+    b = json.dumps(stamp_result(other, {"headline": 1}), sort_keys=True)
+
+    assert a != b
+    assert other != DEFAULT_CONTRACT

@@ -53,7 +53,7 @@ run. What corroborates the run is on the other universe: §4b's own 397/656
 (+1.86pp).
 
 --------------------------------------------------------------------------------
-anchors — detector v3, universe contract-stateless, arms B, C (arm A measured, never anchored)
+anchors — detector v3, universe stateless, arms B, C (arm A measured, never anchored)
 
 geometry — measured from his bars; these hold whatever the detector does
 
@@ -100,9 +100,9 @@ gate-dependent — these move with coverage and with the gates
     divergence written up: the same rate over a smaller population — 421/503 is 83.70% against the committed 83.69% — so the detector reproduces and only the population moved
     verdict   diverged (explained)
 
-  Trades in the replayed field (A2 in_field), contract universe
+  Trades in the replayed field (A2 in_field), stateless universe
     stamp     detector v3 — #198's full run, attributed by #211
-    universe  contract-stateless
+    universe  stateless
     ok in_field             committed 165        measured 165        (±0 trades)
     ok of                   committed 503        measured 503        (±0 trades)
     ok gap_pp               committed -5.01      measured -5.00655   (free trades)

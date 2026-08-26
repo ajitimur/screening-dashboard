@@ -212,7 +212,7 @@
   ]
  },
  "detector_version": 3,
- "universe": "contract-stateless",
+ "universe": "stateless",
  "arms_anchored": [
   "B",
   "C"
@@ -441,10 +441,10 @@
   },
   {
    "anchor": "in_field_stateless",
-   "label": "Trades in the replayed field (A2 in_field), contract universe",
+   "label": "Trades in the replayed field (A2 in_field), stateless universe",
    "kind": "gate-dependent",
    "quantity": "field-membership (gate-dependent)",
-   "universe": "contract-stateless",
+   "universe": "stateless",
    "unit": "trades",
    "source": "#198's full run, attributed by #211",
    "detector_stamp": "detector v3",

@@ -496,7 +496,7 @@ before reading any new figure:
 | Blind-spot tickers / trades, 2019–2022 | **92 / 172** (of 312 / 828) | Findings §2 |
 | Trades detected by the funnel (A1 detection recall) | **549 of 656 replayable** (83.7%; gate-invariant — the funnel evaluates every stage unconditionally, so #149's width does not move it. Detector v2/v3 geometry; the superseded pin under v1's hard cluster cut was 380 of 658) | Findings §3, §3b |
 | Trades that appeared in the replayed field (A2 `in_field`) | **349 of 656** at detector v2, and **397 of 656** at detector v3 (the live gate) — **anchor against the version the run is built at**. Both measured 2026-08-25 by `replay.discrimination_grid`; the v2 figure independently reproduces #164's committed run, the v3 figure is a **first measurement** and has no second one to agree with. Superseded pins, each measured on a narrower population: 159 and then 104 of 656 on the field the rank retention had truncated, and 104 of 658 before #139. **Both values were measured on the contaminated field** — see the tolerance below. **All of this is the `app` universe's pin**; the contract's has its own row below | Findings §4b |
-| Trades that appeared in the replayed field (A2 `in_field`), **contract universe** | **165 of 503**, gap **−5.01pp**, detector v3 — the pin a run over the contract's stateless universe anchors on. A **first measurement**, made by #198's own full run, so it detects drift from here on rather than confirming that run; what corroborates it is on the other universe, where #211 reproduced §4b's 397/656 (+1.95pp) exactly and got 324/503 (+1.86pp) holding the population fixed. The negative sign is measured, not tolerated: #211 attributed it to the ADR20 floor and the trend gate acting together, and the sign check rides on this pin too | #198's full run, attributed by #211 |
+| Trades that appeared in the replayed field (A2 `in_field`), **stateless universe** | **165 of 503**, gap **−5.01pp**, detector v3 — the pin a run over the contract's stateless universe anchors on. A **first measurement**, made by #198's own full run, so it detects drift from here on rather than confirming that run; what corroborates it is on the other universe, where #211 reproduced §4b's 397/656 (+1.95pp) exactly and got 324/503 (+1.86pp) holding the population fixed. The negative sign is measured, not tolerated: #211 attributed it to the ADR20 floor and the trend gate acting together, and the sign check rides on this pin too | #198's full run, attributed by #211 |
 
 These are the same reference set through a differently-built pipeline. Matching them says the
 new pipeline computes what the old one computed; a mismatch is a bug in the new store or the
@@ -535,13 +535,13 @@ exactly or is a finding.
 isolation measured that `in_field` and §4b's gap are properties of the pair (rubric,
 universe): +1.95pp under the app's universe, −5.01pp under the contract's stateless one, with
 the reversal attributed to the ADR20 floor and the trend gate acting together. Holding a
-contract-universe run to §4b's app-universe figure is therefore not a failing anchor but a
+stateless-universe run to §4b's app-universe figure is therefore not a failing anchor but a
 subtraction between two numbers that were never the same number — and it surfaced, for a
 while, as a sign flip charged to the pipeline. So a row's universe is part of what the row
 *is*, exactly as its detector version and its field already were, and a run is checked against
 the pin measured over the field it actually screened. **Nothing was widened to achieve this**:
 both pins keep zero tolerance on their counts and both keep the sign check on the gap, so a
-contract-universe run coming back positive still fails. `backtest.anchors` refuses a
+stateless-universe run coming back positive still fails. `backtest.anchors` refuses a
 measurement counted over one universe when the run names the other, rather than reporting it
 as a divergence, and the field-measurements file it reads must name the universe it counted.
 

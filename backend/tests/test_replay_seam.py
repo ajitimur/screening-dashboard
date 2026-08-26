@@ -9580,8 +9580,9 @@ from backtest.anchors import (
     QUANTITY_DETECTION_RECALL,
     QUANTITY_IN_FIELD,
     UNIVERSE_APP,
-    UNIVERSE_CONTRACT,
+    UNIVERSE_STATELESS,
     _field_measurements,
+    _universe_of,
     AnchorReport,
     GeometrySample,
     Measurement,
@@ -9710,7 +9711,7 @@ def test_the_table_holds_six_anchors_with_the_three_geometry_ones_first():
     """
     assert len(ANCHORS) == 7
     assert len(gate_dependent_anchors(UNIVERSE_APP)) == 3
-    assert len(gate_dependent_anchors(UNIVERSE_CONTRACT)) == 3
+    assert len(gate_dependent_anchors(UNIVERSE_STATELESS)) == 3
     assert len(GEOMETRY_ANCHORS) + len(gate_dependent_anchors(UNIVERSE_APP)) == 6
     assert [a.key for a in ANCHORS[:3]] == [a.key for a in GEOMETRY_ANCHORS]
     assert {a.kind for a in GEOMETRY_ANCHORS} == {GEOMETRY}
@@ -10480,7 +10481,7 @@ def _stateless_measurements(**overrides) -> list[Measurement]:
         in_field_measurement(
             _stateless_cell(**overrides.pop("cell", {})),
             replayable=overrides.pop("replayable", 503),
-            universe=UNIVERSE_CONTRACT,
+            universe=UNIVERSE_STATELESS,
         ),
     ]
 
@@ -10494,7 +10495,7 @@ def test_the_table_scopes_in_field_to_the_universe_it_was_measured_over():
     stateless = ANCHORS_BY_KEY["in_field_stateless"]
 
     assert app.universe == UNIVERSE_APP
-    assert stateless.universe == UNIVERSE_CONTRACT
+    assert stateless.universe == UNIVERSE_STATELESS
     assert app.quantity == stateless.quantity == QUANTITY_IN_FIELD
     assert app.committed["gap_pp"] == 1.95
     assert stateless.committed["in_field"] == 165
@@ -10510,10 +10511,10 @@ def test_the_geometry_anchors_hold_over_either_universe():
 def test_a_run_is_checked_against_the_pin_measured_over_its_own_universe():
     """The whole point of the second pin: the contract's stateless run reproduces
     −5.01pp and settles, without §4b's +1.95pp ever being quoted at it."""
-    report = check_anchors(_stateless_measurements(), universe=UNIVERSE_CONTRACT)
+    report = check_anchors(_stateless_measurements(), universe=UNIVERSE_STATELESS)
 
     assert report.passes
-    assert report.universe == UNIVERSE_CONTRACT
+    assert report.universe == UNIVERSE_STATELESS
     assert [c.anchor.key for c in report.gate_dependent] == [
         "coverage_blind_spot", "detection_recall", "in_field_stateless",
     ]
@@ -10539,7 +10540,7 @@ def test_a_stateless_measurement_offered_against_findings_4b_is_refused():
         check_anchors(_stateless_measurements(), universe=UNIVERSE_APP)
 
     assert UNIVERSE_APP in str(exc.value)
-    assert UNIVERSE_CONTRACT in str(exc.value)
+    assert UNIVERSE_STATELESS in str(exc.value)
 
 
 def test_the_stateless_pin_keeps_its_own_sign_check():
@@ -10550,7 +10551,7 @@ def test_the_stateless_pin_keeps_its_own_sign_check():
 
     with pytest.raises(DriftError) as exc:
         check_anchors(
-            _stateless_measurements(cell=flipped), universe=UNIVERSE_CONTRACT
+            _stateless_measurements(cell=flipped), universe=UNIVERSE_STATELESS
         )
 
     assert "sign" in str(exc.value).lower()
@@ -10564,7 +10565,7 @@ def test_a_sign_flip_on_the_stateless_pin_is_still_unwaivable():
     with pytest.raises(DriftError):
         check_anchors(
             _stateless_measurements(cell=flipped),
-            universe=UNIVERSE_CONTRACT,
+            universe=UNIVERSE_STATELESS,
             explained={"in_field_stateless": "a cause written down"},
         )
 
@@ -10577,11 +10578,11 @@ def test_the_stateless_pin_says_it_is_a_first_measurement():
 
     assert stateless.first_measurement
     text = format_anchors(
-        check_anchors(_stateless_measurements(), universe=UNIVERSE_CONTRACT)
+        check_anchors(_stateless_measurements(), universe=UNIVERSE_STATELESS)
     )
 
     assert "first measurement" in text
-    assert UNIVERSE_CONTRACT in text
+    assert UNIVERSE_STATELESS in text
 
 
 def test_a_field_measurement_must_name_the_universe_it_was_counted_over():
@@ -10598,14 +10599,14 @@ def test_the_serialised_report_names_the_universe_it_anchored():
     exactly that citation, so the universe rides on the result."""
     body = anchors_report(
         DEFAULT_CONTRACT,
-        check_anchors(_stateless_measurements(), universe=UNIVERSE_CONTRACT),
+        check_anchors(_stateless_measurements(), universe=UNIVERSE_STATELESS),
     )
 
-    assert body["universe"] == UNIVERSE_CONTRACT
+    assert body["universe"] == UNIVERSE_STATELESS
     row = next(
         c for c in body["gate_dependent"] if c["anchor"] == "in_field_stateless"
     )
-    assert row["universe"] == UNIVERSE_CONTRACT
+    assert row["universe"] == UNIVERSE_STATELESS
     assert json.loads(json.dumps(body)) == body
 
 
@@ -10631,13 +10632,13 @@ def test_the_field_measurement_file_routes_by_the_universe_it_names(tmp_path):
     path.write_text(json.dumps({
         "in_field": {"in_field": 165, "of": 503, "gap_pp": -5.01,
                      "field": "whole", "detector_version": 3,
-                     "universe": UNIVERSE_CONTRACT}
+                     "universe": UNIVERSE_STATELESS}
     }))
 
     [measurement] = _field_measurements(str(path))
 
     assert measurement.anchor == "in_field_stateless"
-    assert measurement.universe == UNIVERSE_CONTRACT
+    assert measurement.universe == UNIVERSE_STATELESS
 
 
 # -- bounding the survivorship hole (issue #196) --------------------------------
@@ -11473,7 +11474,7 @@ def _settled() -> AnchorReport:
     Over the **contract's** universe, because that is the field this run screens:
     an app-universe report anchors a different run, however green it is.
     """
-    return check_anchors(_stateless_measurements(), universe=UNIVERSE_CONTRACT)
+    return check_anchors(_stateless_measurements(), universe=UNIVERSE_STATELESS)
 
 
 def _unsettled() -> AnchorReport:
@@ -11827,7 +11828,7 @@ def test_a_divergence_with_a_written_cause_settles_the_anchors(store, denominato
     dates = _seed_two_market_store(store)
     explained = check_anchors(
         _stateless_measurements(geometry={"three": 1.20}),
-        universe=UNIVERSE_CONTRACT,
+        universe=UNIVERSE_STATELESS,
         explained={
             "median_range_3bar_adr": "the backtest store excludes the reference "
             "ETFs his entries include (#162)"
@@ -11975,8 +11976,47 @@ def test_the_payload_names_the_universe_the_run_was_anchored_over(
     body = full_run_report(run)["anchors"]
 
     assert body["settled"] is True
-    assert body["universe"] == UNIVERSE_CONTRACT
-    assert f"{UNIVERSE_CONTRACT} universe" in format_full_run(run)
+    assert body["universe"] == UNIVERSE_STATELESS
+    assert f"{UNIVERSE_STATELESS} universe" in format_full_run(run)
+
+
+def test_the_payload_says_which_anchor_cannot_corroborate_this_run(
+    store, denominator
+):
+    """"Settled" does not mean "independently confirmed", and the payload has to
+    say so. The stateless pin was measured by the run it anchors, so it detects
+    drift from here on and corroborates nothing yet — a later phase reading only
+    this file would otherwise take a settled verdict for confirmation."""
+    dates = _seed_two_market_store(store)
+    run = run_full(store, denominator, _fixture_contract(dates), anchors=_settled())
+
+    assert full_run_report(run)["anchors"]["first_measurement"] == [
+        "in_field_stateless"
+    ]
+
+
+def test_the_first_measurement_flag_survives_the_round_trip_to_disk(tmp_path):
+    """It reaches the gate whether the anchors were checked here or elsewhere,
+    like every other name the two report kinds answer."""
+    report = check_anchors(_stateless_measurements(), universe=UNIVERSE_STATELESS)
+    path = tmp_path / "anchors.json"
+    path.write_text(json.dumps(anchors_report(DEFAULT_CONTRACT, report)))
+
+    assert report.first_measurement == ("in_field_stateless",)
+    assert read_anchor_report(path).first_measurement == ("in_field_stateless",)
+
+
+def test_a_field_file_with_no_in_field_row_names_no_universe(tmp_path):
+    """There is no default to fall back on. A file carrying no field row records
+    no universe, and choosing one at the command line would decide exactly the
+    thing the file exists to record."""
+    path = tmp_path / "field.json"
+    path.write_text(json.dumps({
+        "detection_recall": {"passed": 421, "of": 503, "stage": "detection"}
+    }))
+
+    with pytest.raises(DriftError, match="names no universe"):
+        _universe_of(_field_measurements(str(path)), str(path))
 
 
 def test_a_green_report_over_the_app_universe_does_not_anchor_this_run(

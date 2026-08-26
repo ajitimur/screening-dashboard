@@ -38,8 +38,8 @@ measured over the field it actually screened:
 
 | Universe | `in_field` | §4b gap | Anchors |
 | --- | ---: | ---: | --- |
-| App (`app`) | 397 of 656 | **+1.95pp** | the replay store, findings §4b |
-| Contract (`contract-stateless`) | 165 of 503 | **−5.01pp** | this run |
+| The app's (`app`) | 397 of 656 | **+1.95pp** | the replay store, findings §4b |
+| The contract's stateless (`stateless`) | 165 of 503 | **−5.01pp** | this run |
 
 **No constant moved, no tolerance widened, and the sign check was not waived.** The stateless
 pin carries its own `sign_checked` on the gap, so a run that comes back positive over the
@@ -130,11 +130,11 @@ Only 503 of his 828 trades are replayable against this store, against 656 on `re
 | --- | --- | --- | --- |
 | Blind-spot tickers / trades / R share | 92 / 172 / 18.0% | **136 / 325 / 25.9%** | yes, with cause |
 | Detection recall (A1) | 549 of 656 | **421 of 503** | yes, with cause |
-| `in_field` (A2, v3, whole), contract universe | 165 of 503, gap **−5.01pp** | **165 of 503, gap −5.00655** | yes — matches |
+| `in_field` (A2, v3, whole), stateless universe | 165 of 503, gap **−5.01pp** | **165 of 503, gap −5.00655** | yes — matches |
 
 The `in_field` row is quoted against the pin for **this run's universe**, which is what
 changed since the sign flip; §4b's 397 of 656 is the app universe's pin and is not what a
-contract-universe run is held to. The two pins, and why they are two, are above.
+stateless-universe run is held to. The two pins, and why they are two, are above.
 
 **Blind spots — the survivorship hole, measured.** 136 tickers and 325 trades, carrying 25.9%
 of his realised R, against findings §2's 92 / 172 / 18.0% over the four-year window. #196
@@ -145,10 +145,10 @@ proportion expected. This is the bound #196 owns; it is measured here, not fixed
 #196 has since landed, and its number is worse than this row suggests: 51.8% of the US
 names listed inside the window are gone from today's enumeration, 37.7% weighted by how
 long each was listed, and its pessimistic twin goes negative for any headline below
-**+0.605R**. That bound is larger than the effect this run is looking for. It does not gate
-the anchors and it does not gate the session-count plot, which counts detections and reads no
-outcome — but it rides on every *expectancy* figure this run feeds, and a headline below
-+0.605R is inside it.
+**+0.605R**. That bound is larger than the effect this run is looking for. It rides on every
+result out of this run as one line, and it is **a separate question from the anchors** —
+settling `in_field` says nothing about it either way. Whether it should hold a figure back
+is a plan-level call for the issue author, not one this page makes.
 
 **Detection recall — reproduced.** 421 of 503 is **83.70%**; the committed 549 of 656 is
 **83.69%**. A different population returning the same rate to four decimal places is about as
@@ -205,7 +205,7 @@ the anchor asking its question over the wrong pair. §4b's figure is the app uni
 run's field is the contract's, and the table now carries a pin for each
 (`in_field` / `in_field_stateless`). The run is checked against its own, matches it exactly,
 and the app universe's pin stays where §4b left it — unmoved, and no longer quoted at a run
-it does not describe. The sign check rides on the new pin too, so a contract-universe run
+it does not describe. The sign check rides on the new pin too, so a stateless-universe run
 that came back positive would still fail.
 
 A row's universe is now part of what the row *is*, the same way its detector version and its

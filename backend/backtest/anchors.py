@@ -73,7 +73,7 @@ the ADR20 floor and the trend gate acting together, each duplicating a rubric
 dimension and lifting the field's hit rate on it until no spread is left. A
 property of the method under the contracted gates, not a defect in the field.
 
-So holding a contract-universe run to §4b's app-universe figure was never a
+So holding a stateless-universe run to §4b's app-universe figure was never a
 failing anchor. It was a subtraction between two numbers that were never the same
 number — the #165 conflation one level down, with the field rather than the
 quantity as the thing being conflated. ``in_field`` is therefore **two anchors**,
@@ -82,7 +82,7 @@ selects the one that holds over the field a run actually screened. A run is stil
 checked against six anchors; the seventh row is the other universe's pin.
 
 Nothing was widened to get there. Both pins keep zero tolerance on their counts
-and both keep the sign check on the gap, so a contract-universe run coming back
+and both keep the sign check on the gap, so a stateless-universe run coming back
 positive fails exactly as before. A measurement counted over one universe and
 offered against the other's pin is **refused** rather than reported as a
 divergence, because a mismatch there says nothing about the pipeline.
@@ -185,12 +185,21 @@ QUANTITY_IN_FIELD = "field-membership (gate-dependent)"
 # universe against a pin measured over the other is not a failing anchor, it is
 # two different quantities being subtracted.
 UNIVERSE_APP = "app"
-UNIVERSE_CONTRACT = "contract-stateless"
+UNIVERSE_STATELESS = "stateless"
+
+# Why the two are not comparable, in one sentence, so the three refusals below
+# say the same thing rather than three drifting paraphrases of it.
+WHY_UNIVERSE_MATTERS = (
+    "#211 measured that in_field and §4b's gap are properties of the pair "
+    "(rubric, universe) — +1.95pp under the app's universe, −5.01pp under the "
+    "contract's stateless one — so a count over one is not a count over the "
+    "other and subtracting them says nothing about the pipeline"
+)
 
 # The universes an anchor may be scoped to. An anchor scoped to neither holds
 # over both — the geometry rows are medians off his bars and no gate touches
 # them, so scoping them would invent a distinction the measurement does not have.
-UNIVERSES = (UNIVERSE_APP, UNIVERSE_CONTRACT)
+UNIVERSES = (UNIVERSE_APP, UNIVERSE_STATELESS)
 
 # The `in_field` band the #162 reference contamination is allowed to move the count
 # by. The published values were measured on a store that ranks five references in a
@@ -246,7 +255,7 @@ class Anchor:
 
     ``universe`` names the field the figure was counted over, for the anchors
     where that is part of what the number *is* (:data:`UNIVERSE_APP`,
-    :data:`UNIVERSE_CONTRACT`). ``None`` means the anchor holds over both, which
+    :data:`UNIVERSE_STATELESS`). ``None`` means the anchor holds over both, which
     is the honest answer for every row no gate touches. It sits beside
     ``quantity`` because it does the same job one level down: ``quantity`` keeps
     recall and field membership from being conflated (#165), and ``universe``
@@ -467,10 +476,10 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
     ),
     Anchor(
         key="in_field_stateless",
-        label="Trades in the replayed field (A2 in_field), contract universe",
+        label="Trades in the replayed field (A2 in_field), stateless universe",
         kind=GATE_DEPENDENT,
         quantity=QUANTITY_IN_FIELD,
-        universe=UNIVERSE_CONTRACT,
+        universe=UNIVERSE_STATELESS,
         committed={"in_field": 165, "of": 503, "gap_pp": -5.01},
         tolerance={
             # Zero on both counts, and deliberately not the app row's
@@ -967,6 +976,19 @@ class AnchorReport:
         return tuple(c.anchor.key for c in self.checks if not c.passes)
 
     @property
+    def first_measurement(self) -> tuple[str, ...]:
+        """The anchors checked that have no second measurement agreeing with them.
+
+        Reported beside :attr:`passes` because it is the one thing a settled
+        verdict does not say: a pin measured by the run it anchors detects drift
+        from here on and cannot corroborate that run, and a reader who sees only
+        "settled" would take it for independent confirmation.
+        """
+        return tuple(
+            c.anchor.key for c in self.checks if c.anchor.first_measurement
+        )
+
+    @property
     def explained(self) -> tuple[str, ...]:
         """The anchors that diverged and carry a written cause.
 
@@ -1012,12 +1034,8 @@ def _check_one(
         raise DriftError(
             f"anchor {anchor.key!r} is pinned over the {anchor.universe!r} "
             f"universe, but the measurement offered was counted over "
-            f"{measurement.universe!r}. These are the same quantity over two "
-            "different fields, and #211 measured that the figure is a property "
-            "of the pair — +1.95pp under the app's universe, −5.01pp under the "
-            "contract's. Comparing them is not a failing anchor, it is a "
-            "subtraction between two numbers that were never the same number; "
-            "anchor the run against the pin measured over the universe it ran"
+            f"{measurement.universe!r}. {WHY_UNIVERSE_MATTERS}; anchor the run "
+            "against the pin measured over the universe it ran"
         )
     if measurement.arm is not None and measurement.arm not in ANCHOR_ARMS:
         raise DriftError(
@@ -1180,11 +1198,9 @@ def _refuse_foreign_universe(
         raise DriftError(
             f"the run was anchored over the {universe!r} universe, but the "
             f"field-membership measurement offered was counted over "
-            f"{measurement.universe!r}. #211 measured that in_field and §4b's "
-            "gap are properties of the pair (rubric, universe) — +1.95pp under "
-            "the app's, −5.01pp under the contract's — so these were never the "
-            f"same number. Anchor over {measurement.universe!r}, or hand over "
-            f"the figures the {universe!r} universe produced"
+            f"{measurement.universe!r}. {WHY_UNIVERSE_MATTERS}. Anchor over "
+            f"{measurement.universe!r}, or hand over the figures the "
+            f"{universe!r} universe produced"
         )
 
 
@@ -1218,7 +1234,7 @@ def check_anchors(
     """
     explained = dict(explained or {})
     by_anchor = _index(measurements, explained=explained, arms=arms)
-    gate_dependent_set = gate_dependent_anchors(universe)
+    gate_dependent_group = gate_dependent_anchors(universe)
     _refuse_foreign_universe(by_anchor, universe)
 
     geometry = _check_group(
@@ -1236,7 +1252,7 @@ def check_anchors(
         )
 
     gate_dependent = _check_group(
-        gate_dependent_set, by_anchor, detector_version=detector_version,
+        gate_dependent_group, by_anchor, detector_version=detector_version,
         explained=explained,
     )
     failed = [c for c in gate_dependent if not c.passes]
@@ -1442,10 +1458,8 @@ def _field_measurements(path: str) -> list[Measurement]:
         if "universe" not in row:
             raise DriftError(
                 f"{path}: the in_field row does not name the universe it was "
-                f"counted over. Since #211 that is part of what the figure is — "
-                f"+1.95pp under {UNIVERSE_APP!r}, −5.01pp under "
-                f"{UNIVERSE_CONTRACT!r} — so a row without it cannot be checked "
-                "against either pin"
+                f"counted over, and {WHY_UNIVERSE_MATTERS}. A row without one "
+                "cannot be checked against either pin"
             )
         out.append(
             field_membership_measurement(
@@ -1459,6 +1473,22 @@ def _field_measurements(path: str) -> list[Measurement]:
             )
         )
     return out
+
+
+def _universe_of(field_rows: Sequence[Measurement], path: str) -> str:
+    """The universe a field-measurements file counted its ``in_field`` row over.
+
+    There is no default. A file carrying no ``in_field`` row names no universe,
+    and picking one for it would decide at the command line the very thing the
+    file exists to record.
+    """
+    for m in field_rows:
+        if m.quantity == QUANTITY_IN_FIELD and m.universe:
+            return m.universe
+    raise DriftError(
+        f"{path}: no in_field row, so the file names no universe and the run "
+        "cannot be anchored on a field row at all"
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1544,13 +1574,11 @@ def main(argv: list[str] | None = None) -> int:
         # The universe comes off the file rather than off a flag of its own.
         # The file is where the run recorded which gates screened its field, and
         # a flag beside it could only ever agree with that or contradict it.
-        universe = next(
-            (
-                m.universe for m in field_rows
-                if m.quantity == QUANTITY_IN_FIELD and m.universe
-            ),
-            UNIVERSE_APP,
-        )
+        # A file with no in_field row at all leaves nothing to read it off, and
+        # raises here rather than falling back to a universe nobody named — the
+        # check that follows would fail anyway, and it would fail describing a
+        # missing anchor instead of a file that never said which field it counted.
+        universe = _universe_of(field_rows, args.field_measurements)
         report = check_anchors(
             measurements, explained=explained, sample=geometry, universe=universe
         )

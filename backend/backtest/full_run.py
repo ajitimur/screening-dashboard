@@ -66,7 +66,7 @@ from typing import Any, Callable, Sequence
 from backtest.anchors import (
     SETTLED_VERDICTS,
     UNIVERSE_APP,
-    UNIVERSE_CONTRACT,
+    UNIVERSE_STATELESS,
     VERDICT_EXPLAINED,
     AnchorReport,
     format_anchors,
@@ -129,6 +129,7 @@ class AnchorOutcome:
     explained: tuple[str, ...] = ()
     geometry_only: bool = False
     universe: str = UNIVERSE_APP
+    first_measurement: tuple[str, ...] = ()
 
 
 class MarketNotRun(KeyError):
@@ -322,7 +323,7 @@ class FullRun:
             # of the pair, so a report over the app's universe says nothing about
             # this run however green it is. A report that already fails is left
             # to refuse for its own reason, which is the more specific one.
-            if self.anchors.universe != UNIVERSE_CONTRACT:
+            if self.anchors.universe != UNIVERSE_STATELESS:
                 raise AnchorsNotSettled(
                     f"this run screens its field with the contract's stateless "
                     f"universe, but the anchor report was checked over "
@@ -446,6 +447,13 @@ def full_run_report(run: FullRun) -> dict[str, Any]:
                 # it is exactly the citation the rule forbids.
                 "universe": run.anchors.universe,
                 "diverged_with_cause": list(run.anchors.explained),
+                # Carried onto the payload rather than left in the table: the
+                # stateless `in_field` pin was measured by the run it anchors, so
+                # it detects drift from here on rather than confirming this run.
+                # A later phase reading only this file would otherwise see a
+                # settled anchor and no sign that one of them cannot corroborate
+                # anything yet.
+                "first_measurement": list(run.anchors.first_measurement),
             },
             "per_market": {
                 r.market: {
@@ -619,6 +627,9 @@ def read_anchor_report(path: str | Path) -> AnchorOutcome:
         # written before #211 added the key is refused by the gate instead of
         # being read as though it had anchored the contract's field.
         universe=body.get("universe", UNIVERSE_APP),
+        first_measurement=tuple(
+            c.get("anchor", "?") for c in checks if c.get("first_measurement")
+        ),
     )
 
 

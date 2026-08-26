@@ -528,7 +528,10 @@ in one name are not independent observations — a stock throwing three signals 
 fortnight contributes three correlated rows — so bootstrapping *rows* makes the effective
 sample larger than it is and flatters every p-value. Seeded, and the seed and resample
 count ride on every cell, because a significance figure that moved between two runs of the
-same data would be unreproducible with nothing in the output to show it.
+same data would be unreproducible with nothing in the output to show it. A statistic that is
+not a mean — a **score band** gap, a rank correlation — is resampled the same way through
+`backtest.ranking.bootstrap_symbol_statistic`, on the metric's own seed and cluster floor, so
+two intervals in one report were never built differently.
 _Avoid_: bootstrapping the trades, resampling the rows — the row is not the unit.
 
 **Priced posture**:
@@ -553,6 +556,44 @@ warning, follow-through named plainly as **unbiased where breadth is not**, beca
 index series carries no survivorship hole and this run is the better instrument for it.
 _Avoid_: regime filter, regime edge — and never condition a cell on **breadth**, which is
 the **regime companion** survivorship corrupts most.
+
+**Score band**:
+A contiguous run of star scores in the **out-of-sample ranking test**'s cut
+(`backtest.ranking.Band`), and the decile positions it covers. A score value is **atomic** —
+it never splits across two bands — because the replayed score is seven dimensions of eight
+*integral* points, so a distribution most of which sits on one score has no tenth to cut at,
+and splitting one would report a difference between two bands that is a difference in sort
+order and nothing else. The bands therefore **collapse to fewer than ten**, they **partition
+all ten decile positions** between them, and each says which ones fell inside it. Cut **once
+on a market's whole measured window** and over its **closed** trades only, then applied to
+every year — so a band names the same score in every row, and a trade still running never
+moved a boundary the measured population is read against.
+_Avoid_: score quintile; and do not call a band a **bucket** — the band is the score range,
+the bucket is that range *with the outcomes in it*.
+
+**Bucket**:
+One reported row of the **out-of-sample ranking test**: a **score band** together with the
+outcomes that landed in it — n taken, n closed, symbols, after-cost expectancy, win rate,
+R-distribution and clustered interval, in the same shape a **pre-registered metric** cell
+reports. A trade the cut holds no band for is counted in `outside_the_cut` rather than filed
+under the nearest edge, which would be a mislabel, or dropped, which would leave the buckets
+summing to less than the field. Only an **open** trade can be one, since the cut is taken over
+the closed ones.
+_Avoid_: decile bucket on its own — there are rarely ten of them.
+
+**Out-of-sample ranking test**:
+The measurement of whether a higher star score predicts a better result (PRD #182 story 93,
+`backtest.ranking`): outcomes bucketed by **score band**, per market and per year, with n on
+every bucket and the **clustered bootstrap** on both the top-minus-bottom gap and Spearman's
+rho. The verdict needs **both** intervals above zero — a gap can rest on one hot name at the
+top and a rho can be positive and negligible — and "no evidence it ranks" is never "the score
+does not rank". It is **not** findings §4a: that measured a rate of scores between his picks
+and the field, on the field v2's weights had been *fitted* to, at p = 0.055; this measures
+after-cost R by score band on trades nobody selected, so the outcome variable is independent
+of the weights. §4a's figures ride on the payload precisely so the two are never lined up as
+one.
+_Avoid_: the ranking result, the decile test; and never quote it against §4a's **+5.59pp**
+as though the two were comparable.
 
 **Not-taken detection**:
 A member of the replayed field on a session where he entered something else. Not a

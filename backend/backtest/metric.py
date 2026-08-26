@@ -220,6 +220,36 @@ def check_costs(contract: RunContract, market: str) -> None:
             )
 
 
+def check_one_market_one_arm(
+    trades: Sequence[SimulatedTrade], *, market: str, what: str
+) -> None:
+    """Refuse a cohort spanning two markets or two arms, whatever is measuring it.
+
+    Both refusals exist because neither failure has a shape a reader could catch
+    afterwards. A mean across the two markets is the figure findings §8 forbids —
+    magnitudes do not transfer — and it would print as an ordinary number. A mean
+    across two arms would report a figure no arm produced, under the name of the
+    one the run pre-registered.
+
+    ``what`` names the caller in the message, because the same refusal now guards
+    two different measurements (:func:`expectancy_cell` and the ranking's cohort)
+    and "one market's" is unhelpful when a reader cannot tell which one refused.
+    """
+    foreign = {t.market for t in trades} - {market}
+    if foreign:
+        raise ValueError(
+            f"{what} is one market's: {market!r} was asked for and "
+            f"{sorted(foreign)} arrived too; US and IDX never pool"
+        )
+    other_arms = {t.arm for t in trades} - {PRIMARY_ARM}
+    if other_arms:
+        raise ValueError(
+            f"{what} is measured on arm {PRIMARY_ARM}, the pre-registered arm: "
+            f"{sorted(other_arms)} arrived too, and no arm produced the average "
+            "of them"
+        )
+
+
 def per_side_cost_bps(contract: RunContract, market: str) -> float:
     """Commission plus slippage for one side of a trade in ``market``, in bps.
 
@@ -292,8 +322,13 @@ def clusters_by_symbol(
     return [tuple(grouped[symbol]) for symbol in sorted(grouped)]
 
 
-def _quantile(values: Sequence[float], q: float) -> float:
-    """The ``q``-quantile of already-sorted ``values``, linearly interpolated."""
+def quantile(values: Sequence[float], q: float) -> float:
+    """The ``q``-quantile of already-sorted ``values``, linearly interpolated.
+
+    Public because :mod:`backtest.ranking`'s bootstrap builds its interval the
+    same way: two percentile conventions in one report would make two intervals
+    incomparable while both printed as 95%.
+    """
     if len(values) == 1:
         return values[0]
     pos = q * (len(values) - 1)
@@ -373,8 +408,8 @@ def bootstrap_expectancy(
     tail = (1.0 - confidence) / 2.0
     return {
         **body,
-        "ci_low": _quantile(means, tail),
-        "ci_high": _quantile(means, 1.0 - tail),
+        "ci_low": quantile(means, tail),
+        "ci_high": quantile(means, 1.0 - tail),
         "p_value": sum(1 for m in means if m <= 0.0) / len(means),
     }
 
@@ -409,7 +444,7 @@ def _distribution(rs: Sequence[float]) -> dict[str, Any]:
     losses = [r for r in ordered if r <= 0]
     return {
         "min": ordered[0],
-        **{name: _quantile(ordered, q) for name, q in _QUANTILES},
+        **{name: quantile(ordered, q) for name, q in _QUANTILES},
         "max": ordered[-1],
         "mean_win": sum(wins) / len(wins) if wins else None,
         "mean_loss": sum(losses) / len(losses) if losses else None,
@@ -443,19 +478,7 @@ def expectancy_cell(
     same output as a slice nobody computed.
     """
     check_costs(contract, market)
-    foreign = {t.market for t in trades} - {market}
-    if foreign:
-        raise ValueError(
-            f"an expectancy cell is one market's: {market!r} was asked for and "
-            f"{sorted(foreign)} arrived too; US and IDX never pool"
-        )
-    other_arms = {t.arm for t in trades} - {PRIMARY_ARM}
-    if other_arms:
-        raise ValueError(
-            f"the pre-registered metric is arm {PRIMARY_ARM}'s: "
-            f"{sorted(other_arms)} arrived too, and no arm produced the average "
-            "of them"
-        )
+    check_one_market_one_arm(trades, market=market, what="an expectancy cell")
 
     closed = [t for t in trades if t.r_multiple is not None]
     rs = [after_cost_r(t, contract) for t in closed]
@@ -506,8 +529,15 @@ def _reported_markets(
     return tuple(asked) if asked else tuple(contract.value(SCOPE_MARKETS_KEY))
 
 
-def _years(contract: RunContract, trades: Sequence[SimulatedTrade]) -> list[int]:
+def measured_years(
+    contract: RunContract, trades: Sequence[SimulatedTrade]
+) -> list[int]:
     """Every year of the measured window that this market could have traded in.
+
+    Public rather than private because :mod:`backtest.ranking` reports per year
+    too, and two implementations of "which years does this market get a row for"
+    would be two places for a silent year to go missing from one report and not
+    the other.
 
     The span rather than the years present: a year with no trade is a measurement —
     possibly a data hole — and an absent row reads as a quiet market until somebody
@@ -577,7 +607,7 @@ def market_report(
                 market=market,
                 label=str(year),
             )
-            for year in _years(contract, mine)
+            for year in measured_years(contract, mine)
         ],
         "windows": [
             expectancy_cell(contract, mine, market=market, label=FULL_WINDOW),

@@ -128,11 +128,11 @@ from .metric import (
     FULL_WINDOW,
     PRIMARY_ARM,
     _distribution,
-    _quantile,
     _reported_markets,
     after_cost_r,
     clusters_by_symbol,
     expectancy_cell,
+    quantile,
 )
 from .result import stamp_result
 from .run import ContractDrift
@@ -521,8 +521,8 @@ def bootstrap_difference(
     tail = (1.0 - confidence) / 2.0
     return {
         **body,
-        "ci_low": _quantile(diffs, tail),
-        "ci_high": _quantile(diffs, 1.0 - tail),
+        "ci_low": quantile(diffs, tail),
+        "ci_high": quantile(diffs, 1.0 - tail),
         "p_value": sum(1 for d in diffs if d >= 0.0) / len(diffs),
     }
 
@@ -801,7 +801,7 @@ def breadth_summary(spine: RegimeSpine) -> dict[str, Any]:
         "sessions": len(values),
         "sessions_without_breadth": len(spine.readings) - len(values),
         "min": values[0] if values else None,
-        "median": _quantile(values, 0.5) if values else None,
+        "median": quantile(values, 0.5) if values else None,
         "max": values[-1] if values else None,
         "mean": (sum(values) / len(values)) if values else None,
         "basis": BREADTH_BASIS,

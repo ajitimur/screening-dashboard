@@ -18,6 +18,10 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import json
+import os
+import re
+import subprocess
+import sys
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -12864,3 +12868,324 @@ def test_the_axes_a_sweep_reports_are_the_axes_it_ran(tmp_path):
 
     assert [block["axis"] for block in report["axes"]] == list(AXES)
     assert {v.axis for v in variants()} == set(AXES)
+
+
+# -- the write-up --------------------------------------------------------------
+#
+# Phase 7 (issue #200). The deliverables are documents and a command rather than
+# a module, so what is testable about them is the one thing a document reliably
+# gets wrong: **drift**. Every figure quoted below is re-read from the committed
+# payload that produced it, so a rerun that moves a number and leaves the prose
+# behind fails here rather than in a reader's hands.
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+REFERENCES = REPO_ROOT / "references"
+AUTHORITY_DOC = REFERENCES / "backtest_findings.md"
+PLAIN_DOC = REFERENCES / "backtest_findings-plain.md"
+HEADLINE_COMMAND = REPO_ROOT / "scripts" / "backtest_headline.sh"
+
+SUMMARY_HEADING = "## The headline, and its bound"
+LIMITS_HEADING = "## What this cannot say"
+
+
+def _run_headline(*args: str) -> subprocess.CompletedProcess:
+    """The committed command, run against the interpreter the tests run under.
+
+    The script prefers ``backend/.venv/bin/python`` and honours ``PYTHON`` when
+    that is not the environment in use — a git worktree has no venv of its own,
+    and a test that silently fell back to a bare ``python3`` would be asserting on
+    an import error rather than on the headline.
+    """
+    return subprocess.run(
+        ["bash", str(HEADLINE_COMMAND), *args],
+        capture_output=True, text=True, check=True, cwd=REPO_ROOT,
+        env={**os.environ, "PYTHON": sys.executable},
+    )
+
+
+def _committed(name: str) -> dict:
+    return json.loads((REFERENCES / name).read_text())
+
+
+def _section(page: str, heading: str) -> str:
+    """One document section: the text under `heading`, up to the next one."""
+    return page.split(heading, 1)[1].split("\n## ", 1)[0]
+
+
+def _prose(path: Path) -> str:
+    """A document's text with its typographic minus folded to the ASCII one.
+
+    Prose in this repo sets a negative figure with U+2212, and a formatter prints
+    it with a hyphen. Asserting on the glyph rather than the figure would make
+    every one of these tests a test of punctuation.
+    """
+    return path.read_text().replace("\u2212", "-")
+
+
+def _headline_cells() -> dict[str, dict[str, float | None]]:
+    """The four pre-registered figures, read off the payload that produced them."""
+    metric = _committed("backtest_primary_metric.json")
+    return {
+        body["market"]: {
+            cell["label"]: cell["expectancy_r"] for cell in body["windows"]
+        }
+        for body in metric["markets"]
+    }
+
+
+def _verdict_markets() -> dict[str, dict]:
+    return {body["market"]: body for body in _committed("backtest_verdict.json")["markets"]}
+
+
+def test_the_authority_document_and_its_plain_companion_are_both_committed():
+    """The convention findings §0 set: an authority document, and a plain-language
+    companion beside it that assumes none of the vocabulary."""
+    assert AUTHORITY_DOC.exists()
+    assert PLAIN_DOC.exists()
+    # Each names the other, or a reader who lands on one never learns of the other.
+    assert PLAIN_DOC.name in _prose(AUTHORITY_DOC)
+    assert AUTHORITY_DOC.name in _prose(PLAIN_DOC)
+
+
+def test_the_machine_readable_results_are_committed_beside_both():
+    """Every figure the write-up quotes has a payload behind it, and the document
+    names the file rather than leaving the reader to guess which one."""
+    page = _prose(AUTHORITY_DOC)
+    for payload in (
+        "backtest_primary_metric.json",
+        "backtest_survivorship.json",
+        "backtest_verdict.json",
+        "backtest_sweep.json",
+        "backtest_regime_posture.json",
+        "backtest_candidate_outcomes.json",
+        "backtest_score_ranking.json",
+        "backtest_anchors.json",
+        "backtest_full_run.json",
+        "backtest_arms_US.json",
+        "backtest_arms_IDX.json",
+        "backtest_run_contract.json",
+    ):
+        assert (REFERENCES / payload).exists(), payload
+        assert payload in page, payload
+
+
+def test_every_payload_the_table_links_is_committed_rather_than_merely_present():
+    """"Committed beside both" is a claim about the repository, not the disk.
+
+    A payload that exists locally and is untracked or ignored reads as available to
+    every reader and is available to none of them — and the two large stores this
+    run was built from are exactly that, deliberately. So the table's rows are
+    checked against `git ls-files` rather than against `Path.exists`.
+    """
+    page = _prose(AUTHORITY_DOC)
+    table = _section(page, "## The committed payloads")
+    linked = sorted(set(re.findall(r"\((backtest_[a-z_A-Z]+\.json)\)", table)))
+    assert linked, "the payload table links no payload"
+
+    tracked = subprocess.run(
+        ["git", "ls-files", "--", "references"],
+        capture_output=True, text=True, check=True, cwd=REPO_ROOT,
+    ).stdout.split()
+    tracked_names = {Path(row).name for row in tracked}
+    for payload in linked:
+        assert payload in tracked_names, f"{payload} is linked but not tracked"
+
+
+def test_the_committed_payloads_are_not_the_denominator_itself():
+    """The rows the denominator names live in two stores `.gitignore` keeps out.
+
+    Saying otherwise sends a reader looking in the repository for 15.1M bars. The
+    document has to name both stores and say they are absent, so the reproduction
+    section's crawl is understood as required rather than optional.
+    """
+    table = _section(_prose(AUTHORITY_DOC), "## The committed payloads")
+    assert "data/backtest.duckdb" in table
+    assert "data/backtest.duckdb.denominator.duckdb" in table
+    assert ".gitignore" in table
+    # And the claim is true: neither store is tracked.
+    tracked = subprocess.run(
+        ["git", "ls-files", "--", "data"],
+        capture_output=True, text=True, check=True, cwd=REPO_ROOT,
+    ).stdout.split()
+    assert not [row for row in tracked if row.endswith(".duckdb")]
+
+
+def test_the_headline_figures_in_both_documents_are_the_committed_ones():
+    """The drift guard. A rerun that moves an expectancy and leaves the prose
+    behind is the failure this test exists for — in both documents, because a
+    plain-language companion quoting a stale number is no better than a stale
+    authority."""
+    cells = _headline_cells()
+    authority = _prose(AUTHORITY_DOC)
+    plain = _prose(PLAIN_DOC)
+    for market, windows in cells.items():
+        for expectancy in windows.values():
+            assert expectancy is not None
+            printed = f"{expectancy:+.3f}R"
+            assert printed in authority, (market, printed)
+            assert printed in plain, (market, printed)
+
+
+def test_the_bias_bound_is_in_the_summary_and_not_in_a_footnote():
+    """Phase 2's bound is larger than the effect the run is looking for, so a
+    reader who stops after the summary must already have it. Both pessimistic
+    figures appear above the summary section's end."""
+    page = _prose(AUTHORITY_DOC)
+    assert SUMMARY_HEADING in page
+    summary = _section(page, SUMMARY_HEADING)
+    for market, body in _verdict_markets().items():
+        for cell in body["windows"]:
+            assert f"{cell['pessimistic_r']:+.3f}R" in summary, (market, cell["label"])
+    # And the size of the hole itself, per market, not just its consequence.
+    for body in _verdict_markets().values():
+        assert f"{body['hole_share'] * 100:.1f}%" in summary, body["market"]
+
+
+def test_the_summary_carries_the_drag_the_hole_costs_the_headline():
+    """`gap_r` is the drag on the mean; `hole_share` and the trades-per-covered
+    ratio it implies are counts. They are different quantities and the first draft
+    of the plain companion ran them together, quoting the count as an R amount. So
+    the drag is asserted from the payload that computes it.
+    """
+    summary = _section(_prose(AUTHORITY_DOC), SUMMARY_HEADING)
+    metric = _committed("backtest_primary_metric.json")
+    us = next(b for b in metric["markets"] if b["market"] == "US")
+    assert f"{us['bias_bound']['gap_r']:.3f}R" in summary
+    # And the plain companion states the same drag rather than a second version.
+    assert f"{us['bias_bound']['gap_r']:.3f}R" in _prose(PLAIN_DOC)
+
+
+def test_both_markets_are_reported_separately_including_in_the_summary():
+    """Findings §8: shapes travel between US and IDX and magnitudes do not, so a
+    pooled figure describes neither market. The summary names both."""
+    page = _prose(AUTHORITY_DOC)
+    summary = _section(page, SUMMARY_HEADING)
+    cells = _headline_cells()
+    assert set(cells) == {"US", "IDX"}
+    for market, windows in cells.items():
+        assert market in summary
+        for expectancy in windows.values():
+            assert f"{expectancy:+.3f}R" in summary, (market, expectancy)
+
+
+def test_the_verdict_is_stated_in_the_words_the_contract_fixed_in_advance():
+    """The licence strings are the contract's own, written before the run. Quoting
+    them verbatim is what stops the verdict being restated more warmly than it was
+    decided."""
+    page = _prose(AUTHORITY_DOC)
+    # Collapsed, and with the blockquote markers dropped: prose wraps a quotation
+    # across lines and marks each one, and the contract's words are the claim
+    # under test rather than where the line breaks and the "> " fell.
+    unwrapped = " ".join(
+        " ".join(line.lstrip("> ") for line in page.splitlines()).split()
+    )
+    for market, body in _verdict_markets().items():
+        assert body["verdict"] in page.lower(), market
+        assert " ".join(body["licenses"].split()) in unwrapped, market
+
+
+def test_the_licensed_change_is_named_before_any_constant_moves():
+    """The ship verdict's own condition. IDX ships, so the write-up names the
+    change it licenses — and no constant in the app moved to earn it."""
+    page = _prose(AUTHORITY_DOC)
+    assert "## The change this licenses" in page
+    licensed = _section(page, "## The change this licenses")
+    assert "IDX" in licensed
+    # Named, and still unspent: the calibration rule is where it goes next.
+    assert "findings §7" in licensed
+
+
+def test_the_limits_are_stated_including_what_signal_level_cannot_say():
+    """A limitation named in advance is a caveat; one discovered afterwards is a
+    retraction. The four the plan fixed, plus the deferral in its own words."""
+    for doc in (AUTHORITY_DOC, PLAIN_DOC):
+        assert LIMITS_HEADING in _prose(doc), doc.name
+    page = _prose(AUTHORITY_DOC)
+    limits = _section(page, LIMITS_HEADING)
+    for claim in (
+        "capacity",
+        "concurrency",
+        "drawdown",
+        "correlated clustering",
+        "intraday",
+    ):
+        assert claim in limits, claim
+    # The portfolio question is deferred rather than dismissed, in those words.
+    assert "deferred rather than dismissed" in limits
+
+
+def test_one_committed_command_reproduces_the_headline_figure():
+    """A reader who has seen none of this runs one command and reads the four
+    figures and their bounds off its output."""
+    assert HEADLINE_COMMAND.exists()
+    assert os.access(HEADLINE_COMMAND, os.X_OK), "the command must be runnable"
+    printed = _run_headline().stdout
+    for market, body in _verdict_markets().items():
+        assert market in printed
+        for cell in body["windows"]:
+            assert f"{cell['expectancy_r']:+.3f}R" in printed, (market, cell["label"])
+            assert f"{cell['pessimistic_r']:+.3f}R" in printed, (market, cell["label"])
+
+
+def test_the_command_says_whether_it_recomputed_the_figure_or_read_it_back():
+    """Two paths, and they are not the same claim. Reading a recorded headline off
+    disk checks that the payload and the prose agree; recomputing it from the store
+    checks the figure itself. A command that did the first and let a reader believe
+    the second would be the whole write-up's credibility spent on a shortcut."""
+    printed = _run_headline().stdout
+    assert "recorded" in printed.lower()
+    assert "--from-store" in printed, "the recomputing path is named in the output"
+    # And the document tells the reader the same two things.
+    assert HEADLINE_COMMAND.name in _prose(AUTHORITY_DOC)
+
+
+def test_the_recomputing_path_cleans_up_after_itself():
+    """`--from-store` works in a temp directory and removes it on the way out.
+
+    Read off the source rather than by running it, because the recomputing path
+    re-simulates fourteen years of two markets and takes minutes. The specific
+    regression: `exec` on the last line replaces the shell image, so bash never
+    runs the EXIT trap and every run leaves its temp directory behind. The trap
+    is only as good as the absence of that `exec`, so both are asserted.
+    """
+    script = HEADLINE_COMMAND.read_text()
+    assert "trap 'rm -rf \"$WORK\"' EXIT" in script
+    assert "exec " not in script, "an exec after the trap would skip the cleanup"
+
+
+def test_the_command_explains_itself_without_running_anything():
+    """A reader who has seen none of this types --help first."""
+    printed = subprocess.run(
+        ["bash", str(HEADLINE_COMMAND), "--help"],
+        capture_output=True, text=True, cwd=REPO_ROOT,
+        env={**os.environ, "PYTHON": sys.executable},
+    )
+    assert printed.returncode == 0
+    assert "--from-store" in printed.stdout
+
+
+def test_a_missing_environment_is_named_rather_than_thrown():
+    """The reader who runs this has cloned a repository, not installed a tool.
+
+    Both paths import the backtest package, so both need duckdb even though the
+    default one reads no bars. A `ModuleNotFoundError` traceback tells that reader
+    nothing they can act on, so the command checks first and says what to install.
+    """
+    bare = subprocess.run(
+        ["bash", str(HEADLINE_COMMAND)],
+        capture_output=True, text=True, cwd=REPO_ROOT,
+        # An interpreter that certainly cannot import the project's dependencies.
+        env={**os.environ, "PYTHON": "/usr/bin/false"},
+    )
+    assert bare.returncode == 3
+    assert "duckdb" in bare.stderr
+    assert "requirements.txt" in bare.stderr
+    assert "Traceback" not in bare.stderr
+
+
+def test_the_write_up_moves_no_committed_constant():
+    """Phase 7 writes. The ship verdict licenses a change and explicitly defers it,
+    so the contract this run was measured under is byte-identical after it."""
+    before = DEFAULT_CONTRACT_JSON.read_text()
+    _run_headline()
+    assert DEFAULT_CONTRACT_JSON.read_text() == before

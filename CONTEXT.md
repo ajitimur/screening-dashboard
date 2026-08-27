@@ -567,6 +567,18 @@ licensing nothing. Reaching for a **swept variant** to break the tie is the fail
 the whole run contract exists to prevent.
 _Avoid_: no result, flat, mixed.
 
+**Licensed change**:
+The change a **ship** verdict permits, named in the **write-up** before any constant moves
+(PRD #182 Phase 7, `references/backtest_findings.md`). It is a permission and not an
+action: naming it is the verdict's own condition, and spending it is separate work under
+whatever evidence rule governs the thing being changed — the calibration rule (findings §7)
+for a score dimension, ADR 0005's admission instrument for a **candidate dimension**. It is
+licensed **only in the market that passed**, so a Jakarta ship permits nothing on the US.
+A licence is recorded whether or not it is ever spent, because a change argued for after
+the fact is indistinguishable from one chosen to fit the result.
+_Avoid_: the recommendation, the action item, what the run proves — and never write that a
+run "licensed" a change it did not name.
+
 **Bound basis**:
 How the hole under a market's **bias bound** was counted: against a dated listing spine
 with **recycled symbols** separated out, or against the enumeration alone, where a recycled

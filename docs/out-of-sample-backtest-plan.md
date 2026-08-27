@@ -614,6 +614,34 @@ State the bias bound from Phase 2 in the summary, not in a footnote.
 **Done when** a reader who has seen none of this can reproduce the headline figure from the
 committed command, and can state its bound without reading the code.
 
+**Done** (2026-08-27, #200). The authority document is
+[`references/backtest_findings.md`](../references/backtest_findings.md) and its plain-language
+companion is [`backtest_findings-plain.md`](../references/backtest_findings-plain.md). The one
+command is `bash scripts/backtest_headline.sh`, which prints both markets, both windows, each
+figure beside its pessimistic twin and the verdict in the contract's own words — from the
+committed payloads by default, and recomputed from the bars with
+`--from-store data/backtest.duckdb`. The two paths are different claims and the command says on
+its first line which one it took.
+
+Writing it up ran the three Phase 5 measurements whose machinery had landed with no committed
+result — the denominator figures ([`backtest_figures.json`](../references/backtest_figures.json),
+#193), the regime posture ([`backtest_regime_posture.json`](../references/backtest_regime_posture.json),
+#192) and the candidate outcome test
+([`backtest_candidate_outcomes.json`](../references/backtest_candidate_outcomes.json), #195) —
+plus the three exit arms beside each other (`backtest_arms_{US,IDX}.json`). A phase reported
+from a payload nobody committed is a phase whose figures cannot be checked.
+
+Three results the write-up records for the first time. **Precision, at last**: 3.1% on the US
+and 2.4% on IDX at arm B, against a 12.8% / 9.5% trigger share — the false-positive rate
+findings §9 could not report and #149 could only log as volume carrying no verdict.
+**`Relative move` predicts on IDX** — a +1.927R hit-minus-miss gap on an interval clear of zero,
+the one positive cell of four, and the change the ship verdict licenses, named there before any
+constant moves. And **arm A smooths without raising expectancy**, matching arm B on the US and
+giving up 0.379R per trade on IDX for four points of hit rate.
+
+**No constant moved.** The contract, the rubric, the detector and the register are all as this
+run measured them; the licensed change is named and unspent.
+
 ---
 
 ## Traps

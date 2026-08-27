@@ -1,0 +1,1301 @@
+{
+ "contract": {
+  "contract_version": "1",
+  "label": "out-of-sample backtest \u2014 US+IDX, 2012 onward (PRD #182)",
+  "cells": [
+   {
+    "key": "scope.setups",
+    "value": "long_breakout_eod",
+    "justification": "Long breakout EOD setups only, so the run measures the same thing the reference set and the detector do (PRD story 7)."
+   },
+   {
+    "key": "scope.level",
+    "value": "signal_primary_portfolio_deferred",
+    "justification": "Signal level is declared primary and portfolio level specified but deferred, so the open question is answered without the capital model blocking it (story 8)."
+   },
+   {
+    "key": "scope.markets",
+    "value": [
+     "US",
+     "IDX"
+    ],
+    "justification": "US and IDX reported separately throughout, so findings \u00a78's result that magnitudes do not transfer is honoured rather than averaged away (story 4)."
+   },
+   {
+    "key": "window.measured_start",
+    "value": "2012-01-01",
+    "justification": "The measured window starts 2012-01-01 so the sample spans several regimes rather than one (story 5)."
+   },
+   {
+    "key": "window.measured_end",
+    "value": "latest_complete_session",
+    "justification": "The measured window runs to the latest complete session, so the sample extends as far as the data legitimately allows (story 5)."
+   },
+   {
+    "key": "window.store_start",
+    "value": "2011-01-01",
+    "justification": "The store window starts 2011-01-01 so the detector's 80-bar minimum history, the universe gates and the regime's 25-bar warm-up are all satisfied before the first measured session (story 6)."
+   },
+   {
+    "key": "universe.trend_gate",
+    "value": "close > SMA50",
+    "justification": "The trend gate is close > SMA50 on both markets, so the universe reflects the method's own precondition (story 10)."
+   },
+   {
+    "key": "universe.liquidity_floor",
+    "value": {
+     "US": 10000000.0,
+     "IDX": 10000000000.0
+    },
+    "justification": "Liquidity floors are $10M for US and Rp 10B for IDX \u2014 a deliberate contract value, not the app's inherited $20M / Rp 1B (story 11)."
+   },
+   {
+    "key": "universe.adtv",
+    "value": "median_20d_unadjusted_close_x_volume",
+    "justification": "ADTV is the 20-day median of unadjusted close \u00d7 volume, so one block trade cannot lift an illiquid name over the floor (story 12)."
+   },
+   {
+    "key": "universe.adtv_aggregator",
+    "value": "median",
+    "justification": "The aggregator is the median; a switch to mean is a deliberate act, so which spiky small caps qualify never changes by accident (story 13)."
+   },
+   {
+    "key": "universe.volatility_gate",
+    "value": "ADR20 >= 3.5%",
+    "justification": "The volatility gate is ADR20 \u2265 3.5%, set deliberately below the rubric's 5% floor so the ADR dimension is left with spread to test (story 14)."
+   },
+   {
+    "key": "universe.volatility_gap_reason",
+    "value": "gate_below_rubric_floor_is_deliberate",
+    "justification": "The gap below the rubric's 5% floor is recorded so nobody later 'fixes' it to match and silently destroys the thing being measured \u2014 findings \u00a76 Finding 2 measured the 5% floor withholding a score point from 31% of his real entries (story 15)."
+   },
+   {
+    "key": "universe.idx_price_floor",
+    "value": 100.0,
+    "justification": "A nominal price floor of Rp 100 on the split-corrected series excludes IDX names whose quotes hit the tick grid hard enough to distort ADR and range geometry (story 16)."
+   },
+   {
+    "key": "universe.idx_price_floor_role",
+    "value": "data_validity",
+    "justification": "The Rp 100 floor is data validity and never cost control, so no reader infers a penny-stock filter with an implied cost story (story 17)."
+   },
+   {
+    "key": "universe.statelessness",
+    "value": "stateless_gates_through_t_minus_1",
+    "justification": "The universe is stateless \u2014 three gates measured through t\u22121 with no reference to prior membership \u2014 a known difference from the app's hysteresis band whose boundary churn is nearly free at signal level and real at portfolio level (stories 9, 18, 19)."
+   },
+   {
+    "key": "universe.reference_exclusion",
+    "value": "exclude_index_and_benchmark_etfs",
+    "justification": "The five benchmark references stay out of the ranked field, pinned against the enumeration by a test, so this fresh build inherits the #162 fix rather than reproducing the contamination (stories 73, 74)."
+   },
+   {
+    "key": "detection.gate",
+    "value": [
+     "1m",
+     "3m",
+     "6m",
+     "12m"
+    ],
+    "justification": "The detection gate is the four-lookback width (detector v3, ADR 0003 amendment); the denominator is built against that width and it is not swept in the primary run (PRD Implementation Decisions)."
+   },
+   {
+    "key": "regime.source",
+    "value": "app_regime_off_market_index_at_t_minus_1",
+    "justification": "Regime is the app's own regime, unmodified, read off each market's own index at t\u22121 \u2014 so findings are actionable in the product and the conditioning input obeys the point-in-time rule (stories 21, 23)."
+   },
+   {
+    "key": "regime.role",
+    "value": "conditioning_variable_never_filter",
+    "justification": "Regime is a conditioning variable and never a filter: every state trades and each one's expectancy is measured instead of assumed (story 22)."
+   },
+   {
+    "key": "entry.rule",
+    "value": "detection_trigger_filled_next_session",
+    "justification": "Entry is taken at the detection's own trigger, filled the next session, so the simulated trade uses the detector's own decision rather than a second definition (story 31)."
+   },
+   {
+    "key": "stop.rule",
+    "value": "detection_stop_unmodified",
+    "justification": "The stop is the detection's own stop, used unmodified, so R is denominated the way the app denominates it (story 32)."
+   },
+   {
+    "key": "exit.arm_a",
+    "value": {
+     "scale_fraction": 0.5,
+     "scale_day": 5,
+     "trail_ma": 10,
+     "trail_live_from": "fill",
+     "arbitrary_mechanics": true
+    },
+    "justification": "Arm A scales 50% off at the close of the fifth session after entry and trails the remainder on a 10MA \u2014 the trader's documented behaviour; its R is two position-weighted legs summed, and 'day 5' and the trail are recorded as arbitrary (stories 34, 36, 37, 39). The trail is live from the fill rather than from the scale day, so a runner that rolls over before day 5 takes the whole position and the scale never happens; that is a third arbitrary choice and is recorded here rather than left in the code, so a later run can sweep it (story 39)."
+   },
+   {
+    "key": "exit.arm_b",
+    "value": {
+     "trail_ma": 10
+    },
+    "justification": "Arm B is a pure 10MA trail, directly comparable to the reference set's simulated exit and the arm the primary metric is computed on (story 35)."
+   },
+   {
+    "key": "exit.arm_c",
+    "value": {
+     "trail_ma": 20
+    },
+    "justification": "Arm C is a pure 20MA trail, the reference set's second simulated exit (story 35)."
+   },
+   {
+    "key": "exit.trail_mechanic",
+    "value": "close_through_ma_signals_fill_next_open",
+    "justification": "A trail signals on a close through the MA and fills at the next open, so the exit is point-in-time and reproducible; recorded as arbitrary so a later run can vary it deliberately (stories 38, 39)."
+   },
+   {
+    "key": "costs.per_market",
+    "value": {
+     "US": {
+      "commission_bps": 0.0,
+      "slippage_bps": 5.0
+     },
+     "IDX": {
+      "commission_bps": 15.0,
+      "slippage_bps": 25.0
+     }
+    },
+    "justification": "Commission and slippage are per-market contract values applied before any sweep, so IDX's real fees and spread are not modelled with US's near-zero assumptions; this pre-registered baseline is recorded here and swept variants are reported with the count of variants tried (story 40)."
+   },
+   {
+    "key": "metric.primary",
+    "value": "arm_b_after_cost_expectancy_r_per_market_per_year",
+    "justification": "The one pre-registered primary metric is arm B's after-cost expectancy in R, per market per year, so the headline cannot be chosen after the fact (story 41)."
+   },
+   {
+    "key": "decision.kill",
+    "value": {
+     "metric": "arm_b_after_cost_expectancy_r",
+     "comparator": "<=",
+     "threshold": 0.0,
+     "requires": [
+      "both_markets",
+      "full_window",
+      "and_excluding_2020_2021"
+     ],
+     "basis": "survivor_biased_number"
+    },
+    "justification": "Kill fires only when arm B's after-cost expectancy is \u2264 0 in both markets on the full window and with 2020\u201321 excluded, and the line is drawn on the survivor-biased number so a failure is decisive \u2014 the honest figure can only be worse (stories 42, 43)."
+   },
+   {
+    "key": "decision.ship",
+    "value": {
+     "requires": [
+      "positive_result",
+      "clears_phase2_pessimistic_bound"
+     ],
+     "scope": "per_market"
+    },
+    "justification": "Ship requires a positive result that also clears the Phase 2 pessimistic bound, scoped per market so a US pass licenses nothing in Jakarta (stories 44, 45)."
+   },
+   {
+    "key": "decision.one_market_failure",
+    "value": "method_stands_that_market_off_until_explained",
+    "justification": "A one-market failure is its own pre-named verdict: the method stands and that market is off until a run explains the difference, so it is not improvised in the moment (story 46)."
+   },
+   {
+    "key": "decision.inconclusive",
+    "value": "report_inconclusive_no_swept_tiebreak",
+    "justification": "An inconclusive run is reported as inconclusive; reaching for a swept variant to break the tie is ruled out by the contract that exists to prevent it (story 47)."
+   },
+   {
+    "key": "decision.licensed_changes",
+    "value": "write_licensed_change_before_any_constant_moves",
+    "justification": "Each verdict's licensed change is written down before any constant moves, so a result cannot be converted into an unguarded edit (story 48)."
+   }
+  ]
+ },
+ "regime_source": "app_regime_off_market_index_at_t_minus_1",
+ "regime_role": "conditioning_variable_never_filter",
+ "state_read_at": "detection_session",
+ "state_read_at_note": "the detection session \u2014 the night the candidate was listed with the app's posture beside it, one session before the break that signals entry and two before the fill; no bar after it is read to date the trade",
+ "arm": "B",
+ "states": [
+  "FRIENDLY",
+  "CHOPPY",
+  "HOSTILE",
+  "UNDEFINED"
+ ],
+ "per_year": "states are reported over the full window and with 2020\u201321 excluded, not per year: three states crossed with fourteen years is mostly cells below the bootstrap's cluster floor, and 2020\u201321 is the stretch that would inflate FRIENDLY specifically \u2014 which is the time-slice this cell needs",
+ "views": "three exit arms and three regime states is nine views of one dataset before any threshold is swept; the pre-registered metric stands as the headline even where a view here looks better",
+ "bootstrap": {
+  "cluster": "symbol",
+  "resamples": 2000,
+  "seed": 191,
+  "confidence": 0.95
+ },
+ "markets": [
+  {
+   "market": "US",
+   "index": "^IXIC",
+   "arm": "B",
+   "states": [
+    {
+     "state": "FRIENDLY",
+     "basis_counts": {
+      "measured": 5619,
+      "below_warmup": 0,
+      "session_absent": 0
+     },
+     "windows": [
+      {
+       "label": "FRIENDLY full",
+       "trades": 5619,
+       "closed": 5605,
+       "open_at_end": 14,
+       "undenominated": 0,
+       "symbols": 1270,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.07026877102120678,
+       "expectancy_r_before_cost": 0.11635829843016844,
+       "cost_r": 0.04608952740896167,
+       "win_rate": 0.24210526315789474,
+       "wins": 1357,
+       "losses": 4248,
+       "total_r": 393.856461573864,
+       "distribution": {
+        "min": -30.675226550617438,
+        "p10": -3.4799884684951143,
+        "q1": -2.356639544783779,
+        "median": -1.4165599241396003,
+        "q3": -0.03446094147732655,
+        "p90": 4.989817524709988,
+        "max": 141.8356198363432,
+        "mean_win": 6.938172497207264,
+        "mean_loss": -2.1236449192882283
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1265,
+        "observations": 5605,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.12967432436081733,
+        "ci_high": 0.2593373451167698,
+        "p_value": 0.2345
+       },
+       "state": "FRIENDLY"
+      },
+      {
+       "label": "FRIENDLY excluding_2020_2021",
+       "trades": 3797,
+       "closed": 3783,
+       "open_at_end": 14,
+       "undenominated": 0,
+       "symbols": 1028,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.07500755329966326,
+       "expectancy_r_before_cost": -0.026403600004762592,
+       "cost_r": 0.04860395329490067,
+       "win_rate": 0.23420565688606926,
+       "wins": 886,
+       "losses": 2897,
+       "total_r": -283.7535741326261,
+       "distribution": {
+        "min": -26.898528101632703,
+        "p10": -3.468014387328032,
+        "q1": -2.3289149337339214,
+        "median": -1.412269848571906,
+        "q3": -0.048956836957551375,
+        "p90": 4.6071416842575355,
+        "max": 72.52665594916905,
+        "mean_win": 6.508472373494871,
+        "mean_loss": -2.0884570580079673
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1023,
+        "observations": 3783,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.2790774202614727,
+        "ci_high": 0.13755136911425173,
+        "p_value": 0.7585
+       },
+       "state": "FRIENDLY",
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ],
+     "trades": 5619
+    },
+    {
+     "state": "CHOPPY",
+     "basis_counts": {
+      "measured": 3802,
+      "below_warmup": 0,
+      "session_absent": 0
+     },
+     "windows": [
+      {
+       "label": "CHOPPY full",
+       "trades": 3802,
+       "closed": 3782,
+       "open_at_end": 20,
+       "undenominated": 0,
+       "symbols": 1153,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.1770726114665508,
+       "expectancy_r_before_cost": 0.22485619967257914,
+       "cost_r": 0.04778358820602838,
+       "win_rate": 0.23611845584346908,
+       "wins": 893,
+       "losses": 2889,
+       "total_r": 669.688616566495,
+       "distribution": {
+        "min": -35.977822684303476,
+        "p10": -3.3182416345090284,
+        "q1": -2.2167047004809666,
+        "median": -1.3586514921802815,
+        "q3": -0.044792426953860806,
+        "p90": 5.187969474549157,
+        "max": 108.85396708300148,
+        "mean_win": 7.232675473561956,
+        "mean_loss": -2.00383889973151
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1148,
+        "observations": 3782,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.04841475225015531,
+        "ci_high": 0.42816077690948573,
+        "p_value": 0.0685
+       },
+       "state": "CHOPPY"
+      },
+      {
+       "label": "CHOPPY excluding_2020_2021",
+       "trades": 2936,
+       "closed": 2916,
+       "open_at_end": 20,
+       "undenominated": 0,
+       "symbols": 969,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.04966083758795524,
+       "expectancy_r_before_cost": -0.00021363080496295857,
+       "cost_r": 0.049447206782992276,
+       "win_rate": 0.22325102880658437,
+       "wins": 651,
+       "losses": 2265,
+       "total_r": -144.81100240647748,
+       "distribution": {
+        "min": -35.977822684303476,
+        "p10": -3.3965946774999285,
+        "q1": -2.258482907118994,
+        "median": -1.406701868500237,
+        "q3": -0.06535244701976609,
+        "p90": 4.710214633109677,
+        "max": 108.85396708300148,
+        "mean_win": 6.85607137137858,
+        "mean_loss": -2.0344871810922442
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 963,
+        "observations": 2916,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.2917996137368208,
+        "ci_high": 0.2140274020973413,
+        "p_value": 0.6535
+       },
+       "state": "CHOPPY",
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ],
+     "trades": 3802
+    },
+    {
+     "state": "HOSTILE",
+     "basis_counts": {
+      "measured": 2929,
+      "below_warmup": 0,
+      "session_absent": 0
+     },
+     "windows": [
+      {
+       "label": "HOSTILE full",
+       "trades": 2929,
+       "closed": 2924,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 1005,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.1541095384601298,
+       "expectancy_r_before_cost": -0.10779009115115563,
+       "cost_r": 0.04631944730897416,
+       "win_rate": 0.2506839945280438,
+       "wins": 733,
+       "losses": 2191,
+       "total_r": -450.61629045741955,
+       "distribution": {
+        "min": -79.84078091028827,
+        "p10": -3.451247979655914,
+        "q1": -2.2908450009013386,
+        "median": -1.2697025728669724,
+        "q3": 0.02388849874793498,
+        "p90": 4.135838397721287,
+        "max": 91.84238367531734,
+        "mean_win": 5.620116496886719,
+        "mean_loss": -2.0858793622434435
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1004,
+        "observations": 2924,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.4053776321513088,
+        "ci_high": 0.11426870219416602,
+        "p_value": 0.888
+       },
+       "state": "HOSTILE"
+      },
+      {
+       "label": "HOSTILE excluding_2020_2021",
+       "trades": 2398,
+       "closed": 2393,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 861,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.1305129062092198,
+       "expectancy_r_before_cost": -0.08239585461049685,
+       "cost_r": 0.04811705159872294,
+       "win_rate": 0.2574174676138738,
+       "wins": 616,
+       "losses": 1777,
+       "total_r": -312.317384558663,
+       "distribution": {
+        "min": -79.84078091028827,
+        "p10": -3.4545118738593295,
+        "q1": -2.291382748128933,
+        "median": -1.2420126169243004,
+        "q3": 0.1593186723500037,
+        "p90": 4.2715879255918985,
+        "max": 91.84238367531734,
+        "mean_win": 5.503885001776939,
+        "mean_loss": -2.0836862946838814
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 860,
+        "observations": 2393,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.3887895722260207,
+        "ci_high": 0.16945029027847386,
+        "p_value": 0.8055
+       },
+       "state": "HOSTILE",
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ],
+     "trades": 2929
+    },
+    {
+     "state": "UNDEFINED",
+     "basis_counts": {
+      "measured": 0,
+      "below_warmup": 0,
+      "session_absent": 0
+     },
+     "windows": [
+      {
+       "label": "UNDEFINED full",
+       "trades": 0,
+       "closed": 0,
+       "open_at_end": 0,
+       "undenominated": 0,
+       "symbols": 0,
+       "price_scale_dropped": 0,
+       "expectancy_r": null,
+       "expectancy_r_before_cost": null,
+       "cost_r": null,
+       "win_rate": null,
+       "wins": 0,
+       "losses": 0,
+       "total_r": 0,
+       "distribution": {
+        "min": null,
+        "p10": null,
+        "q1": null,
+        "median": null,
+        "q3": null,
+        "p90": null,
+        "max": null,
+        "mean_win": null,
+        "mean_loss": null
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 0,
+        "observations": 0,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": "0 symbols is fewer than 5: too thin for an interval, and a degenerate one would read as significance",
+        "ci_low": null,
+        "ci_high": null,
+        "p_value": null
+       },
+       "state": "UNDEFINED"
+      },
+      {
+       "label": "UNDEFINED excluding_2020_2021",
+       "trades": 0,
+       "closed": 0,
+       "open_at_end": 0,
+       "undenominated": 0,
+       "symbols": 0,
+       "price_scale_dropped": 0,
+       "expectancy_r": null,
+       "expectancy_r_before_cost": null,
+       "cost_r": null,
+       "win_rate": null,
+       "wins": 0,
+       "losses": 0,
+       "total_r": 0,
+       "distribution": {
+        "min": null,
+        "p10": null,
+        "q1": null,
+        "median": null,
+        "q3": null,
+        "p90": null,
+        "max": null,
+        "mean_win": null,
+        "mean_loss": null
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 0,
+        "observations": 0,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": "0 symbols is fewer than 5: too thin for an interval, and a degenerate one would read as significance",
+        "ci_low": null,
+        "ci_high": null,
+        "p_value": null
+       },
+       "state": "UNDEFINED",
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ],
+     "trades": 0
+    }
+   ],
+   "counterfactual": {
+    "state": "HOSTILE",
+    "posture": "sit out",
+    "judged_against": "zero",
+    "judged_against_note": "the word instructs no trade at all, so the comparison is with not trading rather than with another state",
+    "trades": 2929,
+    "closed": 2924,
+    "expectancy_r": -0.1541095384601298,
+    "total_r": -450.61629045741955,
+    "delta_total_r": 450.61629045741955,
+    "delta_expectancy_r": 0.06351270089018102,
+    "effect": "saved",
+    "verdict": "undecided",
+    "bootstrap": {
+     "cluster": "symbol",
+     "clusters": 1004,
+     "observations": 2924,
+     "resamples": 2000,
+     "seed": 191,
+     "confidence": 0.95,
+     "min_clusters": 5,
+     "suppressed": null,
+     "ci_low": -0.4053776321513088,
+     "ci_high": 0.11426870219416602,
+     "p_value": 0.888
+    },
+    "book": {
+     "all": {
+      "trades": 12350,
+      "closed": 12311,
+      "total_r": 612.9287876829395,
+      "expectancy_r": 0.049787083720488956
+     },
+     "without_hostile": {
+      "trades": 9421,
+      "closed": 9387,
+      "total_r": 1063.545078140359,
+      "expectancy_r": 0.11329978461066997
+     }
+    },
+    "basis": "priced at signal level: sitting a state out removes its trades and frees no capital, because this run has no shared position budget to redeploy \u2014 the figure is what the posture costs or saves directly, never what it might buy"
+   },
+   "reduced": {
+    "state": "CHOPPY",
+    "posture": "reduced",
+    "judged_against": "FRIENDLY",
+    "trades": 3802,
+    "trades_friendly": 5619,
+    "expectancy_r": 0.1770726114665508,
+    "expectancy_r_friendly": 0.07026877102120678,
+    "delta_expectancy_r": 0.10680384044534401,
+    "shape": {
+     "closed": 3782,
+     "win_rate": 0.23611845584346908,
+     "wins": 893,
+     "losses": 2889,
+     "distribution": {
+      "min": -35.977822684303476,
+      "p10": -3.3182416345090284,
+      "q1": -2.2167047004809666,
+      "median": -1.3586514921802815,
+      "q3": -0.044792426953860806,
+      "p90": 5.187969474549157,
+      "max": 108.85396708300148,
+      "mean_win": 7.232675473561956,
+      "mean_loss": -2.00383889973151
+     }
+    },
+    "shape_friendly": {
+     "closed": 5605,
+     "win_rate": 0.24210526315789474,
+     "wins": 1357,
+     "losses": 4248,
+     "distribution": {
+      "min": -30.675226550617438,
+      "p10": -3.4799884684951143,
+      "q1": -2.356639544783779,
+      "median": -1.4165599241396003,
+      "q3": -0.03446094147732655,
+      "p90": 4.989817524709988,
+      "max": 141.8356198363432,
+      "mean_win": 6.938172497207264,
+      "mean_loss": -2.1236449192882283
+     }
+    },
+    "verdict": "undecided",
+    "bootstrap": {
+     "cluster": "symbol",
+     "clusters_a": 1148,
+     "clusters_b": 1265,
+     "observations_a": 3782,
+     "observations_b": 5605,
+     "mean_a": 0.1770726114665508,
+     "mean_b": 0.07026877102120678,
+     "difference": 0.10680384044534401,
+     "resamples": 2000,
+     "seed": 191,
+     "confidence": 0.95,
+     "min_clusters": 5,
+     "ci_low": -0.19959216106106806,
+     "ci_high": 0.4200000294355511,
+     "p_value": 0.7455,
+     "suppressed": null
+    }
+   },
+   "breadth": {
+    "sessions": 3682,
+    "sessions_without_breadth": 0,
+    "min": 0.0,
+    "median": 0.49122807017543857,
+    "max": 0.9411764705882353,
+    "mean": 0.490560791910775,
+    "basis": "descriptive_survivorship_biased",
+    "conditioned_on": false,
+    "warning": "breadth is descriptive only and is never conditioned on: survivorship bias corrupts it more directly than anything else reported here, and in a backtest worse rather than better, because the names missing from the store are disproportionately the ones that later died"
+   },
+   "follow_through": {
+    "sessions": 3682,
+    "sessions_without_reading": 0,
+    "breakouts": 828,
+    "breakout_rate": 0.22487778381314502,
+    "basis": "reconstructed_unbiased",
+    "conditioned_on": false,
+    "note": "follow-through is unbiased where breadth is not: the live app captures it forward nightly because a survivorship-biased past cannot rebuild it, but the index series carries no survivorship hole, so this run reconstructs it legitimately across the whole window \u2014 reported, and still never conditioned on"
+   },
+   "conditioning": {
+    "role": "conditioning_variable_never_filter",
+    "handed_in": 13551,
+    "excluded_other_markets": 1201,
+    "excluded_other_arms": 0,
+    "trades": 12350,
+    "in_cells": 12350,
+    "excluded_by_regime": 0,
+    "partition_holds": true,
+    "sessions": 3682,
+    "warmup_bars": 25,
+    "upstream_guarantee": "the trades reaching this module are produced without reading any regime column at all (backtest.simulate), and the contract's regime.role cell is refused if it ever names a filter; the counts below show only that the states partition what did arrive"
+   }
+  },
+  {
+   "market": "IDX",
+   "index": "^JKSE",
+   "arm": "B",
+   "states": [
+    {
+     "state": "FRIENDLY",
+     "basis_counts": {
+      "measured": 416,
+      "below_warmup": 0,
+      "session_absent": 0
+     },
+     "windows": [
+      {
+       "label": "FRIENDLY full",
+       "trades": 416,
+       "closed": 414,
+       "open_at_end": 2,
+       "undenominated": 0,
+       "symbols": 151,
+       "price_scale_dropped": 0,
+       "expectancy_r": 1.5019545770476204,
+       "expectancy_r_before_cost": 1.8904475441615836,
+       "cost_r": 0.3884929671139629,
+       "win_rate": 0.2632850241545894,
+       "wins": 109,
+       "losses": 305,
+       "total_r": 621.8091948977149,
+       "distribution": {
+        "min": -8.81313678920598,
+        "p10": -3.888410061988921,
+        "q1": -2.7705486089979994,
+        "median": -1.8323693800290701,
+        "q3": 0.3408109211268502,
+        "p90": 8.55415257553337,
+        "max": 152.37834670993914,
+        "mean_win": 12.565560495340206,
+        "mean_loss": -2.451924259325795
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 150,
+        "observations": 414,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": 0.19517892220517172,
+        "ci_high": 3.049253341001544,
+        "p_value": 0.01
+       },
+       "state": "FRIENDLY"
+      },
+      {
+       "label": "FRIENDLY excluding_2020_2021",
+       "trades": 332,
+       "closed": 330,
+       "open_at_end": 2,
+       "undenominated": 0,
+       "symbols": 129,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.9420866373803418,
+       "expectancy_r_before_cost": 1.3330521318257316,
+       "cost_r": 0.3909654944453898,
+       "win_rate": 0.2606060606060606,
+       "wins": 86,
+       "losses": 244,
+       "total_r": 310.8885903355128,
+       "distribution": {
+        "min": -8.81313678920598,
+        "p10": -3.9003051620050257,
+        "q1": -2.8274601839204285,
+        "median": -1.7730299871227424,
+        "q3": 0.26058696713908314,
+        "p90": 7.938723985656362,
+        "max": 152.37834670993914,
+        "mean_win": 10.626474701548473,
+        "mean_loss": -2.471263254088753
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 128,
+        "observations": 330,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.21758026621608373,
+        "ci_high": 2.406979904835817,
+        "p_value": 0.072
+       },
+       "state": "FRIENDLY",
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ],
+     "trades": 416
+    },
+    {
+     "state": "CHOPPY",
+     "basis_counts": {
+      "measured": 468,
+      "below_warmup": 0,
+      "session_absent": 0
+     },
+     "windows": [
+      {
+       "label": "CHOPPY full",
+       "trades": 468,
+       "closed": 465,
+       "open_at_end": 3,
+       "undenominated": 0,
+       "symbols": 181,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.20704845231206204,
+       "expectancy_r_before_cost": 0.5970372636828302,
+       "cost_r": 0.38998881137076813,
+       "win_rate": 0.22795698924731184,
+       "wins": 106,
+       "losses": 359,
+       "total_r": 96.27753032510884,
+       "distribution": {
+        "min": -16.685163502499186,
+        "p10": -3.7963581915761164,
+        "q1": -2.827592281830288,
+        "median": -1.9280828906992986,
+        "q3": -0.33285931849459016,
+        "p90": 6.82366551187987,
+        "max": 76.78301057565258,
+        "mean_win": 9.49213813247968,
+        "mean_loss": -2.5345100604950894
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 179,
+        "observations": 465,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.608500384660779,
+        "ci_high": 1.1516029005328972,
+        "p_value": 0.35
+       },
+       "state": "CHOPPY"
+      },
+      {
+       "label": "CHOPPY excluding_2020_2021",
+       "trades": 380,
+       "closed": 377,
+       "open_at_end": 3,
+       "undenominated": 0,
+       "symbols": 155,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.09957475623544172,
+       "expectancy_r_before_cost": 0.300399813085465,
+       "cost_r": 0.39997456932090675,
+       "win_rate": 0.21750663129973474,
+       "wins": 82,
+       "losses": 295,
+       "total_r": -37.53968310076153,
+       "distribution": {
+        "min": -16.685163502499186,
+        "p10": -3.863233432275277,
+        "q1": -2.8677821099409035,
+        "median": -1.9297438606955488,
+        "q3": -0.48243962916021965,
+        "p90": 6.094043479026167,
+        "max": 43.76367961443724,
+        "mean_win": 8.701410977540682,
+        "mean_loss": -2.545950451725754
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 153,
+        "observations": 377,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.8966746664080089,
+        "ci_high": 0.825231744013137,
+        "p_value": 0.6205
+       },
+       "state": "CHOPPY",
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ],
+     "trades": 468
+    },
+    {
+     "state": "HOSTILE",
+     "basis_counts": {
+      "measured": 317,
+      "below_warmup": 0,
+      "session_absent": 0
+     },
+     "windows": [
+      {
+       "label": "HOSTILE full",
+       "trades": 317,
+       "closed": 317,
+       "open_at_end": 0,
+       "undenominated": 0,
+       "symbols": 145,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.2996959607146867,
+       "expectancy_r_before_cost": 0.6638119630126686,
+       "cost_r": 0.3641160022979821,
+       "win_rate": 0.2302839116719243,
+       "wins": 73,
+       "losses": 244,
+       "total_r": 95.00361954655568,
+       "distribution": {
+        "min": -16.975065333581725,
+        "p10": -3.685465845282949,
+        "q1": -2.6777332679163868,
+        "median": -1.8914341554290763,
+        "q3": -0.4373508419821256,
+        "p90": 5.434251959828936,
+        "max": 76.09611993498979,
+        "mean_win": 9.625762741862426,
+        "mean_loss": -2.490479756595907
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 145,
+        "observations": 317,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.5773560990485934,
+        "ci_high": 1.2107335727091078,
+        "p_value": 0.269
+       },
+       "state": "HOSTILE"
+      },
+      {
+       "label": "HOSTILE excluding_2020_2021",
+       "trades": 279,
+       "closed": 279,
+       "open_at_end": 0,
+       "undenominated": 0,
+       "symbols": 134,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.023839593576887547,
+       "expectancy_r_before_cost": 0.3937137627725111,
+       "cost_r": 0.36987416919562355,
+       "win_rate": 0.23655913978494625,
+       "wins": 66,
+       "losses": 213,
+       "total_r": 6.6512466079516255,
+       "distribution": {
+        "min": -16.975065333581725,
+        "p10": -3.6681336125054718,
+        "q1": -2.6909498608409814,
+        "median": -1.8961977251836761,
+        "q3": -0.4006262577580818,
+        "p90": 5.270723104169057,
+        "max": 49.5107356328922,
+        "mean_win": 8.255473853556898,
+        "mean_loss": -2.5268076419098766
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 134,
+        "observations": 279,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.7178645183748549,
+        "ci_high": 0.8339893113166224,
+        "p_value": 0.48
+       },
+       "state": "HOSTILE",
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ],
+     "trades": 317
+    },
+    {
+     "state": "UNDEFINED",
+     "basis_counts": {
+      "measured": 0,
+      "below_warmup": 0,
+      "session_absent": 0
+     },
+     "windows": [
+      {
+       "label": "UNDEFINED full",
+       "trades": 0,
+       "closed": 0,
+       "open_at_end": 0,
+       "undenominated": 0,
+       "symbols": 0,
+       "price_scale_dropped": 0,
+       "expectancy_r": null,
+       "expectancy_r_before_cost": null,
+       "cost_r": null,
+       "win_rate": null,
+       "wins": 0,
+       "losses": 0,
+       "total_r": 0,
+       "distribution": {
+        "min": null,
+        "p10": null,
+        "q1": null,
+        "median": null,
+        "q3": null,
+        "p90": null,
+        "max": null,
+        "mean_win": null,
+        "mean_loss": null
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 0,
+        "observations": 0,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": "0 symbols is fewer than 5: too thin for an interval, and a degenerate one would read as significance",
+        "ci_low": null,
+        "ci_high": null,
+        "p_value": null
+       },
+       "state": "UNDEFINED"
+      },
+      {
+       "label": "UNDEFINED excluding_2020_2021",
+       "trades": 0,
+       "closed": 0,
+       "open_at_end": 0,
+       "undenominated": 0,
+       "symbols": 0,
+       "price_scale_dropped": 0,
+       "expectancy_r": null,
+       "expectancy_r_before_cost": null,
+       "cost_r": null,
+       "win_rate": null,
+       "wins": 0,
+       "losses": 0,
+       "total_r": 0,
+       "distribution": {
+        "min": null,
+        "p10": null,
+        "q1": null,
+        "median": null,
+        "q3": null,
+        "p90": null,
+        "max": null,
+        "mean_win": null,
+        "mean_loss": null
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 0,
+        "observations": 0,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": "0 symbols is fewer than 5: too thin for an interval, and a degenerate one would read as significance",
+        "ci_low": null,
+        "ci_high": null,
+        "p_value": null
+       },
+       "state": "UNDEFINED",
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ],
+     "trades": 0
+    }
+   ],
+   "counterfactual": {
+    "state": "HOSTILE",
+    "posture": "sit out",
+    "judged_against": "zero",
+    "judged_against_note": "the word instructs no trade at all, so the comparison is with not trading rather than with another state",
+    "trades": 317,
+    "closed": 317,
+    "expectancy_r": 0.2996959607146867,
+    "total_r": 95.00361954655568,
+    "delta_total_r": -95.00361954655568,
+    "delta_expectancy_r": 0.13709455324556696,
+    "effect": "cost",
+    "verdict": "undecided",
+    "bootstrap": {
+     "cluster": "symbol",
+     "clusters": 145,
+     "observations": 317,
+     "resamples": 2000,
+     "seed": 191,
+     "confidence": 0.95,
+     "min_clusters": 5,
+     "suppressed": null,
+     "ci_low": -0.5773560990485934,
+     "ci_high": 1.2107335727091078,
+     "p_value": 0.269
+    },
+    "book": {
+     "all": {
+      "trades": 1201,
+      "closed": 1196,
+      "total_r": 813.0903447693794,
+      "expectancy_r": 0.6798414253924577
+     },
+     "without_hostile": {
+      "trades": 884,
+      "closed": 879,
+      "total_r": 718.0867252228237,
+      "expectancy_r": 0.8169359786380247
+     }
+    },
+    "basis": "priced at signal level: sitting a state out removes its trades and frees no capital, because this run has no shared position budget to redeploy \u2014 the figure is what the posture costs or saves directly, never what it might buy"
+   },
+   "reduced": {
+    "state": "CHOPPY",
+    "posture": "reduced",
+    "judged_against": "FRIENDLY",
+    "trades": 468,
+    "trades_friendly": 416,
+    "expectancy_r": 0.20704845231206204,
+    "expectancy_r_friendly": 1.5019545770476204,
+    "delta_expectancy_r": -1.2949061247355584,
+    "shape": {
+     "closed": 465,
+     "win_rate": 0.22795698924731184,
+     "wins": 106,
+     "losses": 359,
+     "distribution": {
+      "min": -16.685163502499186,
+      "p10": -3.7963581915761164,
+      "q1": -2.827592281830288,
+      "median": -1.9280828906992986,
+      "q3": -0.33285931849459016,
+      "p90": 6.82366551187987,
+      "max": 76.78301057565258,
+      "mean_win": 9.49213813247968,
+      "mean_loss": -2.5345100604950894
+     }
+    },
+    "shape_friendly": {
+     "closed": 414,
+     "win_rate": 0.2632850241545894,
+     "wins": 109,
+     "losses": 305,
+     "distribution": {
+      "min": -8.81313678920598,
+      "p10": -3.888410061988921,
+      "q1": -2.7705486089979994,
+      "median": -1.8323693800290701,
+      "q3": 0.3408109211268502,
+      "p90": 8.55415257553337,
+      "max": 152.37834670993914,
+      "mean_win": 12.565560495340206,
+      "mean_loss": -2.451924259325795
+     }
+    },
+    "verdict": "undecided",
+    "bootstrap": {
+     "cluster": "symbol",
+     "clusters_a": 179,
+     "clusters_b": 150,
+     "observations_a": 465,
+     "observations_b": 414,
+     "mean_a": 0.20704845231206204,
+     "mean_b": 1.5019545770476204,
+     "difference": -1.2949061247355584,
+     "resamples": 2000,
+     "seed": 191,
+     "confidence": 0.95,
+     "min_clusters": 5,
+     "ci_low": -3.0975654171464946,
+     "ci_high": 0.38552564792656885,
+     "p_value": 0.066,
+     "suppressed": null
+    }
+   },
+   "breadth": {
+    "sessions": 3538,
+    "sessions_without_breadth": 4,
+    "min": 0.0,
+    "median": 0.46153846153846156,
+    "max": 1.0,
+    "mean": 0.46589311095785135,
+    "basis": "descriptive_survivorship_biased",
+    "conditioned_on": false,
+    "warning": "breadth is descriptive only and is never conditioned on: survivorship bias corrupts it more directly than anything else reported here, and in a backtest worse rather than better, because the names missing from the store are disproportionately the ones that later died"
+   },
+   "follow_through": {
+    "sessions": 3542,
+    "sessions_without_reading": 0,
+    "breakouts": 577,
+    "breakout_rate": 0.16290231507622813,
+    "basis": "reconstructed_unbiased",
+    "conditioned_on": false,
+    "note": "follow-through is unbiased where breadth is not: the live app captures it forward nightly because a survivorship-biased past cannot rebuild it, but the index series carries no survivorship hole, so this run reconstructs it legitimately across the whole window \u2014 reported, and still never conditioned on"
+   },
+   "conditioning": {
+    "role": "conditioning_variable_never_filter",
+    "handed_in": 13551,
+    "excluded_other_markets": 12350,
+    "excluded_other_arms": 0,
+    "trades": 1201,
+    "in_cells": 1201,
+    "excluded_by_regime": 0,
+    "partition_holds": true,
+    "sessions": 3542,
+    "warmup_bars": 25,
+    "upstream_guarantee": "the trades reaching this module are produced without reading any regime column at all (backtest.simulate), and the contract's regime.role cell is refused if it ever names a filter; the counts below show only that the states partition what did arrive"
+   }
+  }
+ ]
+}

@@ -1,0 +1,1175 @@
+{
+ "contract": {
+  "contract_version": "1",
+  "label": "out-of-sample backtest \u2014 US+IDX, 2012 onward (PRD #182)",
+  "cells": [
+   {
+    "key": "scope.setups",
+    "value": "long_breakout_eod",
+    "justification": "Long breakout EOD setups only, so the run measures the same thing the reference set and the detector do (PRD story 7)."
+   },
+   {
+    "key": "scope.level",
+    "value": "signal_primary_portfolio_deferred",
+    "justification": "Signal level is declared primary and portfolio level specified but deferred, so the open question is answered without the capital model blocking it (story 8)."
+   },
+   {
+    "key": "scope.markets",
+    "value": [
+     "US",
+     "IDX"
+    ],
+    "justification": "US and IDX reported separately throughout, so findings \u00a78's result that magnitudes do not transfer is honoured rather than averaged away (story 4)."
+   },
+   {
+    "key": "window.measured_start",
+    "value": "2012-01-01",
+    "justification": "The measured window starts 2012-01-01 so the sample spans several regimes rather than one (story 5)."
+   },
+   {
+    "key": "window.measured_end",
+    "value": "latest_complete_session",
+    "justification": "The measured window runs to the latest complete session, so the sample extends as far as the data legitimately allows (story 5)."
+   },
+   {
+    "key": "window.store_start",
+    "value": "2011-01-01",
+    "justification": "The store window starts 2011-01-01 so the detector's 80-bar minimum history, the universe gates and the regime's 25-bar warm-up are all satisfied before the first measured session (story 6)."
+   },
+   {
+    "key": "universe.trend_gate",
+    "value": "close > SMA50",
+    "justification": "The trend gate is close > SMA50 on both markets, so the universe reflects the method's own precondition (story 10)."
+   },
+   {
+    "key": "universe.liquidity_floor",
+    "value": {
+     "US": 10000000.0,
+     "IDX": 10000000000.0
+    },
+    "justification": "Liquidity floors are $10M for US and Rp 10B for IDX \u2014 a deliberate contract value, not the app's inherited $20M / Rp 1B (story 11)."
+   },
+   {
+    "key": "universe.adtv",
+    "value": "median_20d_unadjusted_close_x_volume",
+    "justification": "ADTV is the 20-day median of unadjusted close \u00d7 volume, so one block trade cannot lift an illiquid name over the floor (story 12)."
+   },
+   {
+    "key": "universe.adtv_aggregator",
+    "value": "median",
+    "justification": "The aggregator is the median; a switch to mean is a deliberate act, so which spiky small caps qualify never changes by accident (story 13)."
+   },
+   {
+    "key": "universe.volatility_gate",
+    "value": "ADR20 >= 3.5%",
+    "justification": "The volatility gate is ADR20 \u2265 3.5%, set deliberately below the rubric's 5% floor so the ADR dimension is left with spread to test (story 14)."
+   },
+   {
+    "key": "universe.volatility_gap_reason",
+    "value": "gate_below_rubric_floor_is_deliberate",
+    "justification": "The gap below the rubric's 5% floor is recorded so nobody later 'fixes' it to match and silently destroys the thing being measured \u2014 findings \u00a76 Finding 2 measured the 5% floor withholding a score point from 31% of his real entries (story 15)."
+   },
+   {
+    "key": "universe.idx_price_floor",
+    "value": 100.0,
+    "justification": "A nominal price floor of Rp 100 on the split-corrected series excludes IDX names whose quotes hit the tick grid hard enough to distort ADR and range geometry (story 16)."
+   },
+   {
+    "key": "universe.idx_price_floor_role",
+    "value": "data_validity",
+    "justification": "The Rp 100 floor is data validity and never cost control, so no reader infers a penny-stock filter with an implied cost story (story 17)."
+   },
+   {
+    "key": "universe.statelessness",
+    "value": "stateless_gates_through_t_minus_1",
+    "justification": "The universe is stateless \u2014 three gates measured through t\u22121 with no reference to prior membership \u2014 a known difference from the app's hysteresis band whose boundary churn is nearly free at signal level and real at portfolio level (stories 9, 18, 19)."
+   },
+   {
+    "key": "universe.reference_exclusion",
+    "value": "exclude_index_and_benchmark_etfs",
+    "justification": "The five benchmark references stay out of the ranked field, pinned against the enumeration by a test, so this fresh build inherits the #162 fix rather than reproducing the contamination (stories 73, 74)."
+   },
+   {
+    "key": "detection.gate",
+    "value": [
+     "1m",
+     "3m",
+     "6m",
+     "12m"
+    ],
+    "justification": "The detection gate is the four-lookback width (detector v3, ADR 0003 amendment); the denominator is built against that width and it is not swept in the primary run (PRD Implementation Decisions)."
+   },
+   {
+    "key": "regime.source",
+    "value": "app_regime_off_market_index_at_t_minus_1",
+    "justification": "Regime is the app's own regime, unmodified, read off each market's own index at t\u22121 \u2014 so findings are actionable in the product and the conditioning input obeys the point-in-time rule (stories 21, 23)."
+   },
+   {
+    "key": "regime.role",
+    "value": "conditioning_variable_never_filter",
+    "justification": "Regime is a conditioning variable and never a filter: every state trades and each one's expectancy is measured instead of assumed (story 22)."
+   },
+   {
+    "key": "entry.rule",
+    "value": "detection_trigger_filled_next_session",
+    "justification": "Entry is taken at the detection's own trigger, filled the next session, so the simulated trade uses the detector's own decision rather than a second definition (story 31)."
+   },
+   {
+    "key": "stop.rule",
+    "value": "detection_stop_unmodified",
+    "justification": "The stop is the detection's own stop, used unmodified, so R is denominated the way the app denominates it (story 32)."
+   },
+   {
+    "key": "exit.arm_a",
+    "value": {
+     "scale_fraction": 0.5,
+     "scale_day": 5,
+     "trail_ma": 10,
+     "trail_live_from": "fill",
+     "arbitrary_mechanics": true
+    },
+    "justification": "Arm A scales 50% off at the close of the fifth session after entry and trails the remainder on a 10MA \u2014 the trader's documented behaviour; its R is two position-weighted legs summed, and 'day 5' and the trail are recorded as arbitrary (stories 34, 36, 37, 39). The trail is live from the fill rather than from the scale day, so a runner that rolls over before day 5 takes the whole position and the scale never happens; that is a third arbitrary choice and is recorded here rather than left in the code, so a later run can sweep it (story 39)."
+   },
+   {
+    "key": "exit.arm_b",
+    "value": {
+     "trail_ma": 10
+    },
+    "justification": "Arm B is a pure 10MA trail, directly comparable to the reference set's simulated exit and the arm the primary metric is computed on (story 35)."
+   },
+   {
+    "key": "exit.arm_c",
+    "value": {
+     "trail_ma": 20
+    },
+    "justification": "Arm C is a pure 20MA trail, the reference set's second simulated exit (story 35)."
+   },
+   {
+    "key": "exit.trail_mechanic",
+    "value": "close_through_ma_signals_fill_next_open",
+    "justification": "A trail signals on a close through the MA and fills at the next open, so the exit is point-in-time and reproducible; recorded as arbitrary so a later run can vary it deliberately (stories 38, 39)."
+   },
+   {
+    "key": "costs.per_market",
+    "value": {
+     "US": {
+      "commission_bps": 0.0,
+      "slippage_bps": 5.0
+     },
+     "IDX": {
+      "commission_bps": 15.0,
+      "slippage_bps": 25.0
+     }
+    },
+    "justification": "Commission and slippage are per-market contract values applied before any sweep, so IDX's real fees and spread are not modelled with US's near-zero assumptions; this pre-registered baseline is recorded here and swept variants are reported with the count of variants tried (story 40)."
+   },
+   {
+    "key": "metric.primary",
+    "value": "arm_b_after_cost_expectancy_r_per_market_per_year",
+    "justification": "The one pre-registered primary metric is arm B's after-cost expectancy in R, per market per year, so the headline cannot be chosen after the fact (story 41)."
+   },
+   {
+    "key": "decision.kill",
+    "value": {
+     "metric": "arm_b_after_cost_expectancy_r",
+     "comparator": "<=",
+     "threshold": 0.0,
+     "requires": [
+      "both_markets",
+      "full_window",
+      "and_excluding_2020_2021"
+     ],
+     "basis": "survivor_biased_number"
+    },
+    "justification": "Kill fires only when arm B's after-cost expectancy is \u2264 0 in both markets on the full window and with 2020\u201321 excluded, and the line is drawn on the survivor-biased number so a failure is decisive \u2014 the honest figure can only be worse (stories 42, 43)."
+   },
+   {
+    "key": "decision.ship",
+    "value": {
+     "requires": [
+      "positive_result",
+      "clears_phase2_pessimistic_bound"
+     ],
+     "scope": "per_market"
+    },
+    "justification": "Ship requires a positive result that also clears the Phase 2 pessimistic bound, scoped per market so a US pass licenses nothing in Jakarta (stories 44, 45)."
+   },
+   {
+    "key": "decision.one_market_failure",
+    "value": "method_stands_that_market_off_until_explained",
+    "justification": "A one-market failure is its own pre-named verdict: the method stands and that market is off until a run explains the difference, so it is not improvised in the moment (story 46)."
+   },
+   {
+    "key": "decision.inconclusive",
+    "value": "report_inconclusive_no_swept_tiebreak",
+    "justification": "An inconclusive run is reported as inconclusive; reaching for a swept variant to break the tie is ruled out by the contract that exists to prevent it (story 47)."
+   },
+   {
+    "key": "decision.licensed_changes",
+    "value": "write_licensed_change_before_any_constant_moves",
+    "justification": "Each verdict's licensed change is written down before any constant moves, so a result cannot be converted into an unguarded edit (story 48)."
+   }
+  ]
+ },
+ "question": "do the registered candidate dimensions predict outcomes, or only match the trader's selection?",
+ "arm": "B",
+ "registered": [
+  {
+   "candidate": "RS line",
+   "cut": "RS_today >= RS_at_base_start, over the detection's own base",
+   "value_kind": "boolean",
+   "absent_means": "a price was missing at one of the two anchors, so the question was never asked \u2014 which is a different fact from asking it and getting no"
+  },
+  {
+   "candidate": "Relative move",
+   "cut": "the 6m index-relative move in ADR units, strictly above 0.0",
+   "value_kind": "graded",
+   "absent_means": "the name had not listed six months ago, or has no ADR \u2014 never zero, which is a real value sitting exactly on the cut"
+  }
+ ],
+ "out_of_sample": "the outcome variable is R after costs on trades taken mechanically over a window his record does not cover; no rubric weight was fitted to it and no detection could see it",
+ "selection_contrast_note": "the selection contrast and this measurement are a different claim about the same dimension, and neither converts into the other: one says the trader picked names the dimension fires on, the other says the names it fires on paid. A dimension can select and not predict \u2014 his edge would be discretionary \u2014 and it can predict and not select, which is a candidate he was never using. So the two verdicts are reported side by side under their own keys and are never summed, averaged or read as confirmation of each other",
+ "admission": "this measurement admits no dimension and retires none. ADR 0005's admission instrument is the selection contrast, and an outcome claim is not one \u2014 it is evidence that goes through the calibration rule like any other change. Neither candidate's weight, the rubric version, nor the register moves here",
+ "verdict_rule": "'predicts' requires the hit-minus-miss gap to have a symbol-clustered interval entirely above zero. The gap is the whole verdict: ADR 0005 admits a dimension as a boolean, so the boolean's gap is the claim anything could act on. The correlation against the stored value is reported beside it and does not enter \u2014 only one of the two registered candidates persists a degree to run it on, so a rule reading it would mean different things for the two. The rubric reading, which folds absence into the miss side, does not enter either: it says what a shipped boolean would have done, not whether the quantity predicts. A cohort whose hit or miss side is below the cluster floor, or whose interval was refused for undefined resamples, is 'too thin to say' \u2014 the gap is taken between those two sides. The verdict reads the 95% interval's lower bound, a one-sided 2.5% test and stricter than the one-sided p printed beside it. 'no evidence it predicts' is never 'the dimension does not predict': one sample cannot license that",
+ "not_cut_per_year": "reported per market and not per year, unlike the ranking test: two candidates, three groups and three statistics each already make this the widest cell in the run, and a per year row would multiply the interval count by the length of the window to answer a question #195 does not ask. The window row is the measurement",
+ "groups": {
+  "reported": [
+   "hit",
+   "miss",
+   "absent"
+  ],
+  "in_the_gap": [
+   "hit",
+   "miss"
+  ],
+  "rule": "absence is a group, never a value on the cut: the question was not asked of those names, so they enter no gap"
+ },
+ "multiple_testing": {
+  "note": "one more view of a dataset that already carried nine before any sweep; pre-specified by #195 and computed once, not chosen after the fact",
+  "intervals_reported": 20,
+  "alpha_is_nominal": true,
+  "reading": "two candidates, three groups and three statistics each; the gap rows are the measurement and the rest are diagnostics"
+ },
+ "bootstrap": {
+  "cluster": "symbol",
+  "resamples": 2000,
+  "seed": 191,
+  "confidence": 0.95
+ },
+ "markets": [
+  {
+   "market": "US",
+   "trades": 12350,
+   "symbols": 1637,
+   "candidates": [
+    {
+     "candidate": "RS line",
+     "market": "US",
+     "arm": "B",
+     "cut": "RS_today >= RS_at_base_start, over the detection's own base",
+     "cut_applied": "at read time, by the rubric's own reader, off the value the persisted row carries \u2014 no row is re-denominated",
+     "value_kind": "boolean",
+     "absent_means": "a price was missing at one of the two anchors, so the question was never asked \u2014 which is a different fact from asking it and getting no",
+     "trades": 12350,
+     "symbols": 1637,
+     "closed": 12311,
+     "groups": {
+      "hit": {
+       "group": "hit",
+       "share_of_closed": 0.21972219965884168,
+       "label": "hit",
+       "trades": 2715,
+       "closed": 2705,
+       "open_at_end": 10,
+       "undenominated": 0,
+       "symbols": 1026,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.09886595953083081,
+       "expectancy_r_before_cost": -0.04992703901674319,
+       "cost_r": 0.04893892051408762,
+       "win_rate": 0.24103512014787432,
+       "wins": 652,
+       "losses": 2053,
+       "total_r": -267.43242053089733,
+       "distribution": {
+        "min": -34.85378847996743,
+        "p10": -3.434441733153782,
+        "q1": -2.332209656365202,
+        "median": -1.3926940372847147,
+        "q3": -0.033548117322897794,
+        "p90": 4.4666925637623835,
+        "max": 72.75342933324276,
+        "mean_win": 6.149592493990247,
+        "mean_loss": -2.083276535125445
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1023,
+        "observations": 2705,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.3386058809937753,
+        "ci_high": 0.13370304670066527,
+        "p_value": 0.806
+       }
+      },
+      "miss": {
+       "group": "miss",
+       "share_of_closed": 0.7800341158313703,
+       "label": "miss",
+       "trades": 9632,
+       "closed": 9603,
+       "open_at_end": 29,
+       "undenominated": 0,
+       "symbols": 1521,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.09242956300215834,
+       "expectancy_r_before_cost": 0.13845524793711245,
+       "cost_r": 0.046025684934954104,
+       "win_rate": 0.24273664479850046,
+       "wins": 2331,
+       "losses": 7272,
+       "total_r": 887.6010935097265,
+       "distribution": {
+        "min": -79.84078091028827,
+        "p10": -3.413808923461271,
+        "q1": -2.2972531690380507,
+        "median": -1.3619878060082895,
+        "q3": -0.03157053299208025,
+        "p90": 4.9688829134458965,
+        "max": 141.8356198363432,
+        "mean_win": 6.857095822710171,
+        "mean_loss": -2.075947369255732
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1513,
+        "observations": 9603,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.06455510682099204,
+        "ci_high": 0.2606431992003028,
+        "p_value": 0.1355
+       }
+      },
+      "absent": {
+       "group": "absent",
+       "share_of_closed": 0.00024368450978799449,
+       "label": "absent",
+       "trades": 3,
+       "closed": 3,
+       "open_at_end": 0,
+       "undenominated": 0,
+       "symbols": 1,
+       "price_scale_dropped": 0,
+       "expectancy_r": -2.413295098629895,
+       "expectancy_r_before_cost": -2.3723073543303523,
+       "cost_r": 0.040987744299542876,
+       "win_rate": 0.0,
+       "wins": 0,
+       "losses": 3,
+       "total_r": -7.239885295889685,
+       "distribution": {
+        "min": -3.047706755937924,
+        "p10": -3.0381536679254384,
+        "q1": -3.0238240359067095,
+        "median": -2.999941315875495,
+        "q3": -2.096089269975881,
+        "p90": -1.5537780424361123,
+        "max": -1.1922372240762669,
+        "mean_win": null,
+        "mean_loss": -2.413295098629895
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1,
+        "observations": 3,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": "1 symbols is fewer than 5: too thin for an interval, and a degenerate one would read as significance",
+        "ci_low": null,
+        "ci_high": null,
+        "p_value": null
+       },
+       "absent_means": "a price was missing at one of the two anchors, so the question was never asked \u2014 which is a different fact from asking it and getting no",
+       "enters_the_gap": false
+      }
+     },
+     "gap": {
+      "statistic": "mean after-cost R, hit minus miss",
+      "reads_absence_as": "absent \u2014 it enters neither side",
+      "enters_the_verdict": true,
+      "value": -0.19129552253298915,
+      "bootstrap": {
+       "cluster": "symbol",
+       "clusters": 1631,
+       "observations": 12311,
+       "resamples": 2000,
+       "seed": 191,
+       "confidence": 0.95,
+       "min_clusters": 5,
+       "undefined": 0,
+       "max_undefined_share": 0.1,
+       "suppressed": null,
+       "ci_low": -0.4533113312295887,
+       "ci_high": 0.069039332304325,
+       "p_value": 0.919
+      }
+     },
+     "rubric_reading": {
+      "statistic": "mean after-cost R, hit minus (miss and absent)",
+      "reads_absence_as": "a miss \u2014 the pre-registered readers score an absent value False, so this is what the dimension would do as a rubric row",
+      "enters_the_verdict": false,
+      "value": -0.19051297266989356,
+      "bootstrap": {
+       "cluster": "symbol",
+       "clusters": 1631,
+       "observations": 12311,
+       "resamples": 2000,
+       "seed": 191,
+       "confidence": 0.95,
+       "min_clusters": 5,
+       "undefined": 0,
+       "max_undefined_share": 0.1,
+       "suppressed": null,
+       "ci_low": -0.4518591274195448,
+       "ci_high": 0.0703214083013084,
+       "p_value": 0.9185
+      }
+     },
+     "value_correlation": {
+      "statistic": "spearman_rho",
+      "ties": "averaged",
+      "against": "the persisted value, over the rows that have one",
+      "enters_the_verdict": false,
+      "value_kind": "boolean",
+      "unavailable": "RS line persists a boolean, not a degree: there is no value to rank, and correlating a verdict with the outcome would restate the gap",
+      "rho": null,
+      "pairs": 0,
+      "bootstrap": {
+       "cluster": "symbol",
+       "clusters": 1631,
+       "observations": 12311,
+       "resamples": 2000,
+       "seed": 191,
+       "confidence": 0.95,
+       "min_clusters": 5,
+       "undefined": 0,
+       "max_undefined_share": 0.1,
+       "suppressed": "RS line persists a boolean, not a degree: there is no value to rank, and correlating a verdict with the outcome would restate the gap",
+       "ci_low": null,
+       "ci_high": null,
+       "p_value": null
+      }
+     },
+     "verdict": "no_evidence",
+     "selection_contrast": {
+      "instrument": "selection contrast",
+      "measures": "his taken detections against the ones he passed over",
+      "source": "findings \u00a75d",
+      "detector": "v3 (live)",
+      "taken_hit_rate": 0.1,
+      "taken_n": 140,
+      "not_taken_hit_rate": 0.121,
+      "not_taken_n": 34543,
+      "delta_pp": -2.1,
+      "pooled_spread": 0.326,
+      "adr_0005_verdict": "not admitted",
+      "recorded_as": "refused on criterion 4 \u2014 a wrong-way gap",
+      "why": "refused on criterion 4, a wrong-way gap, with the anchor named as the mechanism: base_start is a local high under both detector branches, so the rule asks a name to hold its ratio to the index measured from a local maximum"
+     }
+    },
+    {
+     "candidate": "Relative move",
+     "market": "US",
+     "arm": "B",
+     "cut": "the 6m index-relative move in ADR units, strictly above 0.0",
+     "cut_applied": "at read time, by the rubric's own reader, off the value the persisted row carries \u2014 no row is re-denominated",
+     "value_kind": "graded",
+     "absent_means": "the name had not listed six months ago, or has no ADR \u2014 never zero, which is a real value sitting exactly on the cut",
+     "trades": 12350,
+     "symbols": 1637,
+     "closed": 12311,
+     "groups": {
+      "hit": {
+       "group": "hit",
+       "share_of_closed": 0.894647063601657,
+       "label": "hit",
+       "trades": 11050,
+       "closed": 11014,
+       "open_at_end": 36,
+       "undenominated": 0,
+       "symbols": 1529,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.09757437466563303,
+       "expectancy_r_before_cost": 0.14485993031780492,
+       "cost_r": 0.04728555565217189,
+       "win_rate": 0.24477937170873434,
+       "wins": 2696,
+       "losses": 8318,
+       "total_r": 1074.684162567282,
+       "distribution": {
+        "min": -35.977822684303476,
+        "p10": -3.413821494161457,
+        "q1": -2.313248207940856,
+        "median": -1.3725714184500057,
+        "q3": -0.025710514873242284,
+        "p90": 4.9498730680250045,
+        "max": 141.8356198363432,
+        "mean_win": 6.785204601182081,
+        "mean_loss": -2.0699960858643434
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1523,
+        "observations": 11014,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.05790273425870082,
+        "ci_high": 0.2567372400899548,
+        "p_value": 0.0965
+       }
+      },
+      "miss": {
+       "group": "miss",
+       "share_of_closed": 0.09885468280399642,
+       "label": "miss",
+       "trades": 1220,
+       "closed": 1217,
+       "open_at_end": 3,
+       "undenominated": 0,
+       "symbols": 581,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.29822054323555286,
+       "expectancy_r_before_cost": -0.25618427570071667,
+       "cost_r": 0.04203626753483621,
+       "win_rate": 0.22514379622021363,
+       "wins": 274,
+       "losses": 943,
+       "total_r": -362.93440111766785,
+       "distribution": {
+        "min": -79.84078091028827,
+        "p10": -3.4045056435292054,
+        "q1": -2.2374136590836775,
+        "median": -1.3182328916369304,
+        "q3": -0.05166978766241504,
+        "p90": 4.150696411423249,
+        "max": 62.97115271607035,
+        "mean_win": 5.982258039408484,
+        "mean_loss": -2.123089187609324
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 579,
+        "observations": 1217,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.6261010107912246,
+        "ci_high": 0.10107000508599463,
+        "p_value": 0.928
+       }
+      },
+      "absent": {
+       "group": "absent",
+       "share_of_closed": 0.00649825359434652,
+       "label": "absent",
+       "trades": 80,
+       "closed": 80,
+       "open_at_end": 0,
+       "undenominated": 0,
+       "symbols": 45,
+       "price_scale_dropped": 0,
+       "expectancy_r": -1.2352621720834347,
+       "expectancy_r_before_cost": -1.2036853206965223,
+       "cost_r": 0.03157685138691251,
+       "win_rate": 0.1625,
+       "wins": 13,
+       "losses": 67,
+       "total_r": -98.82097376667477,
+       "distribution": {
+        "min": -9.773430402766413,
+        "p10": -3.8228735298161416,
+        "q1": -2.5924472531477143,
+        "median": -1.766551819563852,
+        "q3": -0.8741200767368722,
+        "p90": 3.3950299576234255,
+        "max": 9.533119052458574,
+        "mean_win": 4.721104710325525,
+        "mean_loss": -2.3909751492672626
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 45,
+        "observations": 80,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -2.1002363034602762,
+        "ci_high": -0.4230446513367067,
+        "p_value": 0.997
+       },
+       "absent_means": "the name had not listed six months ago, or has no ADR \u2014 never zero, which is a real value sitting exactly on the cut",
+       "enters_the_gap": false
+      }
+     },
+     "gap": {
+      "statistic": "mean after-cost R, hit minus miss",
+      "reads_absence_as": "absent \u2014 it enters neither side",
+      "enters_the_verdict": true,
+      "value": 0.39579491790118587,
+      "bootstrap": {
+       "cluster": "symbol",
+       "clusters": 1631,
+       "observations": 12311,
+       "resamples": 2000,
+       "seed": 191,
+       "confidence": 0.95,
+       "min_clusters": 5,
+       "undefined": 0,
+       "max_undefined_share": 0.1,
+       "suppressed": null,
+       "ci_low": -0.02685534054642588,
+       "ci_high": 0.7744111815052866,
+       "p_value": 0.0325
+      }
+     },
+     "rubric_reading": {
+      "statistic": "mean after-cost R, hit minus (miss and absent)",
+      "reads_absence_as": "a miss \u2014 the pre-registered readers score an absent value False, so this is what the dimension would do as a rubric row",
+      "enters_the_verdict": false,
+      "value": 0.4535923969357507,
+      "bootstrap": {
+       "cluster": "symbol",
+       "clusters": 1631,
+       "observations": 12311,
+       "resamples": 2000,
+       "seed": 191,
+       "confidence": 0.95,
+       "min_clusters": 5,
+       "undefined": 0,
+       "max_undefined_share": 0.1,
+       "suppressed": null,
+       "ci_low": 0.04788364360849213,
+       "ci_high": 0.8184291467813066,
+       "p_value": 0.0145
+      }
+     },
+     "value_correlation": {
+      "statistic": "spearman_rho",
+      "ties": "averaged",
+      "against": "the persisted value, over the rows that have one",
+      "enters_the_verdict": false,
+      "value_kind": "graded",
+      "unavailable": null,
+      "rho": -0.02147948747594429,
+      "pairs": 12231,
+      "bootstrap": {
+       "cluster": "symbol",
+       "clusters": 1631,
+       "observations": 12311,
+       "resamples": 2000,
+       "seed": 191,
+       "confidence": 0.95,
+       "min_clusters": 5,
+       "undefined": 0,
+       "max_undefined_share": 0.1,
+       "suppressed": null,
+       "ci_low": -0.04285454685209004,
+       "ci_high": -0.0019700619247729196,
+       "p_value": 0.985
+      }
+     },
+     "verdict": "no_evidence",
+     "selection_contrast": {
+      "instrument": "selection contrast",
+      "measures": "his taken detections against the ones he passed over",
+      "source": "findings \u00a75e",
+      "detector": "v3 (live)",
+      "taken_hit_rate": 0.886,
+      "taken_n": 140,
+      "not_taken_hit_rate": 0.8494,
+      "not_taken_n": 34543,
+      "delta_pp": 3.6,
+      "pooled_spread": 0.357,
+      "adr_0005_verdict": "not admitted",
+      "recorded_as": "on_the_bound \u2014 the criteria do not separate",
+      "why": "positive on both fields, and then 0.06pp inside criterion 1's ~85% not-taken hit-rate ceiling \u2014 0.29 standard errors from it. That ceiling and criterion 2's ~15% disagreement floor are one threshold read from two sides, so the two criteria give opposite answers on the same number, and the ADR calls that magnitude a judgement rather than a measurement. The criteria do not separate, so nothing shipped"
+     }
+    }
+   ]
+  },
+  {
+   "market": "IDX",
+   "trades": 1201,
+   "symbols": 249,
+   "candidates": [
+    {
+     "candidate": "RS line",
+     "market": "IDX",
+     "arm": "B",
+     "cut": "RS_today >= RS_at_base_start, over the detection's own base",
+     "cut_applied": "at read time, by the rubric's own reader, off the value the persisted row carries \u2014 no row is re-denominated",
+     "value_kind": "boolean",
+     "absent_means": "a price was missing at one of the two anchors, so the question was never asked \u2014 which is a different fact from asking it and getting no",
+     "trades": 1201,
+     "symbols": 249,
+     "closed": 1196,
+     "groups": {
+      "hit": {
+       "group": "hit",
+       "share_of_closed": 0.26588628762541805,
+       "label": "hit",
+       "trades": 319,
+       "closed": 318,
+       "open_at_end": 1,
+       "undenominated": 0,
+       "symbols": 144,
+       "price_scale_dropped": 0,
+       "expectancy_r": 1.065574156975815,
+       "expectancy_r_before_cost": 1.45333290038869,
+       "cost_r": 0.3877587434128749,
+       "win_rate": 0.27672955974842767,
+       "wins": 88,
+       "losses": 230,
+       "total_r": 338.85258191830917,
+       "distribution": {
+        "min": -16.975065333581725,
+        "p10": -4.235217749322471,
+        "q1": -2.857745752400098,
+        "median": -1.7964882342636814,
+        "q3": 1.006570633008457,
+        "p90": 8.94873099983077,
+        "max": 76.09611993498979,
+        "mean_win": 10.76402343841036,
+        "mean_loss": -2.6451368724426194
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 143,
+        "observations": 318,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.030542368288689378,
+        "ci_high": 2.245038199966278,
+        "p_value": 0.0295
+       }
+      },
+      "miss": {
+       "group": "miss",
+       "share_of_closed": 0.7307692307692307,
+       "label": "miss",
+       "trades": 878,
+       "closed": 874,
+       "open_at_end": 4,
+       "undenominated": 0,
+       "symbols": 224,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.5408871719463653,
+       "expectancy_r_before_cost": 0.9219470223442333,
+       "cost_r": 0.38105985039786816,
+       "win_rate": 0.22768878718535468,
+       "wins": 199,
+       "losses": 675,
+       "total_r": 472.7353882811232,
+       "distribution": {
+        "min": -16.685163502499186,
+        "p10": -3.722840638796173,
+        "q1": -2.7391912043727222,
+        "median": -1.8994660541279536,
+        "q3": -0.37235669915377556,
+        "p90": 7.402715627966106,
+        "max": 152.37834670993914,
+        "mean_win": 10.673657530527962,
+        "mean_loss": -2.446403644879913
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 222,
+        "observations": 874,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.2426863753686146,
+        "ci_high": 1.41525066563375,
+        "p_value": 0.098
+       }
+      },
+      "absent": {
+       "group": "absent",
+       "share_of_closed": 0.0033444816053511705,
+       "label": "absent",
+       "trades": 4,
+       "closed": 4,
+       "open_at_end": 0,
+       "undenominated": 0,
+       "symbols": 4,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.37559364248674926,
+       "expectancy_r_before_cost": 0.6886108294910492,
+       "cost_r": 0.31301718700429987,
+       "win_rate": 0.25,
+       "wins": 1,
+       "losses": 3,
+       "total_r": 1.502374569946997,
+       "distribution": {
+        "min": -2.136731537921844,
+        "p10": -2.12102509195569,
+        "q1": -2.097465423006459,
+        "median": -1.7811994639201854,
+        "q3": 0.6918596015730232,
+        "p90": 4.597646862054739,
+        "max": 7.201505035709212,
+        "mean_win": 7.201505035709212,
+        "mean_loss": -1.8997101552540716
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 4,
+        "observations": 4,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": "4 symbols is fewer than 5: too thin for an interval, and a degenerate one would read as significance",
+        "ci_low": null,
+        "ci_high": null,
+        "p_value": null
+       },
+       "absent_means": "a price was missing at one of the two anchors, so the question was never asked \u2014 which is a different fact from asking it and getting no",
+       "enters_the_gap": false
+      }
+     },
+     "gap": {
+      "statistic": "mean after-cost R, hit minus miss",
+      "reads_absence_as": "absent \u2014 it enters neither side",
+      "enters_the_verdict": true,
+      "value": 0.5246869850294498,
+      "bootstrap": {
+       "cluster": "symbol",
+       "clusters": 247,
+       "observations": 1196,
+       "resamples": 2000,
+       "seed": 191,
+       "confidence": 0.95,
+       "min_clusters": 5,
+       "undefined": 0,
+       "max_undefined_share": 0.1,
+       "suppressed": null,
+       "ci_low": -0.7275252263933428,
+       "ci_high": 1.8873106293666493,
+       "p_value": 0.211
+      }
+     },
+     "rubric_reading": {
+      "statistic": "mean after-cost R, hit minus (miss and absent)",
+      "reads_absence_as": "a miss \u2014 the pre-registered readers score an absent value False, so this is what the dimension would do as a rubric row",
+      "enters_the_verdict": false,
+      "value": 0.5254400307217487,
+      "bootstrap": {
+       "cluster": "symbol",
+       "clusters": 247,
+       "observations": 1196,
+       "resamples": 2000,
+       "seed": 191,
+       "confidence": 0.95,
+       "min_clusters": 5,
+       "undefined": 0,
+       "max_undefined_share": 0.1,
+       "suppressed": null,
+       "ci_low": -0.7223818391527145,
+       "ci_high": 1.882809679143346,
+       "p_value": 0.2105
+      }
+     },
+     "value_correlation": {
+      "statistic": "spearman_rho",
+      "ties": "averaged",
+      "against": "the persisted value, over the rows that have one",
+      "enters_the_verdict": false,
+      "value_kind": "boolean",
+      "unavailable": "RS line persists a boolean, not a degree: there is no value to rank, and correlating a verdict with the outcome would restate the gap",
+      "rho": null,
+      "pairs": 0,
+      "bootstrap": {
+       "cluster": "symbol",
+       "clusters": 247,
+       "observations": 1196,
+       "resamples": 2000,
+       "seed": 191,
+       "confidence": 0.95,
+       "min_clusters": 5,
+       "undefined": 0,
+       "max_undefined_share": 0.1,
+       "suppressed": "RS line persists a boolean, not a degree: there is no value to rank, and correlating a verdict with the outcome would restate the gap",
+       "ci_low": null,
+       "ci_high": null,
+       "p_value": null
+      }
+     },
+     "verdict": "no_evidence",
+     "selection_contrast": {
+      "instrument": "selection contrast",
+      "measures": "his taken detections against the ones he passed over",
+      "source": "findings \u00a75d",
+      "detector": "v3 (live)",
+      "taken_hit_rate": 0.1,
+      "taken_n": 140,
+      "not_taken_hit_rate": 0.121,
+      "not_taken_n": 34543,
+      "delta_pp": -2.1,
+      "pooled_spread": 0.326,
+      "adr_0005_verdict": "not admitted",
+      "recorded_as": "refused on criterion 4 \u2014 a wrong-way gap",
+      "why": "refused on criterion 4, a wrong-way gap, with the anchor named as the mechanism: base_start is a local high under both detector branches, so the rule asks a name to hold its ratio to the index measured from a local maximum"
+     }
+    },
+    {
+     "candidate": "Relative move",
+     "market": "IDX",
+     "arm": "B",
+     "cut": "the 6m index-relative move in ADR units, strictly above 0.0",
+     "cut_applied": "at read time, by the rubric's own reader, off the value the persisted row carries \u2014 no row is re-denominated",
+     "value_kind": "graded",
+     "absent_means": "the name had not listed six months ago, or has no ADR \u2014 never zero, which is a real value sitting exactly on the cut",
+     "trades": 1201,
+     "symbols": 249,
+     "closed": 1196,
+     "groups": {
+      "hit": {
+       "group": "hit",
+       "share_of_closed": 0.9088628762541806,
+       "label": "hit",
+       "trades": 1092,
+       "closed": 1087,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 239,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.8520698195020323,
+       "expectancy_r_before_cost": 1.235683106143743,
+       "cost_r": 0.38361328664171057,
+       "win_rate": 0.24839006439742412,
+       "wins": 270,
+       "losses": 817,
+       "total_r": 926.1998937987091,
+       "distribution": {
+        "min": -16.975065333581725,
+        "p10": -3.808633733424905,
+        "q1": -2.733688877097592,
+        "median": -1.8892403222769583,
+        "q3": -0.04497917240120798,
+        "p90": 8.18034073741871,
+        "max": 152.37834670993914,
+        "mean_win": 11.009090785532123,
+        "mean_loss": -2.5045956160281078
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 237,
+        "observations": 1087,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": 0.05445863345873355,
+        "ci_high": 1.7404018036442421,
+        "p_value": 0.0155
+       }
+      },
+      "miss": {
+       "group": "miss",
+       "share_of_closed": 0.07692307692307693,
+       "label": "miss",
+       "trades": 92,
+       "closed": 92,
+       "open_at_end": 0,
+       "undenominated": 0,
+       "symbols": 55,
+       "price_scale_dropped": 0,
+       "expectancy_r": -1.0747363800709184,
+       "expectancy_r_before_cost": -0.6771693366655068,
+       "cost_r": 0.39756704340541144,
+       "win_rate": 0.15217391304347827,
+       "wins": 14,
+       "losses": 78,
+       "total_r": -98.87574696652449,
+       "distribution": {
+        "min": -6.123071805753554,
+        "p10": -3.7255173425873105,
+        "q1": -3.0951340191393673,
+        "median": -1.8367613984404532,
+        "q3": -0.7348253193402594,
+        "p90": 1.3538856363816725,
+        "max": 19.292668457213058,
+        "mean_win": 6.30934257990466,
+        "mean_loss": -2.4000838857075606
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 55,
+        "observations": 92,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -1.953582447277971,
+        "ci_high": 0.016762148691119153,
+        "p_value": 0.974
+       }
+      },
+      "absent": {
+       "group": "absent",
+       "share_of_closed": 0.014214046822742474,
+       "label": "absent",
+       "trades": 17,
+       "closed": 17,
+       "open_at_end": 0,
+       "undenominated": 0,
+       "symbols": 7,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.837282474282667,
+       "expectancy_r_before_cost": -0.5995267196820263,
+       "cost_r": 0.23775575460064058,
+       "win_rate": 0.23529411764705882,
+       "wins": 4,
+       "losses": 13,
+       "total_r": -14.233802062805339,
+       "distribution": {
+        "min": -4.062640756177353,
+        "p10": -3.82676425860062,
+        "q1": -3.1203524400446216,
+        "median": -2.095199092742527,
+        "q3": -0.24215110712470966,
+        "p90": 4.493299743782684,
+        "max": 6.6306812389706495,
+        "mean_win": 4.427026994636719,
+        "mean_loss": -2.4570700031809394
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 7,
+        "observations": 17,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -2.3664499512694834,
+        "ci_high": 1.3589260757110377,
+        "p_value": 0.808
+       },
+       "absent_means": "the name had not listed six months ago, or has no ADR \u2014 never zero, which is a real value sitting exactly on the cut",
+       "enters_the_gap": false
+      }
+     },
+     "gap": {
+      "statistic": "mean after-cost R, hit minus miss",
+      "reads_absence_as": "absent \u2014 it enters neither side",
+      "enters_the_verdict": true,
+      "value": 1.9268061995729506,
+      "bootstrap": {
+       "cluster": "symbol",
+       "clusters": 247,
+       "observations": 1196,
+       "resamples": 2000,
+       "seed": 191,
+       "confidence": 0.95,
+       "min_clusters": 5,
+       "undefined": 0,
+       "max_undefined_share": 0.1,
+       "suppressed": null,
+       "ci_low": 0.5732693324052631,
+       "ci_high": 3.1378569981849407,
+       "p_value": 0.002
+      }
+     },
+     "rubric_reading": {
+      "statistic": "mean after-cost R, hit minus (miss and absent)",
+      "reads_absence_as": "a miss \u2014 the pre-registered readers score an absent value False, so this is what the dimension would do as a rubric row",
+      "enters_the_verdict": false,
+      "value": 1.8897721041747828,
+      "bootstrap": {
+       "cluster": "symbol",
+       "clusters": 247,
+       "observations": 1196,
+       "resamples": 2000,
+       "seed": 191,
+       "confidence": 0.95,
+       "min_clusters": 5,
+       "undefined": 0,
+       "max_undefined_share": 0.1,
+       "suppressed": null,
+       "ci_low": 0.608951983929816,
+       "ci_high": 3.0881532395827893,
+       "p_value": 0.002
+      }
+     },
+     "value_correlation": {
+      "statistic": "spearman_rho",
+      "ties": "averaged",
+      "against": "the persisted value, over the rows that have one",
+      "enters_the_verdict": false,
+      "value_kind": "graded",
+      "unavailable": null,
+      "rho": 0.06751278799672815,
+      "pairs": 1179,
+      "bootstrap": {
+       "cluster": "symbol",
+       "clusters": 247,
+       "observations": 1196,
+       "resamples": 2000,
+       "seed": 191,
+       "confidence": 0.95,
+       "min_clusters": 5,
+       "undefined": 0,
+       "max_undefined_share": 0.1,
+       "suppressed": null,
+       "ci_low": -0.004577640579328532,
+       "ci_high": 0.13269644452334722,
+       "p_value": 0.034
+      }
+     },
+     "verdict": "predicts",
+     "selection_contrast": {
+      "instrument": "selection contrast",
+      "measures": "his taken detections against the ones he passed over",
+      "source": "findings \u00a75e",
+      "detector": "v3 (live)",
+      "taken_hit_rate": 0.886,
+      "taken_n": 140,
+      "not_taken_hit_rate": 0.8494,
+      "not_taken_n": 34543,
+      "delta_pp": 3.6,
+      "pooled_spread": 0.357,
+      "adr_0005_verdict": "not admitted",
+      "recorded_as": "on_the_bound \u2014 the criteria do not separate",
+      "why": "positive on both fields, and then 0.06pp inside criterion 1's ~85% not-taken hit-rate ceiling \u2014 0.29 standard errors from it. That ceiling and criterion 2's ~15% disagreement floor are one threshold read from two sides, so the two criteria give opposite answers on the same number, and the ADR calls that magnitude a judgement rather than a measurement. The criteria do not separate, so nothing shipped"
+     }
+    }
+   ]
+  }
+ ]
+}

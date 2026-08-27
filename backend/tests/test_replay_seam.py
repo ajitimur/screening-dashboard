@@ -12906,6 +12906,11 @@ def _committed(name: str) -> dict:
     return json.loads((REFERENCES / name).read_text())
 
 
+def _section(page: str, heading: str) -> str:
+    """One document section: the text under `heading`, up to the next one."""
+    return page.split(heading, 1)[1].split("\n## ", 1)[0]
+
+
 def _prose(path: Path) -> str:
     """A document's text with its typographic minus folded to the ASCII one.
 
@@ -12916,7 +12921,7 @@ def _prose(path: Path) -> str:
     return path.read_text().replace("\u2212", "-")
 
 
-def _headline_cells() -> dict[str, dict[str, float]]:
+def _headline_cells() -> dict[str, dict[str, float | None]]:
     """The four pre-registered figures, read off the payload that produced them."""
     metric = _committed("backtest_primary_metric.json")
     return {
@@ -12954,6 +12959,10 @@ def test_the_machine_readable_results_are_committed_beside_both():
         "backtest_candidate_outcomes.json",
         "backtest_score_ranking.json",
         "backtest_anchors.json",
+        "backtest_full_run.json",
+        "backtest_arms_US.json",
+        "backtest_arms_IDX.json",
+        "backtest_run_contract.json",
     ):
         assert (REFERENCES / payload).exists(), payload
         assert payload in page, payload
@@ -12981,7 +12990,7 @@ def test_the_bias_bound_is_in_the_summary_and_not_in_a_footnote():
     figures appear above the summary section's end."""
     page = _prose(AUTHORITY_DOC)
     assert SUMMARY_HEADING in page
-    summary = page.split(SUMMARY_HEADING, 1)[1].split("\n## ", 1)[0]
+    summary = _section(page, SUMMARY_HEADING)
     for market, body in _verdict_markets().items():
         for cell in body["windows"]:
             assert f"{cell['pessimistic_r']:+.3f}R" in summary, (market, cell["label"])
@@ -12990,11 +12999,25 @@ def test_the_bias_bound_is_in_the_summary_and_not_in_a_footnote():
         assert f"{body['hole_share'] * 100:.1f}%" in summary, body["market"]
 
 
+def test_the_summary_carries_the_drag_the_hole_costs_the_headline():
+    """`gap_r` is the drag on the mean; `hole_share` and the trades-per-covered
+    ratio it implies are counts. They are different quantities and the first draft
+    of the plain companion ran them together, quoting the count as an R amount. So
+    the drag is asserted from the payload that computes it.
+    """
+    summary = _section(_prose(AUTHORITY_DOC), SUMMARY_HEADING)
+    metric = _committed("backtest_primary_metric.json")
+    us = next(b for b in metric["markets"] if b["market"] == "US")
+    assert f"{us['bias_bound']['gap_r']:.3f}R" in summary
+    # And the plain companion states the same drag rather than a second version.
+    assert f"{us['bias_bound']['gap_r']:.3f}R" in _prose(PLAIN_DOC)
+
+
 def test_both_markets_are_reported_separately_including_in_the_summary():
     """Findings §8: shapes travel between US and IDX and magnitudes do not, so a
     pooled figure describes neither market. The summary names both."""
     page = _prose(AUTHORITY_DOC)
-    summary = page.split(SUMMARY_HEADING, 1)[1].split("\n## ", 1)[0]
+    summary = _section(page, SUMMARY_HEADING)
     cells = _headline_cells()
     assert set(cells) == {"US", "IDX"}
     for market, windows in cells.items():
@@ -13024,7 +13047,7 @@ def test_the_licensed_change_is_named_before_any_constant_moves():
     change it licenses — and no constant in the app moved to earn it."""
     page = _prose(AUTHORITY_DOC)
     assert "## The change this licenses" in page
-    licensed = page.split("## The change this licenses", 1)[1].split("\n## ", 1)[0]
+    licensed = _section(page, "## The change this licenses")
     assert "IDX" in licensed
     # Named, and still unspent: the calibration rule is where it goes next.
     assert "findings §7" in licensed
@@ -13034,10 +13057,9 @@ def test_the_limits_are_stated_including_what_signal_level_cannot_say():
     """A limitation named in advance is a caveat; one discovered afterwards is a
     retraction. The four the plan fixed, plus the deferral in its own words."""
     for doc in (AUTHORITY_DOC, PLAIN_DOC):
-        page = _prose(doc)
-        assert LIMITS_HEADING in page or "cannot say" in page, doc.name
+        assert LIMITS_HEADING in _prose(doc), doc.name
     page = _prose(AUTHORITY_DOC)
-    limits = page.split(LIMITS_HEADING, 1)[1].split("\n## ", 1)[0]
+    limits = _section(page, LIMITS_HEADING)
     for claim in (
         "capacity",
         "concurrency",
@@ -13073,6 +13095,50 @@ def test_the_command_says_whether_it_recomputed_the_figure_or_read_it_back():
     assert "--from-store" in printed, "the recomputing path is named in the output"
     # And the document tells the reader the same two things.
     assert HEADLINE_COMMAND.name in _prose(AUTHORITY_DOC)
+
+
+def test_the_recomputing_path_cleans_up_after_itself():
+    """`--from-store` works in a temp directory and removes it on the way out.
+
+    Read off the source rather than by running it, because the recomputing path
+    re-simulates fourteen years of two markets and takes minutes. The specific
+    regression: `exec` on the last line replaces the shell image, so bash never
+    runs the EXIT trap and every run leaves its temp directory behind. The trap
+    is only as good as the absence of that `exec`, so both are asserted.
+    """
+    script = HEADLINE_COMMAND.read_text()
+    assert "trap 'rm -rf \"$WORK\"' EXIT" in script
+    assert "exec " not in script, "an exec after the trap would skip the cleanup"
+
+
+def test_the_command_explains_itself_without_running_anything():
+    """A reader who has seen none of this types --help first."""
+    printed = subprocess.run(
+        ["bash", str(HEADLINE_COMMAND), "--help"],
+        capture_output=True, text=True, cwd=REPO_ROOT,
+        env={**os.environ, "PYTHON": sys.executable},
+    )
+    assert printed.returncode == 0
+    assert "--from-store" in printed.stdout
+
+
+def test_a_missing_environment_is_named_rather_than_thrown():
+    """The reader who runs this has cloned a repository, not installed a tool.
+
+    Both paths import the backtest package, so both need duckdb even though the
+    default one reads no bars. A `ModuleNotFoundError` traceback tells that reader
+    nothing they can act on, so the command checks first and says what to install.
+    """
+    bare = subprocess.run(
+        ["bash", str(HEADLINE_COMMAND)],
+        capture_output=True, text=True, cwd=REPO_ROOT,
+        # An interpreter that certainly cannot import the project's dependencies.
+        env={**os.environ, "PYTHON": "/usr/bin/false"},
+    )
+    assert bare.returncode == 3
+    assert "duckdb" in bare.stderr
+    assert "requirements.txt" in bare.stderr
+    assert "Traceback" not in bare.stderr
 
 
 def test_the_write_up_moves_no_committed_constant():

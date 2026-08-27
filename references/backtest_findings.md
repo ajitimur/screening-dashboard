@@ -55,10 +55,15 @@ different instruments and are not the same quality of number:
 
 - **US — 37.7%**, weighted by how long each missing name was listed (51.8% by raw name count),
   measured against a dated listing spine of 96 archived Nasdaq Trader captures. At that weight
-  the missing population contributes 0.605 trades for every covered trade, each a full stop, so
-  **the pessimistic twin is negative for any headline below +0.605R** — a figure no breakout
+  the missing population contributes 0.605 trades for every covered trade, each a full stop.
+  That costs the US headline **0.413R**, taking +0.050R to −0.363R, and it means **the
+  pessimistic twin is negative for any headline below +0.605R** — a figure no breakout
   expectancy in this repo comes near. On the US the bound does not qualify the headline; it
-  exceeds it.
+  is eight times the size of it, and it points down.
+
+  The two numbers are different quantities and are easy to run together: **0.605 is a count**
+  (missing trades per covered trade) and **0.413R is the drag on the mean** that count
+  produces. Neither is the other.
 - **IDX — 12.7%**, counted from the enumeration side, because no free source reconstructs a
   dated Jakarta roster. It is neither exposure-weighted nor separated from recycled tickers, so
   **IDX's bound is optimistic in a known direction: the true bound can only be lower.** Its

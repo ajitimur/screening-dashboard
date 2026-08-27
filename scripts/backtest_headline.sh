@@ -46,8 +46,38 @@ if [[ ! -x "$PYTHON" ]]; then
   PYTHON="$(command -v python3)"
 fi
 
+# Both paths read the verdict off `backtest.verdict`, which imports the package,
+# which imports duckdb. That is worth one clear sentence rather than a traceback:
+# the reader who runs this has cloned a repository, not installed a tool, and the
+# failure they are about to hit is a missing environment rather than a missing
+# figure. Checked before anything is printed, so the two do not interleave.
+require_environment() {
+  if "$PYTHON" -c 'import duckdb' 2>/dev/null; then
+    return
+  fi
+  echo "error: $PYTHON cannot import duckdb, so the backtest package will not load." >&2
+  echo "This command needs the project's Python environment (no bar store, but the" >&2
+  echo "same dependencies). Set it up with:" >&2
+  echo "    python3 -m venv backend/.venv" >&2
+  echo "    backend/.venv/bin/pip install -r backend/requirements.txt" >&2
+  echo "Or point PYTHON at an interpreter that already has them:" >&2
+  echo "    PYTHON=/path/to/python bash scripts/backtest_headline.sh" >&2
+  exit 3
+}
+
+usage() {
+  echo "usage: bash scripts/backtest_headline.sh [--from-store PATH]"
+  echo
+  echo "  (no arguments)      print the headline and its bound from the payloads"
+  echo "                      committed under references/; reads no bars"
+  echo "  --from-store PATH   recompute it from a built bar store instead"
+}
+
 STORE=""
-if [[ "${1:-}" == "--from-store" ]]; then
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+elif [[ "${1:-}" == "--from-store" ]]; then
   STORE="${2:-}"
   if [[ -z "$STORE" ]]; then
     echo "error: --from-store needs the path to a built bar store." >&2
@@ -64,9 +94,12 @@ if [[ "${1:-}" == "--from-store" ]]; then
   # gave relative to the repository root would resolve one directory too deep.
   STORE="$(cd "$(dirname "$STORE")" && pwd)/$(basename "$STORE")"
 elif [[ -n "${1:-}" ]]; then
-  echo "usage: bash scripts/backtest_headline.sh [--from-store PATH]" >&2
+  usage >&2
   exit 2
 fi
+
+# After the argument parsing, so --help answers without an environment at all.
+require_environment
 
 if [[ -n "$STORE" ]]; then
   WORK="$(mktemp -d)"
@@ -105,8 +138,10 @@ else
   echo
 fi
 
+# Not `exec`: that replaces the shell image, so bash would never run the EXIT
+# trap and every --from-store run would leave its temp directory behind.
 cd backend
-exec "$PYTHON" -m backtest.verdict \
+"$PYTHON" -m backtest.verdict \
   --metric-json "$METRIC" \
   --sweep-json "$SWEEP" \
   --survivorship-json "$SURVIVORSHIP"

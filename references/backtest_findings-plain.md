@@ -99,8 +99,9 @@ missing stock would have been a full losing trade**. That's the right-hand colum
 table. And here's the part that matters:
 
 > At 37.7%, the missing stocks would contribute six losing trades for every ten real ones.
-> That drags the result down by about 0.6R. **The US headline is +0.050R.** The correction
-> is more than ten times the effect.
+> That drags the average trade down by **0.413R**, from +0.050R to −0.363R. **The US headline
+> is +0.050R.** The correction is about eight times the size of the thing being measured, and
+> it points down.
 
 This is why the bound isn't a footnote. On the US, the size of what we can't see is larger
 than the thing we're trying to measure. Any positive US result here should be read as "we
@@ -191,8 +192,8 @@ earlier study literally could not answer. Now it can:
 | | US | IDX |
 | --- | ---: | ---: |
 | Setups named | 96,914 | 12,821 |
-| Of those, how many actually broke out | 12.8% | 9.5% |
-| Of those, how many closed in profit | 3.1% | 2.4% |
+| Of every setup named, how many actually broke out | 12.8% | 9.5% |
+| Of every setup named, how many closed in profit | 3.1% | 2.4% |
 | Of the trades actually taken, how many won | 24.4% | 25.3% |
 
 Those bottom two rows are the same trades measured against different denominators, and the

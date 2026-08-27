@@ -537,8 +537,18 @@ produced it.
 | [`backtest_score_ranking.json`](backtest_score_ranking.json) | Outcomes by score band, per market and per year |
 | [`backtest_candidate_outcomes.json`](backtest_candidate_outcomes.json) | Both registered candidates against outcomes |
 | [`backtest_regime_posture.json`](backtest_regime_posture.json) | Expectancy per regime state, and both counterfactuals |
-| [`backtest_full_run.json`](backtest_full_run.json) | The denominator itself — sessions, detections, coverage |
+| [`backtest_full_run.json`](backtest_full_run.json) | The run *over* the denominator — sessions persisted and measured, detections per market and per session, the references each market excluded, and the anchor gate it passed |
 | [`backtest_anchors.json`](backtest_anchors.json) | Phase 6's table, as it settled |
+
+**Two things this table does not hold, and the distinction matters to anyone reproducing.**
+The **bar store** (`data/backtest.duckdb`, 1.1GB) and the **denominator store** beside it
+(`data/backtest.duckdb.denominator.duckdb`, 446MB) are what *the denominator* names — one
+persisted row per session per market, carrying universe membership, the regime state with its
+companions, the rank table, and every detection with its full record and score breakdown.
+`.gitignore` keeps both out of the repository, so every figure above is committed and the rows
+underneath them are not. Rebuilding them is the `backtest.crawl` / `backtest.full_run` pair
+[above](#reproducing-this); `backtest_full_run.json` is the *report* that run printed, not the
+rows it read.
 
 Their printed pages sit beside them as `.txt`, and the prose companions to individual
 measurements are [`backtest_survivorship.md`](backtest_survivorship.md),

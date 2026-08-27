@@ -19,6 +19,7 @@ import dataclasses
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import date, timedelta
@@ -12966,6 +12967,47 @@ def test_the_machine_readable_results_are_committed_beside_both():
     ):
         assert (REFERENCES / payload).exists(), payload
         assert payload in page, payload
+
+
+def test_every_payload_the_table_links_is_committed_rather_than_merely_present():
+    """"Committed beside both" is a claim about the repository, not the disk.
+
+    A payload that exists locally and is untracked or ignored reads as available to
+    every reader and is available to none of them — and the two large stores this
+    run was built from are exactly that, deliberately. So the table's rows are
+    checked against `git ls-files` rather than against `Path.exists`.
+    """
+    page = _prose(AUTHORITY_DOC)
+    table = _section(page, "## The committed payloads")
+    linked = sorted(set(re.findall(r"\((backtest_[a-z_A-Z]+\.json)\)", table)))
+    assert linked, "the payload table links no payload"
+
+    tracked = subprocess.run(
+        ["git", "ls-files", "--", "references"],
+        capture_output=True, text=True, check=True, cwd=REPO_ROOT,
+    ).stdout.split()
+    tracked_names = {Path(row).name for row in tracked}
+    for payload in linked:
+        assert payload in tracked_names, f"{payload} is linked but not tracked"
+
+
+def test_the_committed_payloads_are_not_the_denominator_itself():
+    """The rows the denominator names live in two stores `.gitignore` keeps out.
+
+    Saying otherwise sends a reader looking in the repository for 15.1M bars. The
+    document has to name both stores and say they are absent, so the reproduction
+    section's crawl is understood as required rather than optional.
+    """
+    table = _section(_prose(AUTHORITY_DOC), "## The committed payloads")
+    assert "data/backtest.duckdb" in table
+    assert "data/backtest.duckdb.denominator.duckdb" in table
+    assert ".gitignore" in table
+    # And the claim is true: neither store is tracked.
+    tracked = subprocess.run(
+        ["git", "ls-files", "--", "data"],
+        capture_output=True, text=True, check=True, cwd=REPO_ROOT,
+    ).stdout.split()
+    assert not [row for row in tracked if row.endswith(".duckdb")]
 
 
 def test_the_headline_figures_in_both_documents_are_the_committed_ones():

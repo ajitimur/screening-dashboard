@@ -239,6 +239,43 @@ that already keep :mod:`backtest.metric` out: it is a command
 (``python -m backtest.survivorship``) and it imports that module. The entry point is
 ``backtest.survivorship.survivorship_report``.
 
+Issue #199 closes Phase 5 and takes the decision. Two modules, and the seam
+between them is an ordering rule rather than a subject: :mod:`backtest.sweep`
+varies cost and threshold variants **after** the pre-registered metric has been
+computed and recorded, and :mod:`backtest.verdict` evaluates the criteria the
+contract fixed before any of it ran.
+
+The ordering is a type rather than a convention. A sweep needs a
+:class:`~backtest.sweep.RecordedMetric`, and the only way to obtain one is
+:func:`~backtest.sweep.read_recorded`, which reads the headline back **off disk**
+— so a sweep run before the headline was recorded has no file to read, and a
+sweep of a sweep is refused because it would report the second count and hide the
+first. Two axes are swept, both arithmetic over trades the simulator already
+produced: the contract's per-market costs, scaled in both directions, and a floor
+on the replayed seven-dimension score. The detection gate is not swept and the
+report says so, because the denominator was built against the contract's width
+and varying it is a new crawl rather than a variant of this one. Every swept
+figure is reported with the count of variants tried — the count is a *field* on
+:class:`~backtest.sweep.SweptResult` rather than a number a caller fetches
+separately, because a swept figure and the number of chances it had are one fact.
+
+The verdict reads the pre-registered report and nothing else. The kill is
+**global** — every market in scope, both windows, and drawn on the
+**survivor-biased** figure, because survivorship inflates in a known direction
+and a failure there is decisive when the honest number can only be worse. The
+ship is **per market** and needs the pessimistic bound above zero on both
+windows, so a market whose bias was never measured cannot ship at all: an absent
+bound is not a bound of zero. The one-market failure and the inconclusive run are
+their own named verdicts, each carrying the change it licenses, and a swept
+report handed to :func:`~backtest.verdict.verdict_report` raises
+:class:`~backtest.verdict.SweptVerdictRefused` — "reaching for a swept variant to
+break the tie" is the contract's own sentence and this is it made executable.
+
+Neither module's names are re-exported here, for the reasons that already keep
+:mod:`backtest.metric` out: both are commands (``python -m backtest.sweep``,
+``python -m backtest.verdict``) and both import that module. The entry points are
+``backtest.sweep.sweep_report`` and ``backtest.verdict.verdict_report``.
+
 The universe's names are not re-exported, and the reason is naming rather than
 import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean
 something else one import away (:mod:`screener.universe`, :mod:`replay.reference`),

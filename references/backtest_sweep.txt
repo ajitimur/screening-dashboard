@@ -1,0 +1,33 @@
+swept variants — 8 tried, arm B
+  the pre-registered figure stands as the headline even where a swept variant looks better; a swept variant may not break a tie and licenses nothing
+
+the pre-registered headline (references/backtest_primary_metric.json)
+  US    full +0.050R  excluding_2020_2021 -0.081R
+  IDX   full +0.680R  excluding_2020_2021 +0.284R
+
+the most flattering swept figure, with its count
+  US full: best swept +0.153R (score_floor score>=4) out of 8 variants tried — headline +0.050R stands
+  US excluding_2020_2021: best swept +0.007R (score_floor score>=4) out of 8 variants tried — headline -0.081R stands
+  IDX full: best swept +2.412R (score_floor score>=7) out of 8 variants tried — headline +0.680R stands
+  IDX excluding_2020_2021: best swept +1.628R (score_floor score>=7) out of 8 variants tried — headline +0.284R stands
+
+every variant — full | excluding_2020_2021
+  costs        costs×0.5    US    +0.073R n=12311 | -0.057R n=9092
+  costs        costs×0.5    IDX   +0.871R n=1196 | +0.478R n=986
+  costs        costs×2      US    +0.003R n=12311 | -0.130R n=9092
+  costs        costs×2      IDX   +0.297R n=1196 | -0.104R n=986
+  costs        costs×3      US    -0.044R n=12311 | -0.179R n=9092
+  costs        costs×3      IDX   -0.085R n=1196 | -0.493R n=986
+  score_floor  score>=3     US    +0.088R n=11458 | -0.048R n=8350
+  score_floor  score>=3     IDX   +0.757R n=1123 | +0.321R n=923
+  score_floor  score>=4     US    +0.153R n=9703 | +0.007R n=6957
+  score_floor  score>=4     IDX   +0.887R n=968 | +0.424R n=786
+  score_floor  score>=5     US    +0.140R n=6875 | -0.059R n=4884
+  score_floor  score>=5     IDX   +1.245R n=705 | +0.574R n=571
+  score_floor  score>=6     US    +0.051R n=3360 | -0.152R n=2314
+  score_floor  score>=6     IDX   +1.879R n=363 | +0.799R n=281
+  score_floor  score>=7     US    +0.026R n=1358 | -0.244R n=971
+  score_floor  score>=7     IDX   +2.412R n=183 | +1.628R n=136
+
+  the detection gate is not swept in this run: the denominator was built against the contract's four-lookback width, so a swept gate is a new crawl rather than a variant of this one
+  every threshold tried is a test, and enough of them will produce a winner from noise; three exit arms and three regime states are already nine views of one dataset before any sweep begins, so every swept figure is reported with the count of variants behind it

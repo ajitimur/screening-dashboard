@@ -102,7 +102,7 @@ import argparse
 import json
 import random
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 from screener.store import Store
 
@@ -195,6 +195,16 @@ NO_BOUND_LINE = (
     "  bias bound: not attached — this figure is survivor-biased by an unmeasured "
     "amount (backtest.survivorship)"
 )
+
+# The three keys that say *what kind of number this payload is*: the flag claiming
+# pre-registration, and the sweep block carrying the count of variants behind it.
+# Named here rather than where they are read, because this module is the one that
+# writes them: :mod:`backtest.sweep` refuses a payload that is not pre-registered
+# and :mod:`backtest.verdict` refuses one that has been swept, and a rename that
+# only reached the readers would leave both refusals silently passing everything.
+PRE_REGISTERED_KEY = "pre_registered"
+SWEEP_KEY = "sweep"
+VARIANTS_TRIED_KEY = "variants_tried"
 
 
 # -- refusing a contract that has moved out from under the code ---------------
@@ -532,6 +542,39 @@ def expectancy_cell(
     }
 
 
+def market_block(
+    report: Mapping[str, Any], market: str
+) -> dict[str, Any] | None:
+    """One market's block of a metric report, or ``None`` where it has none.
+
+    Public, and read by every module that consumes this payload rather than
+    produces it — the sweep quoting the headline it must stand beside, the verdict
+    reading the two windows a criterion is drawn on. One spelling of "find the
+    market, then find the window", because four spellings is four places for a
+    label to be looked up under a name the writer no longer uses.
+    """
+    for body in report["markets"]:
+        if body["market"] == market:
+            return body
+    return None
+
+
+def window_cell(
+    body: Mapping[str, Any], label: str
+) -> dict[str, Any] | None:
+    """The window cell at ``label`` on one market's block, or ``None``.
+
+    ``None`` rather than a raise: a caller asking for the 2020–21-excluded window
+    of a report that carries only the full one is asking a question the report
+    cannot answer, and the answer to that is "no figure", which every caller here
+    already has to handle for a market that traded nothing.
+    """
+    for cell in body["windows"]:
+        if cell["label"] == label:
+            return cell
+    return None
+
+
 def _reported_markets(
     contract: RunContract, asked: Sequence[str] | None
 ) -> tuple[str, ...]:
@@ -662,8 +705,8 @@ def metric_report(
         {
             "metric": contract.value(METRIC_PRIMARY_KEY),
             "arm": PRIMARY_ARM,
-            "pre_registered": True,
-            "sweep": {"variants_tried": SWEPT_VARIANTS, "note": SWEEP_NOTE},
+            PRE_REGISTERED_KEY: True,
+            SWEEP_KEY: {VARIANTS_TRIED_KEY: SWEPT_VARIANTS, "note": SWEEP_NOTE},
             "bootstrap": {
                 "cluster": BOOTSTRAP_CLUSTER,
                 "resamples": BOOTSTRAP_RESAMPLES,

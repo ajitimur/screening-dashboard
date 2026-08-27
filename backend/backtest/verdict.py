@@ -61,13 +61,16 @@ from .metric import (
     BIAS_BOUND_KEY,
     EXCLUDED_YEARS_WINDOW,
     FULL_WINDOW,
+    PRE_REGISTERED_KEY,
     PRIMARY_ARM,
     PRIMARY_METRIC,
+    SWEEP_KEY,
+    VARIANTS_TRIED_KEY,
+    window_cell,
 )
 from .result import stamp_result
 from .run import ContractDrift
 from .survivorship import bias_bound
-from .sweep import PRE_REGISTERED_KEY, SWEEP_KEY, VARIANTS_TRIED_KEY
 
 # -- the four verdicts, and what each licenses ---------------------------------
 
@@ -99,7 +102,9 @@ LICENSED: dict[str, str] = {
     ),
     ONE_MARKET_FAILURE: (
         "the method stands and the failing market is off until a run explains why "
-        "it differs; nothing about the passing market's constants moves on this"
+        "it differs; every other market keeps its own verdict and whatever that "
+        "verdict licenses, because the ship is per market and one market's failure "
+        "is evidence about that market"
     ),
     INCONCLUSIVE: (
         "nothing. The run is reported as inconclusive, and reaching for a swept "
@@ -116,6 +121,21 @@ WINDOWS = (FULL_WINDOW, EXCLUDED_YEARS_WINDOW)
 # assumed: a kill quietly redrawn on the pessimistic figure would fire on runs the
 # contract does not kill.
 KILL_BASIS = "survivor_biased_number"
+
+# The sub-keys of the two decision cells, and the values this code implements.
+# Named for the same reason the cells are: a bare ``cell["basis"]`` at five sites
+# is five places a rename has to be found by grep, and the drift checks below are
+# the one place the contract and the code are compared at all.
+BASIS = "basis"
+COMPARATOR = "comparator"
+THRESHOLD = "threshold"
+REQUIRES = "requires"
+SCOPE = "scope"
+KILL_COMPARATOR = "<="
+KILL_THRESHOLD = 0.0
+KILL_REQUIRES = ("both_markets", "full_window", "and_excluding_2020_2021")
+SHIP_SCOPE = "per_market"
+SHIP_REQUIRES = ("positive_result", "clears_phase2_pessimistic_bound")
 
 # Why a market with no attached bound cannot ship, carried on that market's own
 # block rather than left as a silent ``False``.
@@ -138,6 +158,19 @@ WEAK_BASIS_CAVEAT = (
     "this market's hole is counted on the enumeration side and is neither "
     "exposure-weighted nor separated from recycled tickers, so its pessimistic "
     "bound is optimistic in a known direction: the true bound can only be lower"
+)
+
+# Phase 2 attaches a bound to the **full** window only, and the ship criterion reads
+# both. The 2020–21-excluded twin is therefore derived here by re-running #196's own
+# arithmetic at the same hole share — which assumes the hole is the same size inside
+# the shorter window as across the whole one. That is an assumption rather than a
+# measurement, and it makes the criterion *stricter* rather than looser, so it is
+# recorded on the payload instead of left for a reader to infer from a figure #196
+# never published.
+DERIVED_BOUND_NOTE = (
+    "the full window's bound is Phase 2's own; the 2020-21-excluded window's "
+    "pessimistic figure is derived here at the same hole share, which assumes the "
+    "hole is the same size inside the shorter window"
 )
 
 QUIET_WINDOW_REASON = (
@@ -168,20 +201,51 @@ def check_kill_cell(contract: RunContract) -> None:
     both would print a verdict.
     """
     cell = contract.value(DECISION_KILL_KEY)
-    if cell.get("basis") != KILL_BASIS:
+    if cell.get(BASIS) != KILL_BASIS:
         raise ContractDrift(
-            f"the kill criterion is drawn on {cell.get('basis')!r}; this evaluates "
+            f"the kill criterion is drawn on {cell.get(BASIS)!r}; this evaluates "
             f"it on the {KILL_BASIS!r}, which is what makes a failure decisive"
         )
-    if cell.get("comparator") != "<=":
+    if cell.get(COMPARATOR) != KILL_COMPARATOR:
         raise ContractDrift(
-            f"the kill comparator is {cell.get('comparator')!r}, not '<='; a "
-            "strict comparator kills a different set of runs"
+            f"the kill comparator is {cell.get(COMPARATOR)!r}, not "
+            f"{KILL_COMPARATOR!r}; a strict comparator kills a different set of runs"
         )
-    if "both_markets" not in cell.get("requires", ()):
+    if cell.get(THRESHOLD) != KILL_THRESHOLD:
         raise ContractDrift(
-            "the kill criterion no longer requires both markets; a per-market kill "
-            "is a different verdict and has its own name"
+            f"the kill threshold is {cell.get(THRESHOLD)!r}; this evaluates it at "
+            f"{KILL_THRESHOLD}, and a moved line kills a different set of runs"
+        )
+    missing = [r for r in KILL_REQUIRES if r not in cell.get(REQUIRES, ())]
+    if missing:
+        raise ContractDrift(
+            f"the kill criterion no longer requires {', '.join(missing)}; a kill "
+            "over fewer markets or one window is a different verdict and has its "
+            "own name"
+        )
+
+
+def check_ship_cell(contract: RunContract) -> None:
+    """Refuse a contract whose ship criterion is not the one evaluated here.
+
+    The kill has had this check since it was written and the ship needs it for the
+    same reason, which is the stronger one: if ``clears_phase2_pessimistic_bound``
+    dropped out of the cell, this code would go on demanding the bound while the
+    contract no longer did — and the disagreement would print as a verdict either
+    way, with a licence attached.
+    """
+    cell = contract.value(DECISION_SHIP_KEY)
+    if cell.get(SCOPE) != SHIP_SCOPE:
+        raise ContractDrift(
+            f"the ship criterion is scoped {cell.get(SCOPE)!r}; this evaluates it "
+            f"{SHIP_SCOPE!r}, because a pass in one market licenses nothing in the "
+            "other"
+        )
+    missing = [r for r in SHIP_REQUIRES if r not in cell.get(REQUIRES, ())]
+    if missing:
+        raise ContractDrift(
+            f"the ship criterion no longer requires {', '.join(missing)}; a ship "
+            "that need not clear the Phase 2 bound is a different criterion"
         )
 
 
@@ -392,7 +456,7 @@ def market_finding(
     share = attached.get("hole_share") if attached else None
     windows: list[WindowFigure] = []
     for label in WINDOWS:
-        cell = next((c for c in body["windows"] if c["label"] == label), None)
+        cell = window_cell(body, label)
         if cell is None:
             continue
         pessimistic = (
@@ -437,18 +501,24 @@ def kill_fires(findings: Sequence[MarketFinding], *, scope: Sequence[str]) -> bo
 def run_verdict(findings: Sequence[MarketFinding], *, scope: Sequence[str]) -> str:
     """The run's one verdict, by the precedence in :data:`PRECEDENCE`.
 
+    Driven off that tuple rather than off a chain of ``if``s, so the order a reader
+    sees declared is the order the code takes: reordering the rule is reordering
+    :data:`PRECEDENCE`, and a verdict with no test below is a ``KeyError`` here
+    rather than a silent fall-through to "inconclusive".
+
     The per-market findings are the operative ones and they all ride on the payload;
     this is the global reading. A market that ships under a run-level
-    ``one_market_failure`` still ships — its own block says so — and the run-level
-    verdict names the more consequential fact, which is that a market is off.
+    ``one_market_failure`` still ships — its own block says so, and that verdict's
+    licence says so too — while the run-level word names the more consequential
+    fact, which is that a market is off.
     """
-    if kill_fires(findings, scope=scope):
-        return KILL
-    if any(f.fails for f in findings):
-        return ONE_MARKET_FAILURE
-    if any(f.ships for f in findings):
-        return SHIP
-    return INCONCLUSIVE
+    fires = {
+        KILL: lambda: kill_fires(findings, scope=scope),
+        ONE_MARKET_FAILURE: lambda: any(f.fails for f in findings),
+        SHIP: lambda: any(f.ships for f in findings),
+        INCONCLUSIVE: lambda: True,
+    }
+    return next(verdict for verdict in PRECEDENCE if fires[verdict]())
 
 
 def check_scope(report: Mapping[str, Any], contract: RunContract) -> None:
@@ -477,6 +547,7 @@ def verdict_report(
     stands as the headline even when a swept one looks better".
     """
     check_kill_cell(contract)
+    check_ship_cell(contract)
     check_pre_registered(metric)
     check_scope(metric, contract)
 
@@ -495,6 +566,7 @@ def verdict_report(
             "metric": metric["metric"],
             "basis": KILL_BASIS,
             "windows": list(WINDOWS),
+            "bound_note": DERIVED_BOUND_NOTE,
             "criteria": {
                 "kill": contract.value(DECISION_KILL_KEY),
                 "ship": contract.value(DECISION_SHIP_KEY),
@@ -553,7 +625,7 @@ def format_verdict(report: Mapping[str, Any]) -> str:
             if report["kill"]["failing"]
             else ""
         ),
-        f"ship (per market): "
+        "ship (per market): "
         + (
             ", ".join(report["ship"]["shipping"])
             if report["ship"]["shipping"]

@@ -231,7 +231,8 @@ recorded pre-registered headline, with Phase 2's bound attached; the payload is 
   +0.050R on the full window, and Jakarta is positive on both.
 - **US — inconclusive.** +0.050R on the full window and **−0.081R** with 2020–21 excluded. It
   neither ships nor fails, and it is reported as inconclusive rather than resolved by the swept
-  variant that reaches +0.153R at a score floor of 4 — one of eight tried.
+  variant that reaches +0.153R at a score floor of 4 — one of eight tried, and itself +0.007R
+  once 2020–21 comes out, which is what the two-window table exists to show.
 - **IDX — ship**, and it is the only market it licenses anything in. +0.680R and +0.284R across
   the two windows, with the pessimistic bound holding at +0.418R and **+0.072R**. That second
   figure is thin, and Jakarta's hole is counted on the enumeration side — neither

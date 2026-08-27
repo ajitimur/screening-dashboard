@@ -523,6 +523,57 @@ counted as open, never marked to the last close.
 _Avoid_: net expectancy, edge per trade; and never average US and IDX — findings §8
 measured that magnitudes do not transfer.
 
+**Score floor**:
+A **swept variant** on the threshold axis (`backtest.sweep`): trade only detections at or
+above *k* of the replayed **star score**'s eight points. It is a cut over the cohort and
+never a contract cell — a threshold moved after the fact does not belong in the object
+holding the ones frozen before it. Reported like every swept figure, with the count of
+variants tried beside it and the cohort each cut leaves.
+_Avoid_: score cut-off, minimum stars — and never quote one as a result.
+
+**Verdict (the run's)**:
+One of four words the contract named before the run produced a number
+(`decision.*`, `backtest.verdict`): **kill**, **ship**, **one-market failure** or
+**inconclusive**. Each carries the change it licenses, written down in advance, so a
+result cannot be converted into an unguarded edit. Unqualified inside the backtest the
+word means this one; the rubric's `verdict` field and the ranking's own are different and
+smaller things, and both keep their qualifier.
+_Avoid_: the result, the outcome, the conclusion.
+
+**Kill**:
+The global verdict: arm B's **after-cost expectancy** at or below zero in **both** markets,
+on the full window **and** with 2020–21 excluded, measured on the **survivor-biased**
+figure. Global because findings §8 says magnitudes do not transfer, so one market failing
+is evidence about that market. Drawn on the biased number deliberately — survivorship
+inflates in a known direction, so a failure there is decisive because the honest figure can
+only be worse. It licenses one thing: the detector as encoded has no edge, and the app's
+claim reduces to *ranking* what a human selects.
+
+**Ship**:
+The per-market verdict: arm B's **after-cost expectancy** above zero across both windows
+**and** the **bias bound**'s pessimistic figure still above zero. Per market, so a US pass
+licenses nothing in Jakarta. Only this criterion has to clear the bound, because a pass on
+the biased number proves much less than a failure does — and a market with no bound
+attached cannot ship at all, since an absent bound is not a bound of zero.
+
+**One-market failure**:
+Its own named verdict, not an improvisation: one market fails the **kill** test and the
+others do not. The method stands, and that market is **off until a run explains why it
+differs**. Every other market keeps its own verdict and whatever that licenses.
+
+**Inconclusive**:
+The verdict when neither **kill** nor **ship** fires — reported as inconclusive and
+licensing nothing. Reaching for a **swept variant** to break the tie is the failure mode
+the whole run contract exists to prevent.
+_Avoid_: no result, flat, mixed.
+
+**Bound basis**:
+How the hole under a market's **bias bound** was counted: against a dated listing spine
+with **recycled symbols** separated out, or against the enumeration alone, where a recycled
+ticker cannot be told from an IPO. The second is weaker in a known direction, so a bound
+built on it is optimistic and the **verdict** carries that caveat on the market's own
+block. US is measured the first way, IDX the second.
+
 **Clustered bootstrap**:
 The run's significance test (`backtest.metric.bootstrap_expectancy`): resample **symbols**
 with replacement, pooling every row inside a drawn symbol, and read the interval and the

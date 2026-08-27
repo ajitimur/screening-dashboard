@@ -220,6 +220,7 @@
   "full",
   "excluding_2020_2021"
  ],
+ "bound_note": "the full window's bound is Phase 2's own; the 2020-21-excluded window's pessimistic figure is derived here at the same hole share, which assumes the hole is the same size inside the shorter window",
  "criteria": {
   "kill": {
    "metric": "arm_b_after_cost_expectancy_r",

@@ -12169,14 +12169,20 @@ from backtest.verdict import (
     SHIP,
     SweptVerdictRefused,
     check_kill_cell,
+    DERIVED_BOUND_NOTE,
     WEAK_BASIS_CAVEAT,
     bound_bases,
+    check_ship_cell,
     format_verdict,
     market_finding,
     verdict_report,
 )
 from backtest.verdict import main as verdict_main
-from backtest.contract import DECISION_KILL_KEY, DETECTION_GATE_KEY
+from backtest.contract import (
+    DECISION_KILL_KEY,
+    DECISION_SHIP_KEY,
+    DETECTION_GATE_KEY,
+)
 from backtest.survivorship import attach_bias_bound
 
 
@@ -12736,3 +12742,125 @@ def test_the_bound_basis_is_read_off_phase_twos_own_report():
 
     assert set(bases) == {"US"}  # a market with no measured hole reports none
     assert bases["US"]["basis"] == "listing_spine"
+
+
+def test_a_ship_criterion_that_moved_out_from_under_the_code_is_drift():
+    """The kill has had this check since it was written and the ship needs it for
+    the stronger reason: if `clears_phase2_pessimistic_bound` dropped out of the
+    cell, this code would go on demanding the bound while the contract no longer
+    did — and the disagreement would print as a verdict with a licence attached."""
+    for value in (
+        {**DEFAULT_CONTRACT.value(DECISION_SHIP_KEY), "scope": "global"},
+        {**DEFAULT_CONTRACT.value(DECISION_SHIP_KEY), "requires": ["positive_result"]},
+    ):
+        moved = dataclasses.replace(
+            DEFAULT_CONTRACT,
+            cells=tuple(
+                dataclasses.replace(c, value=value) if c.key == DECISION_SHIP_KEY else c
+                for c in DEFAULT_CONTRACT.cells
+            ),
+        )
+        with pytest.raises(ContractDrift):
+            check_ship_cell(moved)
+        with pytest.raises(ContractDrift):
+            verdict_report(moved, _vreport({"US": (+2.0, +1.8), "IDX": (+2.0, +1.8)}))
+
+    check_ship_cell(DEFAULT_CONTRACT)  # the committed one passes
+
+
+def test_the_kills_threshold_and_both_windows_are_pinned_too():
+    """A moved line kills a different set of runs, and a kill that stopped
+    requiring the 2020–21-excluded window would fire on the mania alone."""
+    for value in (
+        {**DEFAULT_CONTRACT.value(DECISION_KILL_KEY), "threshold": -0.5},
+        {**DEFAULT_CONTRACT.value(DECISION_KILL_KEY),
+         "requires": ["both_markets", "full_window"]},
+    ):
+        moved = dataclasses.replace(
+            DEFAULT_CONTRACT,
+            cells=tuple(
+                dataclasses.replace(c, value=value) if c.key == DECISION_KILL_KEY else c
+                for c in DEFAULT_CONTRACT.cells
+            ),
+        )
+        with pytest.raises(ContractDrift):
+            check_kill_cell(moved)
+
+
+def test_a_failing_market_does_not_revoke_the_other_markets_ship():
+    """The ship is per market, so a Jakarta failure is evidence about Jakarta. The
+    run-level verdict names the more consequential fact and its licence says in as
+    many words that the other market keeps whatever its own verdict licensed —
+    a run-level word that withdrew it would contradict the block beneath it."""
+    report = verdict_report(
+        DEFAULT_CONTRACT, _vreport({"US": (+2.0, +1.8), "IDX": (-0.4, -0.6)})
+    )
+
+    assert report["verdict"] == ONE_MARKET_FAILURE
+    assert report["ship"]["shipping"] == ["US"]
+    assert "keeps its own verdict" in report["licenses"]
+    page = format_verdict(report)
+    assert page.index("US — ship") < page.index("IDX — one_market_failure")
+
+
+def test_the_run_verdict_is_driven_off_the_declared_precedence():
+    """The order a reader sees declared is the order the code takes: `run_verdict`
+    walks `PRECEDENCE` rather than a hand-written chain that could drift from it."""
+    ships = _vreport({"US": (+2.0, +1.8), "IDX": (+2.0, +1.8)})
+    fails = _vreport({"US": (-0.4, -0.6), "IDX": (-0.2, -0.3)})
+    mixed = _vreport({"US": (+2.0, +1.8), "IDX": (-0.4, -0.6)})
+    neither = _vreport({"US": (+0.05, -0.08), "IDX": (+0.1, -0.2)})
+
+    assert [
+        verdict_report(DEFAULT_CONTRACT, r)["verdict"]
+        for r in (fails, mixed, ships, neither)
+    ] == list(PRECEDENCE)
+
+
+def test_the_excluded_windows_pessimistic_figure_is_named_as_derived():
+    """#196 attaches a bound to the full window only. The ship reads both, so the
+    second twin is re-run here at the same hole share — an assumption, not a
+    measurement, and one that makes the criterion stricter. It is recorded rather
+    than left for a reader to infer from a figure Phase 2 never published."""
+    report = verdict_report(
+        DEFAULT_CONTRACT, _vreport({"US": (+2.0, +1.8), "IDX": (+2.0, +1.8)})
+    )
+
+    assert report["bound_note"] == DERIVED_BOUND_NOTE
+    assert "same hole share" in report["bound_note"]
+    for body in report["markets"]:
+        assert all(w["pessimistic_r"] is not None for w in body["windows"])
+
+
+def test_the_swept_page_prints_both_windows_for_every_variant(tmp_path):
+    """A swept figure that only holds on the full window is a figure about the
+    mania, and a table with one column would hide exactly that."""
+    recorded = _recorded_metric(
+        tmp_path, [_mtrade("AAA", 2015, 2.0), _mtrade("BBB", 2020, 4.0)]
+    )
+    report = sweep_report(
+        recorded,
+        _sweep_cohort(_rtrade("AAA", 6, 2.0, year=2015), _rtrade("BBB", 6, 4.0, year=2020)),
+    )
+    page = format_sweep(report)
+
+    assert f"every variant — {FULL_WINDOW} | {EXCLUDED_YEARS_WINDOW}" in page
+    # Both windows on every variant row, and the cohort size beside each figure.
+    for variant in report["variants"]:
+        for body in variant["markets"]:
+            if body["market"] != "US":
+                continue
+            for label in (FULL_WINDOW, EXCLUDED_YEARS_WINDOW):
+                cell = next(c for c in body["windows"] if c["label"] == label)
+                if cell["expectancy_r"] is not None:
+                    assert f"{cell['expectancy_r']:+.3f}R n={cell['closed']}" in page
+
+
+def test_the_axes_a_sweep_reports_are_the_axes_it_ran(tmp_path):
+    """One list. An axis added to the sweep and missing from its own report would
+    be variants tried and never counted."""
+    recorded = _recorded_metric(tmp_path, [_mtrade("AAA", 2015, 1.0)])
+    report = sweep_report(recorded, _sweep_cohort(_rtrade("AAA", 6, 1.0)))
+
+    assert [block["axis"] for block in report["axes"]] == list(AXES)
+    assert {v.axis for v in variants()} == set(AXES)

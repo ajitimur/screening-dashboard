@@ -68,10 +68,15 @@ from .metric import (
     EXCLUDED_YEARS,
     EXCLUDED_YEARS_WINDOW,
     FULL_WINDOW,
+    PRE_REGISTERED_KEY,
     PRIMARY_ARM,
     PRIMARY_METRIC,
     SLIPPAGE_BPS,
+    SWEEP_KEY,
+    VARIANTS_TRIED_KEY,
     expectancy_cell,
+    market_block,
+    window_cell,
 )
 from .ranking import SCORE_MAX_POINTS, ScoredTrade, scored_trades
 from .result import stamp_result
@@ -79,13 +84,11 @@ from .run import ContractDrift
 from .simulate import simulate_market
 
 # -- the rule the order encodes ------------------------------------------------
-
-# The key the recorded headline rides under, and the count that says it is the
-# headline. A pre-registered report carries ``variants_tried == 0`` structurally:
-# :mod:`backtest.metric` computes it before any sweep exists.
-PRE_REGISTERED_KEY = "pre_registered"
-SWEEP_KEY = "sweep"
-VARIANTS_TRIED_KEY = "variants_tried"
+#
+# The three keys that say what kind of payload this is — ``pre_registered``,
+# ``sweep`` and ``variants_tried`` — are :mod:`backtest.metric`'s, imported rather
+# than respelled: that module writes them and this one refuses on them, and a
+# rename reaching only the reader would leave the refusal passing everything.
 
 MULTIPLE_COMPARISONS_NOTE = (
     "every threshold tried is a test, and enough of them will produce a winner "
@@ -125,7 +128,13 @@ COST_MULTIPLIERS = (0.5, 2.0, 3.0)
 SCORE_FLOOR_AXIS = "score_floor"
 SCORE_FLOORS = (3, 4, 5, 6, 7)
 
-AXES = (COST_AXIS, SCORE_FLOOR_AXIS)
+# What each axis varied, in one place: the payload's ``axes`` block is built from
+# this rather than restated beside it, so an axis added below cannot go unreported.
+AXIS_VALUES: dict[str, list[Any]] = {
+    COST_AXIS: [f"×{m:g}" for m in COST_MULTIPLIERS],
+    SCORE_FLOOR_AXIS: list(SCORE_FLOORS),
+}
+AXES = tuple(AXIS_VALUES)
 
 # What is deliberately *not* swept, recorded here rather than left as an absence a
 # reader has to notice: the denominator was built against the contract's gate width
@@ -155,23 +164,20 @@ class RecordedMetric:
     report: dict[str, Any]
 
     def market(self, market: str) -> dict[str, Any]:
-        for body in self.report["markets"]:
-            if body["market"] == market:
-                return body
-        raise KeyError(
-            f"the recorded headline has no {market!r} block; a sweep cannot be "
-            "reported against a market the pre-registered metric never measured"
-        )
-
-    def markets(self) -> tuple[str, ...]:
-        return tuple(body["market"] for body in self.report["markets"])
+        body = market_block(self.report, market)
+        if body is None:
+            raise KeyError(
+                f"the recorded headline has no {market!r} block; a sweep cannot be "
+                "reported against a market the pre-registered metric never measured"
+            )
+        return body
 
     def expectancy(self, market: str, label: str = FULL_WINDOW) -> float | None:
         """The pre-registered after-cost expectancy for one market and window."""
-        for cell in self.market(market)["windows"]:
-            if cell["label"] == label:
-                return cell["expectancy_r"]
-        raise KeyError(f"no {label!r} window on the recorded headline for {market}")
+        cell = window_cell(self.market(market), label)
+        if cell is None:
+            raise KeyError(f"no {label!r} window on the recorded headline for {market}")
+        return cell["expectancy_r"]
 
 
 def read_recorded(path: str | Path) -> RecordedMetric:
@@ -430,9 +436,9 @@ def sweep_report(
             PRE_REGISTERED_KEY: pre_registered_block(recorded),
             VARIANTS_TRIED_KEY: tried,
             "axes": [
-                {"axis": COST_AXIS, "values": [f"×{m:g}" for m in COST_MULTIPLIERS]},
-                {"axis": SCORE_FLOOR_AXIS, "values": list(SCORE_FLOORS),
-                 "of_points": SCORE_MAX_POINTS},
+                {"axis": axis, "values": AXIS_VALUES[axis]}
+                | ({"of_points": SCORE_MAX_POINTS} if axis == SCORE_FLOOR_AXIS else {})
+                for axis in AXES
             ],
             "not_swept": {"cells": list(NOT_SWEPT), "note": NOT_SWEPT_NOTE},
             "variants": [
@@ -514,25 +520,18 @@ def best_variant(
     would reach for, so it is the one the report puts under the count and beside the
     headline that stands regardless.
     """
-    headline = next(
-        (
-            cell["expectancy_r"]
-            for body in report[PRE_REGISTERED_KEY]["markets"]
-            if body["market"] == market
-            for cell in body["windows"]
-            if cell["label"] == window
-        ),
-        None,
-    )
+    # Through :func:`headline` rather than around it: the figure a swept result is
+    # compared against and the figure that stands have to be the same read, or the
+    # comparison printed beside the count is against a number nobody promised.
+    stands = headline(report, market=market, window=window)
     tried = report[VARIANTS_TRIED_KEY]
     best: SweptResult | None = None
     for variant in report["variants"]:
         for body in variant["markets"]:
             if body["market"] != market:
                 continue
-            for cell in body["windows"]:
-                if cell["label"] != window or cell["expectancy_r"] is None:
-                    continue
+            cell = window_cell(body, window)
+            if cell is not None and cell["expectancy_r"] is not None:
                 if best is None or cell["expectancy_r"] > (best.expectancy_r or 0.0):
                     best = SweptResult(
                         axis=variant["axis"],
@@ -541,11 +540,11 @@ def best_variant(
                         window=window,
                         expectancy_r=cell["expectancy_r"],
                         variants_tried=tried,
-                        headline_r=headline,
+                        headline_r=stands,
                     )
     return best or SweptResult(
         axis="", label="", market=market, window=window, expectancy_r=None,
-        variants_tried=tried, headline_r=headline,
+        variants_tried=tried, headline_r=stands,
     )
 
 
@@ -557,15 +556,26 @@ def headline(
     A function rather than a dictionary lookup at four call sites, so "which number
     is the headline?" has one answer in the code as well as in the prose.
     """
-    for body in report[PRE_REGISTERED_KEY]["markets"]:
-        if body["market"] == market:
-            for cell in body["windows"]:
-                if cell["label"] == window:
-                    return cell["expectancy_r"]
-    raise KeyError(f"no recorded headline for {market} on the {window!r} window")
+    body = market_block(report[PRE_REGISTERED_KEY], market)
+    cell = window_cell(body, window) if body else None
+    if cell is None:
+        raise KeyError(f"no recorded headline for {market} on the {window!r} window")
+    return cell["expectancy_r"]
 
 
 # -- printing it, and the command that produces it -----------------------------
+
+
+def _variant_figure(cell: Mapping[str, Any] | None) -> str:
+    """One swept cell as a figure and the cohort behind it, or the absence of one.
+
+    The n is printed beside every swept figure and never dropped: a floor that
+    cuts the cohort to a handful is how a sweep produces its most flattering
+    number, and the figure alone does not show it.
+    """
+    if cell is None or cell["expectancy_r"] is None:
+        return "no closed trades"
+    return f"{cell['expectancy_r']:+.3f}R n={cell['closed']}"
 
 
 def format_sweep(report: Mapping[str, Any]) -> str:
@@ -591,18 +601,19 @@ def format_sweep(report: Mapping[str, Any]) -> str:
         for window in (FULL_WINDOW, EXCLUDED_YEARS_WINDOW):
             lines.append(best_variant(report, market=body["market"], window=window).line())
 
-    lines += ["", "every variant"]
+    # Both windows on every variant, for the reason the headline reports both: a
+    # swept figure that only holds on the full window is a figure about the mania,
+    # and a table printing one column would hide exactly that.
+    lines += ["", f"every variant — {FULL_WINDOW} | {EXCLUDED_YEARS_WINDOW}"]
     for variant in report["variants"]:
         for body in variant["markets"]:
-            full = next(c for c in body["windows"] if c["label"] == FULL_WINDOW)
-            value = (
-                "no closed trades"
-                if full["expectancy_r"] is None
-                else f"{full['expectancy_r']:+.3f}R on n={full['closed']}"
+            figures = " | ".join(
+                _variant_figure(window_cell(body, label))
+                for label in (FULL_WINDOW, EXCLUDED_YEARS_WINDOW)
             )
             lines.append(
                 f"  {variant['axis']:<12} {variant['label']:<12} "
-                f"{body['market']:<5} {value}"
+                f"{body['market']:<5} {figures}"
             )
     lines += ["", f"  {report['not_swept']['note']}", f"  {report['note']}"]
     return "\n".join(lines)

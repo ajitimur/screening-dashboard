@@ -12114,3 +12114,625 @@ def test_a_market_the_store_holds_no_sessions_for_is_refused_by_both_bounds(stor
         store_window_start(store, "IDX")
     with pytest.raises(WindowNotCovered):
         measured_end(store, "IDX")
+
+
+# -- sweeps, and the verdict (issue #199) --------------------------------------
+#
+# Phase 5's last cell and the decision it feeds. Two claims are load-bearing here,
+# and neither is a calculation:
+#
+#   * **Order.** The pre-registered metric is computed and *recorded* before any
+#     variant is swept. That is enforced by the type rather than documented: a
+#     sweep needs a `RecordedMetric`, and the only way to make one is to read the
+#     headline back off disk.
+#   * **Precedence.** The pre-registered figure stands as the headline even where a
+#     swept variant looks better, and no swept figure may enter the verdict — which
+#     is why a swept report handed to `verdict_report` is refused rather than
+#     quietly used.
+#
+# The criteria themselves are the contract's, evaluated where the contract says: the
+# kill globally on the survivor-biased number, the ship per market and only where
+# Phase 2's pessimistic bound stays above zero. The fixtures below author metric
+# reports directly, because a verdict is arithmetic over two numbers per market and
+# a fixture that ran a chain to reach them would put four phases' bugs inside this
+# one's tests.
+
+from backtest.sweep import (
+    AXES,
+    COST_AXIS,
+    COST_MULTIPLIERS,
+    HEADLINE_RULE,
+    NOT_SWEPT,
+    SCORE_FLOORS,
+    SCORE_FLOOR_AXIS,
+    SweptBeforeRecorded,
+    SweptResult,
+    best_variant,
+    cost_variants,
+    format_sweep,
+    headline as sweep_headline,
+    read_recorded,
+    score_floor_variants,
+    sweep_report,
+    variant_contract,
+    variants,
+)
+from backtest.sweep import main as sweep_main
+from backtest.verdict import (
+    INCONCLUSIVE,
+    KILL,
+    KILL_BASIS,
+    LICENSED,
+    NO_BOUND_REASON,
+    ONE_MARKET_FAILURE,
+    PRECEDENCE,
+    SHIP,
+    SweptVerdictRefused,
+    check_kill_cell,
+    WEAK_BASIS_CAVEAT,
+    bound_bases,
+    format_verdict,
+    market_finding,
+    verdict_report,
+)
+from backtest.verdict import main as verdict_main
+from backtest.contract import DECISION_KILL_KEY, DETECTION_GATE_KEY
+from backtest.survivorship import attach_bias_bound
+
+
+def _recorded_metric(tmp_path, trades, *, name: str = "metric.json"):
+    """The pre-registered metric, computed and written to disk — the ordering rule.
+
+    Written and read back rather than passed in memory, because "recorded" is the
+    load-bearing word in the acceptance criterion and a fixture that skipped the
+    file would test a weaker claim than the code makes.
+    """
+    out = tmp_path / name
+    out.write_text(json.dumps(metric_report(DEFAULT_CONTRACT, trades), indent=1))
+    return read_recorded(out)
+
+
+def _sweep_cohort(*scored):
+    """Scored trades keyed by market, the shape `sweep_report` takes."""
+    by_market: dict[str, list] = {"US": [], "IDX": []}
+    for s in scored:
+        by_market.setdefault(s.market, []).append(s)
+    return by_market
+
+
+def test_no_sweep_runs_before_the_pre_registered_metric_is_recorded(tmp_path):
+    """The first acceptance criterion, made unrepresentable rather than documented.
+
+    A sweep needs a recorded headline, and the only way to obtain one is to read a
+    file. No file, no sweep — and the refusal arrives before a bar is opened, so a
+    run cannot compute its variants and *then* discover the order was wrong.
+    """
+    with pytest.raises(SweptBeforeRecorded):
+        read_recorded(tmp_path / "never-written.json")
+
+    # The command refuses on a store path that does not exist either, which proves
+    # the ordering check ran before anything reached for the bars.
+    with pytest.raises(SweptBeforeRecorded):
+        sweep_main([
+            "--store", str(tmp_path / "no-such-store.duckdb"),
+            "--recorded", str(tmp_path / "never-written.json"),
+        ])
+
+
+def test_a_sweep_of_a_sweep_is_refused_because_it_hides_the_first_count(tmp_path):
+    """Sweeping a swept report would report the second count and drop the first —
+    eight variants behind a figure would read as one."""
+    already = metric_report(DEFAULT_CONTRACT, [_mtrade("AAA", 2015, 1.0)])
+    already["sweep"] = {"variants_tried": 4, "note": "already swept"}
+    path = tmp_path / "swept.json"
+    path.write_text(json.dumps(already))
+
+    with pytest.raises(SweptBeforeRecorded):
+        read_recorded(path)
+
+
+def test_a_report_that_does_not_claim_pre_registration_is_not_a_headline(tmp_path):
+    """Only the pre-registered metric may be swept against: a payload without the
+    flag is some other number, and a swept variant reported beside it would be a
+    comparison against nothing that was promised."""
+    unmarked = metric_report(DEFAULT_CONTRACT, [_mtrade("AAA", 2015, 1.0)])
+    unmarked["pre_registered"] = False
+    path = tmp_path / "unmarked.json"
+    path.write_text(json.dumps(unmarked))
+
+    with pytest.raises(SweptBeforeRecorded):
+        read_recorded(path)
+
+
+def test_a_headline_recorded_for_another_metric_is_drift(tmp_path):
+    """A swept arm-B variant reported against an arm-A promise is the after-the-fact
+    headline pre-registration exists to prevent, arriving through the file."""
+    other = metric_report(DEFAULT_CONTRACT, [_mtrade("AAA", 2015, 1.0)])
+    other["metric"] = "arm_a_after_cost_expectancy_r"
+    path = tmp_path / "other.json"
+    path.write_text(json.dumps(other))
+
+    with pytest.raises(ContractDrift):
+        read_recorded(path)
+
+
+def test_every_swept_result_is_reported_with_the_count_of_variants_tried(tmp_path):
+    """The count rides on the payload, on every variant, and on every market block.
+
+    One number in three places rather than a total a reader has to compute: a
+    variant quoted out of the report carries its own denominator.
+    """
+    trades = [_mtrade("AAA", 2015, 2.0), _mtrade("BBB", 2016, -1.0)]
+    recorded = _recorded_metric(tmp_path, trades)
+    cohort = _sweep_cohort(
+        _rtrade("AAA", 6, 2.0, year=2015), _rtrade("BBB", 3, -1.0, year=2016)
+    )
+
+    report = sweep_report(recorded, cohort)
+    tried = len(variants())
+
+    assert tried == len(COST_MULTIPLIERS) + len(SCORE_FLOORS)
+    assert report["variants_tried"] == tried
+    assert [v["axis"] for v in report["variants"]].count(COST_AXIS) == len(
+        COST_MULTIPLIERS
+    )
+    for variant in report["variants"]:
+        assert variant["variants_tried"] == tried
+        assert variant["is_headline"] is False
+        for body in variant["markets"]:
+            assert body["variants_tried"] == tried
+            assert body["is_headline"] is False
+    assert set(AXES) == {COST_AXIS, SCORE_FLOOR_AXIS}
+
+
+def test_the_pre_registered_number_stands_even_where_a_swept_one_looks_better(tmp_path):
+    """The third acceptance criterion. A score floor that drops the loser lifts the
+    swept figure well above the headline — and the headline is still the headline."""
+    trades = [_mtrade("AAA", 2015, 6.0), _mtrade("BBB", 2016, -1.0)]
+    recorded = _recorded_metric(tmp_path, trades)
+    # The 3-point trade is the loser, so every floor at 4 and above cuts it and the
+    # remaining cohort is the winner alone.
+    cohort = _sweep_cohort(
+        _rtrade("AAA", 7, 6.0, year=2015), _rtrade("BBB", 3, -1.0, year=2016)
+    )
+
+    report = sweep_report(recorded, cohort)
+    best = best_variant(report, market="US")
+
+    assert best.beats_headline is True
+    assert best.is_headline is False
+    assert best.axis == SCORE_FLOOR_AXIS
+    # The figure that stands is the recorded one, whatever the sweep found.
+    assert sweep_headline(report, market="US") == recorded.expectancy("US")
+    assert report["pre_registered"]["is_headline"] is True
+    assert report["headline_rule"] == HEADLINE_RULE
+
+    page = format_sweep(report)
+    # The headline is printed before any swept figure: a reader who reaches the
+    # flattering number has passed the one that stands to get there.
+    assert page.index("the pre-registered headline") < page.index("most flattering")
+    assert f"{best.variants_tried} variants tried" in page
+
+
+def test_a_swept_figure_and_its_count_are_one_value_and_cannot_be_separated():
+    """The count is a field on the result rather than a lookup beside it, so a
+    swept figure quoted out of the report keeps the number of chances it had."""
+    result = SweptResult(
+        axis=SCORE_FLOOR_AXIS, label="score>=6", market="US", window=FULL_WINDOW,
+        expectancy_r=1.25, variants_tried=8, headline_r=0.05,
+    )
+
+    assert "8 variants tried" in result.line()
+    assert "+1.250R" in result.line() and "+0.050R" in result.line()
+    assert result.beats_headline is True
+    with pytest.raises(TypeError):
+        SweptResult(axis="a", label="b", market="US", window=FULL_WINDOW,
+                    expectancy_r=1.0)  # no count: not constructible
+
+
+def test_a_cost_variant_scales_both_components_in_every_market_and_nothing_else():
+    """Costs are swept together across markets: a variant that raised Jakarta's and
+    left New York's alone would be two variants reported as one, and the per-market
+    comparison the run is built on would stop being a comparison."""
+    for variant in cost_variants():
+        multiplier = float(variant.label.removeprefix("costs×"))
+        for market, costs in DEFAULT_CONTRACT.value(COSTS_KEY).items():
+            swept = variant.contract.value(COSTS_KEY)[market]
+            assert swept["commission_bps"] == pytest.approx(
+                costs["commission_bps"] * multiplier
+            )
+            assert swept["slippage_bps"] == pytest.approx(
+                costs["slippage_bps"] * multiplier
+            )
+        # Every other cell is the committed one, so a cost variant measures costs.
+        moved = [
+            c.key for c in variant.contract.cells
+            if c.value != DEFAULT_CONTRACT.value(c.key)
+        ]
+        assert moved == [COSTS_KEY]
+        assert variant.min_points is None
+
+
+def test_a_score_floor_variant_cuts_the_cohort_and_leaves_the_contract_alone():
+    """A swept threshold is a cut over the cohort, never a cell. Inventing a cell
+    for it would put a threshold chosen after the fact in the same object as the
+    ones promised before it."""
+    low = _rtrade("AAA", 3, 1.0)
+    high = _rtrade("BBB", 7, 1.0)
+
+    for variant in score_floor_variants():
+        floor = int(variant.label.removeprefix("score>="))
+        assert variant.contract is DEFAULT_CONTRACT
+        assert variant.keep(low) is (3 >= floor)
+        assert variant.keep(high) is (7 >= floor)
+
+
+def test_the_detection_gate_is_not_swept_and_the_report_says_so(tmp_path):
+    """The denominator was built against the contract's gate width, so a swept gate
+    is a new crawl rather than a variant of this run — recorded as a named absence
+    rather than left for a reader to notice."""
+    recorded = _recorded_metric(tmp_path, [_mtrade("AAA", 2015, 1.0)])
+    report = sweep_report(recorded, _sweep_cohort(_rtrade("AAA", 6, 1.0)))
+
+    assert DETECTION_GATE_KEY in NOT_SWEPT
+    assert DETECTION_GATE_KEY in report["not_swept"]["cells"]
+    for variant in variants():
+        assert variant.contract.value(DETECTION_GATE_KEY) == DEFAULT_CONTRACT.value(
+            DETECTION_GATE_KEY
+        )
+
+
+def test_a_sweep_moves_no_committed_constant(tmp_path):
+    """The last acceptance criterion. A variant contract is a value that is built,
+    printed and thrown away: the committed contract's bytes are unchanged, and
+    `DEFAULT_CONTRACT` still holds the pre-registered costs after a full sweep."""
+    before = DEFAULT_CONTRACT_JSON.read_text()
+    costs_before = json.dumps(DEFAULT_CONTRACT.value(COSTS_KEY), sort_keys=True)
+
+    recorded = _recorded_metric(tmp_path, [_mtrade("AAA", 2015, 1.0)])
+    sweep_report(recorded, _sweep_cohort(_rtrade("AAA", 6, 1.0)))
+
+    assert DEFAULT_CONTRACT_JSON.read_text() == before
+    assert json.dumps(DEFAULT_CONTRACT.value(COSTS_KEY), sort_keys=True) == costs_before
+    # And the variant builder returns a new value rather than mutating its input.
+    variant = variant_contract(
+        DEFAULT_CONTRACT, key=COSTS_KEY, value={}, why="a swept variant"
+    )
+    assert variant is not DEFAULT_CONTRACT
+    assert DEFAULT_CONTRACT.value(COSTS_KEY) != {}
+    assert variant.label != DEFAULT_CONTRACT.label  # two contracts, distinguishable
+
+
+# -- the verdict ---------------------------------------------------------------
+
+
+def _window_cell(label: str, expectancy, *, closed: int = 100) -> dict:
+    """One expectancy cell, authored — the two figures a criterion actually reads.
+
+    `total_r` and `cost_r` are the ones `bias_bound` re-runs the cell with, so they
+    are consistent with the expectancy by construction rather than by coincidence.
+    """
+    return {
+        "label": label,
+        "expectancy_r": expectancy,
+        "closed": 0 if expectancy is None else closed,
+        "cost_r": 0.0,
+        "total_r": 0.0 if expectancy is None else expectancy * closed,
+    }
+
+
+def _vreport(markets: dict, *, hole: float | None = 0.1, swept: int = 0) -> dict:
+    """A metric report as the verdict reads it: two windows per market, with a bound.
+
+    `markets` maps a market to its (full, excluding-2020-21) expectancies. `hole`
+    of `None` attaches no bound at all, which is the case the ship criterion must
+    refuse rather than treat as a bound of zero.
+    """
+    report = {
+        "contract": DEFAULT_CONTRACT.to_dict(),
+        "metric": DEFAULT_CONTRACT.value(METRIC_PRIMARY_KEY),
+        "arm": ARM_B,
+        "pre_registered": True,
+        "sweep": {"variants_tried": swept, "note": "fixture"},
+        "markets": [
+            {
+                "market": market,
+                "arm": ARM_B,
+                "years": [],
+                "windows": [
+                    _window_cell(FULL_WINDOW, full),
+                    _window_cell(EXCLUDED_YEARS_WINDOW, excluded),
+                ],
+            }
+            for market, (full, excluded) in markets.items()
+        ],
+    }
+    if hole is None:
+        return report
+    return attach_bias_bound(report, {market: hole for market in markets})
+
+
+def test_the_kill_is_global_and_needs_both_markets_on_both_windows():
+    """Findings §8 says magnitudes do not transfer, so one market failing is
+    evidence about that market. The kill therefore needs every market in the
+    contract's scope to fail, on the full window *and* with 2020–21 excluded."""
+    both = verdict_report(
+        DEFAULT_CONTRACT, _vreport({"US": (-0.4, -0.6), "IDX": (-0.2, -0.3)})
+    )
+    assert both["verdict"] == KILL
+    assert both["kill"]["fired"] is True
+    assert both["kill"]["scope"] == "global"
+    assert sorted(both["kill"]["failing"]) == ["IDX", "US"]
+
+    # One window positive anywhere and the kill does not fire.
+    one_window = verdict_report(
+        DEFAULT_CONTRACT, _vreport({"US": (-0.4, -0.6), "IDX": (-0.2, +0.3)})
+    )
+    assert one_window["verdict"] != KILL
+    assert one_window["kill"]["fired"] is False
+
+
+def test_the_kill_is_drawn_on_the_survivor_biased_figure_not_the_bounded_one():
+    """Deliberately the biased number: survivorship inflates in a known direction,
+    so a failure there is decisive because the honest figure can only be worse.
+    Drawing the kill on the pessimistic twin instead would kill runs the contract
+    does not kill — here, both markets are positive and both bounds are negative."""
+    report = _vreport({"US": (+0.05, +0.02), "IDX": (+0.04, +0.03)}, hole=0.5)
+
+    findings = [market_finding(body) for body in report["markets"]]
+    assert all(w.pessimistic_r < 0 for f in findings for w in f.windows)
+    assert not any(f.fails for f in findings)
+
+    assert verdict_report(DEFAULT_CONTRACT, report)["verdict"] != KILL
+    assert verdict_report(DEFAULT_CONTRACT, report)["basis"] == KILL_BASIS
+
+
+def test_the_ship_is_per_market_and_requires_the_pessimistic_bound_above_zero():
+    """A US pass licenses nothing in Jakarta, and a pass on the biased number
+    proves much less than a failure does — which is why only this criterion has to
+    clear Phase 2's bound."""
+    report = verdict_report(
+        DEFAULT_CONTRACT,
+        _vreport({"US": (+2.0, +1.8), "IDX": (+0.05, +0.04)}, hole=0.2),
+    )
+
+    by_market = {body["market"]: body for body in report["markets"]}
+    assert by_market["US"]["verdict"] == SHIP
+    assert by_market["IDX"]["verdict"] == INCONCLUSIVE
+    # Jakarta is positive on both windows and still does not ship: its bound sinks.
+    assert all(w["expectancy_r"] > 0 for w in by_market["IDX"]["windows"])
+    assert any(w["pessimistic_r"] <= 0 for w in by_market["IDX"]["windows"])
+    assert report["ship"]["shipping"] == ["US"]
+    assert report["ship"]["scope"] == "per_market"
+    assert report["verdict"] == SHIP
+
+
+def test_the_ship_reads_both_windows_and_not_the_full_one_alone():
+    """The full window contains a mania that rewarded momentum nearly everywhere.
+    A market positive there and negative without it has not passed."""
+    report = verdict_report(
+        DEFAULT_CONTRACT, _vreport({"US": (+2.0, -0.1), "IDX": (-0.5, -0.5)})
+    )
+
+    by_market = {body["market"]: body for body in report["markets"]}
+    assert by_market["US"]["verdict"] == INCONCLUSIVE
+    assert by_market["US"]["ships"] is False
+    assert "one window" in by_market["US"]["reason"]
+
+
+def test_a_market_with_no_attached_bound_cannot_ship():
+    """An absent bound is not a bound of zero. A market whose bias was never
+    measured is unshippable and says which of the two it is."""
+    report = verdict_report(
+        DEFAULT_CONTRACT,
+        _vreport({"US": (+2.0, +1.8), "IDX": (+2.0, +1.8)}, hole=None),
+    )
+
+    for body in report["markets"]:
+        assert body["bound_attached"] is False
+        assert body["verdict"] == INCONCLUSIVE
+        assert body["reason"] == NO_BOUND_REASON
+    assert report["verdict"] == INCONCLUSIVE
+
+
+def test_the_one_market_failure_is_its_own_named_verdict():
+    """Named in advance so it is not improvised in the moment: the method stands,
+    and that market is off until a run explains why it differs."""
+    report = verdict_report(
+        DEFAULT_CONTRACT, _vreport({"US": (+2.0, +1.8), "IDX": (-0.4, -0.6)})
+    )
+
+    by_market = {body["market"]: body for body in report["markets"]}
+    assert report["verdict"] == ONE_MARKET_FAILURE
+    assert by_market["IDX"]["verdict"] == ONE_MARKET_FAILURE
+    assert "off until a run explains" in report["licenses"]
+    # The passing market's own verdict is not swallowed by the run-level one.
+    assert by_market["US"]["verdict"] == SHIP
+    assert report["ship"]["shipping"] == ["US"]
+    assert report["kill"]["fired"] is False
+
+
+def test_neither_criterion_firing_is_reported_as_inconclusive():
+    """The run is inconclusive and says so. The licence it grants is nothing —
+    written out, because an unnamed licence is the one somebody improvises."""
+    report = verdict_report(
+        DEFAULT_CONTRACT, _vreport({"US": (+0.05, -0.08), "IDX": (+0.1, -0.2)})
+    )
+
+    assert report["verdict"] == INCONCLUSIVE
+    assert report["kill"]["fired"] is False
+    assert report["ship"]["shipping"] == []
+    assert "reaching for a swept variant" in report["licenses"]
+
+
+def test_a_quiet_window_is_inconclusive_rather_than_a_failure():
+    """A window with no closed trade has no expectancy to compare, and reading it
+    as a failure would kill a market on missing data."""
+    report = _vreport({"US": (None, None), "IDX": (-0.4, -0.6)})
+    findings = [market_finding(body) for body in report["markets"]]
+    by_market = {f.market: f for f in findings}
+
+    assert by_market["US"].measured is False
+    assert by_market["US"].fails is False
+    assert by_market["US"].ships is False
+    assert by_market["US"].verdict == INCONCLUSIVE
+    assert verdict_report(DEFAULT_CONTRACT, report)["verdict"] == ONE_MARKET_FAILURE
+
+
+def test_no_swept_figure_may_enter_the_verdict():
+    """The contract's own sentence, made executable: reaching for a swept variant
+    to break the tie is refused by the type, not discouraged by a comment."""
+    with pytest.raises(SweptVerdictRefused):
+        verdict_report(
+            DEFAULT_CONTRACT,
+            _vreport({"US": (+1.0, +1.0), "IDX": (+1.0, +1.0)}, swept=8),
+        )
+
+    not_registered = _vreport({"US": (+1.0, +1.0), "IDX": (+1.0, +1.0)})
+    not_registered["pre_registered"] = False
+    with pytest.raises(SweptVerdictRefused):
+        verdict_report(DEFAULT_CONTRACT, not_registered)
+
+
+def test_the_sweep_count_is_recorded_beside_a_verdict_none_of_it_informed(tmp_path):
+    """The count rides on the verdict for the record — a reader sees how many
+    variants were tried beside a decision none of them entered."""
+    metric = _vreport({"US": (+2.0, +1.8), "IDX": (+2.0, +1.8)})
+    recorded = _recorded_metric(tmp_path, [_mtrade("AAA", 2015, 1.0)])
+    sweep = sweep_report(recorded, _sweep_cohort(_rtrade("AAA", 6, 1.0)))
+
+    report = verdict_report(DEFAULT_CONTRACT, metric, sweep=sweep)
+
+    assert report["sweep"]["variants_tried"] == len(variants())
+    assert report["sweep"]["used_in_verdict"] is False
+    assert report["verdict"] == SHIP  # the same verdict the sweep-free call gives
+    assert verdict_report(DEFAULT_CONTRACT, metric)["verdict"] == SHIP
+
+
+def test_a_verdict_cannot_be_reached_over_a_subset_of_the_contracts_markets():
+    """The kill is global. Evaluating it over one market's block would fire the
+    run's most consequential verdict on half the evidence."""
+    with pytest.raises(ContractDrift):
+        verdict_report(DEFAULT_CONTRACT, _vreport({"US": (-0.4, -0.6)}))
+
+
+def test_a_kill_criterion_that_moved_out_from_under_the_code_is_drift():
+    """The basis, the comparator and the both-markets requirement are pinned: a
+    cell redrawn on the pessimistic figure describes a stricter kill than this code
+    fires, and both would still print a verdict."""
+    for value in (
+        {**DEFAULT_CONTRACT.value(DECISION_KILL_KEY), "basis": "pessimistic_bound"},
+        {**DEFAULT_CONTRACT.value(DECISION_KILL_KEY), "comparator": "<"},
+        {**DEFAULT_CONTRACT.value(DECISION_KILL_KEY), "requires": ["full_window"]},
+    ):
+        moved = dataclasses.replace(
+            DEFAULT_CONTRACT,
+            cells=tuple(
+                dataclasses.replace(c, value=value) if c.key == DECISION_KILL_KEY else c
+                for c in DEFAULT_CONTRACT.cells
+            ),
+        )
+        with pytest.raises(ContractDrift):
+            check_kill_cell(moved)
+
+    check_kill_cell(DEFAULT_CONTRACT)  # the committed one passes
+
+
+def test_every_verdict_names_the_change_it_licenses_before_any_constant_moves():
+    """`decision.licensed_changes` requires each verdict's licence to be written
+    down in advance, so a result cannot be converted into an unguarded edit."""
+    assert set(LICENSED) == set(PRECEDENCE)
+    for licence in LICENSED.values():
+        assert licence.strip()
+    assert PRECEDENCE.index(KILL) < PRECEDENCE.index(ONE_MARKET_FAILURE)
+    assert PRECEDENCE.index(ONE_MARKET_FAILURE) < PRECEDENCE.index(SHIP)
+    assert PRECEDENCE.index(SHIP) < PRECEDENCE.index(INCONCLUSIVE)
+
+
+def test_the_printed_verdict_carries_the_licence_beside_the_word():
+    """A verdict read without its licence is a verdict somebody converts into an
+    edit, so the licensed change is printed under it rather than in a footnote."""
+    report = verdict_report(
+        DEFAULT_CONTRACT, _vreport({"US": (+2.0, +1.8), "IDX": (-0.4, -0.6)})
+    )
+    page = format_verdict(report)
+
+    assert "verdict: ONE_MARKET_FAILURE" in page
+    assert "licenses:" in page
+    assert page.index("verdict: ONE_MARKET_FAILURE") < page.index("licenses:")
+    assert "pessimistic" in page
+    assert "swept variants tried: 0" in page
+
+
+def test_the_verdict_and_the_sweep_move_no_committed_constant(tmp_path):
+    """The ticket changes no detector, rubric or gate constant, and running the
+    command end to end leaves the committed contract byte-identical."""
+    before = DEFAULT_CONTRACT_JSON.read_text()
+    gate_before = DEFAULT_CONTRACT.value(DETECTION_GATE_KEY)
+
+    metric_path = tmp_path / "bounded.json"
+    metric_path.write_text(
+        json.dumps(_vreport({"US": (+2.0, +1.8), "IDX": (-0.4, -0.6)}))
+    )
+    assert verdict_main([
+        "--metric-json", str(metric_path),
+        "--out-json", str(tmp_path / "verdict.json"),
+    ]) == 0
+
+    assert DEFAULT_CONTRACT_JSON.read_text() == before
+    assert DEFAULT_CONTRACT.value(DETECTION_GATE_KEY) == gate_before
+    written = json.loads((tmp_path / "verdict.json").read_text())
+    assert written["verdict"] == ONE_MARKET_FAILURE
+    assert written["contract"] == DEFAULT_CONTRACT.to_dict()
+
+
+def test_a_bound_counted_on_the_weaker_basis_carries_its_caveat_onto_the_verdict():
+    """Phase 2 measured the two markets differently — US against a dated listing
+    spine, IDX against the enumeration alone, where a recycled ticker cannot be
+    told from an IPO. A ship licensed off the weaker basis is still a ship, but a
+    reader who cannot see which basis it rests on cannot weigh it."""
+    bases = {
+        "US": {"basis": "listing_spine", "recycled_measured": True,
+               "exposure_weighted": True},
+        "IDX": {"basis": "enumeration_side", "recycled_measured": False,
+                "exposure_weighted": False},
+    }
+    report = verdict_report(
+        DEFAULT_CONTRACT,
+        _vreport({"US": (+2.0, +1.8), "IDX": (+2.0, +1.8)}),
+        bases=bases,
+    )
+
+    by_market = {body["market"]: body for body in report["markets"]}
+    assert by_market["US"]["bound_caveat"] is None
+    assert by_market["IDX"]["bound_caveat"] == WEAK_BASIS_CAVEAT
+    assert by_market["IDX"]["bound_basis"]["basis"] == "enumeration_side"
+    # Both still ship: the caveat weighs the licence, it does not withhold it.
+    assert by_market["IDX"]["verdict"] == SHIP
+    assert "caveat:" in format_verdict(report)
+
+    # Without Phase 2's report there is no basis to report, and an absent caveat
+    # is spelled as an absent one rather than as a clean bill.
+    unweighed = verdict_report(
+        DEFAULT_CONTRACT, _vreport({"US": (+2.0, +1.8), "IDX": (+2.0, +1.8)})
+    )
+    assert all(body["bound_basis"] is None for body in unweighed["markets"])
+    assert all(body["bound_caveat"] is None for body in unweighed["markets"])
+
+
+def test_the_bound_basis_is_read_off_phase_twos_own_report():
+    """Read rather than restated: the two markets' bases are a measurement #196
+    made, and a second spelling of them here would drift from it silently."""
+    survivorship = {
+        "markets": [
+            {"market": "US", "hole": {"basis": "listing_spine",
+                                      "recycled_measured": True,
+                                      "exposure_weighted": True}},
+            {"market": "IDX", "hole": None},
+        ]
+    }
+
+    bases = bound_bases(survivorship)
+
+    assert set(bases) == {"US"}  # a market with no measured hole reports none
+    assert bases["US"]["basis"] == "listing_spine"

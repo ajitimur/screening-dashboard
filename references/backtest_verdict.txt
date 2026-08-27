@@ -1,0 +1,20 @@
+verdict: SHIP — arm B, on the survivor biased number
+  licenses: the change this licenses is named in the write-up before any constant moves, and goes through the calibration rule (findings §7) like any other; it is licensed only in the market that passed
+
+kill (global, both markets, both windows): did not fire
+ship (per market): IDX
+
+US — inconclusive
+  full                   +0.050R on n=12311           pessimistic -0.363R
+  excluding_2020_2021    -0.081R on n=9092            pessimistic -0.446R
+  positive on one window and not the other, so it neither ships nor fails
+  licenses: nothing. The run is reported as inconclusive, and reaching for a swept variant to break the tie is the failure mode the contract exists to prevent
+
+IDX — ship
+  full                   +0.680R on n=1196            pessimistic +0.418R
+  excluding_2020_2021    +0.284R on n=986             pessimistic +0.072R
+  above zero on both windows and the pessimistic bound holds above zero on both
+  caveat: this market's hole is counted on the enumeration side and is neither exposure-weighted nor separated from recycled tickers, so its pessimistic bound is optimistic in a known direction: the true bound can only be lower
+  licenses: the change this licenses is named in the write-up before any constant moves, and goes through the calibration rule (findings §7) like any other; it is licensed only in the market that passed
+
+swept variants tried: 8 — swept variants are recorded beside this verdict and none of them entered it; a swept variant may not break a tie

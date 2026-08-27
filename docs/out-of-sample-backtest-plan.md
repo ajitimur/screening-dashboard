@@ -222,6 +222,28 @@ market**, for the same reason: a US pass licenses nothing in Jakarta.
 That leaves the one-market failure as its own verdict, named here so it is not improvised
 later: **the method stands, and that market is off** until a run explains why it differs.
 
+**Status: the verdict is recorded (#199).** Evaluated by `python -m backtest.verdict` over the
+recorded pre-registered headline, with Phase 2's bound attached; the payload is committed at
+[`backtest_verdict.json`](../references/backtest_verdict.json) and the page it printed at
+[`backtest_verdict.txt`](../references/backtest_verdict.txt).
+
+- **The kill did not fire.** It needs both markets at or below zero on both windows; the US is
+  +0.050R on the full window, and Jakarta is positive on both.
+- **US — inconclusive.** +0.050R on the full window and **−0.081R** with 2020–21 excluded. It
+  neither ships nor fails, and it is reported as inconclusive rather than resolved by the swept
+  variant that reaches +0.153R at a score floor of 4 — one of eight tried.
+- **IDX — ship**, and it is the only market it licenses anything in. +0.680R and +0.284R across
+  the two windows, with the pessimistic bound holding at +0.418R and **+0.072R**. That second
+  figure is thin, and Jakarta's hole is counted on the enumeration side — neither
+  exposure-weighted nor separated from recycled tickers — so the bound is optimistic in a known
+  direction and the verdict carries that caveat on the market's own block. The licensed change
+  is named in the write-up before any constant moves (Phase 7, #200); nothing moves here.
+
+The eight swept variants are recorded at [`backtest_sweep.json`](../references/backtest_sweep.json)
+and none of them entered the decision. They are worth reading as an illustration of why the
+order matters: a score floor of 7 lifts Jakarta to **+2.412R** on 183 trades, which is the
+winner-from-noise the count exists to price.
+
 **Done when** every cell above has a value and a one-line justification, committed.
 
 ---
@@ -482,6 +504,17 @@ crash and a mania; a pooled fourteen-year number describes neither.
 Sweep thresholds only after the pre-registered metric is computed and recorded, and report the
 count of variants tried beside any swept result. Every threshold tried is a test, and enough
 of them will produce a winner from noise.
+
+**Landed as #199.** The order is a type rather than a convention: `backtest.sweep` cannot run
+without a `RecordedMetric`, and the only way to obtain one is to read the headline back off
+disk — so a sweep before the headline was recorded has no file to read, and a sweep of a sweep
+is refused because it would report the second count and hide the first. Two axes are swept, both
+arithmetic over trades the simulator already produced: the contract's per-market costs at 0.5×,
+2× and 3×, and a floor on the replayed seven-dimension score at 3 through 7 of 8. The detection
+gate is not swept and the payload says so — the denominator was built against the contract's
+width, so a swept gate is a new crawl rather than a variant of this run. Every swept figure
+carries the count of variants tried as a field beside it rather than a number a reader has to
+compute, and the pre-registered figure is printed above every one of them.
 
 ## Phase 6 — Anchor before believing
 

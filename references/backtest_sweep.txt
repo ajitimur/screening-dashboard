@@ -1,0 +1,33 @@
+swept variants — 8 tried, arm B
+  the pre-registered figure stands as the headline even where a swept variant looks better; a swept variant may not break a tie and licenses nothing
+
+the pre-registered headline (references/backtest_primary_metric.json)
+  US    full +0.050R  excluding_2020_2021 -0.081R
+  IDX   full +0.680R  excluding_2020_2021 +0.284R
+
+the most flattering swept figure, with its count
+  US full: best swept +0.153R (score_floor score>=4) out of 8 variants tried — headline +0.050R stands
+  US excluding_2020_2021: best swept +0.007R (score_floor score>=4) out of 8 variants tried — headline -0.081R stands
+  IDX full: best swept +2.412R (score_floor score>=7) out of 8 variants tried — headline +0.680R stands
+  IDX excluding_2020_2021: best swept +1.628R (score_floor score>=7) out of 8 variants tried — headline +0.284R stands
+
+every variant
+  costs        costs×0.5    US    +0.073R on n=12311
+  costs        costs×0.5    IDX   +0.871R on n=1196
+  costs        costs×2      US    +0.003R on n=12311
+  costs        costs×2      IDX   +0.297R on n=1196
+  costs        costs×3      US    -0.044R on n=12311
+  costs        costs×3      IDX   -0.085R on n=1196
+  score_floor  score>=3     US    +0.088R on n=11458
+  score_floor  score>=3     IDX   +0.757R on n=1123
+  score_floor  score>=4     US    +0.153R on n=9703
+  score_floor  score>=4     IDX   +0.887R on n=968
+  score_floor  score>=5     US    +0.140R on n=6875
+  score_floor  score>=5     IDX   +1.245R on n=705
+  score_floor  score>=6     US    +0.051R on n=3360
+  score_floor  score>=6     IDX   +1.879R on n=363
+  score_floor  score>=7     US    +0.026R on n=1358
+  score_floor  score>=7     IDX   +2.412R on n=183
+
+  the detection gate is not swept in this run: the denominator was built against the contract's four-lookback width, so a swept gate is a new crawl rather than a variant of this one
+  every threshold tried is a test, and enough of them will produce a winner from noise; three exit arms and three regime states are already nine views of one dataset before any sweep begins, so every swept figure is reported with the count of variants behind it

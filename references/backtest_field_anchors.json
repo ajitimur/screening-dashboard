@@ -9,6 +9,7 @@
   "of": 503,
   "gap_pp": -5.006549825234521,
   "field": "whole",
+  "universe": "stateless",
   "detector_version": 3
  }
 }

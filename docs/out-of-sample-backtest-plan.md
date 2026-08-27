@@ -495,7 +495,8 @@ before reading any new figure:
 | Median 20-day ADR at entry eve | **6.08%** | Findings §3c |
 | Blind-spot tickers / trades, 2019–2022 | **92 / 172** (of 312 / 828) | Findings §2 |
 | Trades detected by the funnel (A1 detection recall) | **549 of 656 replayable** (83.7%; gate-invariant — the funnel evaluates every stage unconditionally, so #149's width does not move it. Detector v2/v3 geometry; the superseded pin under v1's hard cluster cut was 380 of 658) | Findings §3, §3b |
-| Trades that appeared in the replayed field (A2 `in_field`) | **349 of 656** at detector v2, and **397 of 656** at detector v3 (the live gate) — **anchor against the version the run is built at**. Both measured 2026-08-25 by `replay.discrimination_grid`; the v2 figure independently reproduces #164's committed run, the v3 figure is a **first measurement** and has no second one to agree with. Superseded pins, each measured on a narrower population: 159 and then 104 of 656 on the field the rank retention had truncated, and 104 of 658 before #139. **Both values were measured on the contaminated field** — see the tolerance below | Findings §4b |
+| Trades that appeared in the replayed field (A2 `in_field`) | **349 of 656** at detector v2, and **397 of 656** at detector v3 (the live gate) — **anchor against the version the run is built at**. Both measured 2026-08-25 by `replay.discrimination_grid`; the v2 figure independently reproduces #164's committed run, the v3 figure is a **first measurement** and has no second one to agree with. Superseded pins, each measured on a narrower population: 159 and then 104 of 656 on the field the rank retention had truncated, and 104 of 658 before #139. **Both values were measured on the contaminated field** — see the tolerance below. **All of this is the `app` universe's pin**; the contract's has its own row below | Findings §4b |
+| Trades that appeared in the replayed field (A2 `in_field`), **stateless universe** | **165 of 503**, gap **−5.01pp**, detector v3 — the pin a run over the contract's stateless universe anchors on. A **first measurement**, made by #198's own full run, so it detects drift from here on rather than confirming that run; what corroborates it is on the other universe, where #211 reproduced §4b's 397/656 (+1.95pp) exactly and got 324/503 (+1.86pp) holding the population fixed. The negative sign is measured, not tolerated: #211 attributed it to the ADR20 floor and the trend gate acting together, and the sign check rides on this pin too | #198's full run, attributed by #211 |
 
 These are the same reference set through a differently-built pipeline. Matching them says the
 new pipeline computes what the old one computed; a mismatch is a bug in the new store or the
@@ -530,6 +531,20 @@ few trades on these two rows as the fix landing, and a difference large enough t
 sign of §4b's gap as the bug this table is looking for. Every other anchor here reproduces
 exactly or is a finding.
 
+**`in_field` is two pins, one per universe, and that is #211's finding as data.** The gate
+isolation measured that `in_field` and §4b's gap are properties of the pair (rubric,
+universe): +1.95pp under the app's universe, −5.01pp under the contract's stateless one, with
+the reversal attributed to the ADR20 floor and the trend gate acting together. Holding a
+stateless-universe run to §4b's app-universe figure is therefore not a failing anchor but a
+subtraction between two numbers that were never the same number — and it surfaced, for a
+while, as a sign flip charged to the pipeline. So a row's universe is part of what the row
+*is*, exactly as its detector version and its field already were, and a run is checked against
+the pin measured over the field it actually screened. **Nothing was widened to achieve this**:
+both pins keep zero tolerance on their counts and both keep the sign check on the gap, so a
+stateless-universe run coming back positive still fails. `backtest.anchors` refuses a
+measurement counted over one universe when the run names the other, rather than reporting it
+as a divergence, and the field-measurements file it reads must name the universe it counted.
+
 **The two field rows are different anchors and were once conflated.** Until #165 this table
 carried one row labelled "trades detected by the funnel" whose *value* was A2's `in_field`. They
 are not the same quantity and do not move together: detection recall asks whether the detector
@@ -543,6 +558,15 @@ Arm A has no counterpart there and is measured, never anchored.
 
 **Done when** each anchor matches its committed value or its divergence is written up with a
 cause.
+
+**Status: done for #198's full run.** All six settle against `data/backtest.duckdb` — five
+diverge with a written cause, and `in_field` over the contract's universe matches at 165 of
+503, gap −5.00655. The table as it printed is committed at
+[`backtest_anchors.txt`](../references/backtest_anchors.txt), the payload beside it at
+`backtest_anchors.json`, and the causes are set out in
+[`backtest_anchor_divergence.md`](../references/backtest_anchor_divergence.md). Getting there
+took splitting the `in_field` pin by universe, described above; no constant was moved and no
+sign check was waived.
 
 ## Phase 7 — Write it up
 

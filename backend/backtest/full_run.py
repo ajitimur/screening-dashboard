@@ -35,6 +35,13 @@ raises :class:`AnchorsNotSettled` instead of printing numbers. The gate sits
 anchors are measured over the run's own field, so a gate ahead of the replay
 could never have them (:func:`backtest.anchors._field_measurements`).
 
+The gate also checks *which field* was anchored. Since #211 the ``in_field``
+anchor carries one pin per universe, and this run screens its field with the
+contract's stateless one — so an anchor report checked over the app's universe is
+refused however green it is. That is the one failure a passing report can carry,
+and it is the difference between a report that passed and a report that passed
+about another run.
+
 Detections per session
 ----------------------
 Plotted across the whole window, per market, off the persisted denominator alone
@@ -58,6 +65,8 @@ from typing import Any, Callable, Sequence
 
 from backtest.anchors import (
     SETTLED_VERDICTS,
+    UNIVERSE_APP,
+    UNIVERSE_STATELESS,
     VERDICT_EXPLAINED,
     AnchorReport,
     format_anchors,
@@ -106,9 +115,10 @@ class AnchorOutcome:
     the command-line path actually has: the anchors were checked in a separate
     invocation and all this one can see is what that invocation wrote down.
 
-    It carries the same four names an :class:`~backtest.anchors.AnchorReport`
-    answers — ``passes``, ``failed``, ``explained``, ``geometry_only`` — so the
-    gate reads one interface and never asks which kind it was handed. A run
+    It carries the same five names an :class:`~backtest.anchors.AnchorReport`
+    answers — ``passes``, ``failed``, ``explained``, ``geometry_only``,
+    ``universe`` — so the gate reads one interface and never asks which kind it
+    was handed. A run
     anchored from a file is gated exactly as strictly as one anchored in process,
     and that is a property of there being no second code path rather than of two
     code paths agreeing.
@@ -118,6 +128,8 @@ class AnchorOutcome:
     failed: tuple[str, ...] = ()
     explained: tuple[str, ...] = ()
     geometry_only: bool = False
+    universe: str = UNIVERSE_APP
+    first_measurement: tuple[str, ...] = ()
 
 
 class MarketNotRun(KeyError):
@@ -305,6 +317,20 @@ class FullRun:
                 "report here"
             )
         if self.anchors.passes:
+            # The one failure a *passing* report can carry: every anchor in it
+            # matched, and it anchored a different field than the one this run
+            # screened. #211 measured that in_field and §4b's gap are properties
+            # of the pair, so a report over the app's universe says nothing about
+            # this run however green it is. A report that already fails is left
+            # to refuse for its own reason, which is the more specific one.
+            if self.anchors.universe != UNIVERSE_STATELESS:
+                raise AnchorsNotSettled(
+                    f"this run screens its field with the contract's stateless "
+                    f"universe, but the anchor report was checked over "
+                    f"{self.anchors.universe!r}. A report over another universe "
+                    "anchors another run: re-check the anchors against the "
+                    "field this run actually built"
+                )
             return
         if self.anchors.geometry_only:
             # Read off the report rather than inferred from an empty failure
@@ -414,7 +440,20 @@ def full_run_report(run: FullRun) -> dict[str, Any]:
             "markets": list(run.markets),
             "anchors": {
                 "settled": True,
+                # Named rather than left implicit: #211's rule is that §4b's gap
+                # may not be cited without naming the field it was measured
+                # over, and this payload is what a later phase reads instead of
+                # the anchor table. A settled-ness flag with no universe beside
+                # it is exactly the citation the rule forbids.
+                "universe": run.anchors.universe,
                 "diverged_with_cause": list(run.anchors.explained),
+                # Carried onto the payload rather than left in the table: the
+                # stateless `in_field` pin was measured by the run it anchors, so
+                # it detects drift from here on rather than confirming this run.
+                # A later phase reading only this file would otherwise see a
+                # settled anchor and no sign that one of them cannot corroborate
+                # anything yet.
+                "first_measurement": list(run.anchors.first_measurement),
             },
             "per_market": {
                 r.market: {
@@ -453,7 +492,10 @@ def format_full_run(run: FullRun) -> str:
     §8 says means nothing.
     """
     run.require_settled()
-    lines = ["the full run — " + ", ".join(run.markets)]
+    lines = [
+        "the full run — " + ", ".join(run.markets),
+        f"  anchored over the {run.anchors.universe} universe",
+    ]
     for market_run in run.runs:
         lines.append("")
         lines.append(format_run(market_run))
@@ -581,6 +623,13 @@ def read_anchor_report(path: str | Path) -> AnchorOutcome:
         failed=failed,
         explained=explained,
         geometry_only=bool(body.get("geometry_only")),
+        # Defaults to the app's universe rather than to this run's, so a report
+        # written before #211 added the key is refused by the gate instead of
+        # being read as though it had anchored the contract's field.
+        universe=body.get("universe", UNIVERSE_APP),
+        first_measurement=tuple(
+            c.get("anchor", "?") for c in checks if c.get("first_measurement")
+        ),
     )
 
 

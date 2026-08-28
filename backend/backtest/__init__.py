@@ -1,0 +1,327 @@
+"""The out-of-sample backtest (PRD #182) — the mechanical denominator.
+
+Where :mod:`replay` means "the 828-trade reference study over US 2019–2022",
+:mod:`backtest` means "the mechanical denominator over two markets and fourteen
+years". The two differ in market, window and universe, so folding the second
+into the first would leave the existing window and market constants meaning two
+things at once. This package therefore lives beside :mod:`replay` rather than
+extending it, and **imports** the replay chain and field machinery for reuse
+rather than copying it (PRD "Implementation Decisions").
+
+Issue #184 lands the first cell of it: the run contract as a single frozen,
+serialisable value. Everything the run decides before any code runs — scope,
+the universe gates, the regime source, the three exit arms, costs, the primary
+metric and the kill/ship criteria — lives in one :class:`RunContract`, each cell
+carrying its one-line justification. The contract is *data*, not module-level
+constants, because the plan requires that a later contract change be a new run
+recorded beside the old one, and that is only enforceable if the contract
+travels with the results it produced (:func:`stamp_result`).
+
+Issue #185 lands the second: :mod:`backtest.universe`, the contract's stateless
+universe classifier. Issue #186 lands the third: :mod:`backtest.store`, the paced
+bar fetcher and its refusal ledger, whose names *are* re-exported below. Issue
+#187 lands the fourth, :mod:`backtest.crawl` — the runner that points that
+fetcher at both markets over the contract's store window, and the command that
+produced the committed store.
+
+:mod:`backtest.crawl`'s names are not re-exported, for the same reason the
+universe's are not: ``main``, ``crawl_market`` and ``CRAWL_START`` say what they
+are only under the module qualifier. It is a runner, and its caller is a
+terminal.
+
+Issue #188 lands the first end-to-end path through the machine: :mod:`backtest.chain`
+puts the contract's universe on the replay chain's own machinery,
+:mod:`backtest.denominator` holds the rows that come out — membership, the three
+regime columns, ranks, and every detection with its full record, its star-score
+breakdown and both candidate dimensions — and :mod:`backtest.run` is the run that
+produces them over one market and one window. Those rows are the denominator, and
+:func:`~backtest.run.run_denominator` is the one entry point.
+
+:mod:`backtest.run`'s names are **not** re-exported here, and for a mechanical
+reason rather than a naming one: that module is also the run's command
+(``python -m backtest.run``), and a package that imports it at package-import
+time makes the interpreter find it already in ``sys.modules`` before it executes
+it as ``__main__`` — which Python reports as a ``RuntimeWarning`` on every
+invocation of the documented command. So the entry point is reached as
+``backtest.run.run_denominator``.
+
+Issues #189 and #190 land Phase 4: :mod:`backtest.simulate` turns each persisted
+detection into a trade on each of the three exit arms. Entry is the detection's own
+trigger — a close through it signals, the next open fills — and the stop is the
+detection's own unmodified. Both are computed once and shared, so the arms differ in
+the exit and in nothing else: B trails a 10MA, C a 20MA, and A takes 50% off at the
+close of the fifth session after entry and trails the remainder on a 10MA, its R
+position-weighted per leg and summed. The result is denominated in R off the
+detection's stop width **in ADR**, so a rescale of the bar series moves numerator and
+denominator together and R does not move at all; the one absolute-price comparison
+that is not immune rides on every trade as a price-scale flag whose dropped count is
+reported.
+
+:mod:`backtest.simulate`'s names are **not** re-exported here, and the mechanical
+reason is now doubled: it is a command in its own right
+(``python -m backtest.simulate``), *and* it imports
+:class:`~backtest.run.ContractDrift`, so re-exporting it would pull both it and
+``backtest.run`` into ``sys.modules`` at package-import time and make either
+documented command warn on every invocation. The entry point is reached as
+``backtest.simulate.simulate_market``.
+
+Issue #193 lands the first of Phase 5: :mod:`backtest.figures`, the three figures the
+denominator was built to produce. Detections per session, the share that trigger, and
+the share that reach a favourable outcome — precision, which the reference study can
+report no value for at all because every result in it is conditioned on trades the
+trader took. Reported per market and per year and never pooled only, plotted across
+the window so a year whose count collapses is visible as the data hole it is, and every
+rate carrying the coverage count it was measured against.
+
+:mod:`backtest.figures`'s names are **not** re-exported here either, and for the same
+mechanical reason as :mod:`backtest.simulate`'s: it is a command
+(``python -m backtest.figures``) and it imports that module, so the entry point is
+reached as ``backtest.figures.figures_for_market``.
+
+Issue #191 lands Phase 5's **pre-registered** cell: :mod:`backtest.metric`, the one
+metric the run promised in advance — arm B's after-cost expectancy in R, per market
+per year. It reads no bar either. The simulator already denominated each trade in R,
+so this module is arithmetic over those trades: the contract's per-market commission
+and slippage charged on both sides and divided by the trade's own stop width, the
+win rate and the R-distribution reported beside every expectancy, per year always
+and the 2020–21-excluded figure beside the full-window one, and significance
+bootstrapped by resampling **symbols** rather than rows. It computes and records the
+headline **before any swept variant exists**, and says so with the count of variants
+behind it.
+
+The two Phase 5 modules divide by what they measure rather than by when they ran:
+:mod:`backtest.figures` reports what the denominator *found* — detections, the share
+that trigger, precision — and :mod:`backtest.metric` reports what trading it *paid*,
+after costs, on the one arm the contract pre-registered.
+
+:mod:`backtest.metric`'s names are **not** re-exported here for the reasons that
+already keep :mod:`backtest.simulate` out: it is a command
+(``python -m backtest.metric``) and it imports both that module and
+:class:`~backtest.run.ContractDrift`, so re-exporting it would make either
+documented command warn on every invocation. The entry point is
+``backtest.metric.metric_report``.
+
+Issue #192 lands Phase 5's most product-relevant cell: :mod:`backtest.posture`, which
+prices the two words the app already prints. "Sit out" for ``HOSTILE`` and "reduced"
+for ``CHOPPY`` ship in the product today on no measured basis; this module reports
+after-cost expectancy **per regime state, per market, with n on every cell**, computes
+what sitting out ``HOSTILE`` would have cost or saved, and answers ``CHOPPY``'s
+"reduced" against ``FRIENDLY``'s measured expectancy rather than against the word.
+
+It reads no bar either. The state comes from the reading :mod:`backtest.run` already
+persisted for each session, joined to each trade on its **detection session** — which
+is t−1, the night the candidate was listed with its posture beside it and two sessions
+before the fill. The per-cell arithmetic is :mod:`backtest.metric`'s own, so a posture
+cell and a headline cell cannot report the same trades differently.
+
+The load-bearing property is that regime **conditions and never filters**. The three
+states and an undefined bucket partition the trades, and the report accounts for the
+two declared non-regime exclusions — the other market and the other arms — rather than
+reducing the whole claim to one zero. What actually holds the promise sits upstream and
+is structural: :mod:`backtest.simulate` reads no regime column when it produces trades,
+pinned by a test that flips a persisted state and gets the same trades back.
+
+Both regime companions are reported and neither is conditioned on. Breadth carries its
+survivorship warning and can never be a cohort key —
+:func:`~backtest.posture.posture_cell` takes a state and refuses anything else — while
+follow-through is named plainly as **unbiased where breadth is not**, the one regime
+signal the live app can never backfill and this run reconstructs legitimately.
+
+:mod:`backtest.posture`'s names are **not** re-exported here, for the reasons that
+already keep :mod:`backtest.metric` out: it is a command (``python -m
+backtest.posture``) and it imports both that module and
+:class:`~backtest.run.ContractDrift`. The entry point is
+``backtest.posture.posture_report``.
+
+Issue #194 lands Phase 5's ranking cell: :mod:`backtest.ranking`, the out-of-sample
+test §4a's claim has never had. Outcomes bucketed by star-score decile, per market
+and per year, with n on every bucket and significance bootstrapped clustered by
+symbol. §4a asked whether the rubric separates his *picks* from the field, on the
+field the v2 weights had been fitted to — a fit statistic, and marginal at
+p = 0.055 even so. Here the outcome variable is R after costs, which no weight was
+fitted to and no detection's score could see, so §4a's figures ride on the payload
+with the reason they are not comparable rather than being left for a reader to line
+up. The score is coarse — seven dimensions of eight integral points — so a score
+value is never split across two buckets: the buckets collapse to fewer than ten and
+each names the decile positions it covers, which is the honest reading of a
+distribution most of which can sit on one score.
+
+:mod:`backtest.ranking`'s names are **not** re-exported here, for the reasons that
+already keep :mod:`backtest.metric` out: it is a command
+(``python -m backtest.ranking``) and it imports both that module and
+:class:`~backtest.run.ContractDrift`. The entry point is
+``backtest.ranking.ranking_report``.
+
+Issue #195 lands the second half of Phase 5's rubric question:
+:mod:`backtest.candidates`, which measures both registered candidate dimensions
+against **outcomes** rather than against the trader's selection. ADR 0005 admits a
+dimension on a selection contrast because that was the only instrument available
+when it was written; both registrations then failed on it — ``RS line`` refused for
+a wrong-way gap, ``Relative move`` positive on both fields and stalled 0.06pp
+inside a threshold the ADR itself calls a judgement. Here each candidate's cohort
+splits three ways, never two: hit and miss under the pre-registered cut applied at
+read time by the rubric's own reader, and **absent** where the question was never
+asked. That third group is load-bearing rather than tidy — ``Relative move``'s cut
+is zero, so an absence coerced to a number would land exactly on it — so absence
+carries its own n and enters no gap. The published selection figures ride on every
+candidate's cell under their own verdict key, because a dimension that ranks
+outcomes and one that matches a selection are two claims that can point opposite
+ways. Nothing here admits a dimension, and
+:func:`~backtest.candidates.check_not_admitted` makes that executable.
+
+:mod:`backtest.candidates`'s names are **not** re-exported here, for the reasons
+that already keep :mod:`backtest.ranking` out: it is a command
+(``python -m backtest.candidates``) and it imports both that module and
+:class:`~backtest.run.ContractDrift`. The entry point is
+``backtest.candidates.candidates_report``.
+
+Two small modules came out of that second measurement rather than being copied
+into it, because a second caller is what turns shared code into a module.
+:mod:`backtest.stats` holds the statistics more than one measurement needs — the
+tie rule, Spearman's rho, clustering by symbol, the clustered bootstrap over an
+arbitrary statistic, and the two places a report renders and counts an interval.
+It knows nothing about what is being measured, which is what lets one bootstrap
+serve a score band's gap and a candidate dimension's. :mod:`backtest.cohort` holds
+the join back to the persisted row: the detection index for a market, and the
+**total** join from simulated trades to the rows that produced them, whose refusal
+has to be the same in both callers because the argument for refusing is the same.
+:mod:`backtest.ranking` was where both lived when it was the only caller; leaving
+them there would have made it a measurement and the run's statistics library at
+once, changing for two reasons and imported by the module it should not own.
+
+Issue #197 lands Phase 6: :mod:`backtest.anchors`, the six committed figures this
+run reproduces before any new figure from it is read. Three are geometry measured
+from his bars — they hold whatever the detector does, so they anchor the store and
+the indicators and are checked first and reported apart; a failure there stops the
+check, because nothing downstream is worth investigating yet. Three move with
+coverage and with the gates, so each carries the detector version it was measured
+at and every superseded pin beside its live value. Detection recall and ``in_field``
+are kept as different quantities and can never be checked against each other — the
+conflation #165 fixed, made unrepresentable — and the ``in_field`` row's #162
+tolerance covers a few trades' worth of denominator shift but never a flip in the
+sign of §4b's gap. Anchoring is against arms B and C, derived from
+:data:`~backtest.simulate.ARM_SPECS` rather than restated: arm A has no counterpart
+in the reference set, so it is measured and never anchored.
+
+Nothing in it re-measures what already has a home. The anchors arrive as the
+existing measurement types — the funnel's :class:`~replay.funnel.StageRecall`, the
+grid's :class:`~replay.discrimination_grid.CellMeasurement`, the reference
+module's :class:`~replay.reference.ReferenceReport` — and a mismatch raises
+:class:`~replay.reference.DriftError`, the mechanism the study has failed loudly on
+since #114. The geometry is the one exception, and only because its committed
+figures came from a throwaway prototype rather than from a module anything can call.
+
+:mod:`backtest.anchors`'s names are **not** re-exported here, for the reasons that
+already keep :mod:`backtest.metric` out: it is a command
+(``python -m backtest.anchors``) and it imports :mod:`backtest.simulate`, which
+imports :class:`~backtest.run.ContractDrift`. The entry point is
+``backtest.anchors.check_anchors``.
+
+Issue #196 lands Phase 2, and it is deliberately *out* of phase order: it is a
+measurement that gates believing any of the numbers above it.
+:mod:`backtest.survivorship` measures how much of the fourteen-year population the
+store cannot see. Two deliverables — a dated count of names that were listed inside
+the window and are gone from today's enumeration, reconstructed from an archived
+listing spine whose coverage of the window is verified before anything is counted
+against it; and a sensitivity, the pre-registered metric re-run with that missing
+population assigned a full stop-out. The gap between the two is the bias bound, and
+it rides on :mod:`backtest.metric`'s own printed page as one line — including when
+nothing attached one, which prints as the absence rather than as a blank.
+
+Coverage there is a fact about the **bars**, never about the symbol: the question is
+whether the store's history covers the session being replayed, which is what
+separates a delisted name from a *recycled* one — a ticker reassigned to an
+unrelated listing, absent from no list, arriving as plausible bars for the wrong
+company.
+
+:mod:`backtest.survivorship`'s names are **not** re-exported here, for the reasons
+that already keep :mod:`backtest.metric` out: it is a command
+(``python -m backtest.survivorship``) and it imports that module. The entry point is
+``backtest.survivorship.survivorship_report``.
+
+Issue #199 closes Phase 5 and takes the decision. Two modules, and the seam
+between them is an ordering rule rather than a subject: :mod:`backtest.sweep`
+varies cost and threshold variants **after** the pre-registered metric has been
+computed and recorded, and :mod:`backtest.verdict` evaluates the criteria the
+contract fixed before any of it ran.
+
+The ordering is a type rather than a convention. A sweep needs a
+:class:`~backtest.sweep.RecordedMetric`, and the only way to obtain one is
+:func:`~backtest.sweep.read_recorded`, which reads the headline back **off disk**
+— so a sweep run before the headline was recorded has no file to read, and a
+sweep of a sweep is refused because it would report the second count and hide the
+first. Two axes are swept, both arithmetic over trades the simulator already
+produced: the contract's per-market costs, scaled in both directions, and a floor
+on the replayed seven-dimension score. The detection gate is not swept and the
+report says so, because the denominator was built against the contract's width
+and varying it is a new crawl rather than a variant of this one. Every swept
+figure is reported with the count of variants tried — the count is a *field* on
+:class:`~backtest.sweep.SweptResult` rather than a number a caller fetches
+separately, because a swept figure and the number of chances it had are one fact.
+
+The verdict reads the pre-registered report and nothing else. The kill is
+**global** — every market in scope, both windows, and drawn on the
+**survivor-biased** figure, because survivorship inflates in a known direction
+and a failure there is decisive when the honest number can only be worse. The
+ship is **per market** and needs the pessimistic bound above zero on both
+windows, so a market whose bias was never measured cannot ship at all: an absent
+bound is not a bound of zero. The one-market failure and the inconclusive run are
+their own named verdicts, each carrying the change it licenses, and a swept
+report handed to :func:`~backtest.verdict.verdict_report` raises
+:class:`~backtest.verdict.SweptVerdictRefused` — "reaching for a swept variant to
+break the tie" is the contract's own sentence and this is it made executable.
+
+Neither module's names are re-exported here, for the reasons that already keep
+:mod:`backtest.metric` out: both are commands (``python -m backtest.sweep``,
+``python -m backtest.verdict``) and both import that module. The entry points are
+``backtest.sweep.sweep_report`` and ``backtest.verdict.verdict_report``.
+
+The universe's names are not re-exported, and the reason is naming rather than
+import weight: ``classify``, ``Candidate`` and ``is_member`` each already mean
+something else one import away (:mod:`screener.universe`, :mod:`replay.reference`),
+so they are worth the module qualifier — ``backtest.universe.classify`` says which
+universe it classifies. There is no import-weight argument to make either way:
+:mod:`backtest.store` reaches the duckdb-backed store layer, so importing this
+package has pulled it in since #186 regardless.
+"""
+
+from __future__ import annotations
+
+from .contract import (
+    DEFAULT_CONTRACT,
+    DEFAULT_CONTRACT_JSON,
+    Cell,
+    RunContract,
+)
+from .chain import backtest_chain, excluded_references, stateless_universe
+from .full_run import AnchorsNotSettled, FullRun, MarketNotRun, run_full
+from .result import stamp_result
+from .store import (
+    BuildCoverage,
+    LiveStoreWriteRefused,
+    Refusal,
+    build_backtest_store,
+    coverage_path,
+    market_symbol,
+)
+
+__all__ = [
+    "AnchorsNotSettled",
+    "Cell",
+    "FullRun",
+    "MarketNotRun",
+    "backtest_chain",
+    "excluded_references",
+    "run_full",
+    "stateless_universe",
+    "RunContract",
+    "DEFAULT_CONTRACT",
+    "DEFAULT_CONTRACT_JSON",
+    "stamp_result",
+    "BuildCoverage",
+    "LiveStoreWriteRefused",
+    "Refusal",
+    "build_backtest_store",
+    "coverage_path",
+    "market_symbol",
+]

@@ -190,6 +190,16 @@ Two consequences to carry:
 | **Kill criterion** | Arm B's after-cost expectancy ≤ 0 in **both** markets, on the **full window and with 2020–21 excluded**, measured on the **survivor-biased store** | Below |
 | **Ship criterion** | Arm B's after-cost expectancy > 0 in a market across both windows, **and** the pessimistic bound from Phase 2 keeps it above 0 | A positive run that survives its own bias is the only kind that licenses a change |
 
+**Neither criterion reads the rubric, and #211 is the reason that is worth saying.**
+The gate isolation ([`backtest_gate_isolation.md`](../references/backtest_gate_isolation.md))
+found that the rubric's edge over the field reverses inside this run's own universe, and
+that this is a property of the contracted gates rather than a defect. That changes
+nothing here — ship and kill are both expectancy on arm B, plus Phase 2's bound — and the
+three-outcome table above already contemplates the rubric ranking rather than deciding.
+What it does change is how findings §4b's gap may be cited: **never without naming the
+field it was measured over**, since it is +1.95pp under the app's universe and −5.01pp
+under the contract's.
+
 **Why the kill line is drawn on the survivor-biased number.** Survivorship inflates results in
 a known direction: the missing names are disproportionately the ones that died. So a failure
 there is decisive — the honest figure can only be worse. A *pass* proves much less, which is
@@ -211,6 +221,29 @@ market**, for the same reason: a US pass licenses nothing in Jakarta.
 
 That leaves the one-market failure as its own verdict, named here so it is not improvised
 later: **the method stands, and that market is off** until a run explains why it differs.
+
+**Status: the verdict is recorded (#199).** Evaluated by `python -m backtest.verdict` over the
+recorded pre-registered headline, with Phase 2's bound attached; the payload is committed at
+[`backtest_verdict.json`](../references/backtest_verdict.json) and the page it printed at
+[`backtest_verdict.txt`](../references/backtest_verdict.txt).
+
+- **The kill did not fire.** It needs both markets at or below zero on both windows; the US is
+  +0.050R on the full window, and Jakarta is positive on both.
+- **US — inconclusive.** +0.050R on the full window and **−0.081R** with 2020–21 excluded. It
+  neither ships nor fails, and it is reported as inconclusive rather than resolved by the swept
+  variant that reaches +0.153R at a score floor of 4 — one of eight tried, and itself +0.007R
+  once 2020–21 comes out, which is what the two-window table exists to show.
+- **IDX — ship**, and it is the only market it licenses anything in. +0.680R and +0.284R across
+  the two windows, with the pessimistic bound holding at +0.418R and **+0.072R**. That second
+  figure is thin, and Jakarta's hole is counted on the enumeration side — neither
+  exposure-weighted nor separated from recycled tickers — so the bound is optimistic in a known
+  direction and the verdict carries that caveat on the market's own block. The licensed change
+  is named in the write-up before any constant moves (Phase 7, #200); nothing moves here.
+
+The eight swept variants are recorded at [`backtest_sweep.json`](../references/backtest_sweep.json)
+and none of them entered the decision. They are worth reading as an illustration of why the
+order matters: a score floor of 7 lifts Jakarta to **+2.412R** on 183 trades, which is the
+winner-from-noise the count exists to price.
 
 **Done when** every cell above has a value and a one-line justification, committed.
 
@@ -264,6 +297,23 @@ crawl finishes and a burst stalls.
 none, the two counts sum to the enumeration, and both are committed. A symbol that is
 silently absent is survivorship bias entering through the back door.
 
+**Done** (2026-08-26, #187). `python -m backtest.crawl` filled `data/backtest.duckdb` with
+**US 5,495 stored + 3 refused = 5,498 crawled of 13,141 listed** and **IDX 840 stored + 0
+refused = 840**, 2011-01-03 through each market's latest complete session, 15.1M bars.
+Each market commits two records, because a name can be missing either by refusing to answer
+or by never being asked: `data/backtest.duckdb.enumeration.{US,IDX}.json` accounts for the
+narrowing, `…coverage.{US,IDX}.json` for the fetch. Between them every listed name carries
+one verdict. Written up in
+[`references/backtest_store_coverage.md`](../references/backtest_store_coverage.md).
+
+Three findings there are Phase 2's starting point: the US ledger's three absences; IDX's
+**123-name gap (12.8%)** between the 839 candidates Yahoo's screener lists and the 962 the
+exchange does; and the evidence that this gap is a *snapshot of a churning membership* rather
+than a roster — the screener dropped `SOHO.JK`, a live name still trading as of the latest
+session, from its listing inside seventeen minutes. That strengthens the case for
+reconstructing the listing spine from a second source below rather than trusting one
+enumeration.
+
 ## Phase 2 — Bound the survivorship hole
 
 Treat this as a measurement with its own deliverable, ahead of any performance number.
@@ -273,7 +323,12 @@ tickers (29.5%)** and **172 of 828 trades (20.8%)** the store cannot cover, carr
 the trader's realised R** — names delisted, acquired or renamed inside four years. A 2012 start
 reaches further back, so expect worse. For IDX the research note measured the same hole from
 the other side: the Yahoo screener enumerates ~840 names against IDX's ~963 listed, and the
-missing ones are the suspended and delisted.
+missing ones are the suspended and delisted. Phase 1's crawl has since made that pair exact —
+**839 enumerated against 962 listed, a gap of 123 (12.8%)** on 2026-08-26 — and showed the
+gap is entirely upstream of the ledger, since every name the screener did enumerate resolved.
+It also showed the screener's membership churns for *live* names on a scale of minutes, so
+treat 123 as a noisy snapshot: the count below has to come from the listing spine, not from
+differencing one enumeration against the exchange.
 
 **And the hole has a silent half.** §2's correction is the part to carry: eleven of those
 tickers *resolve today* but their bar history begins years after the entry they are paired
@@ -295,6 +350,67 @@ Two deliverables:
 
 **Done when** both the count and the bound are computed, and the write-up states the headline
 figure *and* its pessimistic twin together.
+
+**Measured** (2026-08-26, #196). `python -m backtest.survivorship` read 96 archived captures
+and found, on US, **7,346 names listed inside the window and gone from today's enumeration**,
+plus **512 recycled** and **3 the crawl got no bars for**, against 7,310 covered — a hole of
+**51.8% of the names sighted in the window, or 37.7% weighted by how long each was listed**.
+IDX's gap from the enumeration side is **122 of 962 (12.7%)**, with its recycled half
+unmeasured. Written up in
+[`references/backtest_survivorship.md`](../references/backtest_survivorship.md); the dated
+count is committed beside it as JSON.
+
+**The bound is larger than the effect this run is looking for.** At 37.7%, the missing
+population contributes 0.605 trades for every covered trade, each a full stop, so the
+pessimistic twin is negative for **any headline below +0.605R** — a figure no breakout
+expectancy in this repo comes near. Phases 3–5 should proceed knowing that: on today's store
+the survivorship bound does not qualify the headline, it exceeds it. Narrowing the hole is
+therefore a Phase 3 input rather than a Phase 7 caveat, and the two obvious levers are
+crawling the delisted names the spine now *names* (the count is a list of tickers, not a
+number) and gating the missing population by the universe rules before scaling trades off it.
+
+The measured hole is well above findings §2's 29.5% floor, which is the direction a 2012 start
+should move it. `against_floor` flags the opposite outcome rather than reporting it as an
+improvement: over a longer window a *smaller* hole is much more likely to mean the coverage
+test stopped asking the hard question.
+
+**The sensitivity's own figures wait on [#198](../../issues/198).** No denominator exists yet,
+so there are no simulated trades to put a real headline against. The wiring needs no further
+code — `backtest.metric --out-json` then `backtest.survivorship --metric-json` — and the bound
+rides on the printed metric either way, including as an explicit "not attached" line when
+nothing has.
+
+**The source, and the two that were set aside** (2026-08-26, #196). The spine is the **Nasdaq
+Trader symbol directory** — `nasdaqlisted.txt` and `otherlisted.txt`, the same two files
+`screener.source.parse_us_listings` reads live — recovered at past dates from the Internet
+Archive, with today's live files as the final snapshot. Each capture is a dated, point-in-time
+roster carrying tickers, which is exactly the claim the count needs. Of the two candidates
+named above: **exchange delisting notices** reach EDGAR as Form 25 / 25-NSE and are complete
+back to 2001, but identify the issuer by CIK and company name with no ticker — and the
+delisted names are precisely the ones absent from every current CIK-to-ticker mapping;
+**index-constituent change histories** are dated and free and cover the S&P 500, which is the
+wrong population for a screener whose hole is in small caps.
+
+Two properties of the spine are checked, and they fail differently. **Bracketing is refused**:
+a spine that does not span the window reports every name as first listed at its own oldest
+capture, which is a measurement of the source's edges wearing the count's name. That refusal
+fired on the first live crawl — the archive's newest capture was 2026-06-11 against a window
+ending 2026-08-25 — which is why the live files are the final snapshot. **Density is reported**:
+the captures are roughly annual, so a name that listed *and* delisted between two of them
+appears in neither, and the count is a floor for that reason. Captures the archive will not
+replay are retried and then recorded rather than dropped, on the Phase 1 standard: a date
+silently skipped is a date whose listings the count reports as never having existed.
+
+**And the recycled half needs the spine, not the bars.** A first bar in 2019 says only "no bars
+before 2019", which is what a genuine 2019 IPO looks like — and an IPO is no survivorship hole
+at all: the company did not exist, and a run with no bars for it is right rather than blind.
+3,168 of the store's 5,495 US symbols have their first bar after 2012-01-01, so a bars-only
+rule would call 58% of the market recycled. What separates the two is the pair: the spine
+listed this symbol on a dated snapshot, and the store's bars for it begin after that date.
+
+**IDX has no spine**, since no free source reconstructs a dated Jakarta roster. Its hole is
+measured from the enumeration side instead, and its recycled half is reported *unmeasured*
+rather than zero — "we could not tell" and "there are none" are opposite findings.
 
 ## Phase 3 — Replay the field, point-in-time
 
@@ -390,6 +506,17 @@ Sweep thresholds only after the pre-registered metric is computed and recorded, 
 count of variants tried beside any swept result. Every threshold tried is a test, and enough
 of them will produce a winner from noise.
 
+**Landed as #199.** The order is a type rather than a convention: `backtest.sweep` cannot run
+without a `RecordedMetric`, and the only way to obtain one is to read the headline back off
+disk — so a sweep before the headline was recorded has no file to read, and a sweep of a sweep
+is refused because it would report the second count and hide the first. Two axes are swept, both
+arithmetic over trades the simulator already produced: the contract's per-market costs at 0.5×,
+2× and 3×, and a floor on the replayed seven-dimension score at 3 through 7 of 8. The detection
+gate is not swept and the payload says so — the denominator was built against the contract's
+width, so a swept gate is a new crawl rather than a variant of this run. Every swept figure
+carries the count of variants tried as a field beside it rather than a number a reader has to
+compute, and the pre-registered figure is printed above every one of them.
+
 ## Phase 6 — Anchor before believing
 
 The run overlaps ground already measured. Reproduce it, or explain the divergence in writing,
@@ -402,7 +529,8 @@ before reading any new figure:
 | Median 20-day ADR at entry eve | **6.08%** | Findings §3c |
 | Blind-spot tickers / trades, 2019–2022 | **92 / 172** (of 312 / 828) | Findings §2 |
 | Trades detected by the funnel (A1 detection recall) | **549 of 656 replayable** (83.7%; gate-invariant — the funnel evaluates every stage unconditionally, so #149's width does not move it. Detector v2/v3 geometry; the superseded pin under v1's hard cluster cut was 380 of 658) | Findings §3, §3b |
-| Trades that appeared in the replayed field (A2 `in_field`) | **349 of 656** at detector v2, and **397 of 656** at detector v3 (the live gate) — **anchor against the version the run is built at**. Both measured 2026-08-25 by `replay.discrimination_grid`; the v2 figure independently reproduces #164's committed run, the v3 figure is a **first measurement** and has no second one to agree with. Superseded pins, each measured on a narrower population: 159 and then 104 of 656 on the field the rank retention had truncated, and 104 of 658 before #139. **Both values were measured on the contaminated field** — see the tolerance below | Findings §4b |
+| Trades that appeared in the replayed field (A2 `in_field`) | **349 of 656** at detector v2, and **397 of 656** at detector v3 (the live gate) — **anchor against the version the run is built at**. Both measured 2026-08-25 by `replay.discrimination_grid`; the v2 figure independently reproduces #164's committed run, the v3 figure is a **first measurement** and has no second one to agree with. Superseded pins, each measured on a narrower population: 159 and then 104 of 656 on the field the rank retention had truncated, and 104 of 658 before #139. **Both values were measured on the contaminated field** — see the tolerance below. **All of this is the `app` universe's pin**; the contract's has its own row below | Findings §4b |
+| Trades that appeared in the replayed field (A2 `in_field`), **stateless universe** | **165 of 503**, gap **−5.01pp**, detector v3 — the pin a run over the contract's stateless universe anchors on. A **first measurement**, made by #198's own full run, so it detects drift from here on rather than confirming that run; what corroborates it is on the other universe, where #211 reproduced §4b's 397/656 (+1.95pp) exactly and got 324/503 (+1.86pp) holding the population fixed. The negative sign is measured, not tolerated: #211 attributed it to the ADR20 floor and the trend gate acting together, and the sign check rides on this pin too | #198's full run, attributed by #211 |
 
 These are the same reference set through a differently-built pipeline. Matching them says the
 new pipeline computes what the old one computed; a mismatch is a bug in the new store or the
@@ -437,6 +565,20 @@ few trades on these two rows as the fix landing, and a difference large enough t
 sign of §4b's gap as the bug this table is looking for. Every other anchor here reproduces
 exactly or is a finding.
 
+**`in_field` is two pins, one per universe, and that is #211's finding as data.** The gate
+isolation measured that `in_field` and §4b's gap are properties of the pair (rubric,
+universe): +1.95pp under the app's universe, −5.01pp under the contract's stateless one, with
+the reversal attributed to the ADR20 floor and the trend gate acting together. Holding a
+stateless-universe run to §4b's app-universe figure is therefore not a failing anchor but a
+subtraction between two numbers that were never the same number — and it surfaced, for a
+while, as a sign flip charged to the pipeline. So a row's universe is part of what the row
+*is*, exactly as its detector version and its field already were, and a run is checked against
+the pin measured over the field it actually screened. **Nothing was widened to achieve this**:
+both pins keep zero tolerance on their counts and both keep the sign check on the gap, so a
+stateless-universe run coming back positive still fails. `backtest.anchors` refuses a
+measurement counted over one universe when the run names the other, rather than reporting it
+as a divergence, and the field-measurements file it reads must name the universe it counted.
+
 **The two field rows are different anchors and were once conflated.** Until #165 this table
 carried one row labelled "trades detected by the funnel" whose *value* was A2's `in_field`. They
 are not the same quantity and do not move together: detection recall asks whether the detector
@@ -451,6 +593,15 @@ Arm A has no counterpart there and is measured, never anchored.
 **Done when** each anchor matches its committed value or its divergence is written up with a
 cause.
 
+**Status: done for #198's full run.** All six settle against `data/backtest.duckdb` — five
+diverge with a written cause, and `in_field` over the contract's universe matches at 165 of
+503, gap −5.00655. The table as it printed is committed at
+[`backtest_anchors.txt`](../references/backtest_anchors.txt), the payload beside it at
+`backtest_anchors.json`, and the causes are set out in
+[`backtest_anchor_divergence.md`](../references/backtest_anchor_divergence.md). Getting there
+took splitting the `in_field` pin by universe, described above; no constant was moved and no
+sign check was waived.
+
 ## Phase 7 — Write it up
 
 Follow the convention the study already set: an authority document under `references/`, a
@@ -462,6 +613,34 @@ State the bias bound from Phase 2 in the summary, not in a footnote.
 
 **Done when** a reader who has seen none of this can reproduce the headline figure from the
 committed command, and can state its bound without reading the code.
+
+**Done** (2026-08-27, #200). The authority document is
+[`references/backtest_findings.md`](../references/backtest_findings.md) and its plain-language
+companion is [`backtest_findings-plain.md`](../references/backtest_findings-plain.md). The one
+command is `bash scripts/backtest_headline.sh`, which prints both markets, both windows, each
+figure beside its pessimistic twin and the verdict in the contract's own words — from the
+committed payloads by default, and recomputed from the bars with
+`--from-store data/backtest.duckdb`. The two paths are different claims and the command says on
+its first line which one it took.
+
+Writing it up ran the three Phase 5 measurements whose machinery had landed with no committed
+result — the denominator figures ([`backtest_figures.json`](../references/backtest_figures.json),
+#193), the regime posture ([`backtest_regime_posture.json`](../references/backtest_regime_posture.json),
+#192) and the candidate outcome test
+([`backtest_candidate_outcomes.json`](../references/backtest_candidate_outcomes.json), #195) —
+plus the three exit arms beside each other (`backtest_arms_{US,IDX}.json`). A phase reported
+from a payload nobody committed is a phase whose figures cannot be checked.
+
+Three results the write-up records for the first time. **Precision, at last**: 3.1% on the US
+and 2.4% on IDX at arm B, against a 12.8% / 9.5% trigger share — the false-positive rate
+findings §9 could not report and #149 could only log as volume carrying no verdict.
+**`Relative move` predicts on IDX** — a +1.927R hit-minus-miss gap on an interval clear of zero,
+the one positive cell of four, and the change the ship verdict licenses, named there before any
+constant moves. And **arm A smooths without raising expectancy**, matching arm B on the US and
+giving up 0.379R per trade on IDX for four points of hit rate.
+
+**No constant moved.** The contract, the rubric, the detector and the register are all as this
+run measured them; the licensed change is named and unspent.
 
 ---
 

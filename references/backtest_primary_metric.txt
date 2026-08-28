@@ -1,0 +1,47 @@
+arm_b_after_cost_expectancy_r_per_market_per_year — arm B
+  costs charged both_sides; bootstrap 2000× clustered by symbol, seed 191
+  swept variants behind this figure: 0
+
+US — 0bps commission + 5bps slippage per side
+  per year
+  2012                   -0.494R  win 23.6%  n=271  med -1.39 p90 +3.41 max +21.75  [-0.96, -0.03] p=0.981 on 77 symbols  bound -0.708R
+  2013                   +0.262R  win 29.7%  n=229  med -1.51 p90 +6.89 max +28.99  [-0.64, +1.25] p=0.306 on 59 symbols  bound -0.232R
+  2014                   -0.717R  win 21.6%  n=227  med -1.47 p90 +3.49 max +18.12  [-1.18, -0.25] p=0.997 on 77 symbols  bound -0.843R
+  2015                   -0.482R  win 22.3%  n=319  med -1.28 p90 +2.98 max +24.87  [-0.99, +0.10] p=0.943 on 114 symbols  bound -0.699R
+  2016                   +0.380R  win 29.7%  n=437  med -1.19 p90 +6.51 max +28.12  [-0.28, +1.14] p=0.153 on 136 symbols  bound -0.160R
+  2017                   -0.039R  win 24.8%  n=303  med -1.52 p90 +6.18 max +35.91  [-0.86, +0.93] p=0.556 on 94 symbols  bound -0.423R
+  2018                   -0.314R  win 23.9%  n=444  med -1.39 p90 +3.69 max +51.89  [-0.96, +0.39] p=0.820 on 146 symbols  bound -0.592R
+  2019                   +0.335R  win 24.4%  n=561  med -1.39 p90 +5.06 max +40.08  [-0.30, +1.11] p=0.180 on 162 symbols  bound -0.190R
+  2020                   +0.782R  win 28.6%  n=1730  med -1.31 p90 +7.10 max +103.33  [+0.36, +1.20] p=0.000 on 423 symbols  bound +0.094R
+  2021                   +0.001R  win 22.5%  n=1489  med -1.42 p90 +3.65 max +141.84  [-0.42, +0.57] p=0.516 on 432 symbols  bound -0.391R
+  2022                   -0.642R  win 21.2%  n=1404  med -1.39 p90 +3.02 max +24.79  [-0.89, -0.40] p=1.000 on 392 symbols  bound -0.796R
+  2023                   -0.399R  win 22.5%  n=906  med -1.35 p90 +3.78 max +47.54  [-0.74, -0.01] p=0.979 on 271 symbols  bound -0.645R
+  2024                   +0.134R  win 24.8%  n=1026  med -1.41 p90 +4.96 max +71.77  [-0.24, +0.52] p=0.239 on 291 symbols  bound -0.309R
+  2025                   +0.743R  win 25.2%  n=1411  med -1.27 p90 +6.34 max +108.85  [+0.17, +1.45] p=0.004 on 421 symbols  bound +0.071R
+  2026                   -0.307R  win 21.9%  n=1554  med -1.37 p90 +4.51 max +40.55  [-0.61, +0.01] p=0.972 on 461 symbols  bound -0.584R
+  windows
+  full                   +0.050R  win 24.2%  n=12311  med -1.37 p90 +4.86 max +141.84  [-0.09, +0.19] p=0.246 on 1631 symbols
+  excluding_2020_2021    -0.081R  win 23.7%  n=9092  med -1.37 p90 +4.53 max +108.85  [-0.24, +0.08] p=0.850 on 1396 symbols
+  bias bound: +0.050R headline vs -0.363R pessimistic — gap 0.413R (7444 missing trades at -1R over 12311 covered, hole 37.7% of names)
+
+IDX — 15bps commission + 25bps slippage per side
+  per year
+  2012                   -0.486R  win 33.3%  n=33  med -1.39 p90 +3.45 max +13.64  [-2.13, +1.53] p=0.696 on 12 symbols  bound -0.622R
+  2013                   -0.092R  win 26.0%  n=73  med -2.04 p90 +6.77 max +22.86  [-1.55, +1.20] p=0.603 on 29 symbols  bound -0.271R
+  2014                   -1.456R  win 20.8%  n=72  med -1.78 p90 +1.16 max +10.41  [-2.20, -0.62] p=1.000 on 28 symbols  bound -1.467R
+  2015                   -0.968R  win 14.3%  n=42  med -2.47 p90 +0.96 max +49.51  [-2.64, +2.01] p=0.756 on 27 symbols  bound -1.035R
+  2016                   +0.843R  win 26.5%  n=49  med -2.08 p90 +9.68 max +40.76  [-1.42, +3.76] p=0.280 on 23 symbols  bound +0.555R
+  2017                   +1.650R  win 32.5%  n=40  med -1.63 p90 +9.91 max +31.48  [-0.52, +3.78] p=0.067 on 18 symbols  bound +1.249R
+  2018                   +3.495R  win 31.6%  n=79  med -1.63 p90 +17.45 max +40.79  [-0.02, +6.68] p=0.026 on 24 symbols  bound +2.893R
+  2019                   -1.582R  win 16.2%  n=68  med -2.17 p90 +2.06 max +7.52  [-2.23, -0.84] p=1.000 on 30 symbols  bound -1.562R
+  2020                   +2.808R  win 28.4%  n=88  med -1.95 p90 +10.43 max +78.80  [-1.24, +7.44] p=0.126 on 35 symbols  bound +2.264R
+  2021                   +2.344R  win 23.8%  n=122  med -1.85 p90 +10.31 max +76.78  [-0.15, +5.78] p=0.031 on 45 symbols  bound +1.874R
+  2022                   +0.302R  win 21.6%  n=116  med -2.02 p90 +7.40 max +36.91  [-1.61, +2.94] p=0.428 on 41 symbols  bound +0.094R
+  2023                   -0.427R  win 26.3%  n=76  med -1.81 p90 +6.26 max +19.29  [-1.61, +0.86] p=0.759 on 28 symbols  bound -0.543R
+  2024                   -0.669R  win 20.2%  n=114  med -1.89 p90 +4.71 max +15.95  [-1.43, +0.02] p=0.974 on 39 symbols  bound -0.756R
+  2025                   +2.633R  win 25.2%  n=135  med -1.77 p90 +12.52 max +152.38  [-0.22, +6.54] p=0.041 on 51 symbols  bound +2.125R
+  2026                   -1.230R  win 21.3%  n=89  med -1.85 p90 +3.72 max +9.09  [-1.89, -0.52] p=1.000 on 43 symbols  bound -1.235R
+  windows
+  full                   +0.680R  win 24.1%  n=1196  med -1.89 p90 +7.51 max +152.38  [-0.02, +1.49] p=0.028 on 247 symbols
+  excluding_2020_2021    +0.284R  win 23.7%  n=986  med -1.89 p90 +6.82 max +152.38  [-0.37, +0.97] p=0.210 on 225 symbols
+  bias bound: +0.680R headline vs +0.418R pessimistic — gap 0.262R (174 missing trades at -1R over 1196 covered, hole 12.7% of names)

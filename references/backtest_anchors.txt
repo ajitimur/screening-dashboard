@@ -1,0 +1,112 @@
+The anchor check for the full run (PRD #182 Phase 6, issue #198)
+================================================================
+
+Re-run 2026-08-27, after #211 split the `in_field` anchor by the universe its
+figure was counted over. The check now settles and writes its machine-readable
+payload to `references/backtest_anchors.json` beside this file; earlier revisions
+of this file recorded a refusal instead, which is why it was committed at all.
+
+Run against `data/backtest.duckdb`, with the run's own field measurements in
+`references/backtest_field_anchors.json`, and a written cause supplied for all
+five anchors whose divergence has one:
+
+    python -m backtest.anchors \
+        --store data/backtest.duckdb \
+        --field-measurements references/backtest_field_anchors.json \
+        --explain median_range_3bar_adr="the backtest store carries only rankable
+            candidates, so his 150 reference-ETF trades (#162) and 3
+            never-enumerated ones are absent; the 496 trades both stores measure
+            carry bit-identical geometry, and filtering the replay store to this
+            population reproduces this figure exactly" \
+        --explain median_range_5bar_adr="(as above)" \
+        --explain median_adr_at_entry_eve="(as above)" \
+        --explain coverage_blind_spot="the survivorship hole over a window
+            reaching seven years further back than findings §2's, measured not
+            fixed; #196 owns bounding it" \
+        --explain detection_recall="the same rate over a smaller population —
+            421/503 is 83.70% against the committed 83.69% — so the detector
+            reproduces and only the population moved" \
+        --out-json references/backtest_anchors.json
+
+The universe is not a flag. It comes off the field-measurements file, because
+which of `in_field`'s two pins applies is a fact the run recorded about the gates
+that screened its field — not a choice the person typing the command makes.
+
+Five anchors diverge with a written cause. The sixth, `in_field` over the
+contract's stateless universe, now **matches**: 165 of 503 against a committed
+165 of 503, gap −5.00655 against a committed −5.01.
+
+What changed is which pin the run is held to, and nothing else. No constant was
+moved, no tolerance was widened, and the sign check was not waived. #211 measured
+that `in_field` and findings §4b's gap are properties of the pair (rubric,
+universe) rather than of the rubric — +1.95pp under the app's universe, −5.01pp
+under the contract's — and that the reversal is the ADR20 floor and the trend
+gate acting together, a property of the method under the contracted gates rather
+than a defect in the field. Holding this run to §4b's app-universe figure was
+therefore subtracting two numbers that were never the same number, and it
+surfaced as a sign flip charged to the pipeline.
+
+Read the stateless pin for what it is. It is a **first measurement**, made by the
+run it now anchors, so it detects drift from here on rather than confirming this
+run. What corroborates the run is on the other universe: §4b's own 397/656
+(+1.95pp) reproduced exactly, and the same 503 names held fixed giving 324/503
+(+1.86pp).
+
+--------------------------------------------------------------------------------
+anchors — detector v3, universe stateless, arms B, C (arm A measured, never anchored)
+
+geometry — measured from his bars; these hold whatever the detector does
+
+  Median trailing 3-bar range at his entries
+    stamp     detector-independent (bar geometry) — findings §3b
+    !! median               committed 1.31       measured 1.27522    (±0.02 ADR)
+    divergence written up: the backtest store carries only rankable candidates, so his 150 reference-ETF trades (#162) and 3 never-enumerated ones are absent; the 496 trades both stores measure carry bit-identical geometry, and filtering the replay store to this population reproduces this figure exactly
+    verdict   diverged (explained)
+
+  Median trailing 5-bar range at his entries
+    stamp     detector-independent (bar geometry) — findings §3b, §3c
+    !! median               committed 1.86       measured 1.76743    (±0.02 ADR)
+    divergence written up: (as above)
+    verdict   diverged (explained)
+
+  Median 20-day ADR at entry eve
+    stamp     detector-independent (bar geometry) — findings §3c
+    !! median               committed 0.0608     measured 0.064277   (±0.001 fraction of price)
+    divergence written up: (as above)
+    verdict   diverged (explained)
+
+  sample: 496 trades  (no bars 312, short history 20, no prior session 0)
+
+gate-dependent — these move with coverage and with the gates
+
+  Blind-spot tickers / trades, 2019–2022
+    stamp     detector-independent (bar geometry) — findings §2
+    !! blind_spot_tickers   committed 92         measured 136        (±0 count)
+    !! blind_spot_trades    committed 172        measured 325        (±0 count)
+    ok distinct_tickers     committed 312        measured 312        (±0 count)
+    ok total_rows           committed 828        measured 828        (±0 count)
+    ok rows_with_outcomes   committed 827        measured 827        (±0 count)
+    !! blind_spot_r_share   committed 0.18       measured 0.259265   (±0.001 count)
+    superseded 81 tickers / 141 trades / 11.7% — measured over all history rather than in the replay window (#114)
+    superseded 91 tickers / 170 trades of 658 replayable — measured under the has-any-bars test #139 replaced, which replayed one company's trade against another company's bars
+    divergence written up: the survivorship hole over a window reaching seven years further back than findings §2's, measured not fixed; #196 owns bounding it
+    verdict   diverged (explained)
+
+  Detection recall (A1), gate-invariant
+    stamp     detector v2, v3 — findings §3, §3b
+    !! passed               committed 549        measured 421        (±0 trades)
+    !! of                   committed 656        measured 503        (±0 trades)
+    superseded 380 of 658 — measured under v1's hard 1.5×ADR cluster cut, before #154's far-outlier guard, and on the pre-#139 replayable population
+    divergence written up: the same rate over a smaller population — 421/503 is 83.70% against the committed 83.69% — so the detector reproduces and only the population moved
+    verdict   diverged (explained)
+
+  Trades in the replayed field (A2 in_field), stateless universe
+    stamp     detector v3 — #198's full run, attributed by #211
+    universe  stateless
+    ok in_field             committed 165        measured 165        (±0 trades)
+    ok of                   committed 503        measured 503        (±0 trades)
+    ok gap_pp               committed -5.01      measured -5.00655   (free trades)
+    ⚠ first measurement: no second measurement agrees with it, so a mismatch is investigated in both directions
+    tolerance a first measurement anchoring against the run that produced it, so it detects drift from here on rather than confirming this run. Two measurements #211 made over the app's universe are what corroborate it instead: §4b's own 397/656 (+1.95pp) reproduced exactly, and the same 503 names held fixed giving 324/503 (+1.86pp) — the pin is sound and the sign belongs to the pair of universes, not to a bug
+    verdict   match
+--------------------------------------------------------------------------------

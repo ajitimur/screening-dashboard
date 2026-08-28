@@ -485,6 +485,7 @@ def build_sweep_sessions(
     sessions: Sequence[date],
     *,
     lookbacks: Sequence[str],
+    members_for: Callable[[date], Sequence[str]] | None = None,
     progress: Callable[[int, int, date], None] | None = None,
 ) -> list[SweepSession]:
     """Reconstruct each session's universe, ranks and widest-gate detections.
@@ -495,6 +496,14 @@ def build_sweep_sessions(
     reconstruction is the chain's own reuse path with nothing written back. The
     detector then runs over the union gate ``lookbacks`` describes.
 
+    ``members_for`` overrides where membership comes from, and exists for the one
+    caller that cannot read it back: :mod:`backtest.field_gate_isolation` measures
+    universes with a gate *removed*, which admits names the store never held, so its
+    membership is recomputed rather than stored (#211). Defaulting to ``None`` keeps
+    the store's own rows for every other caller — and keeps the two callers on one
+    detection pass, so a variant field and the run's own field cannot differ by an
+    accident of reimplementation.
+
     ``progress`` is called as ``progress(i, total, session)`` after each session, so
     a long pass reports rather than hanging silently.
     """
@@ -502,7 +511,11 @@ def build_sweep_sessions(
     total = len(sessions)
     out: list[SweepSession] = []
     for i, session in enumerate(sessions, start=1):
-        members = store.universe(market, session)
+        members = list(
+            store.universe(market, session)
+            if members_for is None
+            else members_for(session)
+        )
         bars = {symbol: store.bars(market, symbol) for symbol in members}
         ranks = rank_table(bars, session)
         membership = gate_membership(ranks)

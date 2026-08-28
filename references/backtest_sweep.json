@@ -1,0 +1,1891 @@
+{
+ "contract": {
+  "contract_version": "1",
+  "label": "out-of-sample backtest \u2014 US+IDX, 2012 onward (PRD #182)",
+  "cells": [
+   {
+    "key": "scope.setups",
+    "value": "long_breakout_eod",
+    "justification": "Long breakout EOD setups only, so the run measures the same thing the reference set and the detector do (PRD story 7)."
+   },
+   {
+    "key": "scope.level",
+    "value": "signal_primary_portfolio_deferred",
+    "justification": "Signal level is declared primary and portfolio level specified but deferred, so the open question is answered without the capital model blocking it (story 8)."
+   },
+   {
+    "key": "scope.markets",
+    "value": [
+     "US",
+     "IDX"
+    ],
+    "justification": "US and IDX reported separately throughout, so findings \u00a78's result that magnitudes do not transfer is honoured rather than averaged away (story 4)."
+   },
+   {
+    "key": "window.measured_start",
+    "value": "2012-01-01",
+    "justification": "The measured window starts 2012-01-01 so the sample spans several regimes rather than one (story 5)."
+   },
+   {
+    "key": "window.measured_end",
+    "value": "latest_complete_session",
+    "justification": "The measured window runs to the latest complete session, so the sample extends as far as the data legitimately allows (story 5)."
+   },
+   {
+    "key": "window.store_start",
+    "value": "2011-01-01",
+    "justification": "The store window starts 2011-01-01 so the detector's 80-bar minimum history, the universe gates and the regime's 25-bar warm-up are all satisfied before the first measured session (story 6)."
+   },
+   {
+    "key": "universe.trend_gate",
+    "value": "close > SMA50",
+    "justification": "The trend gate is close > SMA50 on both markets, so the universe reflects the method's own precondition (story 10)."
+   },
+   {
+    "key": "universe.liquidity_floor",
+    "value": {
+     "US": 10000000.0,
+     "IDX": 10000000000.0
+    },
+    "justification": "Liquidity floors are $10M for US and Rp 10B for IDX \u2014 a deliberate contract value, not the app's inherited $20M / Rp 1B (story 11)."
+   },
+   {
+    "key": "universe.adtv",
+    "value": "median_20d_unadjusted_close_x_volume",
+    "justification": "ADTV is the 20-day median of unadjusted close \u00d7 volume, so one block trade cannot lift an illiquid name over the floor (story 12)."
+   },
+   {
+    "key": "universe.adtv_aggregator",
+    "value": "median",
+    "justification": "The aggregator is the median; a switch to mean is a deliberate act, so which spiky small caps qualify never changes by accident (story 13)."
+   },
+   {
+    "key": "universe.volatility_gate",
+    "value": "ADR20 >= 3.5%",
+    "justification": "The volatility gate is ADR20 \u2265 3.5%, set deliberately below the rubric's 5% floor so the ADR dimension is left with spread to test (story 14)."
+   },
+   {
+    "key": "universe.volatility_gap_reason",
+    "value": "gate_below_rubric_floor_is_deliberate",
+    "justification": "The gap below the rubric's 5% floor is recorded so nobody later 'fixes' it to match and silently destroys the thing being measured \u2014 findings \u00a76 Finding 2 measured the 5% floor withholding a score point from 31% of his real entries (story 15)."
+   },
+   {
+    "key": "universe.idx_price_floor",
+    "value": 100.0,
+    "justification": "A nominal price floor of Rp 100 on the split-corrected series excludes IDX names whose quotes hit the tick grid hard enough to distort ADR and range geometry (story 16)."
+   },
+   {
+    "key": "universe.idx_price_floor_role",
+    "value": "data_validity",
+    "justification": "The Rp 100 floor is data validity and never cost control, so no reader infers a penny-stock filter with an implied cost story (story 17)."
+   },
+   {
+    "key": "universe.statelessness",
+    "value": "stateless_gates_through_t_minus_1",
+    "justification": "The universe is stateless \u2014 three gates measured through t\u22121 with no reference to prior membership \u2014 a known difference from the app's hysteresis band whose boundary churn is nearly free at signal level and real at portfolio level (stories 9, 18, 19)."
+   },
+   {
+    "key": "universe.reference_exclusion",
+    "value": "exclude_index_and_benchmark_etfs",
+    "justification": "The five benchmark references stay out of the ranked field, pinned against the enumeration by a test, so this fresh build inherits the #162 fix rather than reproducing the contamination (stories 73, 74)."
+   },
+   {
+    "key": "detection.gate",
+    "value": [
+     "1m",
+     "3m",
+     "6m",
+     "12m"
+    ],
+    "justification": "The detection gate is the four-lookback width (detector v3, ADR 0003 amendment); the denominator is built against that width and it is not swept in the primary run (PRD Implementation Decisions)."
+   },
+   {
+    "key": "regime.source",
+    "value": "app_regime_off_market_index_at_t_minus_1",
+    "justification": "Regime is the app's own regime, unmodified, read off each market's own index at t\u22121 \u2014 so findings are actionable in the product and the conditioning input obeys the point-in-time rule (stories 21, 23)."
+   },
+   {
+    "key": "regime.role",
+    "value": "conditioning_variable_never_filter",
+    "justification": "Regime is a conditioning variable and never a filter: every state trades and each one's expectancy is measured instead of assumed (story 22)."
+   },
+   {
+    "key": "entry.rule",
+    "value": "detection_trigger_filled_next_session",
+    "justification": "Entry is taken at the detection's own trigger, filled the next session, so the simulated trade uses the detector's own decision rather than a second definition (story 31)."
+   },
+   {
+    "key": "stop.rule",
+    "value": "detection_stop_unmodified",
+    "justification": "The stop is the detection's own stop, used unmodified, so R is denominated the way the app denominates it (story 32)."
+   },
+   {
+    "key": "exit.arm_a",
+    "value": {
+     "scale_fraction": 0.5,
+     "scale_day": 5,
+     "trail_ma": 10,
+     "trail_live_from": "fill",
+     "arbitrary_mechanics": true
+    },
+    "justification": "Arm A scales 50% off at the close of the fifth session after entry and trails the remainder on a 10MA \u2014 the trader's documented behaviour; its R is two position-weighted legs summed, and 'day 5' and the trail are recorded as arbitrary (stories 34, 36, 37, 39). The trail is live from the fill rather than from the scale day, so a runner that rolls over before day 5 takes the whole position and the scale never happens; that is a third arbitrary choice and is recorded here rather than left in the code, so a later run can sweep it (story 39)."
+   },
+   {
+    "key": "exit.arm_b",
+    "value": {
+     "trail_ma": 10
+    },
+    "justification": "Arm B is a pure 10MA trail, directly comparable to the reference set's simulated exit and the arm the primary metric is computed on (story 35)."
+   },
+   {
+    "key": "exit.arm_c",
+    "value": {
+     "trail_ma": 20
+    },
+    "justification": "Arm C is a pure 20MA trail, the reference set's second simulated exit (story 35)."
+   },
+   {
+    "key": "exit.trail_mechanic",
+    "value": "close_through_ma_signals_fill_next_open",
+    "justification": "A trail signals on a close through the MA and fills at the next open, so the exit is point-in-time and reproducible; recorded as arbitrary so a later run can vary it deliberately (stories 38, 39)."
+   },
+   {
+    "key": "costs.per_market",
+    "value": {
+     "US": {
+      "commission_bps": 0.0,
+      "slippage_bps": 5.0
+     },
+     "IDX": {
+      "commission_bps": 15.0,
+      "slippage_bps": 25.0
+     }
+    },
+    "justification": "Commission and slippage are per-market contract values applied before any sweep, so IDX's real fees and spread are not modelled with US's near-zero assumptions; this pre-registered baseline is recorded here and swept variants are reported with the count of variants tried (story 40)."
+   },
+   {
+    "key": "metric.primary",
+    "value": "arm_b_after_cost_expectancy_r_per_market_per_year",
+    "justification": "The one pre-registered primary metric is arm B's after-cost expectancy in R, per market per year, so the headline cannot be chosen after the fact (story 41)."
+   },
+   {
+    "key": "decision.kill",
+    "value": {
+     "metric": "arm_b_after_cost_expectancy_r",
+     "comparator": "<=",
+     "threshold": 0.0,
+     "requires": [
+      "both_markets",
+      "full_window",
+      "and_excluding_2020_2021"
+     ],
+     "basis": "survivor_biased_number"
+    },
+    "justification": "Kill fires only when arm B's after-cost expectancy is \u2264 0 in both markets on the full window and with 2020\u201321 excluded, and the line is drawn on the survivor-biased number so a failure is decisive \u2014 the honest figure can only be worse (stories 42, 43)."
+   },
+   {
+    "key": "decision.ship",
+    "value": {
+     "requires": [
+      "positive_result",
+      "clears_phase2_pessimistic_bound"
+     ],
+     "scope": "per_market"
+    },
+    "justification": "Ship requires a positive result that also clears the Phase 2 pessimistic bound, scoped per market so a US pass licenses nothing in Jakarta (stories 44, 45)."
+   },
+   {
+    "key": "decision.one_market_failure",
+    "value": "method_stands_that_market_off_until_explained",
+    "justification": "A one-market failure is its own pre-named verdict: the method stands and that market is off until a run explains the difference, so it is not improvised in the moment (story 46)."
+   },
+   {
+    "key": "decision.inconclusive",
+    "value": "report_inconclusive_no_swept_tiebreak",
+    "justification": "An inconclusive run is reported as inconclusive; reaching for a swept variant to break the tie is ruled out by the contract that exists to prevent it (story 47)."
+   },
+   {
+    "key": "decision.licensed_changes",
+    "value": "write_licensed_change_before_any_constant_moves",
+    "justification": "Each verdict's licensed change is written down before any constant moves, so a result cannot be converted into an unguarded edit (story 48)."
+   }
+  ]
+ },
+ "swept": true,
+ "arm": "B",
+ "pre_registered": {
+  "source": "references/backtest_primary_metric.json",
+  "metric": "arm_b_after_cost_expectancy_r_per_market_per_year",
+  "arm": "B",
+  "is_headline": true,
+  "variants_tried": 0,
+  "markets": [
+   {
+    "market": "US",
+    "windows": [
+     {
+      "label": "full",
+      "expectancy_r": 0.049787083720488956
+     },
+     {
+      "label": "excluding_2020_2021",
+      "expectancy_r": -0.08148723725228406
+     }
+    ]
+   },
+   {
+    "market": "IDX",
+    "windows": [
+     {
+      "label": "full",
+      "expectancy_r": 0.6798414253924577
+     },
+     {
+      "label": "excluding_2020_2021",
+      "expectancy_r": 0.28397581525629095
+     }
+    ]
+   }
+  ]
+ },
+ "variants_tried": 8,
+ "axes": [
+  {
+   "axis": "costs",
+   "values": [
+    "\u00d70.5",
+    "\u00d72",
+    "\u00d73"
+   ]
+  },
+  {
+   "axis": "score_floor",
+   "values": [
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "of_points": 8
+  }
+ ],
+ "not_swept": {
+  "cells": [
+   "detection.gate"
+  ],
+  "note": "the detection gate is not swept in this run: the denominator was built against the contract's four-lookback width, so a swept gate is a new crawl rather than a variant of this one"
+ },
+ "variants": [
+  {
+   "axis": "costs",
+   "label": "costs\u00d70.5",
+   "costs": {
+    "US": {
+     "commission_bps": 0.0,
+     "slippage_bps": 2.5
+    },
+    "IDX": {
+     "commission_bps": 7.5,
+     "slippage_bps": 12.5
+    }
+   },
+   "min_points": null,
+   "variants_tried": 8,
+   "is_headline": false,
+   "markets": [
+    {
+     "market": "US",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 12350,
+       "closed": 12311,
+       "open_at_end": 39,
+       "undenominated": 0,
+       "symbols": 1637,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.07311936361870477,
+       "expectancy_r_before_cost": 0.0964516435169206,
+       "cost_r": 0.023332279898215822,
+       "win_rate": 0.2437657379579238,
+       "wins": 3001,
+       "losses": 9310,
+       "total_r": 900.1724855098745,
+       "distribution": {
+        "min": -79.7843139583844,
+        "p10": -3.3981949880871154,
+        "q1": -2.2863964466469495,
+        "median": -1.345624837438982,
+        "q3": -0.015743025041601494,
+        "p90": 4.896761830136031,
+        "max": 141.88649293179913,
+        "mean_win": 6.687327540903655,
+        "mean_loss": -2.058914872689795
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1631,
+        "observations": 12311,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.06485858807423683,
+        "ci_high": 0.21373374713841672,
+        "p_value": 0.156
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 9131,
+       "closed": 9092,
+       "open_at_end": 39,
+       "undenominated": 0,
+       "symbols": 1403,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.057114111715022786,
+       "expectancy_r_before_cost": -0.032740986177761534,
+       "cost_r": 0.02437312553726126,
+       "win_rate": 0.23845138583369996,
+       "wins": 2168,
+       "losses": 6924,
+       "total_r": -519.2815037129872,
+       "distribution": {
+        "min": -79.7843139583844,
+        "p10": -3.411641723606394,
+        "q1": -2.280170851676,
+        "median": -1.346779618798446,
+        "q3": -0.022990707566488987,
+        "p90": 4.565163672893152,
+        "max": 108.89847005734916,
+        "mean_win": 6.308540467846129,
+        "mean_loss": -2.050288451473627
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1396,
+        "observations": 9092,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.21433063879399067,
+        "ci_high": 0.10879286471359524,
+        "p_value": 0.766
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    },
+    {
+     "market": "IDX",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 1201,
+       "closed": 1196,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 249,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.8711481387708223,
+       "expectancy_r_before_cost": 1.0624548521491868,
+       "cost_r": 0.19130671337836463,
+       "win_rate": 0.2508361204013378,
+       "wins": 300,
+       "losses": 896,
+       "total_r": 1041.8931739699035,
+       "distribution": {
+        "min": -16.74388740102322,
+        "p10": -3.6104570578221566,
+        "q1": -2.583782468744907,
+        "median": -1.7116628448396591,
+        "q3": 0.008098278192363424,
+        "p90": 7.759412706975352,
+        "max": 152.80275156111176,
+        "mean_win": 10.465996366914625,
+        "mean_loss": -2.3414126519023264
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 247,
+        "observations": 1196,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": 0.1661149712098096,
+        "ci_high": 1.6736939813215832,
+        "p_value": 0.007
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 991,
+       "closed": 986,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 227,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.47819686951924195,
+       "expectancy_r_before_cost": 0.672417923782193,
+       "cost_r": 0.19422105426295103,
+       "win_rate": 0.24746450304259635,
+       "wins": 244,
+       "losses": 742,
+       "total_r": 471.5021133459726,
+       "distribution": {
+        "min": -16.74388740102322,
+        "p10": -3.6482430117273426,
+        "q1": -2.6051802357060674,
+        "median": -1.697204607823274,
+        "q3": -0.10211391329578495,
+        "p90": 7.009887183240117,
+        "max": 152.80275156111176,
+        "mean_win": 9.108618434067774,
+        "mean_loss": -2.359839332299952
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 225,
+        "observations": 986,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.1829541939922724,
+        "ci_high": 1.1594826909830334,
+        "p_value": 0.0865
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "axis": "costs",
+   "label": "costs\u00d72",
+   "costs": {
+    "US": {
+     "commission_bps": 0.0,
+     "slippage_bps": 10.0
+    },
+    "IDX": {
+     "commission_bps": 30.0,
+     "slippage_bps": 50.0
+    }
+   },
+   "min_points": null,
+   "variants_tried": 8,
+   "is_headline": false,
+   "markets": [
+    {
+     "market": "US",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 12350,
+       "closed": 12311,
+       "open_at_end": 39,
+       "undenominated": 0,
+       "symbols": 1637,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.0031225239240573162,
+       "expectancy_r_before_cost": 0.0964516435169206,
+       "cost_r": 0.09332911959286329,
+       "win_rate": 0.2398667858013159,
+       "wins": 2953,
+       "losses": 9358,
+       "total_r": 38.44139202906962,
+       "distribution": {
+        "min": -79.953714814096,
+        "p10": -3.467895381079129,
+        "q1": -2.357676224892467,
+        "median": -1.4114327897072125,
+        "q3": -0.06772980826870675,
+        "p90": 4.827683151029962,
+        "max": 141.73387364543137,
+        "mean_win": 6.719968732777163,
+        "mean_loss": -2.116437943562929
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1631,
+        "observations": 12311,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.13487211804723667,
+        "ci_high": 0.1441522461881073,
+        "p_value": 0.5
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 9131,
+       "closed": 9092,
+       "open_at_end": 39,
+       "undenominated": 0,
+       "symbols": 1403,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.13023348832680656,
+       "expectancy_r_before_cost": -0.032740986177761534,
+       "cost_r": 0.09749250214904503,
+       "win_rate": 0.23460184777826662,
+       "wins": 2133,
+       "losses": 6959,
+       "total_r": -1184.0828758673254,
+       "distribution": {
+        "min": -79.953714814096,
+        "p10": -3.480906769372269,
+        "q1": -2.3552210663631845,
+        "median": -1.4166818543331445,
+        "q3": -0.0903324904134886,
+        "p90": 4.488865539833378,
+        "max": 108.76496113430612,
+        "mean_win": 6.332696771196162,
+        "mean_loss": -2.1111833724426985
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1396,
+        "observations": 9092,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.2869879746388958,
+        "ci_high": 0.03655093401441792,
+        "p_value": 0.943
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    },
+    {
+     "market": "IDX",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 1201,
+       "closed": 1196,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 249,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.2972279986357284,
+       "expectancy_r_before_cost": 1.0624548521491868,
+       "cost_r": 0.7652268535134585,
+       "win_rate": 0.225752508361204,
+       "wins": 270,
+       "losses": 926,
+       "total_r": 355.48468636833115,
+       "distribution": {
+        "min": -17.437421198698736,
+        "p10": -4.187349228597279,
+        "q1": -3.1730884213803305,
+        "median": -2.2314856473453855,
+        "q3": -0.5035892882968678,
+        "p90": 7.100942819645062,
+        "max": 151.52953700759386,
+        "mean_win": 10.97061960858957,
+        "mean_loss": -2.8148840258648518
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 247,
+        "observations": 1196,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.40091406329637086,
+        "ci_high": 1.1099613169671563,
+        "p_value": 0.2145
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 991,
+       "closed": 986,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 227,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.10446629326961117,
+       "expectancy_r_before_cost": 0.672417923782193,
+       "cost_r": 0.7768842170518041,
+       "win_rate": 0.2210953346855984,
+       "wins": 218,
+       "losses": 768,
+       "total_r": -103.00376516383662,
+       "distribution": {
+        "min": -17.437421198698736,
+        "p10": -4.241778662426871,
+        "q1": -3.2157882952919725,
+        "median": -2.2394296345391167,
+        "q3": -0.589744105122284,
+        "p90": 6.448792584814791,
+        "max": 151.52953700759386,
+        "mean_win": 9.529703181939304,
+        "mean_loss": -2.839165441180475
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 225,
+        "observations": 986,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.7656248546500748,
+        "ci_high": 0.5795950318867968,
+        "p_value": 0.632
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "axis": "costs",
+   "label": "costs\u00d73",
+   "costs": {
+    "US": {
+     "commission_bps": 0.0,
+     "slippage_bps": 15.0
+    },
+    "IDX": {
+     "commission_bps": 45.0,
+     "slippage_bps": 75.0
+    }
+   },
+   "min_points": null,
+   "variants_tried": 8,
+   "is_headline": false,
+   "markets": [
+    {
+     "market": "US",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 12350,
+       "closed": 12311,
+       "open_at_end": 39,
+       "undenominated": 0,
+       "symbols": 1637,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.04354203587237431,
+       "expectancy_r_before_cost": 0.0964516435169206,
+       "cost_r": 0.1399936793892949,
+       "win_rate": 0.23816099423279993,
+       "wins": 2932,
+       "losses": 9379,
+       "total_r": -536.0460036248002,
+       "distribution": {
+        "min": -80.06664871790375,
+        "p10": -3.513912491689066,
+        "q1": -2.401437547885156,
+        "median": -1.4547124959719955,
+        "q3": -0.10124940164184232,
+        "p90": 4.768493814381675,
+        "max": 141.63212745451952,
+        "mean_win": 6.717646518492918,
+        "mean_loss": -2.157179400346096
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1631,
+        "observations": 12311,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.1814505957868228,
+        "ci_high": 0.09794789776293701,
+        "p_value": 0.734
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 9131,
+       "closed": 9092,
+       "open_at_end": 39,
+       "undenominated": 0,
+       "symbols": 1403,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.17897973940132908,
+       "expectancy_r_before_cost": -0.032740986177761534,
+       "cost_r": 0.14623875322356755,
+       "win_rate": 0.23306203255609326,
+       "wins": 2119,
+       "losses": 6973,
+       "total_r": -1627.283790636884,
+       "distribution": {
+        "min": -80.06664871790375,
+        "p10": -3.5336191951929994,
+        "q1": -2.4000968031057552,
+        "median": -1.4613732689999999,
+        "q3": -0.13507400238615275,
+        "p90": 4.427076032647465,
+        "max": 108.67595518561076,
+        "mean_win": 6.321953722314034,
+        "mean_loss": -2.1545251295310948
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1396,
+        "observations": 9092,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.33544617075403926,
+        "ci_high": -0.012201935902383755,
+        "p_value": 0.984
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    },
+    {
+     "market": "IDX",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 1201,
+       "closed": 1196,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 249,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.0853854281210008,
+       "expectancy_r_before_cost": 1.0624548521491868,
+       "cost_r": 1.1478402802701877,
+       "win_rate": 0.21739130434782608,
+       "wins": 260,
+       "losses": 936,
+       "total_r": -102.12097203271696,
+       "distribution": {
+        "min": -17.899777063815748,
+        "p10": -4.64324040448459,
+        "q1": -3.577840809259297,
+        "median": -2.5647794820717653,
+        "q3": -0.8190593758321061,
+        "p90": 6.6824840350571115,
+        "max": 150.6807273052486,
+        "mean_win": 10.965418010891703,
+        "mean_loss": -3.155053050068974
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 247,
+        "observations": 1196,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.7856394085552378,
+        "ci_high": 0.7169169499439992,
+        "p_value": 0.6065
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 991,
+       "closed": 986,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 227,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.4929084017955132,
+       "expectancy_r_before_cost": 0.672417923782193,
+       "cost_r": 1.1653263255777062,
+       "win_rate": 0.21196754563894524,
+       "wins": 209,
+       "losses": 777,
+       "total_r": -486.007684170376,
+       "distribution": {
+        "min": -17.899777063815748,
+        "p10": -4.71895707775405,
+        "q1": -3.649285996242626,
+        "median": -2.576802014662589,
+        "q3": -0.8980655643612931,
+        "p90": 6.0709250230258185,
+        "max": 150.6807273052486,
+        "mean_win": 9.509681585043538,
+        "mean_loss": -3.1834377547547943
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 225,
+        "observations": 986,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -1.153992030927698,
+        "ci_high": 0.19325390269055406,
+        "p_value": 0.9245
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "axis": "score_floor",
+   "label": "score>=3",
+   "costs": {
+    "US": {
+     "commission_bps": 0.0,
+     "slippage_bps": 5.0
+    },
+    "IDX": {
+     "commission_bps": 15.0,
+     "slippage_bps": 25.0
+    }
+   },
+   "min_points": 3,
+   "variants_tried": 8,
+   "is_headline": false,
+   "markets": [
+    {
+     "market": "US",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 11495,
+       "closed": 11458,
+       "open_at_end": 37,
+       "undenominated": 0,
+       "symbols": 1598,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.08796190311282605,
+       "expectancy_r_before_cost": 0.13290417757355955,
+       "cost_r": 0.044942274460733504,
+       "win_rate": 0.24489439692791062,
+       "wins": 2806,
+       "losses": 8652,
+       "total_r": 1007.8674858667608,
+       "distribution": {
+        "min": -79.84078091028827,
+        "p10": -3.4133407182316544,
+        "q1": -2.301106664326944,
+        "median": -1.3564753868552546,
+        "q3": -0.024951801966002454,
+        "p90": 4.909175386546767,
+        "max": 141.8356198363432,
+        "mean_win": 6.7604921162119,
+        "mean_loss": -2.076060262624113
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1593,
+        "observations": 11458,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.05550091698960012,
+        "ci_high": 0.23631552513247517,
+        "p_value": 0.1275
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 8387,
+       "closed": 8350,
+       "open_at_end": 37,
+       "undenominated": 0,
+       "symbols": 1364,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.048275350404457996,
+       "expectancy_r_before_cost": -0.0014216283840591758,
+       "cost_r": 0.046853722020398815,
+       "win_rate": 0.23904191616766468,
+       "wins": 1996,
+       "losses": 6354,
+       "total_r": -403.0991758772243,
+       "distribution": {
+        "min": -79.84078091028827,
+        "p10": -3.437793241913595,
+        "q1": -2.299178103034599,
+        "median": -1.3624379381828529,
+        "q3": -0.03957980480711389,
+        "p90": 4.557216218228491,
+        "max": 108.85396708300148,
+        "mean_win": 6.387366882062536,
+        "mean_loss": -2.069921855913448
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1358,
+        "observations": 8350,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.21474093169921146,
+        "ci_high": 0.12852174200073777,
+        "p_value": 0.743
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    },
+    {
+     "market": "IDX",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 1128,
+       "closed": 1123,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 246,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.7566748309289869,
+       "expectancy_r_before_cost": 1.1259230337440767,
+       "cost_r": 0.3692482028150896,
+       "win_rate": 0.24220837043633126,
+       "wins": 272,
+       "losses": 851,
+       "total_r": 849.7458351332523,
+       "distribution": {
+        "min": -16.975065333581725,
+        "p10": -3.7892606414989767,
+        "q1": -2.7721543347943998,
+        "median": -1.8855855948037916,
+        "q3": -0.1911068268386259,
+        "p90": 7.626925637076508,
+        "max": 152.37834670993914,
+        "mean_win": 10.939024557009091,
+        "mean_loss": -2.497848230755841
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 244,
+        "observations": 1123,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.01617682707230958,
+        "ci_high": 1.5433143454768448,
+        "p_value": 0.0275
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 928,
+       "closed": 923,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 221,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.3212082087969425,
+       "expectancy_r_before_cost": 0.6958129652053602,
+       "cost_r": 0.37460475640841784,
+       "win_rate": 0.2372697724810401,
+       "wins": 219,
+       "losses": 704,
+       "total_r": 296.4751767195779,
+       "distribution": {
+        "min": -16.975065333581725,
+        "p10": -3.8173165992776936,
+        "q1": -2.805392060014321,
+        "median": -1.8859448721062855,
+        "q3": -0.2280616926989284,
+        "p90": 6.827509392687234,
+        "max": 152.37834670993914,
+        "mean_win": 9.454221123548606,
+        "mean_loss": -2.5198852973544983
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 219,
+        "observations": 923,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.347733296605251,
+        "ci_high": 1.065649171530201,
+        "p_value": 0.1945
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "axis": "score_floor",
+   "label": "score>=4",
+   "costs": {
+    "US": {
+     "commission_bps": 0.0,
+     "slippage_bps": 5.0
+    },
+    "IDX": {
+     "commission_bps": 15.0,
+     "slippage_bps": 25.0
+    }
+   },
+   "min_points": 4,
+   "variants_tried": 8,
+   "is_headline": false,
+   "markets": [
+    {
+     "market": "US",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 9735,
+       "closed": 9703,
+       "open_at_end": 32,
+       "undenominated": 0,
+       "symbols": 1518,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.1533449391454318,
+       "expectancy_r_before_cost": 0.19609598979047874,
+       "cost_r": 0.04275105064504696,
+       "win_rate": 0.24847985159229105,
+       "wins": 2411,
+       "losses": 7292,
+       "total_r": 1487.9059445281246,
+       "distribution": {
+        "min": -79.84078091028827,
+        "p10": -3.353695307275599,
+        "q1": -2.2776416390062755,
+        "median": -1.3326058487246475,
+        "q3": -0.01456030767518484,
+        "p90": 5.047315379469219,
+        "max": 141.8356198363432,
+        "mean_win": 6.827844650741195,
+        "mean_loss": -2.0534870417455977
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1513,
+        "observations": 9703,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.003727513281178097,
+        "ci_high": 0.3130567459205762,
+        "p_value": 0.029
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 6989,
+       "closed": 6957,
+       "open_at_end": 32,
+       "undenominated": 0,
+       "symbols": 1274,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.006870841442622314,
+       "expectancy_r_before_cost": 0.05117915714175028,
+       "cost_r": 0.044308315699127965,
+       "win_rate": 0.24248957884145464,
+       "wins": 1687,
+       "losses": 5270,
+       "total_r": 47.80044391632344,
+       "distribution": {
+        "min": -79.84078091028827,
+        "p10": -3.3939510260800505,
+        "q1": -2.2616596763734416,
+        "median": -1.337337556248622,
+        "q3": -0.030562195363544018,
+        "p90": 4.696695683000373,
+        "max": 108.85396708300148,
+        "mean_win": 6.437373819789978,
+        "mean_loss": -2.051622237204814
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1269,
+        "observations": 6957,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.1652411192293831,
+        "ci_high": 0.19502408551979655,
+        "p_value": 0.474
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    },
+    {
+     "market": "IDX",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 973,
+       "closed": 968,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 232,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.887227569259592,
+       "expectancy_r_before_cost": 1.2362492771429634,
+       "cost_r": 0.34902170788337145,
+       "win_rate": 0.25,
+       "wins": 242,
+       "losses": 726,
+       "total_r": 858.8362870432851,
+       "distribution": {
+        "min": -16.975065333581725,
+        "p10": -3.8300844829733505,
+        "q1": -2.771895113710776,
+        "median": -1.855285720405917,
+        "q3": -0.001420334375442485,
+        "p90": 7.984462025041692,
+        "max": 152.37834670993914,
+        "mean_win": 11.090723352798383,
+        "mean_loss": -2.513937691920005
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 230,
+        "observations": 968,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": 0.06814952108837977,
+        "ci_high": 1.8026287735134678,
+        "p_value": 0.0155
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 791,
+       "closed": 786,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 203,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.4242190298225005,
+       "expectancy_r_before_cost": 0.7777102142376622,
+       "cost_r": 0.35349118441516175,
+       "win_rate": 0.24681933842239187,
+       "wins": 194,
+       "losses": 592,
+       "total_r": 333.4361574404854,
+       "distribution": {
+        "min": -16.975065333581725,
+        "p10": -3.883650431804166,
+        "q1": -2.8121506203200157,
+        "median": -1.8566568090804763,
+        "q3": -0.0815800044800956,
+        "p90": 7.182417696618602,
+        "max": 152.37834670993914,
+        "mean_win": 9.483044568114066,
+        "mean_loss": -2.544382582387911
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 201,
+        "observations": 786,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.3092458578475623,
+        "ci_high": 1.2880498173351949,
+        "p_value": 0.141
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "axis": "score_floor",
+   "label": "score>=5",
+   "costs": {
+    "US": {
+     "commission_bps": 0.0,
+     "slippage_bps": 5.0
+    },
+    "IDX": {
+     "commission_bps": 15.0,
+     "slippage_bps": 25.0
+    }
+   },
+   "min_points": 5,
+   "variants_tried": 8,
+   "is_headline": false,
+   "markets": [
+    {
+     "market": "US",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 6899,
+       "closed": 6875,
+       "open_at_end": 24,
+       "undenominated": 0,
+       "symbols": 1364,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.14023811943617906,
+       "expectancy_r_before_cost": 0.18154743475999607,
+       "cost_r": 0.04130931532381701,
+       "win_rate": 0.25032727272727273,
+       "wins": 1721,
+       "losses": 5154,
+       "total_r": 964.1370711237311,
+       "distribution": {
+        "min": -79.84078091028827,
+        "p10": -3.3147914689279023,
+        "q1": -2.238807804943581,
+        "median": -1.3195253428910807,
+        "q3": 0.006765380058719924,
+        "p90": 5.046419003821679,
+        "max": 141.8356198363432,
+        "mean_win": 6.679036500760948,
+        "mean_loss": -2.043167393613865
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1360,
+        "observations": 6875,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.03720289978890026,
+        "ci_high": 0.3199374737375394,
+        "p_value": 0.067
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 4908,
+       "closed": 4884,
+       "open_at_end": 24,
+       "undenominated": 0,
+       "symbols": 1127,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.059292514706719486,
+       "expectancy_r_before_cost": -0.016561101247225304,
+       "cost_r": 0.04273141345949417,
+       "win_rate": 0.24037674037674037,
+       "wins": 1174,
+       "losses": 3710,
+       "total_r": -289.584641827618,
+       "distribution": {
+        "min": -79.84078091028827,
+        "p10": -3.381115887723297,
+        "q1": -2.2323282969966085,
+        "median": -1.3205987508845012,
+        "q3": -0.03411506036916904,
+        "p90": 4.572299143733374,
+        "max": 91.84238367531734,
+        "mean_win": 6.2117460276237315,
+        "mean_loss": -2.0437127973740914
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1123,
+        "observations": 4884,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.24930462562005842,
+        "ci_high": 0.13602418760179405,
+        "p_value": 0.735
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    },
+    {
+     "market": "IDX",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 710,
+       "closed": 705,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 205,
+       "price_scale_dropped": 0,
+       "expectancy_r": 1.2446217683301728,
+       "expectancy_r_before_cost": 1.5876608891471227,
+       "cost_r": 0.34303912081694987,
+       "win_rate": 0.2553191489361702,
+       "wins": 180,
+       "losses": 525,
+       "total_r": 877.4583466727719,
+       "distribution": {
+        "min": -16.975065333581725,
+        "p10": -3.7531749874339204,
+        "q1": -2.735551275436347,
+        "median": -1.8294983157862892,
+        "q3": 0.2374044185024538,
+        "p90": 8.448041356957285,
+        "max": 152.37834670993914,
+        "mean_win": 12.157623912321737,
+        "mean_loss": -2.496978966752649
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 203,
+        "observations": 705,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": 0.2710443666262441,
+        "ci_high": 2.3144957462114433,
+        "p_value": 0.0045
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 576,
+       "closed": 571,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 178,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.5738145121392559,
+       "expectancy_r_before_cost": 0.9210050670749668,
+       "cost_r": 0.3471905549357107,
+       "win_rate": 0.24518388791593695,
+       "wins": 140,
+       "losses": 431,
+       "total_r": 327.64808643151514,
+       "distribution": {
+        "min": -16.975065333581725,
+        "p10": -3.7804242683654454,
+        "q1": -2.805392060014321,
+        "median": -1.8484959732400028,
+        "q3": -0.08380190951263497,
+        "p90": 6.831353273494596,
+        "max": 152.37834670993914,
+        "mean_win": 10.133562875308012,
+        "mean_loss": -2.5314401765930548
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 176,
+        "observations": 571,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.3430981573616661,
+        "ci_high": 1.6080027793151632,
+        "p_value": 0.1165
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "axis": "score_floor",
+   "label": "score>=6",
+   "costs": {
+    "US": {
+     "commission_bps": 0.0,
+     "slippage_bps": 5.0
+    },
+    "IDX": {
+     "commission_bps": 15.0,
+     "slippage_bps": 25.0
+    }
+   },
+   "min_points": 6,
+   "variants_tried": 8,
+   "is_headline": false,
+   "markets": [
+    {
+     "market": "US",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 3372,
+       "closed": 3360,
+       "open_at_end": 12,
+       "undenominated": 0,
+       "symbols": 1089,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.05090798492135268,
+       "expectancy_r_before_cost": 0.09124698750790824,
+       "cost_r": 0.04033900258655556,
+       "win_rate": 0.24851190476190477,
+       "wins": 835,
+       "losses": 2525,
+       "total_r": 171.050829335745,
+       "distribution": {
+        "min": -79.84078091028827,
+        "p10": -3.224737234775412,
+        "q1": -2.2292775203482287,
+        "median": -1.3450346086084013,
+        "q3": -0.012872718984354459,
+        "p90": 4.95269905413564,
+        "max": 141.8356198363432,
+        "mean_win": 6.442631232414594,
+        "mean_loss": -2.06279059395265
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 1085,
+        "observations": 3360,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.19222216802836345,
+        "ci_high": 0.3188320492136058,
+        "p_value": 0.3785
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 2326,
+       "closed": 2314,
+       "open_at_end": 12,
+       "undenominated": 0,
+       "symbols": 853,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.1518254768444007,
+       "expectancy_r_before_cost": -0.10989566886091673,
+       "cost_r": 0.04192980798348398,
+       "win_rate": 0.23725151253241142,
+       "wins": 549,
+       "losses": 1765,
+       "total_r": -351.32415341794325,
+       "distribution": {
+        "min": -79.84078091028827,
+        "p10": -3.256139663717321,
+        "q1": -2.213077908772429,
+        "median": -1.3509422192257188,
+        "q3": -0.04052995248193472,
+        "p90": 4.370518100866245,
+        "max": 71.77479678331282,
+        "mean_win": 6.056924149824692,
+        "mean_loss": -2.0830456156780164
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 849,
+        "observations": 2314,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.4184946074206339,
+        "ci_high": 0.11260802827106836,
+        "p_value": 0.8895
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    },
+    {
+     "market": "IDX",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 366,
+       "closed": 363,
+       "open_at_end": 3,
+       "undenominated": 0,
+       "symbols": 150,
+       "price_scale_dropped": 0,
+       "expectancy_r": 1.87911283646284,
+       "expectancy_r_before_cost": 2.2161562177538103,
+       "cost_r": 0.33704338129097,
+       "win_rate": 0.2892561983471074,
+       "wins": 105,
+       "losses": 258,
+       "total_r": 682.1179596360109,
+       "distribution": {
+        "min": -16.975065333581725,
+        "p10": -3.621214658986501,
+        "q1": -2.576696928195895,
+        "median": -1.7662770519506719,
+        "q3": 1.1155218051408822,
+        "p90": 9.687890041170682,
+        "max": 78.79666635309991,
+        "mean_win": 12.521003497295052,
+        "mean_loss": -2.451889176666548
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 148,
+        "observations": 363,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": 0.4894627273750939,
+        "ci_high": 3.4785307813490345,
+        "p_value": 0.0025
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 284,
+       "closed": 281,
+       "open_at_end": 3,
+       "undenominated": 0,
+       "symbols": 125,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.7992157890758008,
+       "expectancy_r_before_cost": 1.138460136210992,
+       "cost_r": 0.3392443471351912,
+       "win_rate": 0.27402135231316727,
+       "wins": 77,
+       "losses": 204,
+       "total_r": 224.57963673030002,
+       "distribution": {
+        "min": -16.975065333581725,
+        "p10": -3.6244548857507133,
+        "q1": -2.6643616500231926,
+        "median": -1.7721445693083862,
+        "q3": 0.824412218176658,
+        "p90": 8.671744477277066,
+        "max": 67.34080949576396,
+        "mean_win": 9.502367666568633,
+        "mean_loss": -2.4857974195857095
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 123,
+        "observations": 281,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.2196021298256279,
+        "ci_high": 1.9654288028093099,
+        "p_value": 0.067
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "axis": "score_floor",
+   "label": "score>=7",
+   "costs": {
+    "US": {
+     "commission_bps": 0.0,
+     "slippage_bps": 5.0
+    },
+    "IDX": {
+     "commission_bps": 15.0,
+     "slippage_bps": 25.0
+    }
+   },
+   "min_points": 7,
+   "variants_tried": 8,
+   "is_headline": false,
+   "markets": [
+    {
+     "market": "US",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 1363,
+       "closed": 1358,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 683,
+       "price_scale_dropped": 0,
+       "expectancy_r": 0.025863776660424245,
+       "expectancy_r_before_cost": 0.06531419214679803,
+       "cost_r": 0.03945041548637376,
+       "win_rate": 0.2503681885125184,
+       "wins": 340,
+       "losses": 1018,
+       "total_r": 35.123008704856126,
+       "distribution": {
+        "min": -35.977822684303476,
+        "p10": -3.162841581241031,
+        "q1": -2.225329805826828,
+        "median": -1.3539311806709207,
+        "q3": 0.00651112189201947,
+        "p90": 5.138743297931697,
+        "max": 141.8356198363432,
+        "mean_win": 6.266342404407619,
+        "mean_loss": -2.05838252337302
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 680,
+        "observations": 1358,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.3212391407126003,
+        "ci_high": 0.422561487742378,
+        "p_value": 0.4575
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 976,
+       "closed": 971,
+       "open_at_end": 5,
+       "undenominated": 0,
+       "symbols": 530,
+       "price_scale_dropped": 0,
+       "expectancy_r": -0.24368286298452724,
+       "expectancy_r_before_cost": -0.2029970077050882,
+       "cost_r": 0.040685855279439034,
+       "win_rate": 0.23583934088568487,
+       "wins": 229,
+       "losses": 742,
+       "total_r": -236.61605995797595,
+       "distribution": {
+        "min": -35.977822684303476,
+        "p10": -3.2623085340262423,
+        "q1": -2.2348992755774795,
+        "median": -1.3961321252290744,
+        "q3": -0.04808504694162927,
+        "p90": 4.080593724435789,
+        "max": 71.77479678331282,
+        "mean_win": 5.770497020980768,
+        "mean_loss": -2.0998111560142476
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 527,
+        "observations": 971,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": -0.6039882547093967,
+        "ci_high": 0.1495486035770346,
+        "p_value": 0.8995
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    },
+    {
+     "market": "IDX",
+     "variants_tried": 8,
+     "is_headline": false,
+     "windows": [
+      {
+       "label": "full",
+       "trades": 185,
+       "closed": 183,
+       "open_at_end": 2,
+       "undenominated": 0,
+       "symbols": 101,
+       "price_scale_dropped": 0,
+       "expectancy_r": 2.4120397337769375,
+       "expectancy_r_before_cost": 2.736849251264866,
+       "cost_r": 0.3248095174879287,
+       "win_rate": 0.31693989071038253,
+       "wins": 58,
+       "losses": 125,
+       "total_r": 441.40327128117957,
+       "distribution": {
+        "min": -5.515805778698579,
+        "p10": -3.2715718807534957,
+        "q1": -2.4245366344450208,
+        "median": -1.7271510077330527,
+        "q3": 2.1055127411520376,
+        "p90": 9.585233580535013,
+        "max": 76.78301057565258,
+        "mean_win": 12.548170684685328,
+        "mean_loss": -2.2911250274445556
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 100,
+        "observations": 183,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": 0.6877097682032314,
+        "ci_high": 4.311127077217936,
+        "p_value": 0.0045
+       }
+      },
+      {
+       "label": "excluding_2020_2021",
+       "trades": 138,
+       "closed": 136,
+       "open_at_end": 2,
+       "undenominated": 0,
+       "symbols": 78,
+       "price_scale_dropped": 0,
+       "expectancy_r": 1.6284398273664227,
+       "expectancy_r_before_cost": 1.962915692556627,
+       "cost_r": 0.33447586519020445,
+       "win_rate": 0.3088235294117647,
+       "wins": 42,
+       "losses": 94,
+       "total_r": 221.46781652183347,
+       "distribution": {
+        "min": -5.515805778698579,
+        "p10": -3.262175627458838,
+        "q1": -2.3678264501174566,
+        "median": -1.7067562012253097,
+        "q3": 2.233759534953332,
+        "p90": 8.805944249873306,
+        "max": 67.34080949576396,
+        "mean_win": 10.320754655265963,
+        "mean_loss": -2.255360414886564
+       },
+       "bootstrap": {
+        "cluster": "symbol",
+        "clusters": 77,
+        "observations": 136,
+        "resamples": 2000,
+        "seed": 191,
+        "confidence": 0.95,
+        "min_clusters": 5,
+        "suppressed": null,
+        "ci_low": 0.208063011159547,
+        "ci_high": 3.393087896221871,
+        "p_value": 0.01
+       },
+       "excluded_years": [
+        2020,
+        2021
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "note": "every threshold tried is a test, and enough of them will produce a winner from noise; three exit arms and three regime states are already nine views of one dataset before any sweep begins, so every swept figure is reported with the count of variants behind it",
+ "headline_rule": "the pre-registered figure stands as the headline even where a swept variant looks better; a swept variant may not break a tie and licenses nothing"
+}

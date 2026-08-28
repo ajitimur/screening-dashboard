@@ -1,0 +1,169 @@
+favourable outcome: R > 0 on a closed trade, before costs
+note: these are before costs — commission and slippage are applied by the phase that computes the pre-registered primary metric, and precision computed before them overstates
+
+US — detections per session, 2012–2026
+  the contract's close > SMA50 universe gate overlaps the detector's own trend logic, so these counts sit below an unfiltered run — the gate working, not the detector becoming more selective
+
+  year  sessions  detections  per session
+  2012       250        1927    7.708  ████
+  2013       252        1671    6.631  ███
+  2014       252        1940    7.698  ████
+  2015       252        2760   10.952  █████
+  2016       252        3471   13.774  ██████
+  2017       251        2336    9.307  ████
+  2018       251        3650   14.542  ███████
+  2019       252        4036   16.016  ███████
+  2020       253       12684   50.134  ███████████████████████
+  2021       252       12150   48.214  ██████████████████████
+  2022       251       10269   40.912  ███████████████████
+  2023       250        7514   30.056  ██████████████
+  2024       252        8379   33.250  ███████████████
+  2025       250       12182   48.728  ██████████████████████
+  2026       162       11945   73.735  ██████████████████████████████████
+
+  year  detections  decided  triggered  precision A  precision B  precision C
+  2012        1927     1927   273 /1927     78 /1927     65 /1927     53 /1927
+  2013        1671     1671   231 /1671     77 /1671     71 /1671     63 /1671
+  2014        1940     1938   226 /1938     53 /1938     47 /1938     45 /1938
+  2015        2760     2757   317 /2757     85 /2757     72 /2757     57 /2757
+  2016        3471     3471   438 /3471    155 /3471    132 /3471    124 /3471
+  2017        2336     2336   304 /2336     92 /2336     76 /2336     70 /2336
+  2018        3650     3650   448 /3650    128 /3650    108 /3650     92 /3650
+  2019        4036     4036   560 /4036    161 /4036    141 /4036    117 /4036
+  2020       12684    12684  1737 /12684    561 /12684    499 /12684    444 /12684
+  2021       12150    12149  1485 /12149    415 /12149    334 /12149    257 /12149
+  2022       10269    10269  1403 /10269    363 /10269    304 /10269    250 /10269
+  2023        7514     7514   900 /7514    231 /7514    202 /7514    161 /7514
+  2024        8379     8379  1028 /8379    290 /8379    254 /8379    223 /8379
+  2025       12182    12182  1420 /12182    409 /12182    367 /12182    330 /12182
+  2026       11945    11867  1592 /11867    394 /11816    338 /11816    249 /11788
+
+  detections per session by month  (JFMAMJJASOND)
+    · is a month inside the window the store never covered — a hole, not a quiet month
+
+    2012  ▁▂▂▁▁▁▁▂▁▁▁▁
+    2013  ▁▁▁▁▁▁▁▁▁▁▁▁
+    2014  ▁▂▂▂▁▁▂▁▁▁▁▁
+    2015  ▁▂▁▂▂▁▁▁▂▂▂▂
+    2016  ▁▂▃▂▂▂▁▂▁▁▁▂
+    2017  ▂▁▂▁▁▂▂▂▁▂▁▂
+    2018  ▂▂▂▂▂▂▂▁▂▁▂▂
+    2019  ▂▂▂▂▂▂▂▂▂▂▂▂
+    2020  ▂▂▂▃▆█▄▄▃▃▄▄
+    2021  ▄▆▆▄▃▃▃▂▃▃▃▃
+    2022  ▂▃▄▃▂▃▄▄▃▂▅▄
+    2023  ▃▅▃▂▂▃▃▃▂▂▂▂
+    2024  ▃▂▃▃▂▃▃▃▃▃▃▃
+    2025  ▄▃▃▃▄▃▄▄▃▅▄▅
+    2026  ▄▅▄▄▅▆▇▅    
+
+  sessions measured   3682
+  detections          96914
+  triggered           12.8% (12362 of 96830)
+  never broke         84468  (asked, and the market said no — in precision's denominator)
+  unfilled            12  (triggered, and the window ended before a fill)
+  undecided           84  (the bars could not answer these; they are not misses)
+  price-scale flag would drop 0 of the trades behind these figures
+
+  arm A
+    filled            12350
+    closed            12311
+    open at end       39  (no outcome — never counted as a loss)
+    precision         3.6% (3492 of 96779)  — of every answered detection
+    win rate          28.4% (3492 of 12311)  — of the trades taken
+  arm B
+    filled            12350
+    closed            12311
+    open at end       39  (no outcome — never counted as a loss)
+    precision         3.1% (3010 of 96779)  — of every answered detection
+    win rate          24.4% (3010 of 12311)  — of the trades taken
+  arm C
+    filled            12350
+    closed            12283
+    open at end       67  (no outcome — never counted as a loss)
+    precision         2.6% (2535 of 96751)  — of every answered detection
+    win rate          20.6% (2535 of 12283)  — of the trades taken
+
+IDX — detections per session, 2012–2026
+  the contract's close > SMA50 universe gate overlaps the detector's own trend logic, so these counts sit below an unfiltered run — the gate working, not the detector becoming more selective
+
+  year  sessions  detections  per session
+  2012       246         452    1.837  ██████████
+  2013       244         829    3.398  ██████████████████
+  2014       242         515    2.128  ████████████
+  2015       244         469    1.922  ██████████
+  2016       246         636    2.585  ██████████████
+  2017       238         460    1.933  ██████████
+  2018       240         664    2.767  ███████████████
+  2019       245         807    3.294  ██████████████████
+  2020       242        1032    4.264  ███████████████████████
+  2021       247        1461    5.915  ████████████████████████████████
+  2022       246        1307    5.313  █████████████████████████████
+  2023       239         819    3.427  ███████████████████
+  2024       237        1069    4.511  ████████████████████████
+  2025       236        1361    5.767  ███████████████████████████████
+  2026       150         940    6.267  ██████████████████████████████████
+
+  year  detections  decided  triggered  precision A  precision B  precision C
+  2012         452      450    33 / 450     13 / 450     11 / 450     11 / 450
+  2013         829      820    73 / 820     21 / 820     19 / 820     18 / 820
+  2014         515      515    74 / 515     19 / 515     16 / 515     16 / 515
+  2015         469      469    40 / 469     11 / 469      8 / 469      4 / 469
+  2016         636      611    49 / 611     14 / 611     13 / 611     12 / 611
+  2017         460      456    42 / 456     19 / 456     17 / 456     16 / 456
+  2018         664      642    78 / 642     26 / 642     23 / 642     22 / 642
+  2019         807      804    67 / 804     16 / 804     13 / 804     10 / 804
+  2020        1032     1031    89 /1031     27 /1031     27 /1031     23 /1031
+  2021        1461     1459   123 /1459     35 /1459     31 /1459     31 /1459
+  2022        1307     1306   115 /1306     30 /1306     25 /1306     23 /1306
+  2023         819      819    75 / 819     25 / 819     21 / 819     21 / 819
+  2024        1069     1060   114 /1060     31 /1060     24 /1060     23 /1060
+  2025        1361     1359   142 /1359     45 /1359     39 /1359     35 /1359
+  2026         940      926    89 / 926     21 / 919     15 / 919     10 / 917
+
+  detections per session by month  (JFMAMJJASOND)
+    · is a month inside the window the store never covered — a hole, not a quiet month
+
+    2012  ▂▃▂▂▃▂▃▂▂▂▂▂
+    2013  ▃▂▃▅▂▃▂▂▅▅▃▃
+    2014  ▂▂▃▃▃▂▂▃▂▃▂▂
+    2015  ▂▂▂▂▃▂▂▂▁▃▃▃
+    2016  ▃▃▃▃▃▂▂▃▂▂▃▃
+    2017  ▂▃▂▃▂▄▂▂▂▂▂▂
+    2018  ▂▃▃▃▂▂▃▄▄▂▂▃
+    2019  ▃▄▃▃▂▃▄▃▃▃▃▃
+    2020  ▃▂▂▂▄█▄▅▅▃▄▄
+    2021  ▆▅▆▃▂▃▄▆▇▆▄▅
+    2022  ▄▃▅▅▅▅▃▄▅▄▅▄
+    2023  ▂▄▄▂▂▄▄▄▃▃▃▃
+    2024  ▄▃▃▄▄▄▃▄▄▅▅▃
+    2025  ▃▃▄▃▅▆▅▇▅▄▇▅
+    2026  ▆▇▅▆▅▃▄▅    
+
+  sessions measured   3542
+  detections          12821
+  triggered           9.5% (1203 of 12727)
+  never broke         11524  (asked, and the market said no — in precision's denominator)
+  unfilled            2  (triggered, and the window ended before a fill)
+  undecided           94  (the bars could not answer these; they are not misses)
+  price-scale flag would drop 0 of the trades behind these figures
+
+  arm A
+    filled            1201
+    closed            1196
+    open at end       5  (no outcome — never counted as a loss)
+    precision         2.8% (353 of 12720)  — of every answered detection
+    win rate          29.5% (353 of 1196)  — of the trades taken
+  arm B
+    filled            1201
+    closed            1196
+    open at end       5  (no outcome — never counted as a loss)
+    precision         2.4% (302 of 12720)  — of every answered detection
+    win rate          25.3% (302 of 1196)  — of the trades taken
+  arm C
+    filled            1201
+    closed            1194
+    open at end       7  (no outcome — never counted as a loss)
+    precision         2.2% (275 of 12718)  — of every answered detection
+    win rate          23.0% (275 of 1194)  — of the trades taken
+

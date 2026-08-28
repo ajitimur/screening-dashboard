@@ -70,6 +70,29 @@ REPLAY_MARKET = "US"
 # turns the rot into a failing test rather than a quiet contamination.
 REPLAY_REFERENCES = {MARKET_INDEX[REPLAY_MARKET], "SPY", "QQQ", "IWM", "DIA"}
 
+# The blocklist per market (#183). Market is threaded through the whole chain, so
+# the reference exclusion must be the *replayed* market's rather than a constant
+# fixed to US: ``QQQ`` is a US benchmark but an ordinary common stock on IDX, and
+# applying :data:`REPLAY_REFERENCES` to another market would strike it wrongly.
+# Only US has study benchmarks copied into a replay store; a market with none
+# named falls back to its own index alone — which :func:`is_common_stock` already
+# rejects on the ``^`` mark, so the fallback restates the existing exclusion
+# rather than adding one, and keeps the set a function of the market either way.
+REPLAY_REFERENCES_BY_MARKET: dict[str, set[str]] = {REPLAY_MARKET: REPLAY_REFERENCES}
+
+
+def replay_references(market: str) -> set[str]:
+    """The benchmark references to exclude from ``market``'s ranked field (#162).
+
+    US carries the five benchmarks copied into ``data/replay.duckdb``
+    (:data:`REPLAY_REFERENCES`); any other market has none named and falls back to
+    its own :data:`~screener.source.MARKET_INDEX`, which is a no-op restatement of
+    the ``^``-mark exclusion. Reading the set off the market is what keeps the
+    blocklist from being a US-only constant applied to whatever the chain replays.
+    """
+    return REPLAY_REFERENCES_BY_MARKET.get(market, {MARKET_INDEX[market]})
+
+
 # A fixed, deterministic stamp for the run record the chain writes as each
 # session's "already computed" marker (issue #126). The replay has no wall clock —
 # the same store rebuilt twice must produce byte-identical run records — so the
@@ -100,8 +123,11 @@ class SessionField:
     """One session's replayed field: its universe members, their ranks, and the
     coverage against the blind-spot tickers.
 
-    ``burn_in`` marks a session computed only to settle the chain; the reported
-    results carry ``burn_in=False`` exclusively. ``blind_spot_count`` is the
+    ``burn_in`` marks a session computed only to settle the chain. It is dropped
+    from the chain's result unless the caller asks for it
+    (``replay_chain(..., include_burn_in=True)``), so a reported result carries
+    ``burn_in=False`` unless someone deliberately opted the settling sessions in.
+    ``blind_spot_count`` is the
     number of known names missing from the field entirely — the coverage figure
     every field-derived output must carry (user story 22). It cannot be dated
     (a blind-spot ticker has no bars), so it is the same standing count on every
@@ -137,12 +163,14 @@ def synthesize_instruments(store: Store, market: str = REPLAY_MARKET) -> list[In
     name left to read them by. The symbol is the whole of the identity that
     survived the copy, so both halves of the exclusion are read off it:
     ``is_common_stock`` rejects the index on its ``^``, and
-    :data:`REPLAY_REFERENCES` names the benchmark ETFs, which carry no mark at all.
+    :func:`replay_references` names the benchmark ETFs for ``market``, which carry
+    no mark at all.
     """
+    references = replay_references(market)
     return [
         Instrument(market=market, symbol=s, role="candidate")
         for s in store.symbols(market)
-        if s not in REPLAY_REFERENCES and is_common_stock(s, "")
+        if s not in references and is_common_stock(s, "")
     ]
 
 
@@ -170,8 +198,42 @@ def _check_no_gaps(sessions: Sequence[date], calendar: Sequence[date]) -> None:
             )
 
 
-def _replay_session(
+# The universe seam (PRD #182 story 67). The chain rebuilds membership through a
+# callable rather than by naming :func:`~screener.universe.rebuild_universe`
+# directly, because the backtest replays the *contract's* stateless universe
+# while the reference study replays the app's sticky, hysteretic one — and the
+# two differ in nothing else. A seam keeps one chain measuring the app that
+# exists (user story 31) rather than forking a second replay over one gate.
+#
+# The contract a builder honours: given the store, the market, the session and
+# the synthesised candidate instruments, return that session's members **and
+# persist them**, because the reuse path below reads membership back off the
+# store rather than recomputing it.
+UniverseBuilder = Callable[[Store, str, date, list[Instrument]], list[str]]
+
+
+def rebuild_app_universe(
     store: Store, market: str, session: date, instruments: list[Instrument]
+) -> list[str]:
+    """The app's own universe, rebuilt and persisted — the chain's default.
+
+    :func:`screener.universe.rebuild_universe` unmodified, with an empty
+    ``unresolved`` set: a replay re-reads bars already in the store, so no fetch
+    can have failed this session and nothing carries yesterday's classification
+    on that account. Path dependence still enters through stickiness and the
+    hysteresis band, which is why the chain runs forward with no gaps.
+    """
+    return rebuild_universe(
+        store, market, session, instruments=instruments, unresolved=set()
+    )
+
+
+def _replay_session(
+    store: Store,
+    market: str,
+    session: date,
+    instruments: list[Instrument],
+    universe: UniverseBuilder = rebuild_app_universe,
 ) -> tuple[list[str], list[Rank]]:
     """Compute a session's universe and ranks, or reuse them if already persisted.
 
@@ -204,9 +266,7 @@ def _replay_session(
         members_bars = {symbol: store.bars(market, symbol) for symbol in members}
         return members, rank_table(members_bars, session)
 
-    members = rebuild_universe(
-        store, market, session, instruments=instruments, unresolved=set()
-    )
+    members = universe(store, market, session, instruments)
     ranks = rebuild_ranks(store, market, session)
     store.append_run(
         market,
@@ -226,6 +286,8 @@ def replay_chain(
     blind_spot_tickers: Iterable[str] = (),
     burn_in: int = BURN_IN_SESSIONS,
     sessions: Sequence[date] | None = None,
+    universe: UniverseBuilder = rebuild_app_universe,
+    include_burn_in: bool = False,
     progress: Callable[[int, int, date], None] | None = None,
 ) -> list[SessionField]:
     """Replay the forward chain of universe membership and ranks over the window.
@@ -247,6 +309,19 @@ def replay_chain(
     is stamped onto every returned field as the coverage figure that scope is read
     against. Returns one :class:`SessionField` per measured (non-burn-in) session,
     in order.
+
+    ``universe`` is the membership seam: the default rebuilds the app's own sticky,
+    hysteretic universe (:func:`rebuild_app_universe`), and the backtest passes the
+    contract's stateless classifier instead (PRD #182 story 67). Everything else
+    about the session — the ranks, the run-record reuse marker, the gap check — is
+    identical whichever universe is replayed.
+
+    ``include_burn_in`` returns the burn-in sessions too, each flagged
+    ``burn_in=True``, rather than dropping them. They are computed and persisted
+    either way; the flag decides only whether the caller sees them, which is what
+    lets the backtest persist a burn-in session's rows while still excluding it
+    from measurement (story 76). The default drops them, so every existing caller
+    keeps receiving measured sessions alone.
 
     ``progress`` is called as ``progress(i, total, session)`` after each session is
     computed (1-based ``i`` over the whole session list, burn-in included), so a
@@ -273,15 +348,18 @@ def replay_chain(
     total = len(sessions)
     fields: list[SessionField] = []
     for i, session in enumerate(sessions):
-        members, ranks = _replay_session(store, market, session, instruments)
+        members, ranks = _replay_session(
+            store, market, session, instruments, universe
+        )
         if progress is not None:
             progress(i + 1, total, session)
-        if i < burn_in:
+        is_burn_in = i < burn_in
+        if is_burn_in and not include_burn_in:
             continue  # computed and persisted, but not a reported result
         fields.append(
             SessionField(
                 session=session,
-                burn_in=False,
+                burn_in=is_burn_in,
                 members=members,
                 ranks=ranks,
                 blind_spot_count=blind_spot_count,

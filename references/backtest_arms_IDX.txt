@@ -1,0 +1,19 @@
+arm A — 50% at the close of session 5, remainder on a 10MA trail (close_through_ma_signals_fill_next_open) — measured, not anchored
+  trades          1201
+  closed          1196
+  open at end     5
+  total R         +817.25
+  price-scale flag would drop 0 of 1201
+arm B — 10MA trail (close_through_ma_signals_fill_next_open)
+  trades          1201
+  closed          1196
+  open at end     5
+  total R         +1270.70
+  price-scale flag would drop 0 of 1201
+arm C — 20MA trail (close_through_ma_signals_fill_next_open)
+  trades          1201
+  closed          1194
+  open at end     7
+  total R         +1196.63
+  price-scale flag would drop 0 of 1201
+

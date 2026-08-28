@@ -17,7 +17,7 @@ import time
 from collections import Counter
 from datetime import date, datetime
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Iterable
 
 from .bars import Bar, clean_bars, parse_bars
 from .detection import Detection, detect, detection_gate
@@ -316,6 +316,45 @@ FAILURE_SAMPLE = 20
 # 250 symbols is a line every ~20s at the paced rate — frequent enough to see
 # movement, sparse enough that a US pull adds ~30 lines to the log rather than
 # 7,300 (the per-symbol account is the ``run_failures`` record, issue #91).
+def fetch_set(instruments: Iterable[Instrument], market: str) -> list[str]:
+    """The symbols worth fetching, out of everything ``market`` enumerates (#99).
+
+    Two slices of the enumeration are known from the enumeration *alone* to be
+    things no code path reads or the universe ever keeps, so fetching them is
+    pure waste — ~57% of the US pull:
+
+    - Among references, only ``MARKET_INDEX[market]`` has its bars read
+      (the index ingest below, ``app.py`` §4.9); the other US ETFs are
+      enumerated but never looked at, so only the index is fetched.
+    - Among candidates, only :func:`~screener.universe.is_common_stock` names can
+      enter the universe (§4.1); the instrument-type filter already ran on these
+      names, just *after* the fetch. Running it first means an excluded name is
+      never fetched.
+
+    This changes nothing about what the universe *is*: both slices were already
+    outside the completeness gate's denominator, so pre-fetch filtering leaves
+    ``measurable`` and every derived count identical. On IDX the enumeration
+    carries no security names and no "$", so ``is_common_stock`` is True and the
+    candidate filter is a correct no-op there.
+
+    It is a named function rather than a comprehension inside the nightly pull
+    because the backtest's crawl (:mod:`backtest.crawl`, issue #187) must fetch
+    the *same* set: the backtest's denominator is meant to be the app's, and a
+    looser fetch set there would price names the product cannot trade. Two copies
+    of this rule would be two things to keep in lockstep, and nothing to fail if
+    they drifted.
+
+    Order is the enumeration's own, so a pull's progress is reproducible.
+    """
+    index_symbol = MARKET_INDEX[market]
+    return [
+        i.symbol
+        for i in instruments
+        if (i.role == "reference" and i.symbol == index_symbol)
+        or (i.role == "candidate" and is_common_stock(i.symbol, i.name))
+    ]
+
+
 PROGRESS_EVERY = 250
 
 
@@ -763,35 +802,11 @@ def run_market_universe(
     # in the failure record, where the difference is the diagnosis (issue #104).
     throttled: set[str] = set()
     started = time.monotonic()
-    # Shrink the fetch set before the resolve loop ever starts (issue #99). Two
-    # slices of the enumeration are known from the enumeration alone to be
-    # things no code path reads or the universe ever keeps, so fetching them is
-    # pure waste — ~57% of the US pull:
-    #   - Among references, only ``MARKET_INDEX[market]`` has its bars read
-    #     (pipeline.py index ingest, app.py §4.9); the other US ETFs are
-    #     enumerated but never looked at, so only the index is fetched.
-    #   - Among candidates, only ``is_common_stock`` names can enter the
-    #     universe (§4.1); the instrument-type filter already ran on these
-    #     names, just *after* the fetch. Running it first means an excluded
-    #     name is never fetched.
-    # A refused symbol is dropped here too: its status is already seeded
-    # ``refused`` above and it is held out of the gate (spec §3.6, issue #100),
-    # so re-probing it is the same wasted fetch.
-    # This changes nothing about what the universe *is*: both slices were
-    # already outside the completeness gate's denominator below, so pre-fetch
-    # filtering leaves ``measurable`` and every derived count identical. On IDX
-    # the enumeration carries no security names and no "$", so ``is_common_stock`` is
-    # True and the candidate filter is a correct no-op there.
-    index_symbol = MARKET_INDEX[market]
-    to_resolve = [
-        i.symbol
-        for i in instruments
-        if i.symbol not in refused_before
-        and (
-            (i.role == "reference" and i.symbol == index_symbol)
-            or (i.role == "candidate" and is_common_stock(i.symbol, i.name))
-        )
-    ]
+    # Shrink the fetch set before the resolve loop ever starts (:func:`fetch_set`,
+    # issue #99). A refused symbol is dropped on top of that: its status is
+    # already seeded ``refused`` above and it is held out of the gate (spec §3.6,
+    # issue #100), so re-probing it is the same wasted fetch.
+    to_resolve = [s for s in fetch_set(instruments, market) if s not in refused_before]
     # The nightly fetch is incremental (spec §3.6): a symbol with stored bars is
     # pulled from ~20 sessions before its last bar, a cold-start symbol at full
     # history. On top of that, a rolling 1/30 slice is refetched at full depth

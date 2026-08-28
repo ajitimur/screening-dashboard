@@ -1,0 +1,50 @@
+do the registered candidate dimensions predict outcomes, or only match the trader's selection? — arm B
+  the outcome variable is R after costs on trades taken mechanically over a window his record does not cover; no rubric weight was fitted to it and no detection could see it
+  the selection contrast and this measurement are a different claim about the same dimension, and neither converts into the other
+  this measurement admits no dimension and retires none. ADR 0005's admission instrument is the selection contrast, and an outcome claim is not one — it is evidence that goes through the calibration rule like any other change. Neither candidate's weight, the rubric version, nor the register moves here
+  bootstrap 2000× clustered by symbol, seed 191
+
+US — RS line (12350 trades, 1637 symbols)
+  selection contrast (findings §5d, detector v3 (live)): Δ -2.1pp — not admitted
+    recorded as: refused on criterion 4 — a wrong-way gap
+  hit     n=2705  -0.099R  win 24.1%  1026 symbols  [-0.34, +0.13] p=0.806 on 1023 symbols
+  miss    n=9603  +0.092R  win 24.3%  1521 symbols  [-0.06, +0.26] p=0.136 on 1513 symbols
+  absent  n=3     -2.413R  win 0.0%  1 symbols  1 symbols — no interval
+  gap    hit − miss -0.191R  [-0.45, +0.07] p=0.919 on 1631 symbols
+  as shipped (absent read as a miss) -0.191R  [-0.45, +0.07] p=0.918 on 1631 symbols
+  rho    — RS line persists a boolean, not a degree: there is no value to rank, and correlating a verdict with the outcome would restate the gap
+  verdict: no evidence it predicts
+
+US — Relative move (12350 trades, 1637 symbols)
+  selection contrast (findings §5e, detector v3 (live)): Δ +3.6pp — not admitted
+    recorded as: on_the_bound — the criteria do not separate
+  hit     n=11014 +0.098R  win 24.5%  1529 symbols  [-0.06, +0.26] p=0.097 on 1523 symbols
+  miss    n=1217  -0.298R  win 22.5%  581 symbols  [-0.63, +0.10] p=0.928 on 579 symbols
+  absent  n=80    -1.235R  win 16.2%  45 symbols  [-2.10, -0.42] p=0.997 on 45 symbols
+  gap    hit − miss +0.396R  [-0.03, +0.77] p=0.033 on 1631 symbols
+  as shipped (absent read as a miss) +0.454R  [+0.05, +0.82] p=0.015 on 1631 symbols
+  rho    -0.021 over 12231 valued trades  [-0.04, -0.00] p=0.985 on 1631 symbols
+  verdict: no evidence it predicts
+
+IDX — RS line (1201 trades, 249 symbols)
+  selection contrast (findings §5d, detector v3 (live)): Δ -2.1pp — not admitted
+    recorded as: refused on criterion 4 — a wrong-way gap
+  hit     n=318   +1.066R  win 27.7%  144 symbols  [-0.03, +2.25] p=0.029 on 143 symbols
+  miss    n=874   +0.541R  win 22.8%  224 symbols  [-0.24, +1.42] p=0.098 on 222 symbols
+  absent  n=4     +0.376R  win 25.0%  4 symbols  4 symbols — no interval
+  gap    hit − miss +0.525R  [-0.73, +1.89] p=0.211 on 247 symbols
+  as shipped (absent read as a miss) +0.525R  [-0.72, +1.88] p=0.210 on 247 symbols
+  rho    — RS line persists a boolean, not a degree: there is no value to rank, and correlating a verdict with the outcome would restate the gap
+  verdict: no evidence it predicts
+
+IDX — Relative move (1201 trades, 249 symbols)
+  selection contrast (findings §5e, detector v3 (live)): Δ +3.6pp — not admitted
+    recorded as: on_the_bound — the criteria do not separate
+  hit     n=1087  +0.852R  win 24.8%  239 symbols  [+0.05, +1.74] p=0.015 on 237 symbols
+  miss    n=92    -1.075R  win 15.2%  55 symbols  [-1.95, +0.02] p=0.974 on 55 symbols
+  absent  n=17    -0.837R  win 23.5%  7 symbols  [-2.37, +1.36] p=0.808 on 7 symbols
+  gap    hit − miss +1.927R  [+0.57, +3.14] p=0.002 on 247 symbols
+  as shipped (absent read as a miss) +1.890R  [+0.61, +3.09] p=0.002 on 247 symbols
+  rho    +0.068 over 1179 valued trades  [-0.00, +0.13] p=0.034 on 247 symbols
+  verdict: predicts
+

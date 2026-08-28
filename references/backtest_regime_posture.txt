@@ -1,0 +1,53 @@
+regime posture — arm B, state read at detection_session (t−1)
+  the detection session — the night the candidate was listed with the app's posture beside it, one session before the break that signals entry and two before the fill; no bar after it is read to date the trade
+  conditioning_variable_never_filter: nothing is excluded by regime, every state trades, and each one's expectancy is measured
+  three exit arms and three regime states is nine views of one dataset before any threshold is swept; the pre-registered metric stands as the headline even where a view here looks better
+
+US — regime off ^IXIC, 12350 trades over 3682 sessions, 0 excluded by regime (1201 other-market and 0 other-arm trades were set aside first)
+  FRIENDLY
+    FRIENDLY full                  +0.070R  win 24.2%  n=5605  med -1.42  [-0.13, +0.26] p=0.234
+    FRIENDLY excluding_2020_2021   -0.075R  win 23.4%  n=3783  med -1.41  [-0.28, +0.14] p=0.758
+  CHOPPY
+    CHOPPY full                    +0.177R  win 23.6%  n=3782  med -1.36  [-0.05, +0.43] p=0.069
+    CHOPPY excluding_2020_2021     -0.050R  win 22.3%  n=2916  med -1.41  [-0.29, +0.21] p=0.653
+  HOSTILE
+    HOSTILE full                   -0.154R  win 25.1%  n=2924  med -1.27  [-0.41, +0.11] p=0.888
+    HOSTILE excluding_2020_2021    -0.131R  win 25.7%  n=2393  med -1.24  [-0.39, +0.17] p=0.805
+  UNDEFINED
+    UNDEFINED full                 n=0  no closed trades
+    UNDEFINED excluding_2020_2021  n=0  no closed trades
+
+  "sit out" for HOSTILE — undecided against zero; point estimate saved 450.6R
+    sitting out HOSTILE changes the book by +450.6R over 2924 closed trades; priced at signal level: sitting a state out removes its trades and frees no capital, because this run has no shared position budget to redeploy — the figure is what the posture costs or saves directly, never what it might buy
+  "reduced" for CHOPPY — undecided against FRIENDLY; point estimate +0.107R
+    CHOPPY n=3782 win 23.6% against FRIENDLY n=5605 win 24.2%
+
+  breadth (descriptive, never conditioned on): median 49.1% over 3682 sessions
+    breadth is descriptive only and is never conditioned on: survivorship bias corrupts it more directly than anything else reported here, and in a backtest worse rather than better, because the names missing from the store are disproportionately the ones that later died
+  follow-through (unbiased, never conditioned on): index broke out on 22.5% of 3682 sessions
+    follow-through is unbiased where breadth is not: the live app captures it forward nightly because a survivorship-biased past cannot rebuild it, but the index series carries no survivorship hole, so this run reconstructs it legitimately across the whole window — reported, and still never conditioned on
+
+IDX — regime off ^JKSE, 1201 trades over 3542 sessions, 0 excluded by regime (12350 other-market and 0 other-arm trades were set aside first)
+  FRIENDLY
+    FRIENDLY full                  +1.502R  win 26.3%  n=414  med -1.83  [+0.20, +3.05] p=0.010
+    FRIENDLY excluding_2020_2021   +0.942R  win 26.1%  n=330  med -1.77  [-0.22, +2.41] p=0.072
+  CHOPPY
+    CHOPPY full                    +0.207R  win 22.8%  n=465  med -1.93  [-0.61, +1.15] p=0.350
+    CHOPPY excluding_2020_2021     -0.100R  win 21.8%  n=377  med -1.93  [-0.90, +0.83] p=0.621
+  HOSTILE
+    HOSTILE full                   +0.300R  win 23.0%  n=317  med -1.89  [-0.58, +1.21] p=0.269
+    HOSTILE excluding_2020_2021    +0.024R  win 23.7%  n=279  med -1.90  [-0.72, +0.83] p=0.480
+  UNDEFINED
+    UNDEFINED full                 n=0  no closed trades
+    UNDEFINED excluding_2020_2021  n=0  no closed trades
+
+  "sit out" for HOSTILE — undecided against zero; point estimate cost 95.0R
+    sitting out HOSTILE changes the book by -95.0R over 317 closed trades; priced at signal level: sitting a state out removes its trades and frees no capital, because this run has no shared position budget to redeploy — the figure is what the posture costs or saves directly, never what it might buy
+  "reduced" for CHOPPY — undecided against FRIENDLY; point estimate -1.295R
+    CHOPPY n=465 win 22.8% against FRIENDLY n=414 win 26.3%
+
+  breadth (descriptive, never conditioned on): median 46.2% over 3538 sessions
+    breadth is descriptive only and is never conditioned on: survivorship bias corrupts it more directly than anything else reported here, and in a backtest worse rather than better, because the names missing from the store are disproportionately the ones that later died
+  follow-through (unbiased, never conditioned on): index broke out on 16.3% of 3542 sessions
+    follow-through is unbiased where breadth is not: the live app captures it forward nightly because a survivorship-biased past cannot rebuild it, but the index series carries no survivorship hole, so this run reconstructs it legitimately across the whole window — reported, and still never conditioned on
+

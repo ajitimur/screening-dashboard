@@ -1,0 +1,83 @@
+The full run — both markets, fourteen years (PRD #182 Phase 3, issue #198)
+=========================================================================
+
+Run 2026-08-27 against `data/backtest.duckdb`, reusing the denominator already
+persisted rather than recomputing any session. Reproduced by:
+
+    python -m backtest.full_run \
+        --store data/backtest.duckdb \
+        --anchors references/backtest_anchors.json \
+        --out-json references/backtest_full_run.json
+
+No dates on the command line. The markets and the window come from
+`references/backtest_run_contract.json`, and `measured_end` resolves per market
+because the two exchanges do not close on the same days.
+
+The figures below are readable because all six anchors settle — see
+`backtest_anchors.txt` and `backtest_anchor_divergence.md`. One of them,
+`in_field` over the stateless universe, is a first measurement made by this run,
+so it detects drift from here on rather than confirming this run.
+
+Detections per session are plotted per market and never pooled: findings §8
+measured that shapes travel between US and IDX and magnitudes do not, so there is
+no combined figure here to read. Each row is a year, each cell a month. **No month
+in either market is a hole** — 176 months each, all covered.
+
+Read the two panels for shape, not for level: US runs 26.3 detections per measured
+session against IDX's 3.6, and the tall 2020 cell in both is the same volatility
+arriving in two markets, not a like-for-like magnitude.
+
+--------------------------------------------------------------------------------
+the full run — US, IDX
+  anchored over the stateless universe
+
+denominator — US
+  sessions persisted   3934 (3682 measured, 252 burn-in, excluded)
+  window               2012-01-03 .. 2026-08-25
+  detections           96914 over 3682 measured sessions (26.3 per session)
+  references unranked  ^IXIC
+  breadth              descriptive_survivorship_biased
+  follow-through       reconstructed_unbiased
+
+  detections per session — US
+    2012  ▁▂▂▁▁▁▁▂▁▁▁▁
+    2013  ▁▁▁▁▁▁▁▁▁▁▁▁
+    2014  ▁▂▂▂▁▁▂▁▁▁▁▁
+    2015  ▁▂▁▂▂▁▁▁▂▂▂▂
+    2016  ▁▂▃▂▂▂▁▂▁▁▁▂
+    2017  ▂▁▂▁▁▂▂▂▁▂▁▂
+    2018  ▂▂▂▂▂▂▂▁▂▁▂▂
+    2019  ▂▂▂▂▂▂▂▂▂▂▂▂
+    2020  ▂▂▂▃▆█▄▄▃▃▄▄
+    2021  ▄▆▆▄▃▃▃▂▃▃▃▃
+    2022  ▂▃▄▃▂▃▄▄▃▂▅▄
+    2023  ▃▅▃▂▂▃▃▃▂▂▂▂
+    2024  ▃▂▃▃▂▃▃▃▃▃▃▃
+    2025  ▄▃▃▃▄▃▄▄▃▅▄▅
+    2026  ▄▅▄▄▅▆▇▅    
+
+denominator — IDX
+  sessions persisted   3789 (3542 measured, 247 burn-in, excluded)
+  window               2012-01-02 .. 2026-08-24
+  detections           12821 over 3542 measured sessions (3.6 per session)
+  references unranked  ^JKSE
+  breadth              descriptive_survivorship_biased
+  follow-through       reconstructed_unbiased
+
+  detections per session — IDX
+    2012  ▂▃▂▂▃▂▃▂▂▂▂▂
+    2013  ▃▂▃▅▂▃▂▂▅▅▃▃
+    2014  ▂▂▃▃▃▂▂▃▂▃▂▂
+    2015  ▂▂▂▂▃▂▂▂▁▃▃▃
+    2016  ▃▃▃▃▃▂▂▃▂▂▃▃
+    2017  ▂▃▂▃▂▄▂▂▂▂▂▂
+    2018  ▂▃▃▃▂▂▃▄▄▂▂▃
+    2019  ▃▄▃▃▂▃▄▃▃▃▃▃
+    2020  ▃▂▂▂▄█▄▅▅▃▄▄
+    2021  ▆▅▆▃▂▃▄▆▇▆▄▅
+    2022  ▄▃▅▅▅▅▃▄▅▄▅▄
+    2023  ▂▄▄▂▂▄▄▄▃▃▃▃
+    2024  ▄▃▃▄▄▄▃▄▄▅▅▃
+    2025  ▃▃▄▃▅▆▅▇▅▄▇▅
+    2026  ▆▇▅▆▅▃▄▅    
+--------------------------------------------------------------------------------

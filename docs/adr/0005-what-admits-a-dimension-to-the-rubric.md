@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # What admits a dimension to the rubric, and what retires one
@@ -79,6 +79,13 @@ these four criteria fixed in advance:
 Criterion 2's ~15% is a judgement, not a measurement, and is the one magnitude in this design
 without evidence behind it. It is stated here so that a later argument about it is an argument
 about a number on the record rather than a number nobody wrote down.
+
+> **Narrowed by ADR 0006 (#221).** That argument has now happened. The threshold is unchanged,
+> and criterion 2 no longer returns a refusal: a dimension at or above the ceiling — or within
+> one standard error of it — is a **crowded dimension**, and owes a **candidate outcome test**
+> before these criteria can be read on it. See
+> [`0006-what-an-outcome-result-licenses.md`](0006-what-an-outcome-result-licenses.md). Read
+> every occurrence of criterion 2 below with that narrowing applied.
 
 **The verdict was do not ship**, on criterion 4 (findings §5d): Δ **−5.8pp** under detector v1
 and **−2.1pp** under the live v3, with criterion 2 at 11.2% disagreement standing ready to
@@ -258,6 +265,18 @@ choice is not small: admission retires `Prior move`, forces `RUBRIC_VERSION = 4`
 composition of every star ceiling frozen afterwards, which the consequences below call hard to
 reverse in the direction that matters.
 
+> **Resolved by ADR 0006 (#221).** The argument this section declined to have is now on the
+> record, and it did not move the number. Criterion 2's firing rate turned out to be a
+> **stand-in** for informativeness inside an already-gated field, and the backtest measured that
+> quantity directly: `Relative move` fires on 90.0% of US and 92.2% of IDX detections there —
+> both further past the ceiling than the 84.94% that stalled it here — and the 7.8% of IDX names
+> it does not fire on returned −1.075R against the hit group's +0.852R. Being true of nearly
+> every name did not mean having nothing left to say. So the threshold stands where it was
+> written and its **job** changed: it now decides which candidates owe a further measurement,
+> which is a task a number can do approximately and correctly. `Relative move` was read under
+> the narrowed rule and **admitted, at ×1, as `RUBRIC_VERSION = 4`** — provisionally, and re-read
+> at the next out-of-sample measurement. The reading is recorded in ADR 0006.
+
 **A third outcome, added after the fact and labelled as such.** This ADR promised pass or fail on
 one variant, and the study returned exactly that until the deciding number landed on the bound.
 `scripts/relative_move_contrast.py` now returns `on_the_bound` when the not-taken hit rate sits
@@ -287,6 +306,10 @@ and the anchor distinction the registration argued for in advance held up. What 
 this threshold. **No third candidate should be registered until the ~15% has been argued on its
 own**, because the next one will meet the same bound and a threshold chosen after two dimensions
 have bounced off it is not a pre-registration.
+
+> **This block is lifted (#221).** ADR 0006 is that argument, and the register is open. A
+> candidate registered from here that expects to be crowded should say so when it registers,
+> rather than discovering the obligation after the contrast runs.
 
 ## The regime bound every candidate carries (#169)
 
@@ -348,7 +371,7 @@ restated as a hope reads as a weaker commitment than it is.
   such hole — but the margin is thin enough that the lookback's *name* is the honest thing to
   publish and the percentile is declined.
 - **A new dimension forces a rubric version.** An admitted dimension ships as
-  `RUBRIC_VERSION = 4`, joining the `RUBRIC_WEIGHTS` table so the paired re-run (#136)
+  `RUBRIC_VERSION = 4`, joining the `RUBRICS` table so the paired re-run (#136)
   can score one field under v3 and v4 and separate a rubric change from a field change.
   Digests written under v3 are not recomputed.
 - **The new dimension is measured on US only and ships to IDX unmeasured.** The replay field is

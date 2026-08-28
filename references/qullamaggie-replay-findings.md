@@ -1747,7 +1747,7 @@ reweight's direction survives the fix (§4b).
 **#136 — the paired re-run is now wired, and separates the two variables by construction.**
 The obstacle #136 was written against — "re-run A2 and risk moving the field *and* the rubric
 at once, then attribute the null to neither" — is now closed at the seam rather than left to a
-disciplined operator. `screener.score.RUBRIC_WEIGHTS` keeps the superseded **v1** ten-point
+disciplined operator. `screener.score.RUBRICS` keeps the superseded **v1** ten-point
 table beside the live **v2** nine-point one, keyed by the same `RUBRIC_VERSION` stamp, and
 `stars_under(breakdown, weights)` re-totals a detection's *hit booleans* under either. The
 hits are a property of the setup, not the rubric — only the weights move — so

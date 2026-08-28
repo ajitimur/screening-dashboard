@@ -246,13 +246,19 @@ cross-sectional cuts — because precision is not measurable and recall alone wo
 every gate. Stated in `docs/adr/0002-what-evidence-licenses-loosening-a-gate.md`; not
 restated anywhere else.
 
+**It does not govern admission.** Adding a dimension to the rubric is neither limb — ADR 0005
+governs that, as narrowed by ADR 0006. Findings §7 draws the same line for the stop convention
+and the tightness restructure.
+
 **Constant dimension**:
 A score dimension true for every detection by construction, so it shifts every score equally
 and can never move the sort. `Prior move` is the only one, measured at pooled spread 0.000 in
 findings §5b and again in §5d, on a field 171% larger.
 
-**It stays at ×1, and is retired only when something takes its slot** (#160/#161). ADR 0005
-(`proposed`) calls keeping it "documentation bought at the price of a point", but that presumes
+**It stays at ×1, and is retired only when something takes its slot** (#160/#161) — and
+**#221 took it**: `Relative move` is admitted, so `Prior move` retires with the replacement
+metadata, in **#222**. Until that ships it is still ×1 and still the rubric's floor. ADR 0005
+calls keeping it "documentation bought at the price of a point", but that presumes
 the point is **scarce** — and it is not: the ceiling is the sum of the weights, not a budget, so
 a ninth dimension can be added without retiring the eighth and retiring this one frees nothing.
 The measurement is not in doubt; what fails is the case for acting on it alone. Because the
@@ -264,6 +270,24 @@ that metadata exists loses information outright.
 _Avoid_: reading §5b's 0.000 as a standing instruction to retire it; the spread says the
 dimension cannot discriminate, not that removing it is free.
 
+**Crowded dimension**:
+A **candidate dimension** true of **85% or more** of the not-taken detections — or within one
+standard error of that line, which is what `relative_move_contrast.py` returns as
+`on_the_bound`. Under ADR 0005 that was a refusal: a dimension firing on nearly every name he
+passed over was "the constant in a new costume". **ADR 0006 (#221) narrowed it without moving
+the threshold** — a crowded dimension is not refused, it **owes a candidate outcome test**, and
+ADR 0005's criteria cannot be read on it until that test has run.
+
+The firing rate was only ever a **stand-in** for informativeness inside an already-gated field,
+and the backtest measured that quantity directly and refuted the stand-in: `Relative move` fires
+on 90.0% of US and 92.2% of IDX detections there — both further past the ceiling than the
+84.94% that stalled it — and the 7.8% of IDX names it does not fire on returned −1.075R against
+the hit group's +0.852R. Being true of nearly everything did not mean having nothing left to
+say.
+_Avoid_: reading this as the same object as a **constant dimension**. That one is true of
+**everything**, has pooled spread 0.000, and can never discriminate under any field; this one
+can, and has to prove it. Conflating the two is the error ADR 0006 corrects.
+
 **Candidate dimension**:
 A dimension **under measurement**, not in the rubric: computed on every detection in the
 replay, carried beside the star score, reported as a column of the **selection contrast** and —
@@ -271,9 +295,9 @@ since #195 — as a cohort of the **candidate outcome test**, and weighted by no
 rubric slot on a measured non-zero gap with non-zero pooled spread, and until that measurement
 exists it must be unable to move a star, a sort or a board place. So it lives on a field member
 of its own (`RS line` on `replay.field.ScoredDetection.rs_line`), never inside `SevenDimScore`,
-and nothing in `screener` scores it. Two are registered, both measured, neither admitted —
-`RS line` (rejected on a wrong-way gap) and **Relative move** (a positive gap that landed on its
-own refusal threshold, #171). **Pre-registered as one variant, pass or fail** — trying several
+and nothing in `screener` scores it. Two are registered, both measured, **one admitted** —
+`RS line` (rejected on a wrong-way gap) and **Relative move** (crowded, and admitted on a
+candidate outcome test under ADR 0006, #221; the rubric change is **#222**). **Pre-registered as one variant, pass or fail** — trying several
 and keeping the largest gap is magnitude-fitting (#128 Q2). A study may report further columns
 beside a candidate, as §5e does for the raw and other-window moves; those are **descriptive and
 permanently inadmissible**, and they are handed to `contrast_dimensions` as readers rather than
@@ -300,10 +324,14 @@ was proposed for is still open, and **Relative move** is the second candidate fo
 **Relative move**:
 The `6m` return **relative to `MARKET_INDEX`**, compounded — `(1 + stock) / (1 + index) − 1` —
 divided by the name's own `ADR`, taken at the session being scored and never past it. Hit when it is above zero: the name outran the index over six
-months. The second **candidate dimension** (#170), **measured and not admitted** (findings §5e,
-#171): Δ **+3.6pp** under the live detector — positive, unlike `RS line` — on a not-taken hit
-rate of **84.94%** against a pre-registered ~85% ceiling, 0.29 standard errors inside it. The
-criteria do not separate, so `Prior move` keeps its ×1 and `RUBRIC_VERSION` stays 3. Both legs read `calendar_return`, so the anchor is
+months. The second **candidate dimension** (#170), and the first **admitted**: Δ **+3.6pp** under the
+live detector — positive, unlike `RS line` — on a not-taken hit rate of **84.94%** against a
+pre-registered ~85% ceiling, 0.29 standard errors inside it (findings §5e, #171). That made it a
+**crowded dimension**, which under ADR 0006 owes a **candidate outcome test** rather than a
+refusal; it passed — IDX +1.927R [+0.57, +3.14] clears, and no market points the wrong way — and
+was admitted **at ×1** from the selection-gap ordering, **provisionally**, to be re-read at the
+next out-of-sample measurement (#221). `RUBRIC_VERSION` is still 3 and `Prior move` still holds
+its ×1 until **#222** ships the change. Both legs read `calendar_return`, so the anchor is
 calendar-dated and resolves to the last bar on or before it, and a missing leg is **absent**,
 scoring `False` and never carried forward. Named apart from `Prior move` on purpose — a
 **rubric version** re-scores a stored row by dimension name, so one label cannot mean two
@@ -319,7 +347,9 @@ currently 3 — v2's nine weights with `Tightness` graded, #154; v2 was the PRD 
 boolean rubric, v1 the ten-point one). Rides the API candidates payload and the digest header.
 A star figure quoted without one cannot be compared to another. Every superseded version stays
 live in `score.RUBRICS` so the paired A2 re-run can hold a field fixed and swap only the
-rubric; adding a version never edits an older one.
+rubric; adding a version never edits an older one. **v4 is decided and not shipped**: #221
+admitted `Relative move` and retired `Prior move`, #222 lands it, and the star range goes
+0.5–4.5 → **0.0–4.5** when it does.
 
 **Regime**:
 `FRIENDLY`, `CHOPPY` or `HOSTILE` per market, from one index each. Advisory only — never
@@ -672,6 +702,17 @@ by the candidate's own pre-registered cut, **per market**, with the **clustered 
 on the hit-minus-miss gap. It is not ADR 0005's admission instrument and admits nothing —
 that rule reads a **selection contrast**, and the two are a different claim about the same
 dimension: one says he picked names the dimension fires on, the other says those names paid.
+
+**What it does license, per ADR 0006 (#221): it changes what a dimension owes, never what it
+gets.** A **crowded dimension** owes one before ADR 0005's criteria can be read on it, and
+passing means **one market's gap clears zero and no market points the wrong way** — read on the
+pre-registered gap with the **absent group** excluded, never on the as-shipped figure. A gap's
+*size* is a magnitude and stays in its market (§8); **sign agreement across both markets** is a
+shape and travels, which is why one market's pass can license a change to a rubric that ships to
+both. Going the other way, a gap clearing **entirely below** zero retires nothing — it obliges
+the dimension's selection contrast to be **re-argued** under the current detector, with the
+weight untouched meanwhile. It never sets a weight: those come from the ordering of the
+selection gaps and nothing else (#128 Q2).
 So §5d's and §5e's figures ride on every cell under their own verdict key and are never
 summed with this one's. The verdict is the **gap's alone**, because ADR 0005 admits a
 dimension as a boolean; the rank correlation against the stored value is reported beside it

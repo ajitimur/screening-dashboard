@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>momentum-coil — prototype viewer</title>
+<style>
+  :root { --bg:#faf9f6; --ink:#1c1b18; --dim:#8a8478; --accent:#b3542c;
+          --up:#2e7d4f; --down:#c0483d; --box:rgba(120,115,105,.22); }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--ink);
+         font:14px/1.5 "Helvetica Neue", Arial, sans-serif; padding:24px 28px; }
+  h1 { font-size:19px; letter-spacing:.2px; }
+  h1 span { color:var(--dim); font-weight:400; }
+  p.q { max-width:64em; color:#4a463e; margin:6px 0 16px; }
+  .tabs { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 6px; }
+  .tabs button { border:1px solid #d8d3c8; background:#fff; padding:5px 14px;
+                 border-radius:4px; font:inherit; cursor:pointer; }
+  .tabs button.on { border-color:var(--accent); color:var(--accent); font-weight:600; }
+  .golden { margin:8px 0 14px; font-size:13px; }
+  .golden b.hit { color:var(--up); } .golden b.miss { color:var(--down); }
+  canvas { display:block; background:#fff; border:1px solid #e2ddd2; border-radius:6px; }
+  .bar { display:flex; align-items:center; gap:14px; margin:10px 0; color:var(--dim); font-size:13px; }
+  input[type=range] { width:340px; accent-color:var(--accent); }
+  #tip { position:fixed; pointer-events:none; background:#fff; border:1px solid #d8d3c8;
+         border-radius:4px; padding:6px 9px; font-size:12px; display:none;
+         box-shadow:0 2px 8px rgba(0,0,0,.08); white-space:pre; z-index:9; }
+  .legend { display:flex; gap:16px; font-size:12px; color:var(--dim); margin-top:8px; flex-wrap:wrap; }
+  .legend i { display:inline-block; width:18px; height:3px; vertical-align:middle; margin-right:5px; }
+</style>
+</head>
+<body>
+<h1>momentum-coil <span>— prototype viewer (throwaway)</span></h1>
+<p class="q"><b>The question:</b> a momentum candle (gain ≥ 1×ADR, close in the upper half,
+volume ≥ 1.8× its 20-day average, thrust gain capped at +20%), then a 3–15 day box
+(starting up to 6 bars after the thrust) no taller than 1.5×ADR, closes holding above a
+rising MA50, box volume below the 20-day average — does that rule set fire on the boxes
+marked by eye, and stay quiet elsewhere? Grey shading = detector box on each firing day. ▲ = momentum candle.
+Gold outline = must-catch window. Red outline = junk-by-eye window (must stay quiet).</p>
+
+<div class="tabs" id="tabs"></div>
+<div class="golden" id="golden"></div>
+<canvas id="chart" width="1280" height="560"></canvas>
+<div class="bar">
+  <label>window <input type="range" id="win" min="40" max="600" value="140"></label>
+  <label>end <input type="range" id="end" min="0" max="599" value="599"></label>
+  <span id="range"></span>
+</div>
+<div class="legend">
+  <span><i style="background:#c9a227"></i>MA5</span>
+  <span><i style="background:#b3542c"></i>MA10</span>
+  <span><i style="background:#4f7ec2"></i>MA20</span>
+  <span><i style="background:#7a5ba6"></i>MA50</span>
+  <span><i style="background:var(--box);height:12px"></i>coil box (per firing day)</span>
+  <span>hover a candle for its numbers</span>
+</div>
+<div id="tip"></div>
+
+<script src="bars.js"></script>
+<script>
+// ---- pure helpers (mirror coil.py only for DISPLAY: MAs and ADR lines) ----
+function smaSeries(vals, w) {
+  const out = new Array(vals.length).fill(null); let run = 0;
+  for (let i = 0; i < vals.length; i++) {
+    run += vals[i]; if (i >= w) run -= vals[i - w];
+    if (i >= w - 1) out[i] = run / w;
+  }
+  return out;
+}
+
+// ---- state ----
+const SYMS = Object.keys(window.DATA);
+let sym = SYMS[0];
+const canvas = document.getElementById('chart'), ctx = canvas.getContext('2d');
+const winEl = document.getElementById('win'), endEl = document.getElementById('end');
+const tip = document.getElementById('tip');
+let geom = [];   // per visible bar: {x, i}
+
+function series() {
+  const d = window.DATA[sym];
+  const closes = d.bars.map(b => b[4]);
+  return { bars: d.bars, coils: d.coils,
+           ma5: smaSeries(closes, 5), ma10: smaSeries(closes, 10),
+           ma20: smaSeries(closes, 20), ma50: smaSeries(closes, 50) };
+}
+let S = series();
+
+function pickSym(s) {
+  sym = s; S = series();
+  endEl.max = S.bars.length - 1;
+  // default view: land on the last golden window for this symbol, else the end
+  const g = (window.GOLDEN || []).filter(g => g.symbol === sym).pop();
+  let end = S.bars.length - 1;
+  if (g) {
+    const j = S.bars.findIndex(b => b[0] >= g.to);
+    if (j >= 0) end = Math.min(S.bars.length - 1, j + 8);
+  }
+  endEl.value = end;
+  renderTabs(); renderGolden(); draw();
+}
+
+function renderTabs() {
+  document.getElementById('tabs').innerHTML = SYMS.map(s =>
+    `<button class="${s === sym ? 'on' : ''}" onclick="pickSym('${s}')">${s}</button>`).join('');
+}
+function renderGolden() {
+  const rows = (window.GOLDEN || []).filter(g => g.symbol === sym);
+  document.getElementById('golden').innerHTML = rows.map(g => {
+    const label = g.negative ? (g.caught ? 'QUIET' : 'FIRED (junk!)') : (g.caught ? 'CAUGHT' : 'MISSED');
+    return `<b class="${g.caught ? 'hit' : 'miss'}">${label}</b>
+     ${g.negative ? '⛔' : ''} ${g.from} → ${g.to}${g.fired.length ? ` <span style="color:var(--dim)">(fires ${g.fired[0]} … ${g.fired[g.fired.length-1]})</span>` : ''}`;
+  }).join(' &nbsp;·&nbsp; ') || '<span style="color:var(--dim)">no labelled window for this symbol</span>';
+}
+
+function draw() {
+  const W = canvas.width, H = canvas.height, PAD = 56;
+  const volH = 90, priceH = H - volH - 40;
+  const win = +winEl.value, end = +endEl.value;
+  const i0 = Math.max(0, end - win + 1), i1 = end;
+  const view = S.bars.slice(i0, i1 + 1);
+  document.getElementById('range').textContent =
+    `${view[0][0]} → ${view[view.length-1][0]} (${view.length} bars)`;
+
+  ctx.clearRect(0, 0, W, H);
+  const lows = view.map(b => b[3]), highs = view.map(b => b[2]);
+  let lo = Math.min(...lows), hi = Math.max(...highs);
+  for (const m of [S.ma20, S.ma50]) for (let i = i0; i <= i1; i++)
+    if (m[i] != null) { lo = Math.min(lo, m[i]); hi = Math.max(hi, m[i]); }
+  const pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
+  const vmax = Math.max(...view.map(b => b[5]), 1);
+  const step = (W - PAD - 12) / view.length, cw = Math.max(1, Math.min(11, step * 0.62));
+  const X = k => PAD + k * step + step / 2;
+  const Y = p => 14 + (priceH - 14) * (1 - (p - lo) / (hi - lo));
+  const VY = v => H - 26 - (volH - 6) * (v / vmax);
+  geom = view.map((b, k) => ({ x: X(k), i: i0 + k }));
+
+  // axes
+  ctx.fillStyle = '#8a8478'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+  for (let t = 0; t <= 4; t++) {
+    const p = lo + (hi - lo) * t / 4, y = Y(p);
+    ctx.fillText(p >= 1000 ? p.toFixed(0) : p.toFixed(1), PAD - 6, y + 3);
+    ctx.strokeStyle = '#f0ece3'; ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - 8, y); ctx.stroke();
+  }
+  ctx.textAlign = 'center';
+  for (let k = 0; k < view.length; k += Math.ceil(view.length / 8))
+    ctx.fillText(view[k][0].slice(2), X(k), H - 8);
+
+  // golden windows (gold outline behind everything)
+  for (const g of (window.GOLDEN || []).filter(g => g.symbol === sym)) {
+    const a = S.bars.findIndex(b => b[0] >= g.from);
+    let b2 = -1; for (let j = S.bars.length - 1; j >= 0; j--) if (S.bars[j][0] <= g.to) { b2 = j; break; }
+    if (a < 0 || b2 < i0 || a > i1) continue;
+    const xa = X(Math.max(a, i0) - i0) - cw, xb = X(Math.min(b2, i1) - i0) + cw;
+    ctx.strokeStyle = g.negative ? 'rgba(192,72,61,.8)' : 'rgba(201,162,39,.85)';
+    ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5;
+    ctx.strokeRect(xa, 16, xb - xa, priceH - 20); ctx.setLineDash([]); ctx.lineWidth = 1;
+  }
+
+  // coil boxes: union per thrustEnd of every firing day's box
+  const groups = {};
+  for (const k of S.coils) {
+    if (k.end < i0 || k.boxStart > i1) continue;
+    const g = groups[k.thrustEnd] ??= { s: k.boxStart, e: k.end, hi: k.boxHigh, lo: k.boxLow };
+    g.e = Math.max(g.e, k.end); g.hi = Math.max(g.hi, k.boxHigh); g.lo = Math.min(g.lo, k.boxLow);
+  }
+  for (const te in groups) {
+    const g = groups[te];
+    const xa = X(Math.max(g.s, i0) - i0) - cw / 2 - 2, xb = X(Math.min(g.e, i1) - i0) + cw / 2 + 2;
+    ctx.fillStyle = 'rgba(120,115,105,.20)';
+    ctx.fillRect(xa, Y(g.hi) - 3, xb - xa, Y(g.lo) - Y(g.hi) + 6);
+    ctx.strokeStyle = 'rgba(120,115,105,.55)';
+    ctx.strokeRect(xa, Y(g.hi) - 3, xb - xa, Y(g.lo) - Y(g.hi) + 6);
+  }
+
+  // MAs
+  const maStyle = [[S.ma5, '#c9a227'], [S.ma10, '#b3542c'], [S.ma20, '#4f7ec2'], [S.ma50, '#7a5ba6']];
+  for (const [m, col] of maStyle) {
+    ctx.strokeStyle = col; ctx.beginPath(); let pen = false;
+    for (let k = 0; k < view.length; k++) {
+      const val = m[i0 + k];
+      if (val == null || val < lo || val > hi) { pen = false; continue; }
+      pen ? ctx.lineTo(X(k), Y(val)) : ctx.moveTo(X(k), Y(val)); pen = true;
+    }
+    ctx.stroke();
+  }
+
+  // momentum-candle markers
+  const momentum = new Set(S.coils.flatMap(k => k.momentumDays));
+  // candles + volume
+  for (let k = 0; k < view.length; k++) {
+    const [, o, h2, l2, c, v] = view[k], up = c >= o;
+    ctx.strokeStyle = ctx.fillStyle = up ? '#2e7d4f' : '#c0483d';
+    ctx.beginPath(); ctx.moveTo(X(k), Y(h2)); ctx.lineTo(X(k), Y(l2)); ctx.stroke();
+    const y1 = Y(Math.max(o, c)), y2 = Y(Math.min(o, c));
+    up ? ctx.strokeRect(X(k) - cw / 2, y1, cw, Math.max(1, y2 - y1))
+       : ctx.fillRect(X(k) - cw / 2, y1, cw, Math.max(1, y2 - y1));
+    ctx.globalAlpha = 0.55;
+    ctx.fillRect(X(k) - cw / 2, VY(v), cw, H - 26 - VY(v));
+    ctx.globalAlpha = 1;
+    if (momentum.has(i0 + k)) {
+      ctx.fillStyle = '#b3542c';
+      ctx.beginPath(); ctx.moveTo(X(k), Y(l2) + 14); ctx.lineTo(X(k) - 4, Y(l2) + 21);
+      ctx.lineTo(X(k) + 4, Y(l2) + 21); ctx.fill();
+    }
+  }
+}
+
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect(), x = e.clientX - r.left;
+  let best = null, bd = 1e9;
+  for (const g of geom) { const d = Math.abs(g.x - x); if (d < bd) { bd = d; best = g; } }
+  if (!best || bd > 14) { tip.style.display = 'none'; return; }
+  const b = S.bars[best.i];
+  const fired = S.coils.filter(k => k.end === best.i)[0];
+  tip.textContent =
+    `${b[0]}\nO ${b[1]}  H ${b[2]}  L ${b[3]}  C ${b[4]}\nvol ${(b[5] / 1e6).toFixed(1)}M` +
+    (fired ? `\nCOIL fires — box ${fired.heightAdr}×ADR, vol ${fired.volRatio}×, score ${fired.score}` : '');
+  tip.style.display = 'block';
+  tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY + 10) + 'px';
+});
+canvas.addEventListener('mouseleave', () => tip.style.display = 'none');
+winEl.oninput = endEl.oninput = draw;
+
+pickSym(sym);
+</script>
+</body>
+</html>

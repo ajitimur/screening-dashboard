@@ -159,6 +159,25 @@ firings (07-17, 07-27→30) were judged "perfect" — the detector's span matche
 the eye's exactly — while GGRM's lone 07-01 firing was junk (a stale leftover,
 now a negative window). Every recall label is caught: 40/40.
 
+**13. Second out-of-sample pass (2025) and the "too volatile" criterion.**
+A random-day scan (2025-09-02: 8 coils / 232 liquid names) was labelled cold:
+MINA, BREN, DSSA good ("perfect" DSSA), MPPA/SMGA/SURI/ASLC junk — all four,
+in the eye's words, "too volatile for my eye test". Formalising that
+criterion failed five ways: box-level bar range, close-to-close chop,
+wickiness and direction-flips all sit at AUC ≈ 0.5, and name ADR is refuted
+by MINA — at 13.8% ADR the wildest name in the label set, and good. What
+*does* bind the 2025 four is **tick granularity**: all are sub-120-rupiah
+names where one IDX tick is 0.83–1.37% of price (the goods: ≤ 0.66%), so
+their candles are staircases by construction. But a hard tick% gate fails on
+the rest of the labels (SOCI and nine other goods sit above 0.6%/tick; ten
+2026 junk names sit below it). Conclusion: junk is heterogeneous — stale
+boxes (PTRO, MARK, GGRM), wants-longer-base (INDY), post-parabolic (KOKA,
+SLIS), tick-staircase pennies (the 2025 four), and an unexplained large-cap
+residual (AALI, BFIN, ESSA, …). Tick% belongs as a watchlist *column or
+ranking penalty*, not a gate. BEEF's eye-marked second box (09-10→25) joined
+OUT_OF_PATTERN — no momentum candle, the LSIP/SMIL precedent — and BEEF being
+2026-junk but 2025-good weakens the finding-12 "junk repeats" note.
+
 ## Open
 
 - Does `CLOSE_POS = 0.5` hold up across more sessions, or does it need the

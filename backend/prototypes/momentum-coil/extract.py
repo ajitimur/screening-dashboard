@@ -49,6 +49,11 @@ GOLDEN = [
     ("SMRA.JK", "2026-07-30", "2026-08-14"),   # box should run to 08-14
     ("MARK.JK", "2026-06-15", "2026-06-30"),   # real box, but over by 06-30
     ("SGER.JK", "2026-07-17", "2026-07-30"),   # pre-thrust coils, "perfect"
+    # 2025 out-of-sample pass (2026-09-13), off the random-day 2025-09-02
+    # watchlist. The junk names were all "too volatile for my eye test".
+    ("MINA.JK", "2025-08-01", "2025-09-30"),
+    ("BREN.JK", "2025-08-01", "2025-09-30"),
+    ("DSSA.JK", "2025-08-01", "2025-09-30"),   # "perfect"
 ]
 
 # Eye-marked boxes ACCEPTED as out-of-pattern (2026-09-13) — not evaluated.
@@ -58,6 +63,9 @@ GOLDEN = [
 # bases, a different pattern than momentum-coil.
 # SLIS 08-27→31: coil after a +36% parabolic thrust; the label was tentative.
 OUT_OF_PATTERN = [
+    ("BEEF.JK", "2025-09-10", "2025-09-25"),   # eye's 2nd box: no momentum
+                                               # candle (best day +5.3% vs
+                                               # 6.8% ADR on 0.8x volume)
     ("TKIM.JK", "2026-08-04", "2026-08-10"),
     ("LSIP.JK", "2026-08-12", "2026-08-19"),
     ("HRTA.JK", "2026-08-11", "2026-08-19"),
@@ -83,6 +91,11 @@ NEGATIVE = [
     ("KETR.JK", "2026-07-01", "2026-07-31"),
     ("MARK.JK", "2026-07-01", "2026-07-31"),   # stale — box ended 06-30
     ("GGRM.JK", "2026-07-01", "2026-07-10"),   # the 07-01 firing was junk
+    # 2025 out-of-sample pass: "too volatile for my eye test".
+    ("MPPA.JK", "2025-08-01", "2025-09-30"),
+    ("SMGA.JK", "2025-08-01", "2025-09-30"),
+    ("SURI.JK", "2025-08-01", "2025-09-30"),
+    ("ASLC.JK", "2025-08-01", "2025-09-30"),
 ]
 
 

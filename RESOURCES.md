@@ -20,6 +20,8 @@ All entries verified free and loading as of 2026-09-14 unless flagged. $0 budget
   Intraday-focused (secondary for this swing mission), but the three uses — relative strength vs. VWAP, trend confirmation, capitulation spotting — transfer to anchored VWAP on daily charts. Their own caveat: VWAP is for confirmation and thesis-building, never a standalone signal. More at the [SMB VWAP tag archive](https://www.smbtraining.com/blog/tag/vwap).
 - [Video: "The EASY Stock Trade You Need to Learn (2-Day VWAP)" — SMB Capital](https://www.youtube.com/watch?v=xesrK4KAzfM)
   A multi-day (second-day VWAP support) playbook from a real prop desk — the closest of their material to swing timeframes. Use for: moving from concept to a concrete setup.
+- [Podcast: "Fill the Gap" ep. 61 — Brian Shannon interview, CMT Association](https://cmtassociation.org/podcast/fill-the-gap-episode-sixty-one-anchored-vwap-legend-brian-shannon-cmt/)
+  A full hour on AVWAP trade management (trailing under higher lows, typical 3–6 day holds stretching to weeks) from the practitioner, hosted by the chartered technicians' association. Page blocks our crawler (403) — details taken from search synthesis; listen to verify. Use for: exits and management.
 - [Article: "Reader question: is VWAP useful?" — Adam Grimes, 2015](https://adamhgrimes.com/reader-question-is-vwap-useful/)
   The skeptic's case: his testing found no statistical edge in VWAP touches vs. any other average. Use for: the counterweight — forces you to define what edge you're actually claiming. Deliberately included.
 

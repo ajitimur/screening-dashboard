@@ -1,0 +1,72 @@
+<title>VWAP Glossary</title>
+<link rel="stylesheet" href="../assets/course.css">
+<main>
+  <nav class="crumbs">
+    <a href="../lessons/0001-the-fair-price-line.html">← Lesson 1</a>
+    <a href="../RESOURCES.md">Resources</a>
+  </nav>
+
+  <p class="kicker">Reference · Stock Trading with VWAP</p>
+  <h1>Glossary</h1>
+  <p class="lede">The course vocabulary. Every lesson uses these terms exactly as defined here.</p>
+
+  <table>
+    <tr><th>Term</th><th>Definition</th></tr>
+    <tr>
+      <td><strong>VWAP</strong></td>
+      <td>Volume-Weighted Average Price: the average price paid per share over a period, weighting each trade by its size. Cumulative Σ(price × volume) ÷ Σ(volume). The session's running "fair price" as actually transacted. <a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/volume-weighted-average-price-vwap">StockCharts</a></td>
+    </tr>
+    <tr>
+      <td><strong>Typical price</strong></td>
+      <td>(High + Low + Close) ÷ 3 for a bar — the per-bar price proxy charting platforms feed into the VWAP formula when trade-by-trade data isn't used.</td>
+    </tr>
+    <tr>
+      <td><strong>Session VWAP</strong></td>
+      <td>VWAP computed from the regular-session open, resetting daily. When traders say "VWAP" unqualified, they mean this. Undefined for daily-and-longer bars — it is an intraday object.</td>
+    </tr>
+    <tr>
+      <td><strong>Anchored VWAP (AVWAP)</strong></td>
+      <td>VWAP computed from a chosen event bar instead of the open — an earnings gap, a breakout, a swing high/low. The average price of everyone who has traded <em>since that event</em>. <a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/anchored-vwap">StockCharts</a>, <a href="https://alphatrends.net/archives/category/vwap/about-vwap/">Shannon</a></td>
+    </tr>
+    <tr>
+      <td><strong>Execution benchmark</strong></td>
+      <td>The standard an institutional fill is graded against. VWAP is the dominant one: beat the session's VWAP and the desk "traded well." This grading is why large flows are scheduled around VWAP. <a href="https://www.smallake.kr/wp-content/uploads/2016/03/TP_Spring_2002_Madhavan.pdf">Madhavan 2002</a></td>
+    </tr>
+    <tr>
+      <td><strong>Volume curve</strong></td>
+      <td>The intraday U-shape of trading volume (heavy at open and close, light midday) that VWAP-tracking algos schedule their child orders against. <a href="https://arxiv.org/abs/1509.08503">Busseti &amp; Boyd</a></td>
+    </tr>
+    <tr>
+      <td><strong><span class="above">In control (buyers)</span></strong></td>
+      <td>Price holding above a rising VWAP: the average participant since the anchor is in profit and dips keep getting bought. The single-sentence session read this course drills first.</td>
+    </tr>
+    <tr>
+      <td><strong><span class="below">In control (sellers)</span></strong></td>
+      <td>Price holding below a falling VWAP: the average participant is underwater and rallies keep getting sold into.</td>
+    </tr>
+    <tr>
+      <td><strong>Chop / no control</strong></td>
+      <td>Price crossing a flat VWAP repeatedly. Neither side owns the session; control reads and pullback entries are off the table.</td>
+    </tr>
+    <tr>
+      <td><strong>Reclaim</strong></td>
+      <td>Price losing VWAP, then decisively recovering above it and holding — a control flip, stronger evidence than the first cross.</td>
+    </tr>
+    <tr>
+      <td><strong>Relative strength vs. VWAP</strong></td>
+      <td>Comparing where a stock sits against its VWAP while the index sits against its own — a stock above VWAP while the market is below its VWAP is showing relative strength. <a href="https://www.smbtraining.com/blog/why-you-need-vwap-for-your-intraday-trading">SMB</a></td>
+    </tr>
+    <tr>
+      <td><strong>Invalidation</strong></td>
+      <td>The pre-defined price condition that proves a trade's thesis wrong (e.g., "a 5-minute close back below VWAP"). Defined before entry, always.</td>
+    </tr>
+    <tr>
+      <td><strong>The Grimes caveat</strong></td>
+      <td>Shorthand in this course for: no free quantitative study shows a statistical edge in VWAP touches per se (<a href="https://adamhgrimes.com/reader-question-is-vwap-useful/">Grimes 2015</a>). VWAP is context and confirmation, not a standalone signal — SMB says the same.</td>
+    </tr>
+  </table>
+
+  <footer class="lesson-footer">
+    Part of the <em>Stock Trading with VWAP</em> workspace. Terms are added as lessons introduce them — ask your teaching agent if one is missing.
+  </footer>
+</main>

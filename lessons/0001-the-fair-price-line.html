@@ -7,33 +7,38 @@
     <a href="../RESOURCES.md">Resources</a>
   </nav>
 
-  <p class="kicker">Lesson 0001 · Stock Trading with VWAP</p>
+  <p class="kicker">Lesson 0001 · Swing Trading with VWAP</p>
   <h1>The Fair Price Line</h1>
-  <p class="lede">One skill: look at any intraday chart with VWAP and say, in one sentence, who is in control of the session — and why you're entitled to say it.</p>
+  <p class="lede">One skill: look at a daily chart with an anchored VWAP and say, in one sentence, who has controlled the move since the anchor — and why you're entitled to say it.</p>
 
   <h2>What the line is</h2>
   <p>
-    <a href="../reference/glossary.html">VWAP</a> is the average price actually paid per share since the session opened, with every trade weighted by its size:
+    <a href="../reference/glossary.html">VWAP</a> is the average price actually paid per share since some starting point, with every trade weighted by its size:
   </p>
-  <pre><code>VWAP = Σ (price × volume) / Σ (volume)     — cumulative from the open</code></pre>
+  <pre><code>VWAP = Σ (price × volume) / Σ (volume)     — cumulative from the anchor</code></pre>
   <p>
-    A close at $50.10 on 2&nbsp;million shares moves it far more than one at $50.40 on 50,000. That weighting is the whole point: a simple moving average tells you where price <em>has been</em>; VWAP tells you what the crowd <em>has paid</em>. It is the session's running fair price
+    A day that closes at $50.10 on 40&nbsp;million shares moves it far more than one at $50.40 on 2&nbsp;million. That weighting is the whole point: a simple moving average tells you where price <em>has been</em>; VWAP tells you what the crowd <em>has paid</em>
     (<a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/volume-weighted-average-price-vwap">StockCharts: formula and worked example</a>).
+  </p>
+  <p>
+    Day traders start the sum at today's open ("session VWAP"), which resets every morning — useless for a hold measured in weeks. Swing traders instead <strong>anchor</strong> the sum at a meaningful event — an earnings gap, a breakout day, a major swing low — producing an <a href="../reference/glossary.html">anchored VWAP (AVWAP)</a>: the average price of everyone who has traded <em>since that event</em>
+    (<a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/anchored-vwap">StockCharts: Anchored VWAP</a>).
+    Everything in this course is anchored.
   </p>
 
   <h2>Why it isn't just another squiggle</h2>
   <p>
-    Institutional trading desks are <em>graded</em> against VWAP: a buy order filled below the day's VWAP "beat the benchmark," one filled above it didn't
+    Institutional trading desks are <em>graded</em> against VWAP: a buy program filled below it "beat the benchmark," one filled above it didn't
     (<a href="https://www.smallake.kr/wp-content/uploads/2016/03/TP_Spring_2002_Madhavan.pdf">Madhavan, "VWAP Strategies," 2002</a>).
-    Because millions of institutional shares are scheduled against this yardstick every day
-    (<a href="https://arxiv.org/abs/1509.08503">Busseti &amp; Boyd</a>), real order flow is anchored to the line. No moving average has that property — nobody's bonus depends on the 20-EMA.
+    Big positions aren't built in a day — an institution accumulating for a week after earnings is running VWAP-benchmarked orders day after day
+    (<a href="https://arxiv.org/abs/1509.08503">Busseti &amp; Boyd</a>), so real multi-day order flow is anchored to the line. No moving average has that property — nobody's bonus depends on the 20-EMA.
   </p>
 
   <h2>The control read</h2>
-  <p>Since VWAP is what the average participant paid, price's position against it says who is winning:</p>
+  <p>Since the AVWAP is what the average participant has paid since the event, price's position against it says who is winning the move:</p>
 
   <figure>
-    <svg viewBox="0 0 720 190" role="img" aria-label="Three mini charts: price above rising VWAP, price below falling VWAP, price chopping across flat VWAP">
+    <svg viewBox="0 0 720 190" role="img" aria-label="Three mini charts: price above rising AVWAP, price below falling AVWAP, price chopping across flat AVWAP">
       <style>
         .px { fill: none; stroke-width: 2.5; }
         .vw { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 5 3; }
@@ -44,32 +49,33 @@
       <polyline class="px" style="stroke: var(--buyer)" points="10,130 40,110 60,120 90,90 110,100 140,70 160,80 190,50 220,58 230,40"/>
       <polyline class="vw" points="10,145 60,135 110,120 160,103 230,85"/>
       <text class="lbl" x="10" y="172" style="fill: var(--buyer)">Buyers in control</text>
-      <text class="sub" x="10" y="186">holds above a rising VWAP</text>
+      <text class="sub" x="10" y="186">holds above a rising AVWAP</text>
       <!-- Panel 2: sellers -->
       <polyline class="px" style="stroke: var(--seller)" points="255,45 285,65 305,55 335,85 355,75 385,105 405,95 435,125 465,117 475,135"/>
       <polyline class="vw" points="255,30 305,42 355,58 405,75 475,92"/>
       <text class="lbl" x="255" y="172" style="fill: var(--seller)">Sellers in control</text>
-      <text class="sub" x="255" y="186">held below a falling VWAP</text>
+      <text class="sub" x="255" y="186">held below a falling AVWAP</text>
       <!-- Panel 3: chop -->
       <polyline class="px" style="stroke: var(--muted)" points="500,95 525,65 545,115 570,70 590,110 615,75 635,112 660,80 685,105 710,88"/>
       <polyline class="vw" points="500,90 710,90"/>
       <text class="lbl" x="500" y="172" style="fill: var(--muted)">Nobody in control</text>
-      <text class="sub" x="500" y="186">crosses a flat VWAP repeatedly</text>
+      <text class="sub" x="500" y="186">crosses a flat AVWAP repeatedly</text>
     </svg>
-    <figcaption>The three session states. Solid line: price. Dashed purple: VWAP. Slope of VWAP matters as much as which side price is on.</figcaption>
+    <figcaption>The three states of a move, daily bars from the anchor. Solid line: price. Dashed purple: anchored VWAP. Slope matters as much as which side price is on.</figcaption>
   </figure>
 
   <ul>
-    <li><span class="above">Price holding above a rising VWAP</span> — the average participant is in profit, dips keep getting bought. Buyers are in control; pullbacks toward the line are where they tend to defend.</li>
-    <li><span class="below">Price holding below a falling VWAP</span> — the average participant is underwater, rallies get sold into (trapped longs exiting at breakeven). Sellers are in control.</li>
-    <li><strong>Price crossing a flat VWAP repeatedly</strong> — no one is in control. This is a real answer, and the discipline to say it is most of the skill. SMB's prop traders use exactly these reads for thesis-building
-      (<a href="https://www.smbtraining.com/blog/why-you-need-vwap-for-your-intraday-trading">SMB: Why You NEED VWAP</a>).</li>
+    <li><span class="above">Price holding above a rising AVWAP</span> — the average participant since the event is in profit, dips keep getting bought. Buyers control the move; pullbacks toward the line are where they tend to defend. This is the read behind Shannon's core swing framework
+      (<a href="https://alphatrends.net/archives/category/vwap/about-vwap/">Alphatrends VWAP archive</a>).</li>
+    <li><span class="below">Price holding below a falling AVWAP</span> — the average participant since the event is underwater, rallies get sold into (trapped buyers exiting at breakeven). Sellers control the move.</li>
+    <li><strong>Price crossing a flat AVWAP repeatedly</strong> — no one is in control since that anchor. This is a real answer, and the discipline to say it is most of the skill.</li>
   </ul>
 
   <div class="aside">
     <span class="label">The Grimes caveat</span>
     No free quantitative study shows a statistical edge in VWAP touches by themselves — Adam Grimes
-    <a href="https://adamhgrimes.com/reader-question-is-vwap-useful/">tested it and found none</a>, and SMB says outright you cannot trade solely on VWAP.
+    <a href="https://adamhgrimes.com/reader-question-is-vwap-useful/">tested it and found none</a>, and even VWAP-heavy prop desks
+    <a href="https://www.smbtraining.com/blog/why-you-need-vwap-for-your-intraday-trading">say outright</a> you cannot trade solely on it.
     The control read is <em>context</em>: it tells you which trades are allowed, not when to click. Keep this caveat for the whole course.
   </div>
 
@@ -77,44 +83,44 @@
   <p>Answer from memory — one attempt each, feedback is immediate.</p>
   <div class="quiz">
     <div class="q" data-answer="0">
-      <p class="stem">Price has held above VWAP all morning and the line slopes upward. The one-sentence read is…</p>
+      <p class="stem">Since its earnings gap three weeks ago, a stock has held above its earnings-anchored VWAP, and the line slopes upward. The one-sentence read is…</p>
       <button class="opt">Buyers hold control</button>
       <button class="opt">Sellers hold control</button>
       <button class="opt">Neither side controls</button>
-      <div class="explain">Above a rising VWAP, the average participant since the open is in profit and dips are being bought — the definition of buyers in control.</div>
+      <div class="explain">Above a rising AVWAP, the average participant since the event is in profit and dips are being bought — the definition of buyers controlling the move.</div>
     </div>
     <div class="q" data-answer="2">
-      <p class="stem">The average participant since the open is sitting on a loss whenever…</p>
+      <p class="stem">The average participant since the anchor event is sitting on a loss whenever…</p>
       <button class="opt">volume runs below average</button>
-      <button class="opt">price sits above VWAP</button>
-      <button class="opt">price sits below VWAP</button>
-      <div class="explain">VWAP <em>is</em> the average price paid. Price below it means the average buyer since the open is underwater — the engine behind rallies getting sold in downtrends.</div>
+      <button class="opt">price sits above AVWAP</button>
+      <button class="opt">price sits below AVWAP</button>
+      <div class="explain">The AVWAP <em>is</em> the average price paid since the event. Price below it means the average buyer is underwater — the engine behind rallies getting sold in a broken move.</div>
     </div>
     <div class="q" data-answer="1">
       <p class="stem">Institutional order flow clusters around VWAP because…</p>
       <button class="opt">charts always bounce off it</button>
       <button class="opt">desks are graded against it</button>
       <button class="opt">exchanges require trading near it</button>
-      <div class="explain">VWAP is the dominant execution benchmark (Madhavan 2002). Fills are judged against it, so large orders are scheduled around it — that grading, not chart magic, anchors the flow.</div>
+      <div class="explain">VWAP is the dominant execution benchmark (Madhavan 2002). Multi-day accumulation programs are judged against it, so large orders are scheduled around it — that grading, not chart magic, anchors the flow.</div>
     </div>
     <div class="q" data-answer="2">
-      <p class="stem">VWAP is flat and price has crossed it six times since the open. The correct read is…</p>
+      <p class="stem">A month after your anchor event, the AVWAP is flat and price has crossed it six times. The correct read is…</p>
       <button class="opt">go long, buyers are loading</button>
       <button class="opt">go short, sellers are trapped</button>
       <button class="opt">stand aside, nobody has control</button>
-      <div class="explain">Repeated crosses of a flat VWAP mean no one owns the session. "No control, no trade" is a complete and correct read — saying it out loud is the skill.</div>
+      <div class="explain">Repeated crosses of a flat AVWAP mean no one owns the move since that anchor. "No control, no trade" is a complete and correct read — saying it out loud is the skill.</div>
     </div>
   </div>
 
   <h2>Do this before the next lesson</h2>
   <p>
-    Once a day, pull up an intraday chart of any liquid stock with session VWAP on it and write one sentence: <em>who is in control, and what is the evidence</em> (side of the line + slope). That's the whole exercise. Next lesson turns the read into an entry: the pullback-to-VWAP with a defined <a href="../reference/glossary.html">invalidation</a>.
+    Once a day, pick one liquid stock, anchor a VWAP at its most recent earnings report, and write one sentence: <em>who has controlled the move since earnings, and what is the evidence</em> (side of the line + slope). TradingView's free tier has the Anchored VWAP drawing tool. That's the whole exercise. Next lesson: choosing anchors that matter — and after that, turning the read into a swing entry with a defined <a href="../reference/glossary.html">invalidation</a> on daily closes.
   </p>
 
   <footer class="lesson-footer">
     <p><strong>Primary source:</strong> Brian Shannon's free
       <a href="https://alphatrends.net/archives/category/vwap/about-vwap/">Alphatrends VWAP archive</a> — start with the Traders Expo anchored-VWAP presentation post; his
-      <a href="https://www.youtube.com/@alphatrends">YouTube channel</a> shows these reads applied live, daily.</p>
+      <a href="https://www.youtube.com/@alphatrends">YouTube channel</a> applies these reads to swing setups, daily.</p>
     <p>Anything unclear? Ask your teaching agent — it can rephrase, go deeper on the institutional mechanics, or pull real charts. See also the <a href="../reference/glossary.html">glossary</a>.</p>
   </footer>
 </main>

@@ -1,4 +1,4 @@
-# Stock Trading with VWAP — Resources
+# Swing Trading with VWAP — Resources
 
 All entries verified free and loading as of 2026-09-14 unless flagged. $0 budget applies (see MISSION.md).
 
@@ -17,9 +17,9 @@ All entries verified free and loading as of 2026-09-14 unless flagged. $0 budget
 - [YouTube: Brian Shannon @alphatrends](https://www.youtube.com/@alphatrends)
   Near-daily free videos applying AVWAP live. Use for: watching entries/exits framed in real time. (Channel verified via [Wikipedia](https://en.wikipedia.org/wiki/Brian_Shannon).)
 - [Article: "Why You NEED VWAP For Your Intraday Trading" — SMB Training](https://www.smbtraining.com/blog/why-you-need-vwap-for-your-intraday-trading)
-  Three concrete intraday uses: relative strength vs. VWAP, trend confirmation, capitulation spotting. Their own caveat: VWAP is for confirmation and thesis-building, never a standalone signal. More at the [SMB VWAP tag archive](https://www.smbtraining.com/blog/tag/vwap).
+  Intraday-focused (secondary for this swing mission), but the three uses — relative strength vs. VWAP, trend confirmation, capitulation spotting — transfer to anchored VWAP on daily charts. Their own caveat: VWAP is for confirmation and thesis-building, never a standalone signal. More at the [SMB VWAP tag archive](https://www.smbtraining.com/blog/tag/vwap).
 - [Video: "The EASY Stock Trade You Need to Learn (2-Day VWAP)" — SMB Capital](https://www.youtube.com/watch?v=xesrK4KAzfM)
-  One repeatable second-day VWAP-support playbook from a real prop desk. Use for: moving from concept to a concrete setup.
+  A multi-day (second-day VWAP support) playbook from a real prop desk — the closest of their material to swing timeframes. Use for: moving from concept to a concrete setup.
 - [Article: "Reader question: is VWAP useful?" — Adam Grimes, 2015](https://adamhgrimes.com/reader-question-is-vwap-useful/)
   The skeptic's case: his testing found no statistical edge in VWAP touches vs. any other average. Use for: the counterweight — forces you to define what edge you're actually claiming. Deliberately included.
 

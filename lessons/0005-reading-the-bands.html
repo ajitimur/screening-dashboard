@@ -1,0 +1,122 @@
+<title>Lesson 5 · Reading the Bands</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/quiz.js"></script>
+<main>
+  <nav class="crumbs">
+    <a href="0004-holding-and-leaving.html">← Lesson 4</a>
+    <a href="../reference/glossary.html">Glossary</a>
+    <a href="../RESOURCES.md">Resources</a>
+  </nav>
+
+  <p class="kicker">Lesson 0005 · Swing Trading with VWAP</p>
+  <h1>Reading the Bands</h1>
+  <p class="lede">One skill: replace "it looks extended" with a measured statement — how many standard deviations price sits from the cohort's cost basis, and what that licenses you to do.</p>
+
+  <div class="aside">
+    <span class="label">Source tier note</span>
+    The free literature on VWAP bands is practitioner guides and indicator documentation
+    (<a href="https://thevwap.com/vwap/">TheVWAP</a>,
+    <a href="https://trendsandbreakouts.com/vwap-bands">Trends &amp; Breakouts</a>,
+    <a href="https://docs.gocharting.com/docs/orderflow/anchor-vwap-and-bands">GoCharting docs</a>) — a tier below this course's usual sources. The mechanics below are solid; treat every strategy claim as folklore until you've tested it.
+  </div>
+
+  <h2>What the bands are</h2>
+  <p>
+    VWAP bands are standard-deviation envelopes around the <a href="../reference/glossary.html">AVWAP</a>, built from the same cumulative volume-weighted data as the line. The running variance is the volume-weighted second moment of price minus the mean squared:
+  </p>
+  <pre><code>σ² = Σ (volume × price²) / Σ (volume) − VWAP²      — cumulative from the anchor
+bands: VWAP ± 1σ, ± 2σ (sometimes ± 3σ)</code></pre>
+  <p>
+    Because the weighting is by volume, the interpretation stays in cost-basis language: the AVWAP is the average price the cohort paid, and ±1σ brackets where the bulk of that cohort <em>actually transacted</em>. The bands are not a prediction — they're a map of the cohort's positions.
+  </p>
+
+  <h2>Why statistical distance beats dollar distance</h2>
+  <p>
+    Two dollars above VWAP is inside 1σ on a volatile name and beyond 3σ on a sleepy one. The band answers the only question that matters for extension: <em>unusual for this stock, this anchor, this regime — or not?</em> That converts three judgment calls from earlier lessons into measurements:
+  </p>
+  <table>
+    <tr><th>Earlier rule</th><th>Band upgrade</th></tr>
+    <tr><td>"Scale out when stretched far above the line" (<a href="0004-holding-and-leaving.html">Lesson 4</a>)</td><td>Scale out into strength at or beyond <strong>+2σ</strong> above a rising AVWAP — unusually far from the crowd's cost basis.</td></tr>
+    <tr><td>"Price pulling back toward the line" (<a href="0003-the-pullback-entry.html">Lesson 3</a>)</td><td>A pullback from <strong>+2σ to the line</strong> is a real reversion to cost basis. A dip that never left +1σ barely pulled back — demand less of it, or skip it.</td></tr>
+    <tr><td>"Buyers in control" (<a href="0001-the-fair-price-line.html">Lesson 1</a>)</td><td>Closes hugging the <strong>upper band</strong> while the line rises = band-walking, trend strength. It is not a short signal.</td></tr>
+  </table>
+
+  <figure>
+    <svg viewBox="0 0 720 230" role="img" aria-label="Rising AVWAP with plus-minus one and two sigma bands; price walks the upper band, scale-out marked at plus two sigma, then a pullback from the band to the line where the entry is marked">
+      <style>
+        .px5 { fill: none; stroke: var(--ink); stroke-width: 2.2; }
+        .vw5 { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 5 3; }
+        .b1 { fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0.55; }
+        .b2 { fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0.3; }
+        .lbl5 { font: 600 12px 'Gill Sans','Avenir Next',sans-serif; }
+      </style>
+      <!-- center AVWAP rising, bands widening slightly -->
+      <polyline class="vw5" points="10,150 150,138 300,126 450,115 700,100"/>
+      <polyline class="b1" points="10,132 150,118 300,104 450,91 700,73"/>
+      <polyline class="b1" points="10,168 150,158 300,148 450,139 700,127"/>
+      <polyline class="b2" points="10,114 150,98 300,82 450,67 700,46"/>
+      <polyline class="b2" points="10,186 150,178 300,170 450,163 700,154"/>
+      <!-- price: walks upper band, tags +2sigma, pulls back to line, defense, resumes -->
+      <polyline class="px5" points="10,140 80,120 130,128 200,96 260,104 330,78 390,86 430,64 470,90 510,112 540,118 570,110 620,92 700,66"/>
+      <circle cx="430" cy="64" r="5" style="fill: var(--seller)"/>
+      <text class="lbl5" x="390" y="50" style="fill: var(--seller)">scale out ≥ +2σ</text>
+      <circle cx="570" cy="110" r="5" style="fill: var(--buyer)"/>
+      <text class="lbl5" x="548" y="132" style="fill: var(--buyer)">entry: reversion + defense</text>
+      <text class="lbl5" x="626" y="106" style="fill: var(--accent)">AVWAP</text>
+      <text class="lbl5" x="640" y="70" style="fill: var(--accent)">+1σ</text>
+      <text class="lbl5" x="640" y="42" style="fill: var(--accent)">+2σ</text>
+      <text class="lbl5" x="14" y="214" style="fill: var(--muted)">The run rides the +1σ/+2σ rail (strength), tags +2σ (scale out), reverts to the line (real pullback), and only enters on defense — Lesson 3 unchanged.</text>
+    </svg>
+    <figcaption>Bands grade the move; the entry rules stay exactly Lesson 3's. Nothing here fires on a band touch alone.</figcaption>
+  </figure>
+
+  <h2>The three honest warnings</h2>
+  <ul>
+    <li><strong>2σ ≠ 95%.</strong> Returns are fat-tailed and trending, so the normal-curve intuition fails: in a strong trend price rides outside +2σ for days. Bands locate <em>unusualness</em>; they do not promise reversion.</li>
+    <li><strong>Bands widen as the anchor ages.</strong> Variance only accumulates, so an old anchor's bands go slow and wide — one more reason for <a href="../reference/glossary.html">re-anchoring</a>: fresh anchor, responsive bands.</li>
+    <li><strong>The Grimes caveat, squared.</strong> If a VWAP touch has no proven standalone edge, a band touch has less. Bands grade extension for rules you already have — they never generate the trade.</li>
+  </ul>
+
+  <h2>Check yourself</h2>
+  <div class="quiz">
+    <div class="q" data-answer="0">
+      <p class="stem">The ±1σ band around an AVWAP brackets…</p>
+      <button class="opt">where the cohort actually transacted</button>
+      <button class="opt">where price must revert to</button>
+      <button class="opt">the exchange's allowed price range</button>
+      <div class="explain">The variance is volume-weighted, so the bands map the distribution of prices actually paid since the anchor — the cohort's positions, not a prediction.</div>
+    </div>
+    <div class="q" data-answer="1">
+      <p class="stem">A pullback that traveled from +2σ back to the AVWAP is…</p>
+      <button class="opt">a signal to short it</button>
+      <button class="opt">a real cost-basis reversion</button>
+      <button class="opt">proof the trend has ended</button>
+      <div class="explain">That's the full trip from "unusually far above the crowd's cost" back to the crowd's cost. It upgrades the pullback's quality — the entry still waits for Lesson 3's defense.</div>
+    </div>
+    <div class="q" data-answer="2">
+      <p class="stem">Price closes hugging the +2σ band for several days while the AVWAP rises. That is…</p>
+      <button class="opt">a guaranteed snap back</button>
+      <button class="opt">an automatic short entry</button>
+      <button class="opt">trend strength, not reversal</button>
+      <div class="explain">Band-walking. Fat-tailed, trending returns keep price outside 2σ for days in strong moves — shorting the band in a rising trend is fighting the cohort that's winning.</div>
+    </div>
+    <div class="q" data-answer="1">
+      <p class="stem">The +2σ band fails to contain ~95% of prices because…</p>
+      <button class="opt">the math ignores overnight gaps</button>
+      <button class="opt">returns are fat-tailed and trending</button>
+      <button class="opt">sigma requires thirty independent samples</button>
+      <div class="explain">The 95% figure assumes independent, normally distributed observations. Price series are neither — tails are fat and moves trend, so 2σ marks "unusual," never "impossible."</div>
+    </div>
+  </div>
+
+  <h2>Do this before the next lesson</h2>
+  <p>
+    Add bands to the daily exercise: on your earnings-anchored VWAP, note each evening where price sits in band terms (inside 1σ, between 1σ and 2σ, beyond 2σ) alongside the control read. If your Lesson 3 paper trade is running, restate its status once in band language: how extended is it, and would +2σ change tonight's exit decision? One sentence each.
+  </p>
+
+  <footer class="lesson-footer">
+    <p><strong>Primary source:</strong> <a href="https://thevwap.com/vwap/">TheVWAP's detailed guide</a> for band mechanics and calculation — best of the free treatments, with the tier caveat above. The math is also restated in this course's
+      <a href="../reference/glossary.html">glossary</a> entry.</p>
+    <p>Anything unclear? Ask your teaching agent — it can derive the variance formula with you or grade a chart in band language. </p>
+  </footer>
+</main>

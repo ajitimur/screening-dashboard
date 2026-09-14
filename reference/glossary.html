@@ -3,6 +3,7 @@
 <main>
   <nav class="crumbs">
     <a href="../lessons/0001-the-fair-price-line.html">← Lesson 1</a>
+    <a href="entry-playbook.html">Entry Playbook</a>
     <a href="../RESOURCES.md">Resources</a>
   </nav>
 
@@ -14,27 +15,27 @@
     <tr><th>Term</th><th>Definition</th></tr>
     <tr>
       <td><strong>VWAP</strong></td>
-      <td>Volume-Weighted Average Price: the average price paid per share over a period, weighting each trade by its size. Cumulative Σ(price × volume) ÷ Σ(volume). The session's running "fair price" as actually transacted. <a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/volume-weighted-average-price-vwap">StockCharts</a></td>
+      <td>Volume-Weighted Average Price: the average price paid per share over a period, weighting each trade by its size. Cumulative Σ(price × volume) ÷ Σ(volume). The running "fair price" as actually transacted. <a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/volume-weighted-average-price-vwap">StockCharts</a></td>
     </tr>
     <tr>
       <td><strong>Typical price</strong></td>
-      <td>(High + Low + Close) ÷ 3 for a bar — the per-bar price proxy charting platforms feed into the VWAP formula when trade-by-trade data isn't used.</td>
+      <td>(High + Low + Close) ÷ 3 for a bar. The per-bar price proxy charting platforms feed into the VWAP formula when trade-by-trade data isn't used.</td>
     </tr>
     <tr>
       <td><strong>Session VWAP</strong></td>
-      <td>VWAP computed from the regular-session open, resetting daily. When day traders say "VWAP" unqualified, they mean this. It is an intraday object — useless for multi-day holds, which is why this course anchors instead (see AVWAP).</td>
+      <td>VWAP computed from the regular-session open, resetting daily. When day traders say "VWAP" unqualified, they mean this. It is an intraday object, useless for multi-day holds, which is why this course anchors instead (see AVWAP).</td>
     </tr>
     <tr>
       <td><strong>Anchored VWAP (AVWAP)</strong></td>
-      <td>VWAP computed from a chosen event bar instead of the open — an earnings gap, a breakout, a swing high/low. The average price of everyone who has traded <em>since that event</em>. <a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/anchored-vwap">StockCharts</a>, <a href="https://alphatrends.net/archives/category/vwap/about-vwap/">Shannon</a></td>
+      <td>VWAP computed from a chosen event bar instead of the open: an earnings gap, a breakout, a swing high or low. The average price of everyone who has traded <em>since that event</em>. <a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/anchored-vwap">StockCharts</a>, <a href="https://alphatrends.net/archives/category/vwap/about-vwap/">Shannon</a></td>
     </tr>
     <tr>
       <td><strong>Anchor</strong></td>
-      <td>The event bar an AVWAP starts from. Defensible anchors mark a shift in market psychology on heavy volume — earnings gaps, breakout days, major swing highs/lows, IPO day — so the line tracks a real cohort's cost basis. <a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/anchored-vwap">StockCharts</a></td>
+      <td>The event bar an AVWAP starts from. Defensible anchors mark a shift in market psychology on heavy volume (earnings gaps, breakout days, major swing highs and lows, IPO day), so the line tracks a real cohort's cost basis. <a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/anchored-vwap">StockCharts</a></td>
     </tr>
     <tr>
       <td><strong>AVWAP convergence</strong></td>
-      <td>Two or more AVWAPs from different anchors meeting at a price — independent cohorts' breakevens stacked in one zone, marking "an especially strong area of support or resistance." <a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/anchored-vwap">StockCharts</a></td>
+      <td>Two or more AVWAPs from different anchors meeting at a price. Independent cohorts' breakevens stacked in one zone, marking "an especially strong area of support or resistance." <a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/anchored-vwap">StockCharts</a></td>
     </tr>
     <tr>
       <td><strong>Execution benchmark</strong></td>
@@ -46,31 +47,31 @@
     </tr>
     <tr>
       <td><strong><span class="above">In control (buyers)</span></strong></td>
-      <td>Price holding above a rising VWAP: the average participant since the anchor is in profit and dips keep getting bought. The single-sentence session read this course drills first.</td>
+      <td>Price holding above a rising AVWAP: the average participant since the anchor is in profit and dips keep getting bought. The single-sentence read this course drills first.</td>
     </tr>
     <tr>
       <td><strong><span class="below">In control (sellers)</span></strong></td>
-      <td>Price holding below a falling VWAP: the average participant is underwater and rallies keep getting sold into.</td>
+      <td>Price holding below a falling AVWAP: the average participant is underwater and rallies keep getting sold into.</td>
     </tr>
     <tr>
       <td><strong>Chop / no control</strong></td>
-      <td>Price crossing a flat VWAP repeatedly. Neither side owns the session; control reads and pullback entries are off the table.</td>
+      <td>Price crossing a flat AVWAP repeatedly. Neither side owns the move; control reads and pullback entries are off the table.</td>
     </tr>
     <tr>
       <td><strong>Reclaim</strong></td>
-      <td>Price losing VWAP, then decisively recovering above it and holding — a control flip, stronger evidence than the first cross.</td>
+      <td>Price losing the AVWAP, then decisively recovering above it and holding. A control flip, stronger evidence than the first cross.</td>
     </tr>
     <tr>
       <td><strong>Defense (of a level)</strong></td>
-      <td>Price probing an AVWAP zone and closing back up and away from it — visible evidence the cohort anchored there is protecting its breakeven. On daily bars, the defense bar's low becomes the level they proved they'll fight for. <a href="https://www.smbtraining.com/blog/why-you-need-vwap-for-your-intraday-trading">SMB</a></td>
+      <td>Price probing an AVWAP zone and closing back up and away from it. Visible evidence the cohort anchored there is protecting its breakeven. On daily bars, the defense bar's low becomes the level they proved they'll fight for. <a href="https://www.smbtraining.com/blog/why-you-need-vwap-for-your-intraday-trading">SMB</a></td>
     </tr>
     <tr>
       <td><strong>R (risk unit)</strong></td>
-      <td>Entry price minus invalidation price — the amount lost if the thesis fails. Targets and results are measured in multiples of it; a setup paying less than ~2R to the obvious target isn't compensating the risk.</td>
+      <td>Entry price minus invalidation price, the amount lost if the thesis fails. Targets and results are measured in multiples of it. A setup paying less than ~2R to the obvious target isn't compensating the risk.</td>
     </tr>
     <tr>
       <td><strong>Relative strength vs. VWAP</strong></td>
-      <td>Comparing where a stock sits against its VWAP while the index sits against its own — a stock above VWAP while the market is below its VWAP is showing relative strength. <a href="https://www.smbtraining.com/blog/why-you-need-vwap-for-your-intraday-trading">SMB</a></td>
+      <td>Comparing where a stock sits against its VWAP while the index sits against its own. A stock above VWAP while the market is below its VWAP is showing relative strength. <a href="https://www.smbtraining.com/blog/why-you-need-vwap-for-your-intraday-trading">SMB</a></td>
     </tr>
     <tr>
       <td><strong>Invalidation</strong></td>
@@ -78,27 +79,27 @@
     </tr>
     <tr>
       <td><strong>Trailing invalidation</strong></td>
-      <td>The exit level stepped up under each newly defended higher low as a winning move progresses. It only moves up, never down; a daily close below it ends the trade. <a href="https://cmtassociation.org/podcast/fill-the-gap-episode-sixty-one-anchored-vwap-legend-brian-shannon-cmt/">Shannon, CMT podcast</a></td>
+      <td>The exit level stepped up under each newly defended higher low as a winning move progresses. It only moves up, never down. A daily close below it ends the trade. <a href="https://cmtassociation.org/podcast/fill-the-gap-episode-sixty-one-anchored-vwap-legend-brian-shannon-cmt/">Shannon, CMT podcast</a></td>
     </tr>
     <tr>
       <td><strong>Re-anchoring</strong></td>
-      <td>Planting a fresh AVWAP at the latest meaningful pivot as a move ages, to track the <em>marginal cohort</em> — the most recent buyers, first to defend or panic. The stale original line stays on as the disaster floor.</td>
+      <td>Planting a fresh AVWAP at the latest meaningful pivot as a move ages, to track the <em>marginal cohort</em>: the most recent buyers, first to defend or panic. The stale original line stays on as the disaster floor.</td>
     </tr>
     <tr>
       <td><strong>Extension</strong></td>
-      <td>Price stretched unusually far above (or below) its AVWAP — far from the crowd's cost basis. Late in a move it argues for scaling out into strength rather than initiating.</td>
+      <td>Price stretched unusually far above (or below) its AVWAP, far from the crowd's cost basis. Late in a move it argues for scaling out into strength rather than initiating.</td>
     </tr>
     <tr>
       <td><strong>VWAP bands (σ bands)</strong></td>
-      <td>Standard-deviation envelopes around an AVWAP, from the volume-weighted variance since the anchor: σ² = Σ(v·p²)/Σv − VWAP². They bracket where the cohort actually transacted, turning "extended" into a statistical read (±1σ, ±2σ). Fat tails mean 2σ ≠ 95%, trends ride the bands, and bands widen as the anchor ages — context, never a signal. <a href="https://thevwap.com/vwap/">TheVWAP guide</a></td>
+      <td>Standard-deviation envelopes around an AVWAP, from the volume-weighted variance since the anchor: σ² = Σ(v·p²)/Σv − VWAP². They bracket where the cohort actually transacted, turning "extended" into a statistical read (±1σ, ±2σ). Fat tails mean 2σ ≠ 95%, trends ride the bands, and bands widen as the anchor ages. Context, never a signal. <a href="https://thevwap.com/vwap/">TheVWAP guide</a></td>
     </tr>
     <tr>
       <td><strong>The Grimes caveat</strong></td>
-      <td>Shorthand in this course for: no free quantitative study shows a statistical edge in VWAP touches per se (<a href="https://adamhgrimes.com/reader-question-is-vwap-useful/">Grimes 2015</a>). VWAP is context and confirmation, not a standalone signal — SMB says the same.</td>
+      <td>Shorthand in this course for: no free quantitative study shows a statistical edge in VWAP touches per se (<a href="https://adamhgrimes.com/reader-question-is-vwap-useful/">Grimes 2015</a>). VWAP is context and confirmation, not a standalone signal. SMB says the same.</td>
     </tr>
   </table>
 
   <footer class="lesson-footer">
-    Part of the <em>Swing Trading with VWAP</em> workspace. Terms are added as lessons introduce them — ask your teaching agent if one is missing.
+    Part of the <em>Swing Trading with VWAP</em> workspace. Terms are added as lessons introduce them. Ask your teaching agent if one is missing.
   </footer>
 </main>

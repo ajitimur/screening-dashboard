@@ -11,25 +11,25 @@
 
   <p class="kicker">Lesson 0003 · Swing Trading with VWAP</p>
   <h1>The Pullback Entry</h1>
-  <p class="lede">One skill: turn a control read and an anchor into a complete swing trade plan — entry, invalidation, and target — written down <em>before</em> you're in.</p>
+  <p class="lede">This lesson teaches one skill. Turn a control read and an anchor into a complete swing trade plan, with entry, invalidation, and target written down <em>before</em> you're in.</p>
 
   <h2>The setup: three preconditions</h2>
-  <p>A pullback-to-AVWAP long is only on the table when everything from Lessons 1–2 already agrees:</p>
+  <p>A pullback-to-AVWAP long is only on the table when everything from Lessons 1 and 2 already agrees:</p>
   <ul>
-    <li><span class="above">Buyers control the move</span> — price holding above a <em>rising</em> AVWAP (<a href="0001-the-fair-price-line.html">Lesson 1</a>).</li>
-    <li>The AVWAP is anchored at a <em>defensible event</em> — earnings gap, breakout, major swing low (<a href="0002-anchors-that-matter.html">Lesson 2</a>). Better still if a second anchor's line converges nearby.</li>
-    <li>Price is <em>pulling back toward</em> the line — you are buying the cohort's breakeven while they're still winning, not chasing the high.</li>
+    <li><span class="above">Buyers control the move.</span> Price holding above a <em>rising</em> AVWAP (<a href="0001-the-fair-price-line.html">Lesson 1</a>).</li>
+    <li>The AVWAP is anchored at a defensible event: earnings gap, breakout, major swing low (<a href="0002-anchors-that-matter.html">Lesson 2</a>). Better still if a second anchor's line converges nearby.</li>
+    <li>Price is pulling back <em>toward</em> the line. You are buying the cohort's breakeven while they're still winning, not chasing the high.</li>
   </ul>
   <p>
-    The logic comes straight from the sources: Shannon observes that buyers
-    <a href="https://alphatrends.net/archives/2017/12/use-anchored-vwap-avwap/">"emerge to defend these levels on subsequent pullbacks"</a> — the cohort whose average cost sits at the line has every incentive to protect it.
+    The logic comes straight from the sources. Shannon observes that buyers
+    <a href="https://alphatrends.net/archives/2017/12/use-anchored-vwap-avwap/">"emerge to defend these levels on subsequent pullbacks"</a>. The cohort whose average cost sits at the line has every incentive to protect it.
   </p>
 
   <h2>The entry: wait for defense</h2>
   <p>
-    Don't buy the first touch blind. SMB's traders wait for evidence the level is actually being defended —
+    Don't buy the first touch blind. SMB's traders wait for evidence the level is actually being defended:
     <a href="https://www.smbtraining.com/blog/why-you-need-vwap-for-your-intraday-trading">"I personally look for plays that have multiple tests against the VWAP… Once I get the confirmation of the crossover and holding, that is an area of interest."</a>
-    Translated to daily bars: price dips into the AVWAP zone, holds it — maybe probes it twice — and prints a day that closes back up and away from the line. That defense bar is your trigger; its low is the level the buyers just proved they'll fight for.
+    Translated to daily bars: price dips into the AVWAP zone, holds it, maybe probes it twice, and prints a day that closes back up and away from the line. That defense bar is your trigger. Its low is the level the buyers just proved they'll fight for.
   </p>
 
   <figure>
@@ -52,21 +52,21 @@
       <circle cx="430" cy="110" r="5" style="fill: var(--buyer)"/>
       <text class="lbl3" x="404" y="98" style="fill: var(--buyer)">entry</text>
       <text class="lbl3" x="330" y="152" style="fill: var(--muted)">two tests, then defense</text>
-      <text class="lbl3" x="14" y="212" style="fill: var(--muted)">Dashed purple: earnings-anchored VWAP, rising. Entry above the defense bar; risk is the distance to the invalidation, reward the distance to the target.</text>
+      <text class="lbl3" x="14" y="212" style="fill: var(--muted)">Dashed purple: earnings-anchored VWAP, rising. Entry above the defense bar. Risk is the distance to the invalidation, reward the distance to the target.</text>
     </svg>
     <figcaption>The whole trade exists on paper before the entry: trigger, invalidation, target.</figcaption>
   </figure>
 
   <h2>The invalidation: a daily close, decided in advance</h2>
   <p>
-    The thesis is "buyers defend their breakeven." The thesis is <em>wrong</em> when they visibly stop defending it: a <strong>daily close back below the AVWAP</strong>. SMB notes plainly that
-    <a href="https://www.smbtraining.com/blog/why-you-need-vwap-for-your-intraday-trading">"a lot of traders use the VWAP as a stop, which is also acceptable"</a> — for swing timeframes we take the daily-close version so a single intraday wick can't shake you out of a thesis that's still intact. Write the level down before entry
+    The thesis is "buyers defend their breakeven." The thesis is wrong when they visibly stop defending it, meaning a <strong>daily close back below the AVWAP</strong>. SMB notes plainly that
+    <a href="https://www.smbtraining.com/blog/why-you-need-vwap-for-your-intraday-trading">"a lot of traders use the VWAP as a stop, which is also acceptable"</a>. For swing timeframes we take the daily-close version so a single intraday wick can't shake you out of a thesis that's still intact. Write the level down before entry
     (<a href="../reference/glossary.html">invalidation</a>). Shannon's blunt framing applies: managing risk is Job One.
   </p>
 
   <h2>Is it worth taking? Count the R</h2>
   <p>
-    Your risk unit <strong>R</strong> is entry minus invalidation. The obvious first target is the prior high of the move. If that distance is less than about 2R, the structure isn't paying you for the risk — skip it and wait for the next test. This arithmetic, not the touch of the line, is where the trade earns its place: remember the <a href="../reference/glossary.html">Grimes caveat</a> — the touch has no proven edge by itself; the edge you're claiming is <em>control + defense + asymmetric R</em>, and honest review of whether that claim held.
+    Your risk unit <strong>R</strong> is entry minus invalidation. The obvious first target is the prior high of the move. If that distance is less than about 2R, the structure isn't paying you for the risk. Skip it and wait for the next test. This arithmetic, not the touch of the line, is where the trade earns its place. Remember the <a href="../reference/glossary.html">Grimes caveat</a>: the touch has no proven edge by itself. The edge you're claiming is control plus defense plus asymmetric R, and honest review of whether that claim held.
   </p>
 
   <h2>Check yourself</h2>
@@ -83,34 +83,34 @@
       <button class="opt">the pullback reaches round numbers</button>
       <button class="opt">the level shows actual defense</button>
       <button class="opt">the AVWAP crosses another AVWAP</button>
-      <div class="explain">SMB: multiple tests, then "confirmation of the crossover and holding." On daily bars that's a bar that probes the AVWAP zone and closes back up and away — proof the cohort is defending.</div>
+      <div class="explain">SMB: multiple tests, then "confirmation of the crossover and holding." On daily bars that's a bar that probes the AVWAP zone and closes back up and away. Proof the cohort is defending.</div>
     </div>
     <div class="q" data-answer="2">
       <p class="stem">For a swing hold, the thesis is invalidated by…</p>
       <button class="opt">any intraday tick below the AVWAP</button>
       <button class="opt">three sideways days near the AVWAP</button>
       <button class="opt">a daily close below the AVWAP</button>
-      <div class="explain">The thesis is that buyers defend their breakeven. A daily close below it is them visibly failing to; an intraday wick is noise at swing timeframe, and sideways digestion above the line is normal.</div>
+      <div class="explain">The thesis is that buyers defend their breakeven. A daily close below it is them visibly failing to. An intraday wick is noise at swing timeframe, and sideways digestion above the line is normal.</div>
     </div>
     <div class="q" data-answer="1">
       <p class="stem">Your invalidation hit, you exited, and the stock then reversed up without you. The review question that matters is…</p>
       <button class="opt">should the stop have been ignored</button>
       <button class="opt">was the control read correct beforehand</button>
       <button class="opt">did the market makers hunt stops</button>
-      <div class="explain">Judge the read separately from the outcome (it's in the mission). A correct read that loses is a good trade; overriding invalidations because one reversed is how accounts die.</div>
+      <div class="explain">Judge the read separately from the outcome (it's in the mission). A correct read that loses is a good trade. Overriding invalidations because one reversed is how accounts die.</div>
     </div>
   </div>
 
   <h2>Do this before the next lesson</h2>
   <p>
-    Paper-plan one full trade — no money. Pick a liquid stock where your daily exercise already says buyers control an earnings-anchored move. Write down, before anything happens: the anchor and why, the one-sentence control read, the entry trigger you'd need to see (defense at the line), the daily-close invalidation level, the target, and the R multiple. Then watch it for a week and grade the <em>read</em>, not the P&amp;L. Bring the plan to the next session — critiquing it is where the next lesson starts.
+    Paper-plan one full trade, no money. Pick a liquid stock where your daily exercise already says buyers control an earnings-anchored move. Write down, before anything happens: the anchor and why, the one-sentence control read, the entry trigger you'd need to see (defense at the line), the daily-close invalidation level, the target, and the R multiple. Then watch it for a week and grade the read, not the P&amp;L. Bring the plan to the next session. Critiquing it is where the next lesson starts.
   </p>
 
   <footer class="lesson-footer">
     <p><strong>Primary source:</strong> SMB Training,
-      <a href="https://www.smbtraining.com/blog/why-you-need-vwap-for-your-intraday-trading">"Why You NEED VWAP For Your Intraday Trading"</a> (the test-and-hold entry structure, stated by a working prop trader), alongside Shannon's
+      <a href="https://www.smbtraining.com/blog/why-you-need-vwap-for-your-intraday-trading">"Why You NEED VWAP For Your Intraday Trading"</a>, the test-and-hold entry structure in a working prop trader's words, alongside Shannon's
       <a href="https://alphatrends.net/archives/2017/12/use-anchored-vwap-avwap/">AVWAP how-to</a> and SMB's
       <a href="https://www.youtube.com/watch?v=xesrK4KAzfM">2-Day VWAP setup video</a> for a filmed multi-day example.</p>
-    <p>Anything unclear? Ask your teaching agent — bring it a chart or your paper plan and it will argue the entry with you. See also the <a href="../reference/glossary.html">glossary</a>.</p>
+    <p>Anything unclear? Ask your teaching agent. Bring it a chart or your paper plan and it will argue the entry with you. See also the <a href="../reference/glossary.html">glossary</a>.</p>
   </footer>
 </main>

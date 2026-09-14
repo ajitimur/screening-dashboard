@@ -1,0 +1,112 @@
+<title>Lesson 2 · Anchors That Matter</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/quiz.js"></script>
+<main>
+  <nav class="crumbs">
+    <a href="0001-the-fair-price-line.html">← Lesson 1</a>
+    <a href="../reference/glossary.html">Glossary</a>
+    <a href="../RESOURCES.md">Resources</a>
+  </nav>
+
+  <p class="kicker">Lesson 0002 · Swing Trading with VWAP</p>
+  <h1>Anchors That Matter</h1>
+  <p class="lede">One skill: given a daily chart, choose an anchor point and justify it in one sentence. A defensible anchor makes the AVWAP mean something; an arbitrary one makes it decoration.</p>
+
+  <h2>The principle</h2>
+  <p>
+    In <a href="0001-the-fair-price-line.html">Lesson 1</a> you read control off one line. But an AVWAP is only as meaningful as its starting point: it is the average cost basis of everyone who traded <em>since the anchor</em>, so the anchor must mark the moment a <strong>new cohort</strong> started building positions. StockCharts states the rule directly: anchor at events that
+    <a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/anchored-vwap">"signal a change in market psychology, and the price action before that change should be excluded"</a> — it was driven by a different psychology, so averaging it in only pollutes the line.
+  </p>
+  <p>
+    That's also why volume matters. The AVWAP is volume-weighted, so an anchor at a heavy-volume repricing captures a large, real cohort of positions. Anchor at a quiet random Tuesday and the line averages almost nobody's decision — it will drift near price and hold no one's breakeven. Shannon's claim that the AVWAP is
+    <a href="https://alphatrends.net/archives/category/vwap/about-vwap/">"the absolute truth of the relationship between a stock's supply and demand"</a> is earned only when the anchor sits where supply and demand actually collided.
+  </p>
+
+  <h2>The shortlist</h2>
+  <table>
+    <tr><th>Anchor</th><th>Whose cost basis it tracks</th></tr>
+    <tr><td><strong>Earnings gap day</strong></td><td>Everyone repricing the company on the new information — enormous volume, total repricing. The AVWAP from the gap says whether the market is accepting or rejecting the new valuation. The default swing anchor.</td></tr>
+    <tr><td><strong>Breakout day</strong></td><td>The buyers who paid up for the breakout. Price holding above this line means they're right and defending; losing it traps them.</td></tr>
+    <tr><td><strong>Major swing high / low</strong></td><td>Everyone positioned since the turn — the cohort riding the current leg. StockCharts' "significant turning point."</td></tr>
+    <tr><td><strong>Big-news day, IPO day</strong></td><td>Same logic as earnings: a discrete event that forced a repricing on huge volume. For recent IPOs the IPO anchor is every public holder's average cost.</td></tr>
+    <tr><td><strong>Year / quarter start</strong></td><td>No psychology shift — but institutions report performance by calendar, so year-to-date VWAP approximates the average entry of this year's flows. A convention worth having on the chart, not a thesis by itself.</td></tr>
+  </table>
+
+  <h2>Convergence: when lines agree</h2>
+  <figure>
+    <svg viewBox="0 0 720 210" role="img" aria-label="Daily chart with an earnings gap; AVWAP from the gap day and AVWAP from the prior swing low converge under price where a pullback finds support">
+      <style>
+        .px2 { fill: none; stroke: var(--ink); stroke-width: 2.2; }
+        .vwA { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 5 3; }
+        .vwB { fill: none; stroke: var(--buyer); stroke-width: 2; stroke-dasharray: 2 3; }
+        .lbl2 { font: 600 12px 'Gill Sans','Avenir Next',sans-serif; }
+        .zone { fill: var(--accent); opacity: 0.15; }
+      </style>
+      <!-- price: base, swing low, drift up, earnings gap, run, pullback to converged lines, resume -->
+      <polyline class="px2" points="10,120 40,140 70,155 95,135 120,145 150,125 180,132 210,112 210,70 240,55 270,68 300,45 330,58 360,80 390,92 420,78 450,52 480,60 510,38"/>
+      <!-- AVWAP from swing low (70,155) -->
+      <polyline class="vwB" points="70,155 150,148 210,138 270,122 330,110 390,101 450,95 510,90"/>
+      <!-- AVWAP from gap day (210,70) -->
+      <polyline class="vwA" points="210,70 270,74 330,80 390,86 450,91 510,94"/>
+      <rect class="zone" x="375" y="80" width="60" height="22" rx="4"/>
+      <text class="lbl2" x="14" y="196" style="fill: var(--muted)">swing-low AVWAP (dotted) and earnings-gap AVWAP (dashed) converge — the pullback holds exactly there</text>
+      <text class="lbl2" x="196" y="34" style="fill: var(--ink)">earnings gap ↑</text>
+      <text class="lbl2" x="56" y="176" style="fill: var(--buyer)">swing low</text>
+    </svg>
+    <figcaption>Two independent cohorts share a breakeven zone. Price pulls back into it, both cohorts defend, the move resumes.</figcaption>
+  </figure>
+  <p>
+    Run several anchors at once. When AVWAPs from different events converge at a price, that is
+    <a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/anchored-vwap">"an especially strong area of support or resistance"</a> — two independent cohorts' breakevens stacked in one zone. <a href="https://help.trendspider.com/kb/indicators/alphatrends-anchored-vwap">TrendSpider's documentation</a> of Shannon's indicator gives the same advice: multiple anchors for a more comprehensive view, price above the line treating it as support, below as resistance.
+  </p>
+
+  <div class="aside">
+    <span class="label">Keep the caveat</span>
+    An anchor justifies a <em>line</em>, not a trade. The <a href="../reference/glossary.html">Grimes caveat</a> from Lesson 1 still applies: the AVWAP tells you where cohorts' breakevens sit and who controls the move — the entry itself needs structure and an invalidation, which is the next lesson.
+  </div>
+
+  <h2>Check yourself</h2>
+  <div class="quiz">
+    <div class="q" data-answer="1">
+      <p class="stem">A good anchor marks…</p>
+      <button class="opt">a round-number price level</button>
+      <button class="opt">a market psychology shift</button>
+      <button class="opt">a fixed calendar interval</button>
+      <div class="explain">The anchor must mark the moment a new cohort started positioning — StockCharts: events that "signal a change in market psychology." Prior action belongs to a different psychology and is excluded.</div>
+    </div>
+    <div class="q" data-answer="0">
+      <p class="stem">The AVWAP anchored at an earnings gap tells you…</p>
+      <button class="opt">the new cohort's average cost basis</button>
+      <button class="opt">the stock's fair fundamental value now</button>
+      <button class="opt">the direction of tomorrow's opening gap</button>
+      <div class="explain">It is the volume-weighted average price paid by everyone repricing the stock since the report — their collective breakeven, which is why price accepting or rejecting it matters.</div>
+    </div>
+    <div class="q" data-answer="2">
+      <p class="stem">When AVWAPs from two different anchors converge at a price…</p>
+      <button class="opt">the lines should be redrawn</button>
+      <button class="opt">the older anchor becomes invalid</button>
+      <button class="opt">that zone is stronger support/resistance</button>
+      <div class="explain">Two independent cohorts share a breakeven there. StockCharts calls a convergence "an especially strong area of support or resistance."</div>
+    </div>
+    <div class="q" data-answer="0">
+      <p class="stem">Anchoring at a quiet, low-volume random day produces a weak line because…</p>
+      <button class="opt">few positions changed hands at that point</button>
+      <button class="opt">VWAP math fails when volume is low</button>
+      <button class="opt">charts only allow anchors at extreme prices</button>
+      <div class="explain">The math works fine — but the line represents almost nobody's cost basis, so no cohort exists to defend it. Volume at and after the anchor is what gives the line teeth.</div>
+    </div>
+  </div>
+
+  <h2>Do this before the next lesson</h2>
+  <p>
+    Extend the daily exercise: on one liquid stock, draw <strong>two</strong> AVWAPs — one from the latest earnings report, one from the most recent major swing low. Write two sentences: (1) the Lesson-1 control read on the earnings AVWAP; (2) where, if anywhere, the two lines converge and what zone that marks. Next lesson turns this into a trade: the pullback-to-AVWAP entry with an invalidation on daily closes.
+  </p>
+
+  <footer class="lesson-footer">
+    <p><strong>Primary source:</strong> Brian Shannon's post
+      <a href="https://alphatrends.net/archives/2017/12/use-anchored-vwap-avwap/">"How To Use The Anchored VWAP (AVWAP)"</a> (from the free
+      <a href="https://alphatrends.net/archives/category/vwap/about-vwap/">archive</a>), with
+      <a href="https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/anchored-vwap">StockCharts: Anchored VWAP</a> as the neutral reference.</p>
+    <p>Anything unclear? Ask your teaching agent — it can pull real charts, argue anchor choices with you, or go deeper on any cohort's logic. See also the <a href="../reference/glossary.html">glossary</a>.</p>
+  </footer>
+</main>

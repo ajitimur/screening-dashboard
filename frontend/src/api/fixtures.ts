@@ -180,6 +180,20 @@ export const regimeResponse = builder<Schemas["RegimeResponse"]>(() => ({
   breadth: 0.5,
 }));
 
+// GET /api/volatility/{market}
+export const volatilityResponse = builder<Schemas["VolatilityResponse"]>(() => ({
+  market: "IDX",
+  session: "2026-08-04",
+  state: "STRESSED",
+  posture: "full size, but vol is stressed — expect wide swings, size stops accordingly",
+  index_vol: 0.243,
+  percentile: 84.0,
+  sample_size: 356,
+  era_start: "2025-04-08",
+  second_leg: 0.072,
+  second_leg_symbol: "IDR=X",
+}));
+
 // GET /api/candidates/{market}
 export const candidatesResponse = builder<Schemas["CandidatesResponse"]>(() => ({
   market: "IDX",
@@ -250,6 +264,7 @@ export interface ApiRoutes {
   sectorDetail?: (market: string, sector: string) => Schemas["SectorDetailResponse"];
   sectors?: (market: string) => Schemas["SectorsResponse"];
   regime?: (market: string) => Schemas["RegimeResponse"];
+  volatility?: (market: string) => Schemas["VolatilityResponse"];
   candidates?: (market: string) => Schemas["CandidatesResponse"];
   chart?: (market: string, symbol: string) => Schemas["ChartResponse"];
 }
@@ -276,6 +291,8 @@ export function resolveRoute(routes: ApiRoutes, url: string, method = "GET"): un
   }
   if (path.includes("/api/sectors/"))
     return (routes.sectors ?? ((m) => sectorsResponse({ market: m })))(market);
+  if (path.includes("/api/volatility/"))
+    return (routes.volatility ?? ((m) => volatilityResponse({ market: m })))(market);
   if (path.includes("/api/regime/"))
     return (routes.regime ?? ((m) => regimeResponse({ market: m })))(market);
   if (path.includes("/api/candidates/"))

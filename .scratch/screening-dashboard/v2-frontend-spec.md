@@ -318,8 +318,12 @@ control.
 
 **Beneath the header, in this fixed order:**
 
-1. **The regime band — v1's full §4.9 banner, unchanged.** State, the sizing posture *in words*,
-   breadth, as-of. **Permanent, on every screen, gates nothing.**
+1. **The regime band — v1's full §4.9 banner, plus §4.10's volatility segment.** State, the sizing
+   posture *in words* — the **nine-cell trend×volatility sentence** once both readings are in,
+   falling back to the regime's own three words when the volatility state is undefined — breadth,
+   then **`Vol: <state> (<n>th pct, <m> obs)`** and the raw **second leg** (VIX for US, USD/IDR
+   realized vol for IDX), then as-of. **Permanent, on every screen, gates nothing**, the volatility
+   state no more than the regime.
 2. **The run-status banner — only when abnormal.** Run-in-progress, run-failed, quarantine/stale.
    Dismissible. Absent on a healthy night.
 
@@ -486,6 +490,7 @@ published run.**
 | `GET /api/runs/{market}` | unchanged **+ `rejected` map on the latest run** (P2) |
 | `POST /api/runs/{market}` | unchanged |
 | `GET /api/regime/{market}` | **unchanged — no new fields** |
+| `GET /api/volatility/{market}` | **new** — the volatility state (spec §4.10) |
 | `GET /api/candidates/{market}` | **folded + widened** |
 | `GET /api/leaders/{market}` | **renamed** from `/api/boards`; + `sector`/`dollar_volume` (P1), tiers/cutoffs/`rs_pctile` (P2) |
 | `GET /api/sectors/{market}` | unchanged |
@@ -500,6 +505,11 @@ reader hits `/api/boards` and reasonably assumes it feeds the Board.
 **`/api/regime` gains nothing.** v1's full §4.9 banner is kept and the reference's pill rejected, so
 `mode` / `sma10_rising` / `sma20_rising` would be growth with no consumer — and the two apps'
 `breadth` are already different quantities sharing a name.
+
+**The volatility state is its own endpoint, not a field on `/api/regime`.** The regime is the trend
+filter and the volatility state is its sibling (`CONTEXT.md`), so folding one into the other's
+payload would make the vocabulary claim the opposite of what §4.10 decided. It also buys the
+behaviour the band wants: two independent reads, so one failing leaves the other on screen.
 
 **`rejected` lands on `/api/runs`** as `{reason: count}` on the latest run record: a property of the
 run, not of the market's regime, and `/api/runs` is the run-health resource the shell already polls.
@@ -1034,6 +1044,10 @@ for 60-bar thumbnails, which is what `?bars=` exists for.
   either fails, **no screen may render** — you cannot honestly draw a Board whose header cannot say
   its own session. **One** alert, in the tab body's place, and that is **the only `role="alert"` the
   app is allowed to raise**.
+- **Shell-rendered but *not* identity: `/api/volatility`.** It answers *how violent is this night*,
+  which no screen's honesty depends on, so a failure drops the band's volatility segment and leaves
+  the trend reading standing — no alert, and nothing else blanked. It is the one read in the band
+  that is allowed to go missing.
 - **Panel-owned (body): the other seven.** A dead `/api/sector-rrg/{market}` collapses the Board's
   rotation panel to a one-line notice; hero cards, leaders strip and funnel line stay live. N panels
   may fail, producing N notices — and **a panel notice is deliberately not `role="alert"`**, so three

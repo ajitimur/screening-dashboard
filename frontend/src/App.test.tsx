@@ -10,6 +10,7 @@ import {
   sectorStrength,
   sectorsResponse,
   stubFetch,
+  volatilityResponse,
   type ApiRoutes,
 } from "./api/fixtures";
 
@@ -119,6 +120,91 @@ describe("the shell — regime band", () => {
     const band = await screen.findByLabelText(/IDX regime/i);
     expect(band).toHaveTextContent(/undefined|warming up/i);
     expect(band).not.toHaveTextContent(/full size|reduced|sit out/);
+  });
+
+  // The volatility segment (spec §4.10): the regime's sibling in the same band.
+  it("shows the volatility state, its percentile and sample size, and the second leg", async () => {
+    stubFetch(vi, {
+      regime: (m) =>
+        regimeResponse({ market: m, state: "FRIENDLY", posture: "full size", breadth: 0.5 }),
+      volatility: (m) =>
+        volatilityResponse({
+          market: m,
+          state: "STRESSED",
+          posture:
+            "full size, but vol is stressed — expect wide swings, size stops accordingly",
+          percentile: 84.0,
+          sample_size: 356,
+          second_leg: 0.072,
+          second_leg_symbol: "IDR=X",
+        }),
+    });
+    render(<App />);
+    const band = await screen.findByLabelText(/IDX regime/i);
+
+    await waitFor(() => expect(band).toHaveTextContent(/STRESSED/));
+    // Direction and turbulence in one glance, regime first.
+    expect(band).toHaveTextContent(/FRIENDLY/);
+    // The sample size travels with the percentile — a thin within-era history is
+    // visible, never hidden.
+    expect(band).toHaveTextContent(/84th pct, 356 obs/);
+    // IDX has no VIX, so the second leg is USD/IDR realized vol.
+    expect(band).toHaveTextContent(/USD\/IDR vol 7\.2%/);
+    // The nine-cell posture supersedes the regime's three words: "full size" in
+    // stressed vol never reads as an unqualified go-ahead.
+    expect(band).toHaveTextContent(/expect wide swings/);
+  });
+
+  it("shows the US second leg as the raw VIX close", async () => {
+    window.history.replaceState(null, "", "/?market=US");
+    stubFetch(vi, {
+      volatility: (m) =>
+        volatilityResponse({
+          market: m, state: "CALM", posture: "full size — quiet tape",
+          percentile: 21.0, sample_size: 756, second_leg: 18.4, second_leg_symbol: "^VIX",
+        }),
+    });
+    render(<App />);
+    const band = await screen.findByLabelText(/US regime/i);
+    await waitFor(() => expect(band).toHaveTextContent(/VIX 18\.4/));
+    expect(band).not.toHaveTextContent(/USD\/IDR/);
+    // The rank is an ordinal, so 21 reads "21st" rather than "21th".
+    expect(band).toHaveTextContent(/21st pct, 756 obs/);
+  });
+
+  it("shows an undefined volatility state as warming up, with the count still on show", async () => {
+    stubFetch(vi, {
+      volatility: (m) =>
+        volatilityResponse({
+          market: m, state: null, posture: null, percentile: 30.0, sample_size: 42,
+        }),
+    });
+    render(<App />);
+    const band = await screen.findByLabelText(/IDX regime/i);
+    await waitFor(() => expect(band).toHaveTextContent(/42 obs/));
+    expect(band).toHaveTextContent(/warming up/i);
+    expect(band).not.toHaveTextContent(/CALM|ELEVATED|STRESSED/);
+    // No cell sentence without both coordinates — the regime's own posture stands.
+    expect(band).toHaveTextContent(/full size/);
+  });
+
+  it("keeps the regime on screen when the volatility read fails", async () => {
+    // The two are read independently (spec §4.10): an advisory number going
+    // missing drops its segment, it does not blank the band or alert the app.
+    stubFetch(vi);
+    const routed = globalThis.fetch as unknown as typeof fetch;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, opts?: { method?: string }) => {
+        if (String(url).includes("/api/volatility/")) throw new Error("boom");
+        return routed(url as never, opts as never);
+      }),
+    );
+    render(<App />);
+    const band = await screen.findByLabelText(/IDX regime/i);
+    expect(band).toHaveTextContent(/FRIENDLY/);
+    expect(band).not.toHaveTextContent(/Vol:/);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("shows no regime band before the first run has published a session", async () => {

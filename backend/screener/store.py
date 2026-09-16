@@ -23,6 +23,7 @@ from .labels import Label
 from .models import ResolutionFailure, RunRecord, RunStatus
 from .ranks import Rank
 from .regime import FollowThrough
+from .volatility import VolatilityReading
 
 # Bump when a derived-table definition changes. Detection rows additionally carry
 # their own detector_version column (spec §7.2); this is the store-level schema.
@@ -35,10 +36,11 @@ from .regime import FollowThrough
 # v9 the label_history table — the forward sector/industry record so the rubric's
 # eighth dimension is replayable going forward (issue #130, PRD #114); v10 extends
 # detections with range_3bar_adr, the ungated base tightness the graded Tightness
-# dimension reads (#154).
+# dimension reads (#154); v11 the volatility_readings table — the forward,
+# write-once volatility record beside follow_through (spec §4.10, #224).
 # Recorded in the database on open (``schema_meta``) and reconciled against it by
 # :meth:`Store._migrate`, so an older file is upgraded rather than crashed into.
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 _SCHEMA = """
 -- The schema this database has been reconciled to. Written on every open, so
@@ -108,6 +110,30 @@ CREATE TABLE IF NOT EXISTS follow_through (
     session      DATE    NOT NULL,
     broke_out    BOOLEAN NOT NULL,
     index_close  DOUBLE  NOT NULL,
+    PRIMARY KEY (market, session)
+);
+
+-- The forward volatility record: one row per (market, session) carrying the
+-- index's 21-day realized vol, its percentile, the sample size that percentile
+-- came from, the ARB policy era that bounded it, and the second leg beside it
+-- (spec §4.10). Write-once and captured from the first run for the same reason
+-- ``follow_through`` is: a vol-managed-sizing study can only run on readings
+-- recorded forward, and a future era change makes retro-computing a past
+-- session's denominator genuinely ambiguous (ADR 0006).
+--
+-- The **state word is not stored** — it is derivable from the percentile and the
+-- bucket edges, and writing it down would freeze today's display convention into
+-- historical rows. ``vol_percentile`` and ``sample_size`` are what a later reader
+-- rebuckets from. ``era_start`` is NULL where no era bounds the history (US), and
+-- ``second_leg`` where that series had not yet answered.
+CREATE TABLE IF NOT EXISTS volatility_readings (
+    market          TEXT    NOT NULL,
+    session         DATE    NOT NULL,
+    index_vol       DOUBLE  NOT NULL,
+    vol_percentile  DOUBLE  NOT NULL,
+    sample_size     INTEGER NOT NULL,
+    era_start       DATE,
+    second_leg      DOUBLE,
     PRIMARY KEY (market, session)
 );
 
@@ -278,10 +304,11 @@ class SessionExistsError(RuntimeError):
 # These are exactly the streams a fixed enumeration changes, so a recompute
 # (:meth:`supersede_published_session`, issue #111) replaces them.
 #
-# ``follow_through`` is deliberately *not* here: it is the forward, unbiased
-# regime record (spec §4.9), a function of the index alone and not of the
-# candidate enumeration, and it stays write-once even under an operator
-# recompute (spec §7.2). ``runs`` is not here either — it is the commit point
+# ``follow_through`` and ``volatility_readings`` are deliberately *not* here:
+# they are the forward, unbiased regime and volatility records (spec §4.9,
+# §4.10), functions of the market's own index and second leg rather than of the
+# candidate enumeration, and they stay write-once even under an operator
+# recompute (spec §7.2, ADR 0006). ``runs`` is not here either — it is the commit point
 # over these streams rather than one of them, cleared separately below. ``bars``
 # is the ingest substrate, committed per symbol so a killed pull keeps what it
 # already fetched (spec §3.3), and a re-pull appends them idempotently.
@@ -294,9 +321,13 @@ _ENUMERATION_DERIVED_TABLES = (
 )
 
 # Everything a run writes and :meth:`discard_session` clears for a never-published
-# session: the enumeration-derived streams *plus* the forward regime record, which
-# a session that never published never captured either.
-_DERIVED_TABLES = (*_ENUMERATION_DERIVED_TABLES, "follow_through")
+# session: the enumeration-derived streams *plus* the forward regime and
+# volatility records, which a session that never published never captured either.
+_DERIVED_TABLES = (
+    *_ENUMERATION_DERIVED_TABLES,
+    "follow_through",
+    "volatility_readings",
+)
 
 
 class SchemaDriftError(RuntimeError):
@@ -478,9 +509,10 @@ class Store:
 
         Only the :data:`_ENUMERATION_DERIVED_TABLES` and the run record go — the
         streams a fixed enumeration changes, plus the commit point over them.
-        ``follow_through`` stays: it is the unbiased forward record, a function of
-        the index and not the candidate list, so correcting the enumeration must
-        not rewrite it (spec §7.2, §4.9). The caller re-pulls and recomputes the
+        ``follow_through`` and ``volatility_readings`` stay: they are the unbiased
+        forward records, functions of the index and second leg rather than of the
+        candidate list, so correcting the enumeration must not rewrite them
+        (spec §7.2, §4.9, §4.10). The caller re-pulls and recomputes the
         cleared streams and stamps a fresh published run; the swap is safe only
         because the caller clears *after* a fresh pull has cleared the
         completeness gate, never on a throttled retry that would leave the
@@ -641,6 +673,31 @@ class Store:
         self._cursor().execute(
             "INSERT INTO follow_through VALUES (?, ?, ?, ?)",
             [market, session, broke_out, index_close],
+        )
+
+    def append_volatility_reading(
+        self, market: str, reading: VolatilityReading
+    ) -> None:
+        """Append one session's volatility reading (spec §4.10).
+
+        Write-once and dated exactly as :meth:`append_follow_through` is: a
+        session already captured is never rewritten, so the forward record cannot
+        be reshaped after the fact — which is the whole value of starting it at
+        launch. Raises :class:`SessionExistsError` on a rewrite. The state word is
+        not among the columns; it is derived on read (ADR 0006).
+        """
+        self._guard_absent("volatility_readings", market, reading.session)
+        self._cursor().execute(
+            "INSERT INTO volatility_readings VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+                market,
+                reading.session,
+                reading.index_vol,
+                reading.percentile,
+                reading.sample_size,
+                reading.era_start,
+                reading.second_leg,
+            ],
         )
 
     def upsert_label(
@@ -888,6 +945,16 @@ class Store:
             [market],
         ).fetchall()
         return [FollowThrough(*r) for r in rows]
+
+    def volatility_readings(self, market: str) -> list[VolatilityReading]:
+        """A market's volatility readings, oldest session first — the forward
+        record a vol-sizing study reads (spec §4.10, ADR 0006)."""
+        rows = self._cursor().execute(
+            "SELECT session, index_vol, vol_percentile, sample_size, era_start, "
+            "second_leg FROM volatility_readings WHERE market = ? ORDER BY session",
+            [market],
+        ).fetchall()
+        return [VolatilityReading(*r) for r in rows]
 
     def bars(self, market: str, symbol: str) -> list[Bar]:
         """A symbol's stored bars, oldest session first."""

@@ -217,6 +217,75 @@ def test_ingest_stores_clean_bars_for_candidates_and_index(store: Store):
     assert [b.session for b in store.bars("US", "AAA")] == [date(2026, 8, 4)]
 
 
+def test_volumeless_references_keep_their_bars_while_the_index_is_still_filtered(
+    store: Store,
+):
+    """The phantom rule is lifted per symbol, for the two that print no volume.
+
+    ``^VIX`` is a computed level and ``IDR=X`` trades off-exchange, so every one
+    of their bars arrives with ``volume == 0`` (spec §4.10). Dropping those would
+    leave the volatility state with no series at all. The carve-out is narrow:
+    ``^IXIC``/``^JKSE`` and every candidate still get phantom-filtered, where a
+    zero-volume bar really does mean nothing traded.
+    """
+    now = datetime(2026, 8, 5, 16, 15, tzinfo=ET)
+    instruments = [
+        Instrument(market="US", symbol="^IXIC", role="reference"),
+        Instrument(market="US", symbol="^VIX", role="reference"),
+        Instrument(market="US", symbol="AAA", role="candidate"),
+    ]
+    bars = {
+        "^VIX": [_row(date(2026, 8, 3), volume=0), _row(date(2026, 8, 4), volume=0)],
+        "^IXIC": [_row(date(2026, 8, 3), volume=0), _row(date(2026, 8, 4), volume=500)],
+        "AAA": [_row(date(2026, 8, 3), volume=0), _row(date(2026, 8, 4), volume=900)],
+    }
+    ingest_market_bars(store, _source(FakeBarClient({"US": instruments}, bars)), "US", now=now)
+
+    assert [b.session for b in store.bars("US", "^VIX")] == [
+        date(2026, 8, 3), date(2026, 8, 4),
+    ]
+    assert [b.session for b in store.bars("US", "^IXIC")] == [date(2026, 8, 4)]
+    assert [b.session for b in store.bars("US", "AAA")] == [date(2026, 8, 4)]
+
+
+def test_idx_second_leg_rides_the_market_finality_rule(store: Store):
+    """``IDR=X`` has no session close of its own, so it rides IDX's (§4.10).
+
+    A documented approximation: the currency trades around the clock, and the
+    market's own close is the conservative reading of when its bar stopped
+    moving for the session that market is keeping.
+    """
+    now = datetime(2026, 8, 5, 8, 0, tzinfo=WIB)  # past 08-04's close, not 08-05's
+    instruments = [Instrument(market="IDX", symbol="IDR=X", role="reference")]
+    bars = {"IDR=X": [_row(date(2026, 8, 4), volume=0), _row(date(2026, 8, 5), volume=0)]}
+    ingest_market_bars(store, _source(FakeBarClient({"IDX": instruments}, bars)), "IDX", now=now)
+
+    assert [b.session for b in store.bars("IDX", "IDR=X")] == [date(2026, 8, 4)]
+
+
+def test_the_fetch_gate_fetches_exactly_the_declared_reference_set():
+    """Of the references, only the index and the second leg are worth fetching.
+
+    Every other reference — the several thousand US ETFs — is enumerated and
+    never read, so fetching it is pure waste (#99). The set widened by one when
+    the volatility state landed, and it is the declared set, not a guess.
+    """
+    from screener.pipeline import fetch_set
+    from screener.source import MARKET_REFERENCES
+
+    instruments = [
+        Instrument(market="US", symbol="^IXIC", role="reference"),
+        Instrument(market="US", symbol="^VIX", role="reference"),
+        Instrument(market="US", symbol="SPY", role="reference", name="SPDR S&P 500 ETF"),
+        Instrument(market="US", symbol="AAA", role="candidate", name="Alpha Inc Common Stock"),
+    ]
+    fetched = fetch_set(instruments, "US")
+
+    assert [s for s in fetched if s.startswith("^")] == list(MARKET_REFERENCES["US"])
+    assert "SPY" not in fetched
+    assert "AAA" in fetched
+
+
 def test_killing_the_second_market_pull_leaves_the_first_intact(store: Store):
     now = datetime(2026, 8, 5, 8, 0, tzinfo=ET)  # past both closes for 08-04
 

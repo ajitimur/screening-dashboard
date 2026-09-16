@@ -740,6 +740,75 @@ it goes on screen to be watched live and promoted later, with evidence.
 is the only unbiased regime signal available (recorded forward, not reconstructed) and is
 irrecoverable if not started at launch.
 
+### 4.10 Volatility state ([#224](https://github.com/ajitimur/screening-dashboard/issues/224))
+
+The regime's sibling, never its component: **the regime says which direction, the volatility
+state says how violently.** Same advisory-only rule — never filters, never reorders, never
+touches the star score — and its own endpoint, model, and banner segment, so the regime's
+API and vocabulary stay untouched (see `CONTEXT.md`: *volatility state*, *ARB policy era*,
+*second leg*).
+
+**The reading.** 21-day realized volatility of the market index's daily adjusted-close returns
+(§4.9's own indices), ranked as a percentile against the index's own history:
+
+| Market | History the percentile ranks against |
+|---|---|
+| US | rolling 3 years |
+| IDX | the current **ARB policy era** only (rolling 3 years once the era exceeds it) |
+
+IDX ranks within-era because the auto-rejection bands censor daily moves and their widths have
+been changed by decree four times since 2020 — mixing eras biases the percentile in a known
+direction (**ADR 0006**). Era boundaries are decree dates, hand-verified against idx.co.id,
+kept as policy constants with provenance in prose — *policy* dates, not calendar dates, which
+stay forbidden as hardcoded tables. Current era: **2025-04-08** (Kep-00003/BEI/04-2025).
+
+**Warm-up: 60 readings**; below it the state is **undefined, not defaulted** (§4.9's rule). A
+future era change resets IDX to undefined for roughly three months — the design working, not
+a bug. The sample size is always displayed beside the percentile so a thin denominator is
+visible, never hidden.
+
+| State | Rule |
+|---|---|
+| **`CALM`** | percentile < 50 |
+| **`ELEVATED`** | 50 – 80 |
+| **`STRESSED`** | > 80 |
+
+The edges are **display conventions, not calibrated thresholds** — the same epistemic status
+as the posture words, declared as such because the regime block's zero-tuned-parameters stance
+(§4.9) is justified by survivorship bias in rebuilt *member* series, and a continuous index
+series carries no such bias; these numbers are conventions all the same, fixed here and moved
+only with evidence.
+
+**Posture is the nine-cell matrix** — every trend×volatility cell carries its own sentence,
+words, never a computed size:
+
+| | `CALM` | `ELEVATED` | `STRESSED` |
+|---|---|---|---|
+| **`FRIENDLY`** | full size — quiet tape | full size — vol building, honor stops | full size, but vol is stressed — expect wide swings, size stops accordingly |
+| **`CHOPPY`** | reduced — directionless but quiet | reduced — directionless and vol building | reduced — chop with stressed vol is whipsaw territory |
+| **`HOSTILE`** | sit out — downtrend, even quiet | sit out — downtrend with vol building | sit out — downtrend in stressed vol, worst cell on the board |
+
+**The second leg** is context beside the state, raw and unbucketed, never an input to it:
+**VIX** (`^VIX`) for US; **21-day annualized USD/IDR realized vol** (`IDR=X`) for IDX, the
+risk-off proxy for the market with no implied-vol index. Both ingest as **reference**
+instruments on the existing path, with a narrow per-symbol **volumeless** carve-out from
+phantom-bar dropping (`^IXIC`/`^JKSE` keep theirs) and the market's finality rule ridden as a
+documented approximation for the FX pair.
+
+**Display is compute-on-read** (the regime's precedent). Nightly, each session's readings —
+raw vol, percentile, sample size, era start, second leg — are **captured forward into a
+write-once record from day one**, beside follow-through and preserved across recompute like
+it: the only unbiased input a future vol-sizing study can have, irrecoverable if not started
+at launch. The state word itself is **not stored** — it is derivable, and storing it would
+freeze a display convention into historical rows (ADR 0006).
+
+Banner segment, appended to each market's band, regime first:
+`Vol: STRESSED (84th pct, 356 obs) · VIX 18.4`.
+
+**Deferred, explicitly:** the ARA/ARB censoring flag on per-stock `.JK` bars — it touches
+per-stock vol estimates and backtest fill semantics, a different blast radius than this
+display-only feature, and gets its own spec.
+
 ---
 
 ## 5. Screens and the nightly path ([ticket 11](issues/11-dashboard-information-architecture.md))
@@ -750,7 +819,7 @@ irrecoverable if not started at launch.
 
 | Region | Contents |
 |---|---|
-| **Regime banner** | State, sizing posture, breadth, **as-of session date** |
+| **Regime banner** | State, sizing posture (nine-cell, §4.10), breadth, volatility state with percentile + sample size, second leg, **as-of session date** |
 | **Candidate list** | Five columns, sorted by **star score descending** |
 | **Chart panel** | Chart bundle + the §3.5 breakdown + a facts block |
 | **Sector rotation table** | Ticket 07's table, candidate's own sector highlighted |
@@ -1277,6 +1346,9 @@ Not blocking the build; recorded so they are not rediscovered from scratch.
 | Star mapping | `points ÷ 2` | §4.7 | §3.5's own, unchanged |
 | Regime slope lookback | 5 sessions, sign-only | §4.9 | no magnitude threshold anywhere |
 | Regime warm-up | 25 index bars | §4.9 | SMA20 + slope lookback |
+| Vol-state bucket edges | 50th / 80th percentile | §4.10 | **display conventions, not calibrated** |
+| Vol-state warm-up | 60 readings | §4.10 | undefined below, never defaulted |
+| Vol-state window | 21-day realized vol, 3y rank (IDX: within-era) | §4.10 | ADR 0006 |
 | §7 stop cap (display only) | 1 × ADR | §4.6 | §3.5's own; **never a filter** |
 | Bar history depth | 10 years | §7.1 | headroom for validation |
 

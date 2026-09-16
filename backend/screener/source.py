@@ -96,6 +96,29 @@ SWEEP_WORKERS = max(1, DEFAULT_RESOLVE_WORKERS // 4)
 # role is ``reference`` (spec §2, §4.9).
 MARKET_INDEX = {"US": "^IXIC", "IDX": "^JKSE"}
 
+# The second leg displayed beside each market's volatility state (spec §4.10):
+# **VIX** for US, and **USD/IDR** for the market with no implied-vol index, whose
+# 21-day realized vol stands in as the risk-off proxy. Context beside the state,
+# never an input to it — the state is the index's own reading alone.
+SECOND_LEG = {"US": "^VIX", "IDX": "IDR=X"}
+
+# Every reference instrument whose bars some code path actually reads, per
+# market — the index (§4.9) and the second leg (§4.10). This is the set
+# :func:`screener.pipeline.fetch_set` fetches out of the references; the rest of
+# the enumeration's references (the US ETFs) are enumerated and never looked at.
+MARKET_REFERENCES = {
+    market: (MARKET_INDEX[market], SECOND_LEG[market]) for market in MARKET_INDEX
+}
+
+# The instruments that legitimately print **no volume at all**. A volatility
+# index is a computed level and a spot FX pair trades off-exchange, so neither
+# carries an exchange volume to report and both arrive with ``volume == 0`` on
+# every bar. The phantom-bar rule (spec §3.4 rule 1) reads that as "no trade
+# occurred" and would drop their history entirely, so it is lifted **per symbol,
+# for these two only** — ``^IXIC``/``^JKSE`` and every candidate keep it, where a
+# zero-volume bar really does mean nothing traded.
+VOLUMELESS = frozenset(SECOND_LEG.values())
+
 # Yahoo's screener serves the exchange one fixed-size page at a time, at most
 # this many quotes per call (issue #110). A single un-paged request returned only
 # the first page and silently truncated IDX to 250 names against the ~840 the
@@ -218,9 +241,10 @@ def parse_us_listings(nasdaqlisted: str, otherlisted: str) -> list[Instrument]:
     """Build US instruments from the two Nasdaq Trader files.
 
     Role is the ETF flag: ``Y`` -> reference, else candidate. Test issues are
-    dropped. The market index ``^IXIC`` is folded in as a reference.
+    dropped. The market's own reference instruments — the index ``^IXIC`` and the
+    second leg ``^VIX`` — are folded in, since no listing file carries them.
     """
-    instruments = [Instrument(market="US", symbol=MARKET_INDEX["US"], role="reference")]
+    instruments = _market_references("US")
     for text in (nasdaqlisted, otherlisted):
         instruments.extend(_parse_nasdaq_file(text))
     return instruments
@@ -268,11 +292,24 @@ def parse_idx_screener(symbols: list[str]) -> list[Instrument]:
     """Build IDX instruments from the Yahoo screener's EQUITY symbols.
 
     The screener returns common equities only, so every symbol is a candidate;
-    the market index ``^JKSE`` is folded in as a reference.
+    the market's references — the index ``^JKSE`` and the second leg ``IDR=X`` —
+    are folded in, since the screener carries neither.
     """
-    instruments = [Instrument(market="IDX", symbol=MARKET_INDEX["IDX"], role="reference")]
+    instruments = _market_references("IDX")
     instruments.extend(Instrument(market="IDX", symbol=s, role="candidate") for s in symbols)
     return instruments
+
+
+def _market_references(market: str) -> list[Instrument]:
+    """``market``'s own reference instruments, in :data:`MARKET_REFERENCES` order.
+
+    The index first, the second leg after it — neither appears in any listing
+    file or screener, so the enumeration folds them in itself (spec §4.9/§4.10).
+    """
+    return [
+        Instrument(market=market, symbol=symbol, role="reference")
+        for symbol in MARKET_REFERENCES[market]
+    ]
 
 
 # -- the provider's wire form -------------------------------------------------

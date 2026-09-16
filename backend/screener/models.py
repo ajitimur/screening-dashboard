@@ -18,6 +18,10 @@ from pydantic import BaseModel
 # (v1-spec §4.9).
 from .regime import RegimeState
 
+# The volatility state is the regime's sibling, computed in its own domain module
+# and re-exported here for the same reason (v1-spec §4.10).
+from .volatility import VolatilityState
+
 # A run either published its session or was quarantined behind a banner because
 # it resolved < ~99% of enumerated symbols (v1-spec §3.4 rule 7 / A2).
 RunStatus = Literal["published", "quarantined"]
@@ -541,3 +545,40 @@ class RegimeResponse(BaseModel):
     state: RegimeState | None
     posture: str | None
     breadth: float | None
+
+
+class VolatilityResponse(BaseModel):
+    """The volatility segment of the banner — **advisory only** (spec §4.10).
+
+    The regime's sibling, never its component: its own endpoint so one read
+    failing never blanks the other, and so the regime's payload above stays
+    exactly as it was. Nothing here filters, reorders or scores.
+
+    ``state`` is the three-state volatility bucket, ``posture`` the **nine-cell
+    trend×volatility sentence** — the regime's own three-word posture is
+    unchanged and still travels on ``RegimeResponse``. ``index_vol`` is the raw
+    21-day annualized realized vol of the market index, ``percentile`` its rank
+    and ``sample_size`` the denominator that rank came from (always displayed
+    together, so a thin within-era history is visible rather than hidden).
+    ``era_start`` is the ARB policy era bounding the IDX ranking window and is
+    ``None`` for US, which needs no such bound. ``second_leg`` is the raw context
+    reading — VIX for US, 21-day USD/IDR realized vol for IDX — named by
+    ``second_leg_symbol`` and never an input to the state.
+
+    ``state`` is ``None`` when the volatility state is **undefined** (fewer than
+    60 readings behind the percentile) or no run has published; ``session`` is
+    ``None`` only in the latter case, which is how the banner tells "warming up"
+    from "nothing yet". ``posture`` is ``None`` whenever ``state`` is, or when the
+    regime it needs its other coordinate from is itself undefined.
+    """
+
+    market: str
+    session: date | None
+    state: VolatilityState | None
+    posture: str | None
+    index_vol: float | None
+    percentile: float | None
+    sample_size: int | None
+    era_start: date | None
+    second_leg: float | None
+    second_leg_symbol: str

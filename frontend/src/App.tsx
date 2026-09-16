@@ -10,9 +10,11 @@ import {
 import {
   fetchRegime,
   fetchRuns,
+  fetchVolatility,
   triggerRun,
   type RegimeResponse,
   type RunsResponse,
+  type VolatilityResponse,
 } from "./api/client";
 import Board from "./Board";
 import Leaders from "./Leaders";
@@ -214,6 +216,7 @@ export default function App() {
 
   const [runs, setRuns] = useState<RunsResponse | null>(null);
   const [regime, setRegime] = useState<RegimeResponse | null>(null);
+  const [volatility, setVolatility] = useState<VolatilityResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -223,6 +226,7 @@ export default function App() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     setRuns(null);
     setRegime(null);
+    setVolatility(null);
     setError(null);
     setDismissed(false);
 
@@ -264,6 +268,15 @@ export default function App() {
         // surfaces through the same single alert as a runs read failure.
         if (live) setError((prev) => prev ?? "regime unavailable");
       });
+
+    // The volatility state is the regime's sibling on its own endpoint
+    // (spec §4.10), read independently so one failing never blanks the other.
+    // Unlike the regime it is NOT an identity read: a failure drops its segment
+    // from the band and leaves the trend reading on screen, rather than
+    // collapsing the app to an alert over an advisory number.
+    fetchVolatility(market)
+      .then((v) => live && setVolatility(v))
+      .catch(() => live && setVolatility(null));
 
     return () => {
       live = false;
@@ -375,7 +388,9 @@ export default function App() {
           {/* 1. The permanent regime band (spec §3.3): v1's full §4.9 banner,
               on every screen, gating nothing. Absent only before the first run
               publishes a session. */}
-          {regime?.session && <RegimeBanner market={market} regime={regime} />}
+          {regime?.session && (
+            <RegimeBanner market={market} regime={regime} volatility={volatility} />
+          )}
           {/* 2. The run-status banner — only when abnormal (spec §3.3). */}
           <RunStatus
             market={market}
@@ -544,9 +559,22 @@ function RunStatus({
  * carries no posture. One band per market, never a combined global verdict; the
  * reference's coloured pill is rejected (spec §3.3).
  */
-function RegimeBanner({ market, regime }: { market: Market; regime: RegimeResponse }) {
+function RegimeBanner({
+  market,
+  regime,
+  volatility,
+}: {
+  market: Market;
+  regime: RegimeResponse;
+  volatility: VolatilityResponse | null;
+}) {
   const { state, posture, breadth, session } = regime;
   const breadthPct = breadth === null ? null : `${Math.round(breadth * 100)}%`;
+  // The posture is the nine-cell trend×volatility sentence whenever both
+  // readings are in (spec §4.10) — "full size" alone must not read as an
+  // unqualified go-ahead in stressed vol. It falls back to the regime's own
+  // three words when the volatility read is missing or still warming up.
+  const sizing = volatility?.posture ?? posture;
   return (
     <section
       className="regime-banner"
@@ -555,7 +583,7 @@ function RegimeBanner({ market, regime }: { market: Market; regime: RegimeRespon
     >
       {state ? (
         <>
-          Regime: <strong>{state}</strong> — {posture}
+          Regime: <strong>{state}</strong> — {sizing}
         </>
       ) : (
         <>
@@ -563,9 +591,67 @@ function RegimeBanner({ market, regime }: { market: Market; regime: RegimeRespon
         </>
       )}
       {breadthPct !== null && <> · Breadth {breadthPct}</>}
+      {volatility?.session && <VolatilitySegment volatility={volatility} />}
       {" · as of "}
       <time dateTime={session ?? undefined}>{session}</time>
     </section>
+  );
+}
+
+// How each second leg prints (spec §4.10), keyed by the instrument the payload
+// names. VIX is quoted as the index level it is; USD/IDR is a realized vol, so
+// it reads as a percentage.
+const SECOND_LEG_FORMAT: Record<string, (value: number) => string> = {
+  "^VIX": (v) => `VIX ${v.toFixed(1)}`,
+  "IDR=X": (v) => `USD/IDR vol ${(v * 100).toFixed(1)}%`,
+};
+
+// "84th", "1st", "22nd" — the band says a rank, and "1th pct" reads as a bug.
+function ordinal(n: number): string {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  return `${n}${["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
+}
+
+/**
+ * The volatility segment of the band (spec §4.10): the regime's sibling, read
+ * from its own endpoint and gating nothing. The percentile always travels with
+ * the sample size it was ranked against — a thin IDX within-era history is meant
+ * to be visible, not hidden — and below the 60-reading warm-up the state is
+ * undefined rather than defaulted, with the count still on show.
+ *
+ * The second leg is the context reading beside it, raw and unbucketed. It is
+ * printed off the symbol the payload names rather than off the market, because
+ * *which* instrument it is decides how it reads: an index level (VIX) and a
+ * realized-vol percentage (USD/IDR) are different quantities.
+ */
+function VolatilitySegment({ volatility }: { volatility: VolatilityResponse }) {
+  const { state, percentile, sample_size, second_leg, second_leg_symbol } = volatility;
+  const rank =
+    percentile === null || sample_size === null
+      ? null
+      : `${ordinal(Math.round(percentile))} pct, ${sample_size} obs`;
+  const leg =
+    second_leg === null
+      ? null
+      : (SECOND_LEG_FORMAT[second_leg_symbol] ??
+        ((v: number) => `${second_leg_symbol} ${v}`))(second_leg);
+  return (
+    <>
+      {" · Vol: "}
+      {state ? (
+        <>
+          <strong>{state}</strong>
+          {rank !== null && ` (${rank})`}
+        </>
+      ) : (
+        <>
+          <strong>undefined</strong> — warming up
+          {sample_size !== null && ` (${sample_size} obs)`}
+        </>
+      )}
+      {leg !== null && ` · ${leg}`}
+    </>
   );
 }
 

@@ -6,7 +6,10 @@ computation has to remember them:
 
 - **Phantom bars** (``volume == 0``) are removed entirely — never zero-filled,
   never carried forward. A no-trade bar prints ``high == low == close``, which
-  drags ADR toward zero and makes a thin name screen as slow (§3.4 rule 1).
+  drags ADR toward zero and makes a thin name screen as slow (§3.4 rule 1). The
+  one carve-out is per symbol and narrow: an instrument with no volume to
+  report at all (``^VIX``, ``IDR=X`` — §4.10) keeps its bars, because there
+  zero volume is not evidence that nothing traded.
 - **Finality**: a bar dated ``D`` is final iff ``now`` is past ``D``'s *normal*
   session close + 30 min, in the exchange's local time. Non-final bars are
   discarded, not stored flagged — 14 minutes of trading was once served as a
@@ -126,6 +129,25 @@ def keep_final(bars: list[Bar], market: str, now: datetime) -> list[Bar]:
     return [b for b in bars if is_final(b.session, market, now)]
 
 
-def clean_bars(bars: list[Bar], market: str, now: datetime) -> list[Bar]:
-    """Apply every ingest hygiene rule: drop phantoms, discard non-final."""
-    return keep_final(drop_phantom_bars(bars), market, now)
+def clean_bars(
+    bars: list[Bar], market: str, now: datetime, *, keep_volumeless: bool = False
+) -> list[Bar]:
+    """Apply every ingest hygiene rule: drop phantoms, discard non-final.
+
+    ``keep_volumeless`` lifts the phantom rule for an instrument that carries no
+    volume to report at all — a volatility index is a computed level, a spot FX
+    pair trades off-exchange, and every one of their bars prints ``volume == 0``
+    (spec §4.10). The rule reads that as "no trade occurred", so for those two
+    series it would drop the whole history. Which symbols qualify is the source's
+    business (:data:`screener.source.VOLUMELESS`), not this module's: the
+    hygiene rule stays a rule, with one flag for the case where zero volume is
+    not evidence of anything.
+
+    Finality is applied either way. For the FX pair that rides the market's
+    exchange close as a **documented approximation** — the currency trades around
+    the clock, so there is no session close of its own to key to, and the
+    market's own close is the conservative reading of when its bar stopped
+    moving for the purposes of a market whose session that is.
+    """
+    kept = bars if keep_volumeless else drop_phantom_bars(bars)
+    return keep_final(kept, market, now)

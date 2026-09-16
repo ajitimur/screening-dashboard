@@ -18,6 +18,9 @@ export type IndustryStrength = components["schemas"]["IndustryStrength"];
 export type SectorDetailResponse = components["schemas"]["SectorDetailResponse"];
 export type SectorMember = components["schemas"]["SectorMember"];
 export type RegimeResponse = components["schemas"]["RegimeResponse"];
+// The volatility state (spec §4.10) — the regime's sibling, on its own
+// endpoint so one read failing never blanks the other in the band.
+export type VolatilityResponse = components["schemas"]["VolatilityResponse"];
 export type CandidatesResponse = components["schemas"]["CandidatesResponse"];
 export type Candidate = components["schemas"]["Candidate"];
 export type ChartResponse = components["schemas"]["ChartResponse"];
@@ -72,6 +75,12 @@ export async function fetchRegime(market: string): Promise<RegimeResponse> {
   const resp = await fetch(`/api/regime/${market}`);
   if (!resp.ok) throw new Error(`GET /api/regime/${market} → ${resp.status}`);
   return (await resp.json()) as RegimeResponse;
+}
+
+export async function fetchVolatility(market: string): Promise<VolatilityResponse> {
+  const resp = await fetch(`/api/volatility/${market}`);
+  if (!resp.ok) throw new Error(`GET /api/volatility/${market} → ${resp.status}`);
+  return (await resp.json()) as VolatilityResponse;
 }
 
 export async function fetchCandidates(market: string): Promise<CandidatesResponse> {

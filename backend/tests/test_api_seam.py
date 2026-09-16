@@ -5,6 +5,7 @@ against (spec §7.5). The app is constructed against an in-memory fixture store,
 so the payload is asserted without touching the on-disk file.
 """
 
+import pytest
 from fastapi.testclient import TestClient
 
 from screener.app import create_app
@@ -132,6 +133,244 @@ def test_regime_state_undefined_below_the_warmup(store: Store):
 
 def test_regime_unknown_market_is_404(store: Store):
     assert client_for(store).get("/api/regime/LSE").status_code == 404
+
+
+# -- /api/volatility/{market} (issue #224, spec §4.10) ------------------------
+#
+# The primary seam for the volatility state: everything the reading is — the
+# realized-vol math, the era-bounded percentile, the warm-up, the nine-cell
+# posture — is asserted here, through the endpoint, over a seeded store. The
+# state is the regime's sibling, so it gets the regime's own kind of tests
+# rather than a second set below the API.
+
+# A market index is generated from two schedules, one per coordinate the banner
+# shows: ``drifts`` sets the *trend* (what the regime reads) and ``amps`` the
+# swing size (what the volatility reading measures). They are independent knobs
+# on the same series, which is what makes a trend×volatility cell constructible.
+#
+# The percentile is a rank against the series' own past, so the vol coordinate is
+# set by where the recent swing sits relative to the older one: a tail quieter
+# than its history ranks low (CALM), a tail that is strictly the most violent
+# stretch ranks at the top (STRESSED).
+_BARS = 111  # 21 for the first vol reading + 90 ranked readings
+
+_TREND = {
+    "FRIENDLY": [0.006] * _BARS,
+    # Up, then a gentle roll-over: neither strictly falling MAs nor a close above
+    # both rising ones, which is what the residual state is.
+    "CHOPPY": [0.006] * (_BARS - 20) + [0.006 - 0.0005 * i for i in range(1, 21)],
+    "HOSTILE": [-0.006] * _BARS,
+}
+_SWING = {
+    "CALM": [0.02] * 80 + [0.004] * (_BARS - 80),       # quieter than its history
+    "ELEVATED": [0.002] * 76 + [0.02] * 20 + [0.008] * 15,  # mid-pack
+    "STRESSED": [0.002] * 86 + [0.002 + 0.002 * i for i in range(1, 26)],  # a fresh high
+}
+
+# §4.10's posture matrix, spelled out here as the contract rather than imported:
+# a test that reads the sentences out of the module it is checking would pass
+# through any rewording of them.
+_POSTURE_CELLS = {
+    ("FRIENDLY", "CALM"): "full size — quiet tape",
+    ("FRIENDLY", "ELEVATED"): "full size — vol building, honor stops",
+    ("FRIENDLY", "STRESSED"): (
+        "full size, but vol is stressed — expect wide swings, size stops accordingly"
+    ),
+    ("CHOPPY", "CALM"): "reduced — directionless but quiet",
+    ("CHOPPY", "ELEVATED"): "reduced — directionless and vol building",
+    ("CHOPPY", "STRESSED"): "reduced — chop with stressed vol is whipsaw territory",
+    ("HOSTILE", "CALM"): "sit out — downtrend, even quiet",
+    ("HOSTILE", "ELEVATED"): "sit out — downtrend with vol building",
+    ("HOSTILE", "STRESSED"): (
+        "sit out — downtrend in stressed vol, worst cell on the board"
+    ),
+}
+
+
+def _index_bars(calendar, drifts, amps):
+    """Bars whose returns carry ``drifts`` as trend and ``amps`` as swing size."""
+    from screener.bars import Bar
+
+    out, close = [], 100.0
+    for i, (session, drift, amp) in enumerate(zip(calendar, drifts, amps)):
+        close *= 1 + drift + (amp if i % 2 == 0 else -amp)
+        out.append(Bar(session, close, close * 1.01, close * 0.99, close, close, 1000))
+    return out
+
+
+def _volatility_store(
+    market="US", *, trend="FRIENDLY", swing="STRESSED", bars=_BARS, second_leg=None,
+) -> Store:
+    """A store with a published run and an index shaped to one trend×vol cell."""
+    from datetime import date, datetime, timedelta
+
+    from screener.bars import Bar
+    from screener.source import MARKET_INDEX, SECOND_LEG
+
+    store = Store.memory()
+    calendar = [date(2026, 3, 1) + timedelta(days=i) for i in range(bars)]
+    session = calendar[-1]
+    store.append_bars(
+        market,
+        MARKET_INDEX[market],
+        _index_bars(calendar, _TREND[trend], _SWING[swing]),
+    )
+    if second_leg is not None:
+        store.append_bars(
+            market,
+            SECOND_LEG[market],
+            [Bar(s, v, v, v, v, v, 0) for s, v in zip(calendar, second_leg)],
+        )
+    store.append_run(
+        market, session, status="published", symbols_enumerated=1, symbols_resolved=1,
+        created_at=datetime(2026, 6, 19, 22, 10),
+    )
+    return store
+
+
+def test_volatility_endpoint_reports_state_percentile_sample_and_second_leg():
+    # The index's most violent stretch is right now, so it ranks at the top of
+    # its own three-year history: STRESSED, with the denominator on show.
+    store = _volatility_store(second_leg=[18.4] * _BARS)
+    try:
+        body = client_for(store).get("/api/volatility/US").json()
+        assert body["market"] == "US"
+        assert body["session"] == "2026-06-19"
+        assert body["state"] == "STRESSED"
+        assert body["sample_size"] == 90          # displayed, never hidden
+        assert body["percentile"] > 80            # the STRESSED edge
+        assert body["index_vol"] > 0
+        assert body["era_start"] is None          # US ranks on the rolling window
+        assert body["second_leg"] == 18.4         # VIX, raw and unbucketed
+        assert body["second_leg_symbol"] == "^VIX"
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize(("trend", "vol"), sorted(_POSTURE_CELLS))
+def test_every_trend_by_volatility_cell_carries_its_own_posture(trend, vol):
+    """Nine cells, nine sentences (spec §4.10).
+
+    The point of the matrix: "full size" in stressed volatility must never read
+    as an unqualified go-ahead, which a three-word posture beside a state word
+    cannot say.
+    """
+    store = _volatility_store(trend=trend, swing=vol)
+    try:
+        body = client_for(store).get("/api/volatility/US").json()
+        assert body["state"] == vol
+        assert body["posture"] == _POSTURE_CELLS[(trend, vol)]
+        # The regime's own three-word posture is untouched on its own endpoint.
+        assert client_for(store).get("/api/regime/US").json()["state"] == trend
+    finally:
+        store.close()
+
+
+def test_volatility_state_is_undefined_below_the_warmup_but_the_reading_shows():
+    # 80 bars leave 59 readings — one short of the 60-reading warm-up.
+    store = _volatility_store(bars=80)
+    try:
+        body = client_for(store).get("/api/volatility/US").json()
+        assert body["session"] == "2026-05-19"
+        assert body["state"] is None        # undefined, not defaulted
+        assert body["posture"] is None      # an undefined state advises nothing
+        # The reading itself is still reported: the sample size is exactly what
+        # makes "warming up" legible rather than a blank.
+        assert body["sample_size"] == 59
+        assert body["index_vol"] > 0
+    finally:
+        store.close()
+
+
+def test_volatility_endpoint_is_empty_when_no_run_published(store: Store):
+    body = client_for(store).get("/api/volatility/US").json()
+    assert body == {
+        "market": "US", "session": None, "state": None, "posture": None,
+        "index_vol": None, "percentile": None, "sample_size": None,
+        "era_start": None, "second_leg": None, "second_leg_symbol": "^VIX",
+    }
+
+
+def test_idx_percentile_ranks_within_the_current_arb_era_only():
+    """IDX ranks within-era, because the bands censor the eras differently.
+
+    The history here straddles the 2025-04-08 decree (Kep-00003/BEI/04-2025), and
+    only the sessions on or after it count toward the rank — a percentile across
+    the boundary would compare observations censored by different amounts
+    (ADR 0006).
+    """
+    from datetime import date, datetime, timedelta
+
+    from screener.bars import Bar
+    from screener.volatility import VOL_WINDOW
+
+    era = date(2025, 4, 8)
+    calendar = [date(2024, 10, 1) + timedelta(days=i) for i in range(320)]
+    session = calendar[-1]
+    store = Store.memory()
+    store.append_bars(
+        "IDX", "^JKSE",
+        _index_bars(calendar, _TREND["FRIENDLY"] * 3, _SWING["STRESSED"] * 3),
+    )
+    store.append_bars(
+        "IDX", "IDR=X",
+        [Bar(s, 16000.0, 16000.0, 16000.0, 16000.0, 16000.0 + i, 0)
+         for i, s in enumerate(calendar)],
+    )
+    store.append_run(
+        "IDX", session, status="published", symbols_enumerated=1, symbols_resolved=1,
+        created_at=datetime(2025, 8, 16, 19, 30),
+    )
+    try:
+        body = client_for(store).get("/api/volatility/IDX").json()
+        assert body["era_start"] == era.isoformat()
+        assert body["sample_size"] == sum(1 for s in calendar if s >= era)
+        # Far short of every reading the stored history could have supplied —
+        # which is the whole point, and why the sample size is on screen.
+        assert body["sample_size"] < len(calendar) - VOL_WINDOW
+        # The IDX second leg is a *volatility*, not the 16,000-rupiah level it
+        # was computed from: there is no implied-vol index to read instead.
+        assert 0 < body["second_leg"] < 1
+        assert body["second_leg_symbol"] == "IDR=X"
+    finally:
+        store.close()
+
+
+def test_volatility_unknown_market_is_404(store: Store):
+    assert client_for(store).get("/api/volatility/LSE").status_code == 404
+
+
+def test_the_candidate_list_is_identical_whatever_the_volatility_state():
+    """Advisory only: he stops sizing, not looking (spec §4.9/§4.10).
+
+    The same session, read once under a calm index and once under a stressed
+    one — same candidates, same order, same scores. The volatility state never
+    filters, never reorders and never reaches the star score.
+    """
+    import json
+
+    def candidates_under(swing):
+        store = _candidates_store()
+        try:
+            from datetime import date, timedelta
+
+            from screener.source import MARKET_INDEX
+
+            calendar = [date(2026, 4, 16) + timedelta(days=i) for i in range(_BARS)]
+            store.append_bars(
+                "US", MARKET_INDEX["US"],
+                _index_bars(calendar, _TREND["FRIENDLY"], _SWING[swing]),
+            )
+            client = client_for(store)
+            state = client.get("/api/volatility/US").json()["state"]
+            return state, json.dumps(client.get("/api/candidates/US").json())
+        finally:
+            store.close()
+
+    calm_state, calm_body = candidates_under("CALM")
+    stressed_state, stressed_body = candidates_under("STRESSED")
+    assert (calm_state, stressed_state) == ("CALM", "STRESSED")
+    assert calm_body == stressed_body
 
 
 # -- /api/candidates/{market} (ticket 38, spec §4.5 / §5.1) -------------------

@@ -3766,6 +3766,9 @@ def test_idx_suffix_convention_is_applied_at_the_fetch_boundary():
     assert market_symbol("IDX", "BBCA") == "BBCA.JK"
     assert market_symbol("IDX", "BBRI.JK") == "BBRI.JK"  # already suffixed
     assert market_symbol("IDX", "^JKSE") == "^JKSE"  # a reference takes no suffix
+    # The second leg is a reference too, and an unmarked one: ``IDR=X.JK`` is a
+    # symbol the provider has never heard of (spec §4.10).
+    assert market_symbol("IDX", "IDR=X") == "IDR=X"
     assert market_symbol("US", "AAPL") == "AAPL"
 
 

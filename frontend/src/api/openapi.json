@@ -1156,6 +1156,128 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "VolatilityResponse": {
+        "description": "The volatility segment of the banner \u2014 **advisory only** (spec \u00a74.10).\n\nThe regime's sibling, never its component: its own endpoint so one read\nfailing never blanks the other, and so the regime's payload above stays\nexactly as it was. Nothing here filters, reorders or scores.\n\n``state`` is the three-state volatility bucket, ``posture`` the **nine-cell\ntrend\u00d7volatility sentence** \u2014 the regime's own three-word posture is\nunchanged and still travels on ``RegimeResponse``. ``index_vol`` is the raw\n21-day annualized realized vol of the market index, ``percentile`` its rank\nand ``sample_size`` the denominator that rank came from (always displayed\ntogether, so a thin within-era history is visible rather than hidden).\n``era_start`` is the ARB policy era bounding the IDX ranking window and is\n``None`` for US, which needs no such bound. ``second_leg`` is the raw context\nreading \u2014 VIX for US, 21-day USD/IDR realized vol for IDX \u2014 named by\n``second_leg_symbol`` and never an input to the state.\n\n``state`` is ``None`` when the volatility state is **undefined** (fewer than\n60 readings behind the percentile) or no run has published; ``session`` is\n``None`` only in the latter case, which is how the banner tells \"warming up\"\nfrom \"nothing yet\". ``posture`` is ``None`` whenever ``state`` is, or when the\nregime it needs its other coordinate from is itself undefined.",
+        "properties": {
+          "era_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Era Start"
+          },
+          "index_vol": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index Vol"
+          },
+          "market": {
+            "title": "Market",
+            "type": "string"
+          },
+          "percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentile"
+          },
+          "posture": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posture"
+          },
+          "sample_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sample Size"
+          },
+          "second_leg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Second Leg"
+          },
+          "second_leg_symbol": {
+            "title": "Second Leg Symbol",
+            "type": "string"
+          },
+          "session": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "CALM",
+                  "ELEVATED",
+                  "STRESSED"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "required": [
+          "market",
+          "session",
+          "state",
+          "posture",
+          "index_vol",
+          "percentile",
+          "sample_size",
+          "era_start",
+          "second_leg",
+          "second_leg_symbol"
+        ],
+        "title": "VolatilityResponse",
+        "type": "object"
       }
     }
   },
@@ -1540,6 +1662,45 @@
           }
         },
         "summary": "Get Sector Detail"
+      }
+    },
+    "/api/volatility/{market}": {
+      "get": {
+        "operationId": "get_volatility_api_volatility__market__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "schema": {
+              "title": "Market",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VolatilityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Volatility"
       }
     }
   }

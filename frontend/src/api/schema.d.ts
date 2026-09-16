@@ -127,6 +127,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/volatility/{market}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Volatility */
+        get: operations["get_volatility_api_volatility__market__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -762,6 +779,53 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /**
+         * VolatilityResponse
+         * @description The volatility segment of the banner — **advisory only** (spec §4.10).
+         *
+         *     The regime's sibling, never its component: its own endpoint so one read
+         *     failing never blanks the other, and so the regime's payload above stays
+         *     exactly as it was. Nothing here filters, reorders or scores.
+         *
+         *     ``state`` is the three-state volatility bucket, ``posture`` the **nine-cell
+         *     trend×volatility sentence** — the regime's own three-word posture is
+         *     unchanged and still travels on ``RegimeResponse``. ``index_vol`` is the raw
+         *     21-day annualized realized vol of the market index, ``percentile`` its rank
+         *     and ``sample_size`` the denominator that rank came from (always displayed
+         *     together, so a thin within-era history is visible rather than hidden).
+         *     ``era_start`` is the ARB policy era bounding the IDX ranking window and is
+         *     ``None`` for US, which needs no such bound. ``second_leg`` is the raw context
+         *     reading — VIX for US, 21-day USD/IDR realized vol for IDX — named by
+         *     ``second_leg_symbol`` and never an input to the state.
+         *
+         *     ``state`` is ``None`` when the volatility state is **undefined** (fewer than
+         *     60 readings behind the percentile) or no run has published; ``session`` is
+         *     ``None`` only in the latter case, which is how the banner tells "warming up"
+         *     from "nothing yet". ``posture`` is ``None`` whenever ``state`` is, or when the
+         *     regime it needs its other coordinate from is itself undefined.
+         */
+        VolatilityResponse: {
+            /** Era Start */
+            era_start: string | null;
+            /** Index Vol */
+            index_vol: number | null;
+            /** Market */
+            market: string;
+            /** Percentile */
+            percentile: number | null;
+            /** Posture */
+            posture: string | null;
+            /** Sample Size */
+            sample_size: number | null;
+            /** Second Leg */
+            second_leg: number | null;
+            /** Second Leg Symbol */
+            second_leg_symbol: string;
+            /** Session */
+            session: string | null;
+            /** State */
+            state: ("CALM" | "ELEVATED" | "STRESSED") | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -1015,6 +1079,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SectorDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_volatility_api_volatility__market__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                market: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VolatilityResponse"];
                 };
             };
             /** @description Validation Error */

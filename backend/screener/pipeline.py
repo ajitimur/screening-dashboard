@@ -29,7 +29,10 @@ from .regime import index_broke_out
 from .source import (
     DEFAULT_RESOLVE_WORKERS,
     MARKET_INDEX,
+    MARKET_REFERENCES,
+    SECOND_LEG,
     SWEEP_WORKERS,
+    VOLUMELESS,
     Instrument,
     Resolution,
     Source,
@@ -39,6 +42,8 @@ from .source import (
 )
 from .store import Store
 from .universe import is_common_stock, rebuild_universe
+from .volatility import VolatilityReading
+from .volatility import reading as volatility_reading
 
 # Where the nightly digest files land: data/digests/<market>/<session>.md, one
 # dated Markdown file per market per session (spec §6 / §7.5). Resolved from this
@@ -165,7 +170,12 @@ def ingest_market_bars(
         resolution = source.resolve(instrument.symbol)
         if resolution.status != "resolved":
             continue  # silence is unresolved, not absent — nothing to ingest
-        bars = clean_bars(parse_bars(resolution.bars), market, now)
+        bars = clean_bars(
+            parse_bars(resolution.bars),
+            market,
+            now,
+            keep_volumeless=instrument.symbol in VOLUMELESS,
+        )
         if bars:
             stored[instrument.symbol] = store.append_bars(market, instrument.symbol, bars)
     return stored
@@ -208,6 +218,48 @@ def capture_follow_through(store: Store, market: str, session: date) -> bool | N
         return None
     store.append_follow_through(market, session, broke, index_bars[-1].adj_close)
     return broke
+
+
+def capture_volatility(
+    store: Store, market: str, session: date
+) -> VolatilityReading | None:
+    """Pipeline stage: record ``session``'s volatility readings (spec §4.10).
+
+    Reads the market's index and second-leg bars up to ``session`` and appends
+    one write-once row — raw 21-day vol, percentile, the sample size it ranked
+    against, the ARB policy era that bounded it, and the second leg. Returns
+    ``None`` (and writes nothing) before a first realized-vol reading exists.
+
+    Captured **from the first run** and, like the follow-through row beside it,
+    **never gated and not what the banner reads** — the banner computes on read.
+    This is the forward record: the only unbiased input a future vol-managed-sizing
+    study can have, irrecoverable if not started at launch, and genuinely
+    ambiguous to reconstruct afterwards because the right denominator for a past
+    session depends on an era table that itself changes (ADR 0006). Appended only
+    on a published run, so a quarantined run leaves no forward record.
+    """
+    current = volatility_reading(market, session, *market_series(store, market, session))
+    if current is None:
+        return None
+    store.append_volatility_reading(market, current)
+    return current
+
+
+def market_series(
+    store: Store, market: str, session: date
+) -> tuple[list[Bar], list[Bar]]:
+    """The market's index and second-leg bars, both filtered to ``session``.
+
+    The pair a volatility reading is computed from (spec §4.10), public because
+    both callers need exactly it: the nightly capture below and the API's
+    compute-on-read. Two copies would be two places to keep the filter rule in,
+    and the rule is load-bearing — bars dated after the session, a newer and
+    quarantined pull's, never leak in (§4.9).
+    """
+    return (
+        [b for b in store.bars(market, MARKET_INDEX[market]) if b.session <= session],
+        [b for b in store.bars(market, SECOND_LEG[market]) if b.session <= session],
+    )
 
 
 def rebuild_detections(
@@ -323,9 +375,10 @@ def fetch_set(instruments: Iterable[Instrument], market: str) -> list[str]:
     things no code path reads or the universe ever keeps, so fetching them is
     pure waste — ~57% of the US pull:
 
-    - Among references, only ``MARKET_INDEX[market]`` has its bars read
-      (the index ingest below, ``app.py`` §4.9); the other US ETFs are
-      enumerated but never looked at, so only the index is fetched.
+    - Among references, only ``MARKET_REFERENCES[market]`` has its bars read —
+      the index (§4.9) and the second leg displayed beside the volatility state
+      (§4.10); the other US ETFs are enumerated but never looked at, so only
+      those two are fetched.
     - Among candidates, only :func:`~screener.universe.is_common_stock` names can
       enter the universe (§4.1); the instrument-type filter already ran on these
       names, just *after* the fetch. Running it first means an excluded name is
@@ -346,11 +399,11 @@ def fetch_set(instruments: Iterable[Instrument], market: str) -> list[str]:
 
     Order is the enumeration's own, so a pull's progress is reproducible.
     """
-    index_symbol = MARKET_INDEX[market]
+    references = MARKET_REFERENCES[market]
     return [
         i.symbol
         for i in instruments
-        if (i.role == "reference" and i.symbol == index_symbol)
+        if (i.role == "reference" and i.symbol in references)
         or (i.role == "candidate" and is_common_stock(i.symbol, i.name))
     ]
 
@@ -504,12 +557,20 @@ def _ingest_bars(
     """
     if resolution.status != "resolved":
         return
-    bars = clean_bars(parse_bars(resolution.bars), market, now)
+    symbol = resolution.symbol
+    volumeless = symbol in VOLUMELESS
+    bars = clean_bars(
+        parse_bars(resolution.bars), market, now, keep_volumeless=volumeless
+    )
     if not bars:
         return
-    symbol = resolution.symbol
     if start is not None and _adjustment_drift(store.bars(market, symbol), bars):
-        repaired = clean_bars(parse_bars(source.resolve(symbol).bars), market, now)
+        repaired = clean_bars(
+            parse_bars(source.resolve(symbol).bars),
+            market,
+            now,
+            keep_volumeless=volumeless,
+        )
         if repaired:
             store.replace_bars(market, symbol, repaired)
         return
@@ -638,10 +699,11 @@ def _compute_session(
     gap in ``labels.as_of`` rather than a fabricated per-session stamp.
 
     ``capture_regime`` is cleared only by an operator recompute (issue #111): the
-    follow-through row is the forward, unbiased regime record, kept write-once
-    even as the enumeration-derived streams are replaced, so its already-recorded
-    row is preserved rather than re-captured (spec §7.2, §4.9). Every ordinary run
-    and backfill leaves it ``True`` and captures the stream as usual.
+    follow-through row and the volatility reading beside it are the forward,
+    unbiased records, kept write-once even as the enumeration-derived streams are
+    replaced, so their already-recorded rows are preserved rather than
+    re-captured (spec §7.2, §4.9, §4.10). Every ordinary run and backfill leaves
+    it ``True`` and captures both streams as usual.
     """
     members = rebuild_universe(
         store, market, session, instruments=instruments, unresolved=unresolved
@@ -652,6 +714,7 @@ def _compute_session(
         refresh_labels(store, source, market, members, session)
     if capture_regime:
         capture_follow_through(store, market, session)
+        capture_volatility(store, market, session)
     write_digest(store, market, session, digests_dir=digests_dir)
 
 

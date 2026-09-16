@@ -33,8 +33,11 @@ hours of wall clock. So the network never appears here — the loop drives a
 
 What the app's ingest hygiene guarantees is inherited unmodified
 (:func:`screener.bars.clean_bars`): zero-volume phantom bars are dropped at
-ingest and never zero-filled or carried forward (user story 55), and a non-final
-session is discarded rather than stored as a partial day. A symbol that resolves
+ingest and never zero-filled or carried forward (user story 55) — bar the two
+instruments that carry no volume to report at all (:data:`~screener.source.VOLUMELESS`,
+spec §4.10), which the app's fetch set includes and which would otherwise arrive
+here as a listing whose every bar is a phantom — and a non-final session is
+discarded rather than stored as a partial day. A symbol that resolves
 but leaves no clean bars is a refusal too — ``no_bars`` — so the invariant holds
 over it as well.
 """
@@ -59,7 +62,9 @@ from screener.pipeline import (
 )
 from screener.source import (
     DEFAULT_RESOLVE_WORKERS,
+    MARKET_REFERENCES,
     SWEEP_WORKERS,
+    VOLUMELESS,
     Resolution,
     Source,
     resolve_all,
@@ -101,11 +106,17 @@ def market_symbol(market: str, symbol: str) -> str:
     everything but an IDX listing, which carries the ``.JK`` exchange suffix —
     applied here so the backtest fetches ``BBCA.JK`` and keys its bars by it (PRD
     user story 50). A symbol already suffixed is left untouched, so an enumeration
-    that already carries the convention is a safe no-op, and a ``^``-marked index
-    (``^JKSE``) is left alone too — a reference is not a JKT equity and takes no
-    exchange suffix.
+    that already carries the convention is a safe no-op. A **reference** is left
+    alone too — the ``^``-marked index (``^JKSE``) and the second leg (``IDR=X``,
+    spec §4.10) are not JKT equities and take no exchange suffix; ``IDR=X.JK`` is
+    a symbol the provider has never heard of.
     """
-    if market == "IDX" and not symbol.startswith("^") and not symbol.endswith(IDX_SUFFIX):
+    if (
+        market == "IDX"
+        and symbol not in MARKET_REFERENCES.get(market, ())
+        and not symbol.startswith("^")
+        and not symbol.endswith(IDX_SUFFIX)
+    ):
         return symbol + IDX_SUFFIX
     return symbol
 
@@ -242,7 +253,12 @@ def _ingest_and_ledger(
     """
     if resolution.status != "resolved":
         return Refusal(resolution.symbol, _refusal_reason(resolution))
-    clean = clean_bars(parse_bars(resolution.bars), market, now)
+    clean = clean_bars(
+        parse_bars(resolution.bars),
+        market,
+        now,
+        keep_volumeless=resolution.symbol in VOLUMELESS,
+    )
     if not clean:
         return Refusal(resolution.symbol, "no_bars")
     bars = clean if start is None else [b for b in clean if b.session >= start]

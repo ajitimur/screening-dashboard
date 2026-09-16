@@ -33,7 +33,9 @@ from .models import (
     RunTriggerResponse,
     SectorDetailResponse,
     SectorsResponse,
+    VolatilityResponse,
 )
+from .pipeline import market_series
 from .regime import breadth, posture, regime_state
 from .runner import RunManager
 from .schedule import run_is_due
@@ -46,8 +48,11 @@ from .sectors import (
     sector_members,
     sector_strengths,
 )
-from .source import MARKET_INDEX
+from .source import MARKET_INDEX, SECOND_LEG
 from .store import Store
+from .volatility import posture as cell_posture
+from .volatility import reading as volatility_reading
+from .volatility import volatility_state
 
 # Repo root, resolved from …/backend/screener/app.py — so the file path and the
 # served frontend are the same regardless of the process's working directory.
@@ -393,6 +398,47 @@ def create_app(
             state=state,
             posture=posture(state),
             breadth=breadth(members_bars),
+        )
+
+    @app.get("/api/volatility/{market}", response_model=VolatilityResponse)
+    def get_volatility(market: str) -> VolatilityResponse:
+        market = market.upper()
+        if market not in MARKETS:
+            raise HTTPException(status_code=404, detail=f"unknown market {market!r}")
+        empty = VolatilityResponse(
+            market=market, session=None, state=None, posture=None, index_vol=None,
+            percentile=None, sample_size=None, era_start=None, second_leg=None,
+            second_leg_symbol=SECOND_LEG[market],
+        )
+        latest = store.last_published_run(market)
+        if latest is None:
+            # No published run yet — nothing to advise, and the segment stays off.
+            return empty
+        as_of = latest.session
+        # Compute-on-read, the regime's precedent (spec §4.10): the nightly
+        # capture's row is the forward record, not what the banner renders, so
+        # display and archive can never be mistaken for one another. Both read the
+        # session's series through the same helper, so the two can never disagree
+        # about which bars belong to a session.
+        index_bars, second_leg_bars = market_series(store, market, as_of)
+        current = volatility_reading(market, as_of, index_bars, second_leg_bars)
+        if current is None:
+            # Warming up: a session is known but no reading exists yet.
+            return empty.model_copy(update={"session": as_of})
+        state = volatility_state(current.percentile, current.sample_size)
+        return VolatilityResponse(
+            market=market,
+            session=as_of,
+            state=state,
+            # The nine-cell posture needs the trend coordinate too (§4.10); the
+            # regime's own three-word posture is untouched on its own endpoint.
+            posture=cell_posture(regime_state(index_bars), state),
+            index_vol=current.index_vol,
+            percentile=current.percentile,
+            sample_size=current.sample_size,
+            era_start=current.era_start,
+            second_leg=current.second_leg,
+            second_leg_symbol=SECOND_LEG[market],
         )
 
     # FastAPI serves the built frontend so it is one process on one URL. Mounted

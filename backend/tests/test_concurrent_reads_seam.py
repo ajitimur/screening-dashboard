@@ -1,7 +1,9 @@
 """Seam: concurrent reads across the four Board endpoints (issue #93).
 
 The Board fires four reads in parallel on mount (`candidates`, `leaders`,
-`sectors`, `regime`). A single process-wide DuckDB connection shared by every
+`sectors`, `regime`), and the shell adds a fifth beside the regime:
+`volatility`, read independently so one failing never blanks the other in the
+band (§4.10). A single process-wide DuckDB connection shared by every
 `def` route handler — each dispatched to Starlette's threadpool — is not safe
 for concurrent use, so under parallel load some requests intermittently 500.
 
@@ -22,13 +24,14 @@ BOARD_READS = (
     "/api/leaders/IDX",
     "/api/sectors/IDX",
     "/api/regime/IDX",
+    "/api/volatility/IDX",
 )
 
 
 def test_board_reads_survive_concurrent_load(seeded_store: Store):
     client = TestClient(create_app(store=seeded_store))
 
-    # Many rounds of the four-abreast Board mount. A single shared connection
+    # Many rounds of the Board mount and the band's two reads. A single shared connection
     # 500s intermittently here; the failure showed at ~3-in-12 in the field, so
     # repeat generously to make it deterministic in CI.
     with ThreadPoolExecutor(max_workers=len(BOARD_READS)) as pool:

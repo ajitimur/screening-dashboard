@@ -323,7 +323,28 @@ rubric; adding a version never edits an older one.
 
 **Regime**:
 `FRIENDLY`, `CHOPPY` or `HOSTILE` per market, from one index each. Advisory only — never
-filters, reorders or scores.
+filters, reorders or scores. The trend filter only — the volatility state is a sibling,
+not a component.
+_Avoid_: regime as an umbrella for trend plus volatility.
+
+**Volatility state**:
+`CALM`, `ELEVATED` or `STRESSED` per market, from the market index's realized-vol
+percentile against its own history (within the current ARB policy era for IDX). Advisory
+only, same rule as the regime; its bucket edges are display conventions, not calibrated
+thresholds.
+_Avoid_: vol regime; folding it into the regime.
+
+**ARB policy era**:
+A span of sessions over which IDX's auto-rejection limit widths were constant. Boundaries
+are decree dates — facts about exchange rules, hand-verified, never inferred from bars —
+and IDX volatility percentiles rank within one era, because the limits censor daily moves
+differently per era.
+_Avoid_: ranking a percentile across eras; treating era boundaries as calendar data.
+
+**Second leg**:
+The context reading displayed beside a volatility state — VIX for US, USD/IDR realized
+vol for IDX. Raw values, never bucketed, never an input to the state.
+_Avoid_: promoting it into the volatility state without evidence.
 
 ### Validation against the Qullamaggie trade record
 

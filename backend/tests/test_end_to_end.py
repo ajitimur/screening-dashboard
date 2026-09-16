@@ -8,13 +8,15 @@ into one coherent, same-dated workbench for both screens.
 
 So this drives one real ``run_market_universe`` for US through a fake source
 carrying a rising index and a leader sitting in a clean base, then reads that one
-run back through all six endpoints (spec §7.5) and the digest file (spec §6),
+run back through all seven endpoints (spec §7.5) and the digest file (spec §6),
 asserting:
 
 - the run **published** (not quarantined), and every surface is stamped the same
   session — the trader is never shown a fresh half-screen against a stale one
   (user story 1, 6);
-- the **regime** banner reads FRIENDLY / full size off the rising index (§4.9);
+- the **regime** banner reads FRIENDLY / full size off the rising index (§4.9), and the
+  **volatility state** beside it is computed off the same index, with its second leg read from
+  the volumeless ``^VIX`` series the same run ingested (§4.10);
 - the **leader** is on the candidate list with a score and an industry, and is
   the top row of the board it led (§4.5, §5.2);
 - its **chart** bundle carries the candles, the MA set, the facts block and the
@@ -79,6 +81,15 @@ def _flat_series(close):
     ]
 
 
+def _vix_series():
+    """The US second leg: a VIX that prints **no volume at all** (§4.10) — so the
+    run also proves the volumeless carve-out survives a real ingest."""
+    return [
+        _row(s, open_=18.0, high=18.0, low=18.0, close=18.4 + (i % 3) * 0.1, volume=0)
+        for i, s in enumerate(CAL)
+    ]
+
+
 def _rising_index():
     """The market index, a clean uptrend — close above both rising MAs → FRIENDLY."""
     return [
@@ -109,12 +120,14 @@ def workbench(tmp_path):
     store = Store.memory()
     instruments = [
         Instrument(market="US", symbol="^IXIC", role="reference"),
+        Instrument(market="US", symbol="^VIX", role="reference"),
         Instrument(market="US", symbol="LEAD", role="candidate", name="Lead Inc. - Common Stock"),
         Instrument(market="US", symbol="FLATA", role="candidate", name="Flata Inc. - Common Stock"),
         Instrument(market="US", symbol="FLATB", role="candidate", name="Flatb Inc. - Common Stock"),
     ]
     bars = {
         "^IXIC": _rising_index(),
+        "^VIX": _vix_series(),
         "LEAD": _leader_series(),
         "FLATA": _flat_series(120.0),
         "FLATB": _flat_series(130.0),
@@ -136,7 +149,7 @@ def workbench(tmp_path):
         store.close()
 
 
-def test_one_run_publishes_a_same_dated_workbench_across_all_six_endpoints(workbench):
+def test_one_run_publishes_a_same_dated_workbench_across_all_seven_endpoints(workbench):
     client, _ = workbench
     stamp = TARGET.isoformat()
 
@@ -151,6 +164,15 @@ def test_one_run_publishes_a_same_dated_workbench_across_all_six_endpoints(workb
     assert regime["session"] == stamp
     assert regime["state"] == "FRIENDLY"
     assert regime["posture"] == "full size"
+
+    # volatility — the regime's sibling, off the same index, same session; the
+    # second leg is the raw VIX close, and the run captured the reading forward.
+    vol = client.get("/api/volatility/US").json()
+    assert vol["session"] == stamp
+    assert vol["state"] in ("CALM", "ELEVATED", "STRESSED")  # 105 bars clear the warm-up
+    assert vol["posture"].startswith("full size")            # the FRIENDLY row of the matrix
+    assert vol["second_leg_symbol"] == "^VIX"
+    assert vol["second_leg"] == pytest.approx(_vix_series()[-1]["Close"])
 
     # candidates — the leader is on the list with a score and its industry.
     candidates = client.get("/api/candidates/US").json()

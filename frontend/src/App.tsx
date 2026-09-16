@@ -87,6 +87,12 @@ function toLocation(dest: Destination): string {
   if (dest.market !== DEFAULT_MARKET) p.set("market", dest.market);
   if (dest.tab !== DEFAULT_TAB) p.set("tab", dest.tab);
   if (dest.tab === "sectors" && dest.sector) p.set("sector", dest.sector);
+  // PROTOTYPE — throwaway: carry the Sectors `?variant=` across navigations so
+  // the switcher's choice survives a drill-in and back. Delete with the prototype.
+  if (import.meta.env.DEV && typeof window !== "undefined") {
+    const v = new URLSearchParams(window.location.search).get("variant");
+    if (v) p.set("variant", v);
+  }
   const q = p.toString();
   return q ? `/?${q}` : "/";
 }

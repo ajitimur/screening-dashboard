@@ -10,6 +10,11 @@ import {
   type SectorStrength,
   type SectorsResponse,
 } from "./api/client";
+// PROTOTYPE — throwaway (see prototype-sectors/state.ts for the question).
+import { PrototypeSwitcher, useVariant } from "./prototype-sectors/Switcher";
+import VariantBriefing from "./prototype-sectors/VariantBriefing";
+import VariantLedger from "./prototype-sectors/VariantLedger";
+import VariantMap from "./prototype-sectors/VariantMap";
 
 // ── The Sectors screen and its drill-down (spec §5.4 / §5.5) ─────────────────
 //
@@ -175,8 +180,42 @@ function SectorList({
   // load, switch and fail together, which is honest for a single resource.
   const read = useBodyRead<SectorsResponse>(market, fetchSectors);
 
+  // PROTOTYPE — throwaway. Three variants of the list on this same route,
+  // switchable via `?variant=`. The fetch above is shared; only the rendered
+  // subtree swaps. Remove this block and the prototype-sectors/ folder when a
+  // variant has won.
+  const [variant, setVariant] = useVariant();
+  if (variant !== "current") {
+    const Variant =
+      variant === "A"
+        ? VariantBriefing
+        : variant === "B"
+          ? VariantLedger
+          : VariantMap;
+    return (
+      <div className="sectors-bands">
+        <Panel
+          label="Sector rotation"
+          read={read}
+          skeleton={<div className="band-skeleton" style={{ height: 420 }} />}
+        >
+          {(data) => (
+            <Variant
+              data={data}
+              regime={regime}
+              onDrill={onDrill}
+              registerRow={registerRow}
+            />
+          )}
+        </Panel>
+        <PrototypeSwitcher current={variant} onChange={setVariant} />
+      </div>
+    );
+  }
+
   return (
     <div className="sectors-bands">
+      <PrototypeSwitcher current={variant} onChange={setVariant} />
       {/* Band 1 — the decile-share model at full width (spec §5.4). */}
       <Panel
         label="Where the leaders are clustered"

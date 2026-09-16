@@ -1,0 +1,317 @@
+/* PROTOTYPE — throwaway. Styles for the Sectors variants and the switcher.
+   Reuses the sheet's tokens; nothing here is meant to ship. */
+
+/* ── the switcher: deliberately NOT part of the design under review ── */
+.proto-switcher {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 999px;
+  background: #111;
+  color: #fff;
+  font: 600 var(--text-meta) / 1 var(--font-mono);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+.proto-switcher button {
+  border: 0;
+  background: #333;
+  color: #fff;
+  border-radius: 999px;
+  width: 1.75rem;
+  height: 1.75rem;
+  cursor: pointer;
+  font: inherit;
+}
+.proto-switcher b {
+  color: #ffd166;
+}
+
+/* ── shared bits ── */
+.proto-summary {
+  margin: 0 0 1rem;
+  font-size: var(--text-head);
+  font-weight: 600;
+  line-height: 1.35;
+}
+.proto-regime {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+.proto-swatch {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 2px;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+.proto-state-badge {
+  display: inline-block;
+  padding: 0.08rem 0.45rem;
+  border-radius: 0.4rem;
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  margin-left: 0.4rem;
+}
+.proto-state-badge.proto-state-emerging { color: var(--color-regime-ok); background: var(--color-regime-ok-bg); }
+.proto-state-badge.proto-state-leading  { color: #1c1b18; background: #ddd6c6; }
+.proto-state-badge.proto-state-fading   { color: var(--color-regime-stop); background: var(--color-regime-stop-bg); }
+.proto-state-badge.proto-state-quiet    { color: var(--color-text-muted); background: color-mix(in srgb, var(--color-text-muted) 10%, transparent); }
+.proto-state-badge.proto-state-thin     { color: var(--color-text-muted); background: transparent; border: 1px dashed var(--color-border); }
+.low-confidence { color: var(--color-text-muted); }
+
+/* the five-lookback sparkline */
+.proto-bars {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  width: 6.5rem;
+  padding-bottom: 0.8rem;
+  box-sizing: content-box;
+}
+.proto-bar {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: color-mix(in srgb, var(--color-text-muted) 8%, transparent);
+}
+.proto-bar-fill {
+  display: block;
+  width: 100%;
+  border-radius: 1px 1px 0 0;
+}
+.proto-bar-label {
+  position: absolute;
+  bottom: -0.8rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 0.5rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}
+.proto-baseline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--color-text);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* ── Variant A: briefing lanes ── */
+.proto-lanes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.proto-lane {
+  border-radius: var(--radius-card);
+  padding: 0.75rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+.proto-lane-emerging { border-top: 4px solid var(--color-regime-ok); }
+.proto-lane-leading  { border-top: 4px solid #1c1b18; }
+.proto-lane-fading   { border-top: 4px solid var(--color-regime-stop); }
+.proto-lane-quiet    { border-top: 4px solid var(--color-border); }
+.proto-lane-thin     { border-top: 4px dashed var(--color-border); opacity: 0.8; }
+.proto-lane-title {
+  margin: 0;
+  font-size: var(--text-label);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+.proto-lane-count {
+  font-family: var(--font-mono);
+  color: var(--color-text);
+}
+.proto-lane-hint {
+  margin: 0.2rem 0 0.6rem;
+  font-size: var(--text-micro);
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+.proto-lane-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-micro);
+}
+.proto-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 0.6rem 0.7rem;
+  margin-bottom: 0.6rem;
+}
+.proto-card-head {
+  font-size: var(--text-body);
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+.proto-card .proto-bars {
+  width: 100%;
+}
+.proto-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.4rem;
+  margin: 0.8rem 0 0.3rem;
+}
+.proto-facts dt {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+.proto-facts dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+}
+.proto-industries {
+  margin: 0.3rem 0 0;
+  font-size: var(--text-micro);
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
+/* ── Variant B: annotated ledger ── */
+.proto-ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body);
+}
+.proto-ledger-table th,
+.proto-ledger-table td {
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+.proto-ledger-table thead th {
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+.proto-ledger-table thead abbr {
+  text-decoration: underline dotted;
+  cursor: help;
+}
+.proto-ledger-table tr[data-group-start] th,
+.proto-ledger-table tr[data-group-start] td {
+  border-top: 2px solid var(--color-border);
+}
+.proto-row:hover {
+  background: var(--color-surface);
+}
+.proto-row.proto-state-quiet,
+.proto-row.proto-state-thin {
+  color: var(--color-text-muted);
+}
+.proto-bars-cell .proto-bars {
+  height: 1.6rem;
+}
+.shape.up { color: var(--color-green); }
+.shape.down { color: var(--color-red); }
+.proto-carried {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  white-space: nowrap;
+}
+.proto-carried-names {
+  font-family: var(--font-sans);
+  color: var(--color-text-muted);
+}
+.proto-board {
+  margin-top: 1.25rem;
+}
+.proto-chips {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.proto-chip {
+  border: 1px solid;
+  border-left-width: 4px;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-card);
+  font-size: var(--text-meta);
+  transition: opacity 120ms;
+}
+.proto-chip.dim { opacity: 0.3; }
+.proto-chip.hot { box-shadow: 0 0 0 2px var(--color-text); }
+
+/* ── Variant C: rotation map ── */
+.proto-map-row {
+  display: grid;
+  grid-template-columns: minmax(20rem, 1.3fr) minmax(16rem, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .proto-map-row { grid-template-columns: 1fr; }
+}
+.proto-plot {
+  width: 100%;
+  height: auto;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+.proto-q { opacity: 0.55; }
+.proto-q-emerging { fill: var(--color-regime-ok-bg); }
+.proto-q-leading  { fill: #eee9dd; }
+.proto-q-fading   { fill: var(--color-regime-stop-bg); }
+.proto-q-quiet    { fill: var(--color-surface); }
+.proto-qlabel {
+  font: 700 9px var(--font-sans);
+  letter-spacing: 0.06em;
+  fill: var(--color-text-muted);
+}
+.proto-baseline-line { stroke: var(--color-text); stroke-opacity: 0.35; stroke-dasharray: 3 3; }
+.proto-diagonal { stroke: var(--color-text-muted); stroke-opacity: 0.3; }
+.proto-tick { font: 9px var(--font-mono); fill: var(--color-text-muted); }
+.proto-axis { font: 10px var(--font-sans); fill: var(--color-text-muted); }
+.proto-bubble { cursor: pointer; transition: opacity 120ms; }
+.proto-bubble.dim { opacity: 0.25; }
+.proto-bubble:focus-visible circle { stroke: var(--color-text); stroke-width: 3; }
+.proto-bubble-label { font: 10px var(--font-sans); fill: var(--color-text); paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.proto-bubble.thin .proto-bubble-label { fill: var(--color-text-muted); }
+.proto-map-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-body);
+}
+.proto-map-item {
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+}
+.proto-map-item.hot { background: var(--color-surface); }
+.proto-map-industries {
+  margin-top: 0.15rem;
+  padding-left: 1rem;
+  font-size: var(--text-micro);
+  color: var(--color-text-muted);
+}

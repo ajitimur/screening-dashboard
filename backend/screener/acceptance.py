@@ -32,6 +32,7 @@ from statistics import median
 from .boards import board_symbols
 from .candidates import AFFORDABLE_ADR, build_candidates
 from .ranks import decile_gate
+from .relative_strength import session_relative_moves
 from .store import Store
 
 # A B-criterion is a spec deviation when the measured value lands more than this
@@ -39,6 +40,11 @@ from .store import Store
 TOLERANCE = 0.10
 
 # The ≥4★ line: a candidate at or above this many stars counts toward B9's share.
+# Held at 4.0 across rubric v4 (#222): the nine-point ceiling did not move, only
+# the floor did — `Prior move`'s free point is gone, so ≥4★ now means eight of
+# nine points *earned* where it used to mean seven plus the constant. The share
+# is expected to fall for that reason, and the §8.2 expectation below is not
+# retuned to hide it (ticket 45 owns re-measuring on a real run).
 FOUR_STAR = 4.0
 
 # D2's instrument-filter spot check (spec §8.4): twelve US-listed ADRs that a
@@ -149,7 +155,12 @@ def compute_b_criteria(
 
     industry_of = {sym: lab.industry for sym, lab in labels.items()}
     sector_of = {sym: lab.sector for sym, lab in labels.items()}
-    candidates = build_candidates(detections, ranks, industry_of, sector_of)
+    # Scored by the same path the app renders — the rubric's Relative move row
+    # (v4) read off the store exactly as the list reads it.
+    candidates = build_candidates(
+        detections, ranks, industry_of, sector_of,
+        relative_move_of=session_relative_moves(store, market, detections),
+    )
 
     stops = [det.stopw_adr for det in detections]
     ks = [det.cluster_k for det in detections]

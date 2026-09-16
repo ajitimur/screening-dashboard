@@ -167,7 +167,9 @@ carries its own n and enters no gap. The published selection figures ride on eve
 candidate's cell under their own verdict key, because a dimension that ranks
 outcomes and one that matches a selection are two claims that can point opposite
 ways. Nothing here admits a dimension, and
-:func:`~backtest.candidates.check_not_admitted` makes that executable.
+:func:`~backtest.candidates.check_admission` makes that executable — ADR 0006
+later admitted ``Relative move`` on this measurement, provisionally, and it stays
+under test here for the re-read that admission owes.
 
 :mod:`backtest.candidates`'s names are **not** re-exported here, for the reasons
 that already keep :mod:`backtest.ranking` out: it is a command

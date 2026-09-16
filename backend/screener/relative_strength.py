@@ -1,16 +1,22 @@
-"""Index-relative **candidate dimensions** — quantities under measurement for the
-rubric slot ``Prior move`` cannot earn, and scored by nothing here.
+"""Index-relative dimensions — the two quantities registered for the rubric slot
+``Prior move`` could not earn, and the one that took it. Nothing is scored here;
+the rubric (:mod:`screener.score`) reads the boolean this module defines.
 
 Two live in this module, in the order they were registered under
 ``docs/adr/0005-what-admits-a-dimension-to-the-rubric.md``:
 
 - **RS line** (#160) — the ratio to the index across the detection's own base.
-  Measured and **rejected** (findings §5d).
+  Measured and **rejected** (findings §5d). Still a **candidate dimension**: the
+  replay carries it beside the score so §5d stays reproducible.
 - **Relative move** (#170) — the `6m` return relative to the index, compounded,
-  in ADR units. Measured by #171 and **not admitted** (findings §5e): the gap is
-  positive on both fields, but the not-taken hit rate landed 0.06pp inside the
-  ~85% ceiling that refuses it, and the study declined to read a verdict off six
-  hundredths of a point.
+  in ADR units. Measured by #171 (findings §5e): the gap is positive on both
+  fields, but the not-taken hit rate landed 0.06pp inside the ~85% ceiling, which
+  ADR 0006 reads as **crowded** — owing a candidate outcome test rather than a
+  refusal. It passed (IDX +1.927R clears; US does not point the wrong way) and
+  was **admitted at ×1 as rubric v4** (#221, landed by #222), provisionally, to
+  be re-read at the next out-of-sample measurement. It is a live rubric
+  dimension now: :func:`relative_move_adr` is its executable definition and
+  :func:`relative_move_hit` the boolean the rubric awards on.
 
 They share a benchmark and a never-carried-forward rule and differ in the one
 thing §5d's post-mortem named as the mechanism behind its null: the **anchor**.
@@ -23,12 +29,15 @@ records what result would say the distinction did not matter.
 **Computed in a caller, never in :mod:`screener.score`.** The score module is
 pure and does no I/O, and that guarantee is worth keeping; both dimensions need a
 *second symbol's* bars, so either could only ever be a caller-supplied
-cross-sectional input like ``prior_move`` and ``sector_share``. The benchmark is
+cross-sectional input like ``sector_share``. The benchmark is
 :data:`~screener.source.MARKET_INDEX` as it stands — ``^IXIC`` (US), ``^JKSE``
-(IDX).
+(IDX). :func:`session_relative_moves` is the one store-facing helper — the value
+for each of a session's detections, read the same way by the nightly list, the
+chart, the digest, acceptance and the replay — so the live app and the study
+cannot denominate the dimension differently.
 
-Pure over clean, oldest-first ``list[Bar]`` series, so both are unit-tested
-without the network.
+The definitions are pure over clean, oldest-first ``list[Bar]`` series, so both
+are unit-tested without the network.
 
 ## The RS line, and why it was refused
 
@@ -45,15 +54,15 @@ detector — so he selects names whose strength against the index decayed throug
 the base. Criterion 2 would have refused it regardless, at 11.2% disagreement
 with price-at-a-new-high-over-base against a pre-registered ~15% floor.
 
-**So nothing here is scored, and nothing in the app calls it.** :mod:`screener.score`
-is untouched, :data:`screener.score.RUBRIC_VERSION` stays 3, and the live
-candidate list, digest and chart never compute it — the wiring that would have
-carried it to the scorer came out with the verdict, as it said it would. The
-module survives because the *evidence* has to stay reproducible: it is what
+**So the RS line is scored by nothing, and nothing in the app calls it.** The
+live candidate list, digest and chart never compute it — the wiring that would
+have carried it to the scorer came out with the verdict, as it said it would. It
+survives because the *evidence* has to stay reproducible: it is what
 :func:`replay.field.session_rs_lines` and ``scripts/rs_line_contrast.py`` read,
 and re-running the study is how anyone checks §5d rather than trusting it.
 
-Read it as the worked example of a candidate dimension, not as live scoring code.
+Read it as the worked example of a refused candidate dimension, not as live
+scoring code. The relative move below is the worked example of an admitted one.
 
 Four properties are load-bearing, and each rules out a variant that looks
 equivalent:
@@ -126,11 +135,14 @@ pre-registration clause exists to prevent.
 from __future__ import annotations
 
 from bisect import bisect_right
+from collections.abc import Iterable
 from datetime import date
 
 from .bars import Bar
 from .detection import Detection
 from .indicators import adr, calendar_return
+from .source import MARKET_INDEX
+from .store import Store
 
 
 def _adj_close_on(bars: list[Bar], when: date) -> float | None:
@@ -392,3 +404,32 @@ def relative_move_hit(value: float | None) -> bool:
     breakdown row would carry can never disagree about where the line is.
     """
     return value is not None and value > RELATIVE_MOVE_CUT
+
+
+def session_relative_moves(
+    store: Store, market: str, detections: Iterable[Detection]
+) -> dict[str, float | None]:
+    """The ``Relative move`` value for each of a session's detections, off the store.
+
+    The name's `6m` calendar return netted against
+    :data:`~screener.source.MARKET_INDEX`, compounded, denominated in the name's
+    own ADR (:func:`relative_move_adr`), anchored at each detection's **own**
+    session. The one store-facing reader of the dimension: the nightly list, the
+    chart, the digest, acceptance and the replay all call this, so no two of them
+    can denominate the rubric's row differently.
+
+    Whole bar series are handed in and never sliced to the session here —
+    :func:`relative_move_adr` anchors both legs at ``det.session`` and slices the
+    ADR leg to it itself, so a bar published after the detection (a newer or
+    quarantined pull) can never reach the value; see its docstring for why that
+    guard lives there rather than in every caller. A leg with no bar on or before
+    its anchor yields ``None`` — absent, not zero — and is never carried forward;
+    the rubric scores absence as a miss.
+    """
+    index_bars = store.bars(market, MARKET_INDEX[market])
+    return {
+        det.symbol: relative_move_adr(
+            store.bars(market, det.symbol), index_bars, det.session
+        )
+        for det in detections
+    }

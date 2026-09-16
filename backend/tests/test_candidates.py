@@ -63,16 +63,49 @@ def test_columns_are_derived_from_the_detection_row():
 
 
 def test_the_score_is_the_star_rubric_and_its_eight_row_breakdown():
-    # Every dimension hits: tight k=5, orderly 0.45, prior move (1m decile),
+    # Every dimension hits: tight k=5, orderly 0.45, relative move above zero,
     # base_len 10, MA rising, dry-up 0.90, sector share ≥ 0.10, ADR 0.06.
     ranks = _decile("AAA") + [Rank("PEER", "1m", 0.95, 1.0)]
     sector_of = {"AAA": "Technology", "PEER": "Technology"}
-    [c] = build_candidates([_det("AAA")], ranks, {}, sector_of)
+    [c] = build_candidates(
+        [_det("AAA")], ranks, {}, sector_of, relative_move_of={"AAA": 1.5}
+    )
     # Nine-point ceiling (PRD #138): every dimension hits, but Base length is ×0.
     assert c.score == 4.5
     assert len(c.breakdown) == 8
     assert all(row.hit for row in c.breakdown)
     assert sum(row.points for row in c.breakdown) == 9
+
+
+def test_the_relative_move_is_the_rubrics_row_and_absence_is_a_miss():
+    # Rubric v4 (#222): the 6m index-relative move rides the row in ADR units
+    # and earns its point strictly above zero. A name the caller has no value
+    # for is absent — scored as a miss, with no value on the row, never a zero.
+    [outran] = build_candidates(
+        [_det("AAA")], _decile("AAA"), {}, {}, relative_move_of={"AAA": 0.8}
+    )
+    [absent] = build_candidates([_det("AAA")], _decile("AAA"), {}, {})
+    row = next(r for r in outran.breakdown if r.dimension == "Relative move")
+    assert row.hit is True and row.points == 1 and row.value == 0.8
+    gone = next(r for r in absent.breakdown if r.dimension == "Relative move")
+    assert gone.hit is False and gone.points == 0 and gone.value is None
+    assert outran.score - absent.score == 0.5
+    assert "Prior move" not in {r.dimension for r in outran.breakdown}
+
+
+def test_the_binding_lookback_rides_the_row_as_metadata_without_its_percentile():
+    # The decile gate left the score with v4 and returns as the name of the
+    # lookback the name cleared it on most strongly — the record `Prior move`
+    # used to keep — never scored, and never its percentile (ADR 0005).
+    ranks = [Rank("AAA", "1m", 0.92, 1.2), Rank("AAA", "6m", 0.97, 1.1)]
+    [c] = build_candidates([_det("AAA")], ranks, {}, {})
+    assert c.gate_lookback == "6m"
+    assert c.decile_ranks == {"1m": 0.92, "6m": 0.97}
+    # Ranked in no lookback (a seam-level fixture): the row says so honestly.
+    [ungated] = build_candidates([_det("AAA")], [], {}, {})
+    assert ungated.gate_lookback is None
+    # The field never enters the score: same stars with or without a gate row.
+    assert c.score == ungated.score
 
 
 def test_the_list_sorts_by_star_score_descending():

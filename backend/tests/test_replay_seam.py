@@ -1478,7 +1478,7 @@ def test_seven_dimension_score_omits_sector_and_totals_out_of_eight(store: Store
     det = detect("BASE", bars, dates[104])
     assert det is not None
 
-    score = seven_dimension_score(det, prior_move=True)
+    score = seven_dimension_score(det, relative_move=1.0)
 
     dims = [d.dimension for d in score.breakdown]
     assert "Sector" not in dims
@@ -1487,7 +1487,7 @@ def test_seven_dimension_score_omits_sector_and_totals_out_of_eight(store: Store
     assert dims == [
         "Tightness",
         "Orderliness",
-        "Prior move",
+        "Relative move",
         "Base length",
         "MA support",
         "Volume",
@@ -1732,7 +1732,7 @@ def test_placement_scores_one_field_under_both_rubrics_stamped_by_version():
     scored = ScoredDetection(
         symbol="BASE",
         detection=det,
-        score=seven_dimension_score(det, prior_move=True),
+        score=seven_dimension_score(det, relative_move=1.0),
         star_rank=1,
         not_taken=False,
     )
@@ -1752,7 +1752,9 @@ def test_placement_scores_one_field_under_both_rubrics_stamped_by_version():
     # The live-rubric pair *is* the report's headline picks/field — one source.
     assert live.picks.counts == report.picks.counts
     assert live.field.counts == report.field.counts
-    # Field held fixed, only weights move: Base length ×0→×1 is +0.5 star under v1.
+    # Field held fixed, only weights move: Base length ×0→×1 is +0.5 star under
+    # v1. The ×1 Relative move earns here and v1 instead credits its constant
+    # Prior move (absent from a v4 breakdown), so those two cancel exactly.
     live_star = stars_under(scored.score.breakdown, RUBRICS[RUBRIC_VERSION])
     v1_star = stars_under(scored.score.breakdown, RUBRICS[1])
     assert v1_star == live_star + 0.5
@@ -1810,9 +1812,9 @@ def test_regression_feature_vector_matches_hand_computed_values(store: Store):
     # The seven dimensions match the app's own detection + seven-dim score, in
     # published order with the sector row struck.
     det = detect("BASE", bars, dates[104])
-    assert vec.dimensions == seven_dimension_score(det, prior_move=True).breakdown
+    assert vec.dimensions == seven_dimension_score(det, relative_move=None).breakdown
     assert [d.dimension for d in vec.dimensions] == [
-        "Tightness", "Orderliness", "Prior move",
+        "Tightness", "Orderliness", "Relative move",
         "Base length", "MA support", "Volume", "ADR",
     ]
     # ADR at entry: the flat top's 100.5/99.5 bars give ADR = 100.5/99.5 - 1.
@@ -1833,12 +1835,12 @@ def test_regression_dimension_without_spread_is_untestable():
     # by both (no spread), Tightness by only one (spread).
     hi = build_feature_vector(
         ticker="AAA", entry_date=date(2020, 1, 3), eval_session=date(2020, 1, 2),
-        det=_det("AAA", cluster_k=6), prior_move=True,
+        det=_det("AAA", cluster_k=6), relative_move=1.0,
         adr_at_entry=0.06, stop_pct=3.0, mfe=40.0, r=8.0,
     )
     lo = build_feature_vector(
         ticker="BBB", entry_date=date(2020, 1, 3), eval_session=date(2020, 1, 2),
-        det=_det("BBB", cluster_k=3), prior_move=True,
+        det=_det("BBB", cluster_k=3), relative_move=-1.0,
         adr_at_entry=0.06, stop_pct=3.0, mfe=10.0, r=2.0,
     )
 
@@ -1846,7 +1848,7 @@ def test_regression_dimension_without_spread_is_untestable():
 
     assert "Sector" not in stats
     assert set(stats) == {
-        "Tightness", "Orderliness", "Prior move",
+        "Tightness", "Orderliness", "Relative move",
         "Base length", "MA support", "Volume", "ADR",
     }
     # Base length: both hit, no variance -> untestable, no correlation.
@@ -1857,8 +1859,10 @@ def test_regression_dimension_without_spread_is_untestable():
     assert stats["Tightness"].untestable is False
     assert stats["Tightness"].spread > 0.0
     assert stats["Tightness"].correlation is not None
-    # Prior move is untestable by construction (every detection cleared the gate).
-    assert stats["Prior move"].untestable is True
+    # Relative move varies (one outran the index, one lagged it) — unlike the
+    # constant it replaced, which every detection cleared by construction.
+    assert stats["Relative move"].untestable is False
+    assert stats["Relative move"].spread > 0.0
 
 
 def test_regression_reports_distributions_and_drops_sector(store: Store):
@@ -1927,14 +1931,16 @@ def _scored_det(
     relative_move=None,
 ):
     """A field candidate carrying a real seven-dimension breakdown: ``cluster_k``
-    flips the Tightness dimension, every other dimension is hit by construction.
-    ``rs_line`` (#160) and ``relative_move`` (#170) are the candidate dimensions
-    under measurement, which sit beside the score rather than inside it."""
+    flips the Tightness dimension, ``relative_move`` the Relative move one (a
+    rubric row since v4, #222; ``None`` is absent, a miss), and every other
+    dimension is hit by construction. ``rs_line`` (#160) is the candidate
+    dimension under measurement, which sits beside the score rather than inside
+    it; ``relative_move`` rides the member too, as the denominator persists it."""
     det = _det(symbol, cluster_k)
     return ScoredDetection(
         symbol=symbol,
         detection=det,
-        score=seven_dimension_score(det, prior_move=True),
+        score=seven_dimension_score(det, relative_move=relative_move),
         star_rank=1,
         not_taken=not_taken,
         taken=taken,
@@ -1977,9 +1983,9 @@ def test_selection_contrast_over_a_fixture_field_with_known_members():
     by_dim = {c.dimension: c for c in report.dimension_contrasts}
     assert "Sector" not in by_dim
     assert set(by_dim) == {
-        "Tightness", "Orderliness", "Prior move",
+        "Tightness", "Orderliness", "Relative move",
         "Base length", "MA support", "Volume", "ADR",
-        "RS line", "Relative move",
+        "RS line",
     }
     # The candidate carries no weight: it is measured, not scored (ADR 0005).
     assert by_dim["RS line"].weight == 0
@@ -2333,7 +2339,7 @@ def test_placement_pairs_the_top_thirty_hit_per_rubric_not_only_the_histogram():
         return ScoredDetection(
             symbol=det.symbol,
             detection=det,
-            score=seven_dimension_score(det, prior_move=True),
+            score=seven_dimension_score(det, relative_move=1.0),
             star_rank=rank,
             not_taken=False,
         )
@@ -2650,6 +2656,23 @@ def test_the_widened_gate_displaces_names_from_the_board():
     # Under the five-union gate the board fills to two, and BURST — admitted only by
     # 1w — takes the second place on both sessions.
     assert five.board_displacement == 2
+
+
+def test_the_sweep_scores_its_fields_under_the_whole_rubric_relative_move_included():
+    """A variant's field is scored under the live rubric entire (#222): the
+    Relative move each prepared session carries reaches the score, so a sweep
+    board is the board the app would show and not one with a row silently
+    absent. Three identical setups tie on ticker unless one outran the index."""
+    from replay.gate_sweep import GATE_VARIANTS, measure_variant
+
+    five = GATE_VARIANTS[-1]
+    swept = _widening_pass()
+    _m, boards_without, _g = measure_variant(five, swept, [], board_size=1)
+    assert all(board == ["BURST"] for board in boards_without.values())
+
+    outran = [dataclasses.replace(s, relative_move_of={"STALE": 2.0}) for s in swept]
+    _m, boards, _g = measure_variant(five, outran, [], board_size=1)
+    assert all(board == ["STALE"] for board in boards.values())
 
 
 def test_his_picks_in_field_and_top_thirty_counts_move_with_the_gate():
@@ -3058,13 +3081,14 @@ def test_the_grid_never_mutates_the_live_detector_constants():
     ) == before
 
 
-# -- the second candidate dimension (#170/#171) -------------------------------
+# -- the second candidate dimension, now a rubric row (#170/#171, #222) --------
 #
 # `Relative move` — the `6m` return relative to ``MARKET_INDEX``, compounded, in
-# ADR units, hit above zero. Pre-registered in ADR 0005 and measured by #171's
-# selection contrast. It rides the field member as a **value** where ``RS line``
-# rides as a boolean, and the reason is the registration's: the rubric owns the
-# cut, a breakdown row carries the number, and a row cannot be re-denominated
+# ADR units, hit above zero. Pre-registered in ADR 0005, measured by #171's
+# selection contrast, admitted under ADR 0006 as rubric v4 (#222). It rides the
+# field member as a **value** where ``RS line`` rides as a boolean, and the same
+# value is what the score's Relative move row reads: the rubric owns the cut, a
+# breakdown row carries the number, and a row cannot be re-denominated
 # retroactively.
 
 
@@ -3073,13 +3097,18 @@ def test_the_relative_move_rides_as_a_value_and_the_cut_lives_in_one_place():
 
     Carrying the pass/fail instead would freeze the pre-registered cut into every
     stored row, and ADR 0004's later grading question — asked of the value —
-    could then only be answered by re-scoring history.
+    could then only be answered by re-scoring history. Since v4 the contrast
+    reads the dimension off the breakdown, at its live weight, and the same cut.
     """
     dets = [_det("AAA", 6), _det("BBB", 3)]
 
     field = build_field(dets, [], relative_move_of={"AAA": 2.5, "BBB": -1.0})
 
     assert {d.symbol: d.relative_move for d in field} == {"AAA": 2.5, "BBB": -1.0}
+    rows = {d.symbol: next(r for r in d.score.breakdown if r.dimension == "Relative move")
+            for d in field}
+    assert rows["AAA"].value == 2.5 and rows["AAA"].hit is True
+    assert rows["BBB"].value == -1.0 and rows["BBB"].hit is False
     by_dim = {
         c.dimension: c
         for c in contrast_dimensions(
@@ -3089,7 +3118,10 @@ def test_the_relative_move_rides_as_a_value_and_the_cut_lives_in_one_place():
     }
     assert by_dim["Relative move"].taken_hit_rate == 1.0
     assert by_dim["Relative move"].not_taken_hit_rate == 0.0
-    assert by_dim["Relative move"].weight == 0
+    assert by_dim["Relative move"].weight == 1
+    # One row per dimension: it left the candidate register when it was admitted.
+    assert "Relative move" not in dict(CANDIDATE_DIMENSIONS)
+    assert [c.dimension for c in contrast_dimensions(field, [])].count("Relative move") == 1
 
 
 def test_an_absent_relative_move_is_none_and_scores_a_miss():
@@ -3099,18 +3131,22 @@ def test_an_absent_relative_move_is_none_and_scores_a_miss():
     field = build_field([_det("AAA", 6)], [])
 
     assert field[0].relative_move is None
+    row = next(r for r in field[0].score.breakdown if r.dimension == "Relative move")
+    assert row.hit is False and row.value is None
     by_dim = {c.dimension: c for c in contrast_dimensions(field, [])}
     assert by_dim["Relative move"].taken_hit_rate == 0.0
 
 
-def test_the_relative_move_does_not_move_a_replayed_star():
-    """The staging invariant, asserted for the second candidate as it was for the
-    first: measuring a dimension cannot contaminate the field it is measured on."""
+def test_the_relative_move_moves_a_replayed_star_by_its_one_point():
+    """The staging invariant inverted by admission (#222): a rubric row moves the
+    field it is scored on, by exactly its weight, and the replayed score reads
+    the same value the field member carries."""
     strong = _scored_det("AAA", 6, relative_move=9.0)
     weak = _scored_det("AAA", 6, relative_move=-9.0)
-    assert strong.score == weak.score
-    assert strong.score.breakdown == weak.score.breakdown
-    assert "Relative move" not in {d.dimension for d in strong.score.breakdown}
+    assert strong.score.points - weak.score.points == 1
+    assert "Relative move" in {d.dimension for d in strong.score.breakdown}
+    assert "Prior move" not in {d.dimension for d in strong.score.breakdown}
+    assert strong.score.max_points == SEVEN_DIM_MAX_POINTS == 8
 
 
 def test_session_relative_moves_reads_the_market_index_as_the_benchmark(store: Store):
@@ -3178,8 +3214,8 @@ def test_a_study_column_is_read_through_a_supplied_reader_not_a_new_field():
 def test_a_study_column_cannot_redefine_a_registered_candidate():
     """The collision the ``readers`` seam has to refuse.
 
-    A study supplying a reader named ``Relative move`` would report a number under
-    a registered candidate's name while computing something of its own — the one
+    A study supplying a reader named ``RS line`` would report a number under a
+    registered candidate's name while computing something of its own — the one
     way this contrast can be wrong and look fine, which is the same failure the
     :data:`CANDIDATES` comment describes for a mistyped dimension name.
     """
@@ -3187,7 +3223,7 @@ def test_a_study_column_cannot_redefine_a_registered_candidate():
         contrast_dimensions(
             [_scored_det("P1", 6, taken=True)],
             [_scored_det("N1", 6, not_taken=True)],
-            readers={"Relative move": lambda d: True},
+            readers={"RS line": lambda d: True},
         )
 
 
@@ -4817,7 +4853,7 @@ def test_a_persisted_candidate_dimension_keeps_absence_distinct_from_zero(denomi
     det = _det("AAA", cluster_k=6)
     absent = ScoredDetection(
         symbol="AAA", detection=det,
-        score=seven_dimension_score(det, prior_move=False),
+        score=seven_dimension_score(det, relative_move=None),
         star_rank=1, not_taken=False, rs_line=False, relative_move=None,
     )
     on_the_cut = dataclasses.replace(
@@ -5203,7 +5239,7 @@ def test_an_absent_rs_line_is_none_and_never_a_miss(denominator):
 
     absent = ScoredDetection(
         symbol="AAA", detection=det,
-        score=seven_dimension_score(det, prior_move=False),
+        score=seven_dimension_score(det, relative_move=None),
         star_rank=1, not_taken=False, rs_line=None, relative_move=None,
     )
     decayed = dataclasses.replace(
@@ -6914,7 +6950,7 @@ def _seed_figure_name(
         denominator.append_detections(market, det.session, [
             ScoredDetection(
                 symbol=symbol, detection=det,
-                score=seven_dimension_score(det, prior_move=False),
+                score=seven_dimension_score(det, relative_move=None),
                 star_rank=1, not_taken=False, rs_line=rs_line,
                 relative_move=relative_move,
             )
@@ -7060,7 +7096,7 @@ def test_a_detection_the_bars_cannot_answer_is_not_counted_as_a_miss(
     denominator.append_detections("US", last, [
         ScoredDetection(
             symbol="AAA", detection=pending,
-            score=seven_dimension_score(pending, prior_move=False),
+            score=seven_dimension_score(pending, relative_move=None),
             star_rank=1, not_taken=False, rs_line=False, relative_move=None,
         )
     ])
@@ -8868,7 +8904,7 @@ def test_the_ranking_runs_off_the_denominator_end_to_end(store, denominator):
 
     assert [s.trade.symbol for s in cohort] == ["AAA"]
     assert cohort[0].score.points == seven_dimension_score(
-        det, prior_move=False
+        det, relative_move=None
     ).points
     body = market_ranking(DEFAULT_CONTRACT, cohort, market="US")
     assert sum(b["trades"] for b in body["buckets"]) == 1
@@ -8899,7 +8935,7 @@ def test_the_ranking_runs_off_the_denominator_end_to_end(store, denominator):
 #     two different claims about one dimension, and a reader who lines them up as
 #     one has read a stronger claim than either supports.
 #
-# Nothing here admits a dimension. `check_not_admitted` makes that executable
+# Nothing here admits a dimension. `check_admission` makes that executable
 # rather than a sentence in a docstring.
 
 from backtest.candidates import (
@@ -8923,7 +8959,7 @@ from backtest.candidates import (
     DetectedTrade,
     candidate_trades,
     candidates_report,
-    check_not_admitted,
+    check_admission,
     check_registry,
     format_candidates,
     group_of,
@@ -9052,15 +9088,23 @@ def _cfind(report: dict[str, Any], market: str, name: str) -> dict[str, Any]:
 def test_both_registered_candidates_are_measured_against_outcomes_per_market():
     """#195's first criterion, and the reason the list is derived rather than typed.
 
-    The candidates under test are exactly the ones ADR 0005 has registered, read
-    off `replay.contrast.CANDIDATES`. A module holding its own list would keep
-    measuring a retired candidate, or quietly miss a third one, with nothing in the
-    output to say so.
+    The dimensions under test are exactly the register (`replay.contrast.CANDIDATES`)
+    plus the provisional admissions (`screener.score.PROVISIONAL`), in that order.
+    A module holding its own list would keep measuring a retired candidate, or
+    quietly miss a third one, with nothing in the output to say so — and a
+    provisional admission that dropped out of the roster could never be re-read.
     """
+    from screener.score import PROVISIONAL
+
     assert [c.name for c in CANDIDATES_UNDER_TEST] == [
         name for name, _weight in CANDIDATE_DIMENSIONS
-    ]
+    ] + list(PROVISIONAL)
     assert {c.name for c in CANDIDATES_UNDER_TEST} == {_RS_LINE, _RELATIVE_MOVE}
+    by_name = {c.name: c for c in CANDIDATES_UNDER_TEST}
+    assert by_name[_RS_LINE].status == "candidate"
+    assert by_name[_RS_LINE].admission is None
+    assert by_name[_RELATIVE_MOVE].status == "provisional"
+    assert "ADR 0006" in by_name[_RELATIVE_MOVE].admission
 
     report = candidates_report(
         DEFAULT_CONTRACT,
@@ -9356,10 +9400,15 @@ def test_nothing_here_admits_a_dimension_to_the_rubric():
     entirely — so it is refused at the door, and the payload states that admission
     is ADR 0005's instrument and not this one's.
     """
-    check_not_admitted()
+    check_admission()
     assert all(weight == 0 for _name, weight in CANDIDATE_DIMENSIONS)
     live = {name for name, _weight in DIMENSIONS}
-    assert live.isdisjoint({c.name for c in CANDIDATES_UNDER_TEST})
+    candidates = {c.name for c in CANDIDATES_UNDER_TEST if c.status == "candidate"}
+    provisional = {c.name for c in CANDIDATES_UNDER_TEST if c.status == "provisional"}
+    # A candidate is in no rubric; a provisional admission is in the live one
+    # (ADR 0006), and is measured here for its re-read.
+    assert live.isdisjoint(candidates)
+    assert provisional <= live
 
     report = candidates_report(
         DEFAULT_CONTRACT, _ccohort(_spread("H", 2.0, 8), _spread("M", -1.0, 8))
@@ -9367,12 +9416,25 @@ def test_nothing_here_admits_a_dimension_to_the_rubric():
 
     assert report["admission"] == ADMISSION_NOTE
     assert "admits no dimension" in ADMISSION_NOTE
+    registered = {r["candidate"]: r for r in report["registered"]}
+    assert registered[_RS_LINE]["status"] == "candidate"
+    assert registered[_RELATIVE_MOVE]["status"] == "provisional"
+    assert "provisionally" in registered[_RELATIVE_MOVE]["admission"]
 
 
 def test_a_candidate_that_had_entered_the_rubric_is_refused():
-    """The other half of the same guard: the check has to be able to fire."""
+    """The other half of the same guard: the check has to be able to fire, in
+    both directions — a candidate that leaked into the rubric without a rule, and
+    a declared provisional admission the rubric does not actually carry."""
+    # A candidate in the live rubric with no rule admitting it.
+    with pytest.raises(ContractDrift, match="RS line"):
+        check_admission(dimensions=(("RS line", 1), ("Relative move", 1)))
+    # A dimension under test in the live rubric that nothing declares provisional.
     with pytest.raises(ContractDrift, match="Relative move"):
-        check_not_admitted(dimensions=(("Relative move", 1),))
+        check_admission(dimensions=(("Relative move", 1),), provisional={})
+    # A declared provisional admission the live rubric does not carry.
+    with pytest.raises(ContractDrift, match="Relative move"):
+        check_admission(dimensions=(("Tightness", 2),))
 
 
 def test_us_and_idx_never_pool_and_there_is_no_top_level_gap():

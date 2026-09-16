@@ -50,7 +50,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Callable, Iterable, Mapping, Sequence
 
-from screener.relative_strength import relative_move_hit, rs_line_hit
+from screener.relative_strength import rs_line_hit
 from screener.score import Dimension
 from screener.store import Store
 
@@ -146,29 +146,34 @@ class SelectionContrast:
 # rubric weighs, so a dimension under measurement cannot move a star or a board
 # place while the question of whether it belongs is still open.
 #
-# Two are registered, in the order ADR 0005 registered them:
+# One is registered:
 #
 # - ``RS line`` (#160) — whether the name held its ratio to the benchmark across
-#   its own base. Measured for the slot ``Prior move`` cannot earn — a
+#   its own base. Measured for the slot ``Prior move`` could not earn — a
 #   **constant dimension**, 100.0% in both groups, pooled spread 0.000 — and
 #   **rejected** on criterion 4, a wrong-way gap (findings §5d). It stays a
 #   column because retiring the evidence with the candidate would leave §5d
 #   unreproducible.
-# - ``Relative move`` (#170) — the `6m` return relative to ``MARKET_INDEX``,
-#   compounded, in ADR units, hit above the pre-registered cut. Measured by #171
-#   (findings §5e). The cut is applied here, at read time, off the value the
-#   field member carries: one site owns it, so the column the contrast reads and
-#   the row a rubric would score can never disagree about where the line is.
 #
-# Both carry weight 0 because they have none, and nothing here touches
+# ``Relative move`` (#170) was the second, measured by #171 (findings §5e) and
+# **admitted** under ADR 0006 as rubric v4 (#221, #222). It left this register
+# when it entered the rubric: the contrast now reads it off the score breakdown
+# at ×1 like every other rubric row, through :data:`REGRESSED_DIMENSIONS`, and
+# the cut is still applied at one site (:mod:`screener.score` calls
+# :func:`~screener.relative_strength.relative_move_hit`), so the column the
+# contrast reads and the row the rubric scores cannot disagree about where the
+# line is. Keeping it here as well would report the same dimension twice under
+# two weights. The register is open for a third candidate (ADR 0006).
+#
+# The candidate carries weight 0 because it has none, and nothing here touches
 # :mod:`screener.score`.
 #
-# **This tuple is the list of what has actually been registered**, and it is
-# deliberately short. #171 reports five further columns — the raw move and the
-# relative one at other windows — and those are handed in as ``readers`` by the
-# study script rather than added here, because ADR 0005 admits **one**
-# pre-registered variant per registration. A column promotable by editing this
-# tuple is a column promotable after its gap is visible.
+# **This tuple is the list of what has actually been registered and not yet
+# decided**, and it is deliberately short. #171 reported five further columns —
+# the raw move and the relative one at other windows — and those are handed in
+# as ``readers`` by the study script rather than added here, because ADR 0005
+# admits **one** pre-registered variant per registration. A column promotable by
+# editing this tuple is a column promotable after its gap is visible.
 #
 # **One entry per candidate, name and reader together.** Keeping the reader in a
 # second dict keyed by the same string let a typo fall through to the rubric
@@ -176,7 +181,6 @@ class SelectionContrast:
 # be wrong and look fine.
 CANDIDATES: tuple[tuple[str, int, Callable[[ScoredDetection], bool]], ...] = (
     ("RS line", 0, lambda d: rs_line_hit(d.rs_line)),
-    ("Relative move", 0, lambda d: relative_move_hit(d.relative_move)),
 )
 
 CANDIDATE_DIMENSIONS: tuple[tuple[str, int], ...] = tuple(

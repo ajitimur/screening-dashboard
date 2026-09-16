@@ -20,7 +20,6 @@ from . import MARKETS
 from .boards import board_symbols, build_boards
 from .candidates import build_candidates
 from .chart import build_chart
-from .detection import detection_gate
 from .indicators import adr, median_dollar_volume
 from .models import (
     CandidatesResponse,
@@ -37,6 +36,7 @@ from .models import (
 )
 from .pipeline import market_series
 from .regime import breadth, posture, regime_state
+from .relative_strength import session_relative_moves
 from .runner import RunManager
 from .schedule import run_is_due
 from .score import RUBRIC_VERSION
@@ -272,9 +272,11 @@ def create_app(
         session = latest.session
         # Compose the list from what the pipeline published for this session: the
         # detection rows (base + trigger + stop + the score's signal vector), the
-        # rank table (the k/5 badge, the prior-move percentile) and the label cache
-        # (the industry, and the sector for the score's leave-one-out share). The
-        # regime never enters — the list is identical in all three states (§4.9).
+        # rank table (the k/5 badge, the gate's binding lookback), the label cache
+        # (the industry, and the sector for the score's leave-one-out share) and
+        # the index-relative move per name (the rubric's Relative move row, v4).
+        # The regime never enters — the list is identical in all three states
+        # (§4.9).
         labels = store.labels(market)
         industry_of = {sym: label.industry for sym, label in labels.items()}
         sector_of = {sym: label.sector for sym, label in labels.items()}
@@ -301,6 +303,9 @@ def create_app(
             sector_of,
             dollar_volume_of=dollar_volume_of,
             prev_detected=prev_detected,
+            # Anchored at each detection's own session, so a newer quarantined
+            # pull's bars never reach the value (see session_relative_moves).
+            relative_move_of=session_relative_moves(store, market, detections),
         )
         # Sorted by star score descending, line_ok failures a silent tiebreak
         # below equal-scored accepted names (spec §4.7); the UI reads ordered_by.
@@ -339,7 +344,7 @@ def create_app(
         detection = None
         ranks_for_symbol: list = []
         sector = None
-        prior_move = False
+        relative_move: float | None = None
         sector_share = 0.0
         if latest is not None:
             # Scope to bars on or before the published session so a newer,
@@ -354,20 +359,24 @@ def create_app(
             label = store.label(market, symbol)
             sector = label.sector if label else None
             if detection is not None:
-                # The setup overlay's breakdown needs the same two cross-sectional
+                # The setup overlay's breakdown needs the same two caller-supplied
                 # inputs the candidate list scores with (candidates.build_candidates):
-                # the prior-move decile gate and the leave-one-out 1m sector share,
-                # both off this session's rank table and labels (spec §4.7). Only a
-                # name with a base tonight is scored, so this is skipped otherwise.
+                # the 6m index-relative move off the market index's bars and the
+                # leave-one-out 1m sector share off this session's rank table and
+                # labels (spec §4.7). Only a name with a base tonight is scored, so
+                # this is skipped otherwise.
                 labels = store.labels(market)
                 sector_of = {sym: label.sector for sym, label in labels.items()}
-                prior_move = symbol in detection_gate(session_ranks)
+                relative_move = session_relative_moves(
+                    store, market, [detection]
+                ).get(symbol)
                 sector_share = leave_one_out_sector_shares(
                     session_ranks, sector_of
                 ).get(symbol, 0.0)
         return build_chart(
             market, symbol, session, bars, detection, ranks_for_symbol, sector,
-            prior_move=prior_move, sector_share=sector_share, window=bars_window,
+            relative_move=relative_move, sector_share=sector_share,
+            window=bars_window,
         )
 
     @app.get("/api/regime/{market}", response_model=RegimeResponse)

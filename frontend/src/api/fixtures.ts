@@ -94,6 +94,7 @@ export const candidate = builder<Schemas["Candidate"]>(() => ({
   adr: 0.02,
   dollar_volume: 1_000_000, // null when the name's bars cannot supply it
   decile_ranks: {},
+  gate_lookback: "3m", // the decile gate's binding lookback — a name, never a percentile (rubric v4)
   new_tonight: false,
   verdict: null, // P2 — typed now, returned null
 }));

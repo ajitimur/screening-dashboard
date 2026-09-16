@@ -26,6 +26,7 @@ from .labels import select_fetches
 from .models import SILENT_STATUSES, ResolutionFailure, RunRecord
 from .ranks import Rank, rank_table
 from .regime import index_broke_out
+from .relative_strength import session_relative_moves
 from .source import (
     DEFAULT_RESOLVE_WORKERS,
     MARKET_INDEX,
@@ -344,7 +345,10 @@ def write_digest(
     last_reported = store.digest_reports_before(market, session)
 
     breaks = build_digest(
-        yesterday, today_bars, ranks_yesterday, industry_of, sector_of, last_reported
+        yesterday, today_bars, ranks_yesterday, industry_of, sector_of, last_reported,
+        # The rubric's Relative move row (v4), anchored at yesterday's session
+        # for every name — the score of the setup that broke, as the list had it.
+        relative_move_of=session_relative_moves(store, market, yesterday),
     )
     store.append_digest_breaks(market, session, [b.symbol for b in breaks])
 

@@ -622,10 +622,45 @@ def detection_gate(
     only set the app ever runs. It is a parameter so a study can *price* an
     alternative width (:mod:`replay.gate_sweep`, #149) by handing one in, rather
     than mutating the module constant for the length of a measurement. Nothing in
-    :mod:`screener` passes it."""
-    wanted = set(lookbacks)
-    return {
-        r.symbol
-        for r in rows
-        if r.lookback in wanted and r.percentile >= TOP_DECILE
-    }
+    :mod:`screener` passes it.
+
+    One filter serves the gate and its record: a name clears the gate exactly
+    when :func:`binding_lookbacks` names a window for it."""
+    return set(binding_lookbacks(rows, lookbacks=lookbacks))
+
+
+def binding_lookbacks(
+    rows: list[Rank], *, lookbacks: Sequence[str] = DETECTION_LOOKBACKS
+) -> dict[str, str]:
+    """The **binding lookback** for each name that clears :func:`detection_gate`.
+
+    The gate admits a name top-decile in *any* of its lookbacks; the binding one
+    is the lookback the name clears it on most strongly — the highest percentile
+    among the gated windows it is top-decile in, ties going to the shorter window
+    in ``lookbacks`` order. A name cleared on ``3m`` alone binds on ``3m``; one
+    cleared on ``1m`` at 0.92 and ``6m`` at 0.97 binds on ``6m``.
+
+    This is the record that ``Prior move`` used to keep. Through rubric v3 the
+    decile gate sat in the score as a dimension true of every detection by
+    construction; v4 retired it (ADR 0006, #222), and with it the only breakdown
+    row saying that a name cleared the gate ADR 0003 is about. The **name** of the
+    lookback rides the candidates payload instead, as a non-scored field — and
+    deliberately **not its percentile**: findings §7 holds a percentile against a
+    holed field to be permanently inadmissible because it "would look precise
+    while quietly flattering the rubric", and while that constraint governs the
+    replay rather than the live app, the margin is thin enough that the name is
+    the honest thing to publish.
+
+    A symbol absent from the result did not clear the gate on ``rows`` — which
+    for a detection means the rank table it was gated on is not the one handed in.
+    """
+    wanted = {lb: i for i, lb in enumerate(lookbacks)}
+    best: dict[str, tuple[float, int, str]] = {}
+    for r in rows:
+        if r.lookback not in wanted or r.percentile < TOP_DECILE:
+            continue
+        # Highest percentile wins; on a tie the earlier (shorter) lookback.
+        key = (r.percentile, -wanted[r.lookback], r.lookback)
+        if r.symbol not in best or key > best[r.symbol]:
+            best[r.symbol] = key
+    return {symbol: lookback for symbol, (_p, _i, lookback) in best.items()}

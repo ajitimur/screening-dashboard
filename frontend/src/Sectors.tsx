@@ -1,29 +1,29 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Panel, NightEmpty, useBodyRead } from "./Panel";
 import ChartSheet, { type SheetTarget } from "./ChartSheet";
+import SectorMap from "./SectorMap";
 import {
   fetchSectorDetail,
   fetchSectors,
-  type IndustryStrength,
   type SectorDetailResponse,
   type SectorMember,
-  type SectorStrength,
   type SectorsResponse,
 } from "./api/client";
 
 // ── The Sectors screen and its drill-down (spec §5.4 / §5.5) ─────────────────
 //
-// Sectors is STACKED BANDS, not peer panels side by side (spec §5.4): the decile
-// table is too wide to sit beside a square plot, so the two rotation models
-// stack. Phase 1 is a finished TWO-band screen — the decile-share model and the
-// market-wide industry board — with NO reserved slot for the phase-2 RRG plot,
-// which appends *above* purely additively when it lands.
+// The list is ONE panel: the rotation map (SectorMap) — a summary sentence, a
+// plot of six-month leader share against this-week leader share, and a ranked
+// list beside it that names each sector's rotation state and the industries
+// carrying it. It replaced the two stacked bands (the decile table and the
+// market-wide industry board) after a prototype; the decile-share model and the
+// k≥2 eligibility guard underneath are unchanged, the map only *reads* them.
 //
 // The drill-down (sector detail) is not a tab: it keeps the Sectors tab lit and
 // the breadcrumb is the honest control (spec §5.5). Every sector-bearing mark on
-// the list is a real <button> into detail; an industry row drills into its
-// PARENT sector. Ineligible/thin sectors stay visible and still click through —
-// a thin sector is still a sector you can open, not an empty state.
+// the list is a real <button> into detail; an industry drills into its PARENT
+// sector. Ineligible/thin sectors stay visible and still click through — a thin
+// sector is still a sector you can open, not an empty state.
 
 // The five ranking lookbacks, shortest first (spec §4.3). Display labels adopt
 // the uppercase form (spec §5.3) while the keys stay v1's.
@@ -45,17 +45,7 @@ const DEFAULT_LOOKBACK: Lookback = "1m";
 // does to the *meaning* of decile share.
 type Regime = "FRIENDLY" | "CHOPPY" | "HOSTILE";
 
-function pct(share: number): string {
-  return `${Math.round(share * 100)}%`;
-}
-
-function signedPct(value: number): string {
-  const p = Math.round(value * 100);
-  return `${p > 0 ? "+" : ""}${p}pp`;
-}
-
-// A signed percentage return, e.g. "+12%" / "−4%" (a typographic minus, not the
-// ASCII hyphen `signedPct` leaves on its negatives).
+// A signed percentage return, e.g. "+12%" / "−4%" (a typographic minus).
 function signedReturn(value: number): string {
   const p = Math.round(value * 100);
   let sign = "";
@@ -158,7 +148,7 @@ export default function Sectors({
   );
 }
 
-// ── The list: two stacked bands (spec §5.4) ──────────────────────────────────
+// ── The list: the rotation map (spec §5.4) ───────────────────────────────────
 
 function SectorList({
   market,
@@ -171,254 +161,34 @@ function SectorList({
   onDrill: (originKey: string, target: string) => void;
   registerRow: (key: string, el: HTMLButtonElement | null) => void;
 }) {
-  // Both bands are one fetch (spec §4.5), so they share one body read: they
-  // load, switch and fail together, which is honest for a single resource.
   const read = useBodyRead<SectorsResponse>(market, fetchSectors);
-
-  return (
-    <div className="sectors-bands">
-      {/* Band 1 — the decile-share model at full width (spec §5.4). */}
-      <Panel
-        label="Where the leaders are clustered"
-        read={read}
-        skeleton={<div className="band-skeleton" style={{ height: 320 }} />}
-      >
-        {(data) => (
-          <DecileBand
-            data={data}
-            regime={regime}
-            onDrill={onDrill}
-            registerRow={registerRow}
-          />
-        )}
-      </Panel>
-
-      {/* Band 2 — the market-wide industry leadership board (spec §5.4). */}
-      <Panel
-        label="Industry leadership"
-        read={read}
-        skeleton={<div className="band-skeleton" style={{ height: 200 }} />}
-      >
-        {(data) => (
-          <IndustryBand data={data} onDrill={onDrill} registerRow={registerRow} />
-        )}
-      </Panel>
-    </div>
-  );
-}
-
-// The two sortable rotation columns (spec §5.4). Shape is the default; a thin
-// single-name sector can never top either (the k≥2 eligibility guard).
-type SortKey = "shape" | "temporal";
-
-// The five per-lookback share cells with their k/n fragility badge — the
-// hard-won read v1 shipped, ported (spec §5.4).
-type ShareRow = Pick<SectorStrength, "shares" | "decile_counts" | "members">;
-
-function ShareCells({ row }: { row: ShareRow }) {
-  return (
-    <>
-      {LOOKBACKS.map(({ key }) => (
-        <td key={key} className="share">
-          {pct(row.shares[key])}{" "}
-          <span className="kn">
-            {row.decile_counts[key]}/{row.members}
-          </span>
-        </td>
-      ))}
-    </>
-  );
-}
-
-/**
- * Band 1, "Where the leaders are clustered" (spec §5.4): v1's decile-share model
- * at full width. Five lookbacks with k/n fragility badges, shape differential,
- * Δ20d, and the k≥2 eligibility guard sinking thin sectors into a below-fold
- * group — **ported, not rewritten** (the guard is hard-won logic, not layout).
- * Every sector row is a real <button> into detail; ineligible sectors stay
- * visible and still click through (they are not empty states).
- */
-function DecileBand({
-  data,
-  regime,
-  onDrill,
-  registerRow,
-}: {
-  data: SectorsResponse;
-  regime: Regime | null;
-  onDrill: (originKey: string, target: string) => void;
-  registerRow: (key: string, el: HTMLButtonElement | null) => void;
-}) {
-  const [sort, setSort] = useState<SortKey>("shape");
-
-  // Sort within the eligibility groups: rotation-ineligible sectors always sort
-  // below the eligible ones (the k≥2 guard), and within each group by the chosen
-  // rotation column descending. Ported verbatim from v1's SectorTable.
-  const sorted = useMemo(() => {
-    const value = (s: SectorStrength) =>
-      sort === "shape" ? s.shape_differential : s.temporal_delta ?? -Infinity;
-    return [...data.sectors].sort((a, b) => {
-      if (a.rotation_eligible !== b.rotation_eligible)
-        return a.rotation_eligible ? -1 : 1;
-      return value(b) - value(a);
-    });
-  }, [data.sectors, sort]);
-
-  const firstIneligible = sorted.findIndex((s) => !s.rotation_eligible);
-  // The pullback note appears only on the decile band and only under the two
-  // weaker regimes (spec §5.4).
+  // The pullback note (spec §5.4): only under the two weaker regimes. The
+  // permanent regime band says *what* the regime is; the note says what a
+  // CHOPPY/HOSTILE regime does to the *meaning* of decile share.
   const showPullbackNote = regime === "CHOPPY" || regime === "HOSTILE";
 
   return (
-    <>
-      <p className="band-subtitle">share of the top momentum decile · five lookbacks</p>
-      {showPullbackNote && (
-        <p role="note" className="pullback-note">
-          The market is {regime}: these shares read relative strength through a
-          decline. They cannot tell a mild pullback from a washout, where the
-          first bounce leads with the most beaten-down names.
-        </p>
-      )}
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Sector</th>
-            {LOOKBACKS.map(({ key, label }) => (
-              <th scope="col" key={key}>
-                {label}
-              </th>
-            ))}
-            <th scope="col">
-              <button
-                type="button"
-                aria-pressed={sort === "shape"}
-                onClick={() => setSort("shape")}
-              >
-                Δ shape (1w−6m)
-              </button>
-            </th>
-            <th scope="col">
-              <button
-                type="button"
-                aria-pressed={sort === "temporal"}
-                onClick={() => setSort("temporal")}
-              >
-                Δ20d (1m)
-              </button>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((s, i) => {
-            const key = `sector:${s.sector}`;
-            return (
-              <tr
-                key={s.sector}
-                className={
-                  s.rotation_eligible ? "eligible" : "rotation-ineligible"
-                }
-                data-group-start={
-                  i === firstIneligible ? "ineligible" : undefined
-                }
-              >
-                <th scope="row">
-                  <button
-                    type="button"
-                    className="sector-link"
-                    ref={(el) => registerRow(key, el)}
-                    onClick={() => onDrill(key, s.sector)}
-                  >
-                    {s.sector}
-                  </button>
-                </th>
-                <ShareCells row={s} />
-                <td className="shape">{signedPct(s.shape_differential)}</td>
-                <td
-                  className={
-                    s.delta_low_confidence
-                      ? "temporal low-confidence"
-                      : "temporal"
-                  }
-                >
-                  {s.temporal_delta === null
-                    ? "—"
-                    : signedPct(s.temporal_delta)}
-                  {s.delta_low_confidence && s.temporal_delta !== null && (
-                    <abbr title="rests on fewer than two decile members"> †</abbr>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </>
-  );
-}
-
-/**
- * Band 2, the industry leadership board (spec §5.4): kept **market-wide** rather
- * than pushed onto detail, so *"Semiconductors leads everything"* stays a
- * top-level fact. Every industry row is a <button> that drills into its PARENT
- * sector's detail — the industry is the theme, the sector is the pack.
- */
-function IndustryBand({
-  data,
-  onDrill,
-  registerRow,
-}: {
-  data: SectorsResponse;
-  onDrill: (originKey: string, target: string) => void;
-  registerRow: (key: string, el: HTMLButtonElement | null) => void;
-}) {
-  if (data.industries.length === 0)
-    return (
-      <>
-        <p className="band-subtitle">≥10-member industries · market-wide</p>
-        <NightEmpty>No industry has 10 or more members to rank.</NightEmpty>
-      </>
-    );
-
-  return (
-    <>
-      <p className="band-subtitle">≥10-member industries · market-wide</p>
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Industry</th>
-            <th scope="col">Sector</th>
-            {LOOKBACKS.map(({ key, label }) => (
-              <th scope="col" key={key}>
-                {label}
-              </th>
-            ))}
-            <th scope="col">Δ shape</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.industries.map((ind: IndustryStrength) => {
-            const key = `industry:${ind.industry}`;
-            return (
-              <tr key={ind.industry}>
-                <th scope="row">
-                  <button
-                    type="button"
-                    className="sector-link"
-                    ref={(el) => registerRow(key, el)}
-                    onClick={() => onDrill(key, ind.sector)}
-                  >
-                    {ind.industry}
-                  </button>
-                </th>
-                <td>{ind.sector}</td>
-                <ShareCells row={ind} />
-                <td className="shape">{signedPct(ind.shape_differential)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </>
+    <div className="sectors-bands">
+      <Panel
+        label="Sector rotation"
+        read={read}
+        skeleton={<div className="band-skeleton" style={{ height: 420 }} />}
+      >
+        {(data) => (
+          <>
+            {showPullbackNote && (
+              <p role="note" className="pullback-note">
+                The market is {regime}: these shares read relative strength
+                through a decline. They cannot tell a mild pullback from a
+                washout, where the first bounce leads with the most beaten-down
+                names.
+              </p>
+            )}
+            <SectorMap data={data} onDrill={onDrill} registerRow={registerRow} />
+          </>
+        )}
+      </Panel>
+    </div>
   );
 }
 

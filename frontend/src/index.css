@@ -1367,3 +1367,104 @@
   color: var(--color-text-muted);
   white-space: nowrap;
 }
+
+/* ── The Sectors list: the rotation map (spec §5.4) ───────────────────────── */
+.sector-map {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.sector-summary {
+  margin: 0;
+  font-size: var(--text-head);
+  font-weight: 600;
+  line-height: 1.35;
+}
+.sector-map-row {
+  display: grid;
+  grid-template-columns: minmax(20rem, 1.3fr) minmax(16rem, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .sector-map-row {
+    grid-template-columns: 1fr;
+  }
+}
+.sector-plot {
+  width: 100%;
+  height: auto;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+.sector-quad { opacity: 0.55; }
+.sector-quad-emerging { fill: var(--color-regime-ok-bg); }
+.sector-quad-leading  { fill: #eee9dd; }
+.sector-quad-fading   { fill: var(--color-regime-stop-bg); }
+.sector-quad-quiet    { fill: var(--color-surface); }
+.sector-quad-label {
+  font: 700 9px var(--font-sans);
+  letter-spacing: 0.06em;
+  fill: var(--color-text-muted);
+}
+.sector-baseline { stroke: var(--color-text); stroke-opacity: 0.35; stroke-dasharray: 3 3; }
+.sector-diagonal { stroke: var(--color-text-muted); stroke-opacity: 0.3; }
+.sector-tick { font: 9px var(--font-mono); fill: var(--color-text-muted); }
+.sector-axis { font: 10px var(--font-sans); fill: var(--color-text-muted); }
+.sector-bubble { cursor: pointer; transition: opacity 120ms; }
+.sector-bubble.dim { opacity: 0.25; }
+.sector-bubble-label {
+  font: 10px var(--font-sans);
+  fill: var(--color-text);
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+}
+.sector-bubble.thin .sector-bubble-label { fill: var(--color-text-muted); }
+
+/* The ranked list beside the plot: the accessible surface and focus target. */
+.sector-map-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-body);
+}
+.sector-map-item {
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+}
+.sector-map-item.hot { background: var(--color-surface); }
+.sector-swatch {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 2px;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+.sector-state {
+  display: inline-block;
+  padding: 0.08rem 0.45rem;
+  border-radius: 0.4rem;
+  margin-left: 0.4rem;
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.sector-state-emerging { color: var(--color-regime-ok); background: var(--color-regime-ok-bg); }
+.sector-state-leading  { color: var(--color-text); background: #ddd6c6; }
+.sector-state-fading   { color: var(--color-regime-stop); background: var(--color-regime-stop-bg); }
+.sector-state-quiet    { color: var(--color-text-muted); background: color-mix(in srgb, var(--color-text-muted) 10%, transparent); }
+.sector-state-thin     { color: var(--color-text-muted); border: 1px dashed var(--color-border); }
+.sector-map-industries {
+  list-style: none;
+  margin: 0.15rem 0 0;
+  padding-left: 1rem;
+  font-size: var(--text-micro);
+  color: var(--color-text-muted);
+}
+.sector-map-industries li { display: inline; }
+.sector-map-industries li + li::before { content: " · "; }

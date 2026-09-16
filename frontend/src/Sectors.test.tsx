@@ -44,24 +44,53 @@ async function renderSectors(routes: ApiRoutes = {}) {
   await screen.findByRole("heading", { level: 2, name: "Sectors" });
 }
 
-describe("Sectors — the two stacked bands (spec §5.4)", () => {
-  it("renders both finished bands: the decile board and the market-wide industry board", async () => {
+describe("Sectors — the rotation map (spec §5.4)", () => {
+  it("renders the summary sentence, the plot, and the ranked list with each sector's state", async () => {
     await renderSectors({
       sectors: (m) =>
         sectorsResponse({
           market: m,
-          industries: [industryStrength({ industry: "Semiconductors", sector: "Technology" })],
+          sectors: [
+            // Emerging: leaders now, none six months ago.
+            sectorStrength({
+              sector: "Energy",
+              shares: { "1w": 0.28, "1m": 0.41, "3m": 0.2, "6m": 0.11, "12m": 0.24 },
+              shape_differential: 0.17,
+            }),
+            // Fading: led six months ago, draining this week.
+            sectorStrength({
+              sector: "Healthcare",
+              shares: { "1w": 0.15, "1m": 0.16, "3m": 0.25, "6m": 0.22, "12m": 0.26 },
+              shape_differential: -0.07,
+            }),
+          ],
+          industries: [
+            industryStrength({
+              industry: "Oil & Gas E&P",
+              sector: "Energy",
+              shares: { "1w": 0.57, "1m": 0.5, "3m": 0.3, "6m": 0.1, "12m": 0.2 },
+            }),
+          ],
         }),
     });
 
-    // Band 1 — the decile-share model, named for behaviour with a measure subtitle.
+    const region = await screen.findByRole("region", { name: /sector rotation/i });
     expect(
-      await screen.findByRole("region", { name: /where the leaders are clustered/i }),
+      within(region).getByText("Energy is gaining leaders. Healthcare is fading."),
     ).toBeInTheDocument();
-    expect(screen.getByText(/share of the top momentum decile/i)).toBeInTheDocument();
-    // Band 2 — the industry leadership board, market-wide.
-    const industry = screen.getByRole("region", { name: /industry leadership/i });
-    expect(within(industry).getByText("Semiconductors")).toBeInTheDocument();
+    expect(within(region).getByRole("img", { name: /sector rotation map/i })).toBeInTheDocument();
+    // The ranked list names the state beside each sector, in reading order.
+    const list = within(region).getByRole("list", { name: /sectors by rotation state/i });
+    // Top-level items only: a sector's leading industries are a nested list.
+    const items = within(list)
+      .getAllByRole("listitem")
+      .filter((li) => li.parentElement === list);
+    expect(items[0]).toHaveTextContent(/Energy/);
+    expect(items[0]).toHaveTextContent(/Emerging/);
+    expect(items[1]).toHaveTextContent(/Healthcare/);
+    expect(items[1]).toHaveTextContent(/Fading/);
+    // A leading industry sits under its parent sector.
+    expect(within(items[0]).getByRole("button", { name: "Oil & Gas E&P" })).toBeInTheDocument();
   });
 
   it("keeps ineligible (thin) sectors visible, grouped below, and still clickable", async () => {
@@ -87,20 +116,19 @@ describe("Sectors — the two stacked bands (spec §5.4)", () => {
     expect(tech).toBeEnabled();
   });
 
-  it("carries the pullback note only on the decile band and only under a weaker regime", async () => {
+  it("carries the pullback note only under a weaker regime", async () => {
     const routes: ApiRoutes = {
       regime: (m) => regimeResponse({ market: m, state: "FRIENDLY" }),
     };
     await renderSectors(routes);
-    await screen.findByRole("region", { name: /where the leaders are clustered/i });
+    await screen.findByRole("region", { name: /sector rotation/i });
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
 
     cleanup();
     await renderSectors({ regime: (m) => regimeResponse({ market: m, state: "HOSTILE" }) });
     const note = await screen.findByRole("note");
     expect(note).toHaveTextContent(/relative strength through a decline/i);
-    // The note sits inside the decile band, not the industry band.
-    expect(within(screen.getByRole("region", { name: /where the leaders are clustered/i })).getByRole("note")).toBe(note);
+    expect(within(screen.getByRole("region", { name: /sector rotation/i })).getByRole("note")).toBe(note);
   });
 });
 
@@ -122,11 +150,12 @@ describe("Sectors — click-through into detail (spec §5.4/§5.5)", () => {
     expect(window.location.search).toBe("?tab=sectors&sector=Energy");
   });
 
-  it("drills an industry row into its PARENT sector", async () => {
+  it("drills a leading industry into its PARENT sector", async () => {
     await renderSectors({
       sectors: (m) =>
         sectorsResponse({
           market: m,
+          // The fixture industry leads at every lookback, so it is listed.
           industries: [industryStrength({ industry: "Biotechnology", sector: "Healthcare" })],
         }),
       sectorDetail: (m, s) => sectorDetailResponse({ market: m, sector: s }),
@@ -268,7 +297,7 @@ describe("Sectors — accessibility (spec §8)", () => {
       sectors: (m) =>
         sectorsResponse({ market: m, industries: [industryStrength()] }),
     });
-    await screen.findByRole("region", { name: /where the leaders are clustered/i });
+    await screen.findByRole("region", { name: /sector rotation/i });
     expect(await axe(document.body)).toHaveNoViolations();
   });
 

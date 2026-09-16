@@ -118,7 +118,9 @@ separate theme concept.
 Share of a sector's members in that lookback's top decile. Five numbers per sector.
 
 **Shape differential**:
-`share(1w) − share(6m)`, in percentage points. Rotation's default sort.
+`share(1w) − share(6m)`, in percentage points. Rotation's default sort. Describes tonight
+and does not forecast: measured at chance against **sector leadership** on both markets
+(`backend/prototypes/sector-leadership/`, 2026-09-16), as was every rotation column.
 
 **Temporal delta**:
 `share(1m, tonight) − share(1m, 20 sessions ago)`.

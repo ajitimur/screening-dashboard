@@ -148,6 +148,18 @@ Four limits on the licence, all of them binding:
 - **It is licensed, not spent.** No weight moved, the rubric is still v3, and the register is
   unchanged. Spending it is a separate ticket with its own evidence rule.
 
+**Spent in #221**, which wrote that evidence rule as
+[ADR 0006](../blob/main/docs/adr/0006-what-an-outcome-result-licenses.md) and then applied it.
+Two corrections to the four limits above, both recorded in that ADR:
+
+- **The calibration-rule citation was loose.** ADR 0002 governs *loosening a gate* and does not
+  govern admission — the same distinction §7 already draws for the stop convention and the
+  tightness restructure. Admission is ADR 0005's, as narrowed by 0006.
+- **The market limit held, and the licence still reached both markets.** Not on the +1.927R,
+  which is a magnitude and stays in Jakarta, but on **sign agreement across both markets** —
+  `Relative move` positive in each, `RS line` negative in one — which is a shape and travels
+  under §8. `Relative move` was admitted at ×1 as `RUBRIC_VERSION = 4`, provisionally, in #222.
+
 ---
 
 ## What was measured, and how

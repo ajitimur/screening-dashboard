@@ -134,17 +134,17 @@ column is measured against, incumbents included.
 A sector's dollar volume (unadjusted close × volume, summed over members) as a share of the
 market's, over 5 sessions, less the same over 60. Beside it, an up/down split (advancing-day
 less declining-day dollar volume over the total) and the top member's share of the sector's
-turnover. _Candidate under study_, not a board column.
+turnover. _Measured and refused_ (`backend/prototypes/sector-leadership/`, 2026-09-16): scored at or below the Shape differential on both markets. Not a board column.
 
 **Participation**:
 Share of a sector's members above their own 20 and 50 session average, and net 20-session new
-highs over member count. _Candidate under study_, not a board column. Not **breadth**: that
+highs over member count. _Measured and refused_ (`backend/prototypes/sector-leadership/`, 2026-09-16): scored at or below the Shape differential on both markets. Not a board column. Not **breadth**: that
 word is the regime companion, and participation carries its own survivorship warning, worse
 than breadth's because sector membership is reconstructed with today's labels.
 
 **Rotation momentum**:
 Rate of change of a smoothed, cross-sectionally standardised `share(1m)`. The trajectory the
-phase-2 rotation graph would trail. _Candidate under study_, not a board column. Never the
+phase-2 rotation graph would trail. _Measured and refused_ (`backend/prototypes/sector-leadership/`, 2026-09-16): scored at or below the Shape differential on both markets. Not a board column. Never the
 JdK names, which are trademarks and a different formula.
 
 ### The setup

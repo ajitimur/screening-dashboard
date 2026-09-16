@@ -1,0 +1,90 @@
+PROTOTYPE sector leadership study
+WARNING: survivorship. Sector labels exist only for names the store labels today, so every past sector is built from survivors and every hit rate below is inflated. Incumbents and candidates share the hole; read only differences.
+
+=== IDX ===
+  symbols loaded 844, labelled 381, sessions 2237 from 2017-06-02
+  median concentration (top member's share of sector 5 session turnover): 0.35; median |up/down split| 0.21
+  universe vs stored (29 sessions): mean Jaccard 0.916, mine/stored on last 354/353
+  share(1m) on 2026-09-16, mine vs stored (k/n):
+    Basic Materials            5/43   vs   5/43  
+    Communication Services     2/23   vs   2/23  
+    Consumer Cyclical          6/42   vs   6/42  
+    Consumer Defensive         7/47   vs   7/47  
+    Energy                     2/30   vs   2/30  
+    Financial Services         0/31   vs   0/31  
+    Healthcare                 1/15   vs   1/15  
+    Industrials                6/61   vs   6/61  
+    Real Estate                3/30   vs   3/30  
+    Technology                 3/19   vs   3/19  
+    Utilities                  1/11   vs   1/11  
+  -- pooled --
+  sessions 1831 (2019-01-02 to 2026-08-18), chance hit rate 0.256
+  forecaster            hit rate  rank corr
+  Shape differential       0.263     -0.034   incumbent
+  Temporal delta           0.216     -0.391   incumbent
+  Turnover share           0.254     -0.138   candidate
+  Participation            0.231     -0.187   candidate
+  Rotation momentum        0.217     -0.341   candidate
+  diagnostic: rank corr of the share(1m) level itself with the rise -0.574 (mean reversion of the target)
+  best incumbent: Shape differential
+  Turnover share       does not beat Shape differential: gap -0.009 (block bootstrap 95% [-0.034, +0.014])
+  Participation        does not beat Shape differential: gap -0.032 (block bootstrap 95% [-0.056, -0.008])
+  Rotation momentum    does not beat Shape differential: gap -0.046 (block bootstrap 95% [-0.070, -0.024])
+  -- era 2017-06-02 to 2025-04-08 --
+  sessions 1507 (2019-01-02 to 2025-03-27), chance hit rate 0.252
+  forecaster            hit rate  rank corr
+  Shape differential       0.267     -0.043   incumbent
+  Temporal delta           0.224     -0.400   incumbent
+  Turnover share           0.257     -0.135   candidate
+  Participation            0.224     -0.199   candidate
+  Rotation momentum        0.225     -0.346   candidate
+  diagnostic: rank corr of the share(1m) level itself with the rise -0.571 (mean reversion of the target)
+  best incumbent: Shape differential
+  Turnover share       does not beat Shape differential: gap -0.010 (block bootstrap 95% [-0.038, +0.016])
+  Participation        does not beat Shape differential: gap -0.043 (block bootstrap 95% [-0.069, -0.018])
+  Rotation momentum    does not beat Shape differential: gap -0.042 (block bootstrap 95% [-0.068, -0.017])
+  -- era 2025-04-08 to now --
+  sessions 324 (2025-04-08 to 2026-08-18), chance hit rate 0.273
+  forecaster            hit rate  rank corr
+  Shape differential       0.246      0.007   incumbent
+  Temporal delta           0.180     -0.348   incumbent
+  Turnover share           0.238     -0.153   candidate
+  Participation            0.265     -0.129   candidate
+  Rotation momentum        0.181     -0.319   candidate
+  diagnostic: rank corr of the share(1m) level itself with the rise -0.588 (mean reversion of the target)
+  best incumbent: Shape differential
+  Turnover share       does not beat Shape differential: gap -0.008 (block bootstrap 95% [-0.066, +0.049])
+  Participation        does not beat Shape differential: gap +0.020 (block bootstrap 95% [-0.030, +0.073])
+  Rotation momentum    does not beat Shape differential: gap -0.065 (block bootstrap 95% [-0.116, -0.017])
+
+=== US ===
+  symbols loaded 12347, labelled 2108, sessions 2335 from 2017-06-01
+  median concentration (top member's share of sector 5 session turnover): 0.10; median |up/down split| 0.18
+  universe vs stored (29 sessions): mean Jaccard 0.932, mine/stored on last 2051/2047
+  share(1m) on 2026-09-15, mine vs stored (k/n):
+    Basic Materials           17/122  vs  17/122 
+    Communication Services     8/78   vs   8/78  
+    Consumer Cyclical          7/232  vs   7/232 
+    Consumer Defensive         5/89   vs   4/89  
+    Energy                    48/117  vs  48/118 
+    Financial Services        21/287  vs  21/287 
+    Healthcare                49/298  vs  49/298 
+    Industrials                7/307  vs   8/307 
+    Real Estate                2/87   vs   2/87  
+    Technology                40/362  vs  40/361 
+    Utilities                  2/63   vs   1/63  
+  -- pooled --
+  sessions 1916 (2019-01-02 to 2026-08-17), chance hit rate 0.273
+  forecaster            hit rate  rank corr
+  Shape differential       0.281      0.002   incumbent
+  Temporal delta           0.139     -0.377   incumbent
+  Turnover share           0.226     -0.151   candidate
+  Participation            0.179     -0.304   candidate
+  Rotation momentum        0.146     -0.366   candidate
+  diagnostic: rank corr of the share(1m) level itself with the rise -0.499 (mean reversion of the target)
+  best incumbent: Shape differential
+  Turnover share       does not beat Shape differential: gap -0.056 (block bootstrap 95% [-0.082, -0.030])
+  Participation        does not beat Shape differential: gap -0.103 (block bootstrap 95% [-0.125, -0.082])
+  Rotation momentum    does not beat Shape differential: gap -0.135 (block bootstrap 95% [-0.157, -0.112])
+
+WARNING: survivorship. Sector labels exist only for names the store labels today, so every past sector is built from survivors and every hit rate below is inflated. Incumbents and candidates share the hole; read only differences.

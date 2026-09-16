@@ -1,0 +1,243 @@
+{
+  "survivorship": "WARNING: survivorship. Sector labels exist only for names the store labels today, so every past sector is built from survivors and every hit rate below is inflated. Incumbents and candidates share the hole; read only differences.",
+  "IDX": {
+    "pooled": {
+      "sessions": 1831,
+      "from": "2019-01-02",
+      "to": "2026-08-18",
+      "chance": 0.25584628369991547,
+      "level_spearman": -0.5744825563582748,
+      "table": {
+        "Shape differential": {
+          "hit_rate": 0.2634261787729838,
+          "spearman": -0.033803218563063786
+        },
+        "Temporal delta": {
+          "hit_rate": 0.2162752594210814,
+          "spearman": -0.3909652922407675
+        },
+        "Turnover share": {
+          "hit_rate": 0.2539595849262698,
+          "spearman": -0.13825085842966978
+        },
+        "Participation": {
+          "hit_rate": 0.2312033497178227,
+          "spearman": -0.18652596606200728
+        },
+        "Rotation momentum": {
+          "hit_rate": 0.21718550882941928,
+          "spearman": -0.3413885497218343
+        }
+      },
+      "best_incumbent": "Shape differential",
+      "verdicts": {
+        "Turnover share": {
+          "vs": "Shape differential",
+          "gap": -0.009466593846713995,
+          "ci95": [
+            -0.03368377935554342,
+            0.014017840888403424
+          ],
+          "beats": false
+        },
+        "Participation": {
+          "vs": "Shape differential",
+          "gap": -0.03222282905516111,
+          "ci95": [
+            -0.05643546331694883,
+            -0.00800564354633172
+          ],
+          "beats": false
+        },
+        "Rotation momentum": {
+          "vs": "Shape differential",
+          "gap": -0.04624066994356454,
+          "ci95": [
+            -0.06954305479701439,
+            -0.024390132896413643
+          ],
+          "beats": false
+        }
+      }
+    },
+    "era 2017-06-02 to 2025-04-08": {
+      "sessions": 1507,
+      "from": "2019-01-02",
+      "to": "2025-03-27",
+      "chance": 0.2522169270676238,
+      "level_spearman": -0.5714752016356427,
+      "table": {
+        "Shape differential": {
+          "hit_rate": 0.2671975226719752,
+          "spearman": -0.042610023498327806
+        },
+        "Temporal delta": {
+          "hit_rate": 0.22406547224065473,
+          "spearman": -0.4002753514027514
+        },
+        "Turnover share": {
+          "hit_rate": 0.25746516257465163,
+          "spearman": -0.13504442696005373
+        },
+        "Participation": {
+          "hit_rate": 0.2238442822384428,
+          "spearman": -0.19885656979275665
+        },
+        "Rotation momentum": {
+          "hit_rate": 0.22495023224950234,
+          "spearman": -0.3461589275351411
+        }
+      },
+      "best_incumbent": "Shape differential",
+      "verdicts": {
+        "Turnover share": {
+          "vs": "Shape differential",
+          "gap": -0.0097323600973236,
+          "ci95": [
+            -0.0378290201282902,
+            0.016368060163680604
+          ],
+          "beats": false
+        },
+        "Participation": {
+          "vs": "Shape differential",
+          "gap": -0.04335324043353241,
+          "ci95": [
+            -0.0692435301924353,
+            -0.0183587701835877
+          ],
+          "beats": false
+        },
+        "Rotation momentum": {
+          "vs": "Shape differential",
+          "gap": -0.0422472904224729,
+          "ci95": [
+            -0.06791086042910861,
+            -0.0168104401681044
+          ],
+          "beats": false
+        }
+      }
+    },
+    "era 2025-04-08 to now": {
+      "sessions": 324,
+      "from": "2025-04-08",
+      "to": "2026-08-18",
+      "chance": 0.27272727272727265,
+      "level_spearman": -0.5884704686021225,
+      "table": {
+        "Shape differential": {
+          "hit_rate": 0.2458847736625514,
+          "spearman": 0.007159296984599379
+        },
+        "Temporal delta": {
+          "hit_rate": 0.18004115226337447,
+          "spearman": -0.3476620232373423
+        },
+        "Turnover share": {
+          "hit_rate": 0.23765432098765432,
+          "spearman": -0.15316472332075434
+        },
+        "Participation": {
+          "hit_rate": 0.2654320987654321,
+          "spearman": -0.12921149316537614
+        },
+        "Rotation momentum": {
+          "hit_rate": 0.18106995884773663,
+          "spearman": -0.3192004035346327
+        }
+      },
+      "best_incumbent": "Shape differential",
+      "verdicts": {
+        "Turnover share": {
+          "vs": "Shape differential",
+          "gap": -0.008230452674897125,
+          "ci95": [
+            -0.065869341563786,
+            0.049382716049382706
+          ],
+          "beats": false
+        },
+        "Participation": {
+          "vs": "Shape differential",
+          "gap": 0.019547325102880656,
+          "ci95": [
+            -0.02983539094650206,
+            0.07304526748971192
+          ],
+          "beats": false
+        },
+        "Rotation momentum": {
+          "vs": "Shape differential",
+          "gap": -0.06481481481481481,
+          "ci95": [
+            -0.11625514403292181,
+            -0.01748971193415638
+          ],
+          "beats": false
+        }
+      }
+    }
+  },
+  "US": {
+    "pooled": {
+      "sessions": 1916,
+      "from": "2019-01-02",
+      "to": "2026-08-17",
+      "chance": 0.2727272727272726,
+      "level_spearman": -0.4993760442934164,
+      "table": {
+        "Shape differential": {
+          "hit_rate": 0.2814892136395267,
+          "spearman": 0.0020141383286823764
+        },
+        "Temporal delta": {
+          "hit_rate": 0.13900487125956854,
+          "spearman": -0.3773328779312158
+        },
+        "Turnover share": {
+          "hit_rate": 0.22581767571329156,
+          "spearman": -0.15102664236248461
+        },
+        "Participation": {
+          "hit_rate": 0.17867084203201117,
+          "spearman": -0.3036535287630161
+        },
+        "Rotation momentum": {
+          "hit_rate": 0.1463117606123869,
+          "spearman": -0.3659058367055609
+        }
+      },
+      "best_incumbent": "Shape differential",
+      "verdicts": {
+        "Turnover share": {
+          "vs": "Shape differential",
+          "gap": -0.05567153792623521,
+          "ci95": [
+            -0.08229819067501738,
+            -0.03009742519137091
+          ],
+          "beats": false
+        },
+        "Participation": {
+          "vs": "Shape differential",
+          "gap": -0.10281837160751565,
+          "ci95": [
+            -0.12491301322199025,
+            -0.08158054975643708
+          ],
+          "beats": false
+        },
+        "Rotation momentum": {
+          "vs": "Shape differential",
+          "gap": -0.13517745302713988,
+          "ci95": [
+            -0.15727644398051496,
+            -0.11203897007654837
+          ],
+          "beats": false
+        }
+      }
+    }
+  }
+}

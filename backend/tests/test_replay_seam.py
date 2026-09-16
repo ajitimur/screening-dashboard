@@ -2658,6 +2658,23 @@ def test_the_widened_gate_displaces_names_from_the_board():
     assert five.board_displacement == 2
 
 
+def test_the_sweep_scores_its_fields_under_the_whole_rubric_relative_move_included():
+    """A variant's field is scored under the live rubric entire (#222): the
+    Relative move each prepared session carries reaches the score, so a sweep
+    board is the board the app would show and not one with a row silently
+    absent. Three identical setups tie on ticker unless one outran the index."""
+    from replay.gate_sweep import GATE_VARIANTS, measure_variant
+
+    five = GATE_VARIANTS[-1]
+    swept = _widening_pass()
+    _m, boards_without, _g = measure_variant(five, swept, [], board_size=1)
+    assert all(board == ["BURST"] for board in boards_without.values())
+
+    outran = [dataclasses.replace(s, relative_move_of={"STALE": 2.0}) for s in swept]
+    _m, boards, _g = measure_variant(five, outran, [], board_size=1)
+    assert all(board == ["STALE"] for board in boards.values())
+
+
 def test_his_picks_in_field_and_top_thirty_counts_move_with_the_gate():
     """What the widening does to his own entries' placement: a pick admitted only by
     an excluded lookback appears in the field, and can reach the board (#149)."""

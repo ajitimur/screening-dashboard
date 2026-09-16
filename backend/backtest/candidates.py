@@ -326,7 +326,7 @@ ADMISSION_NOTE = (
     "instrument is the selection contrast, as narrowed by ADR 0006 — a crowded "
     "dimension owes this outcome test, and passing it is what admitted Relative "
     "move at ×1, provisionally. That admission was decided in ADR 0006 and landed "
-    "by #222, not by anything reported here; a provisional dimension is measured "
+    "by #222, not by anything reported here; a provisionally admitted dimension is measured "
     "for the re-read it owes, and no weight, the rubric version, nor the register "
     "moves on what this run reports"
 )
@@ -345,8 +345,8 @@ def check_admission(
     no reader of the output could see. The one licensed exception is a
     **provisional** admission (ADR 0006): declared in
     :data:`screener.score.PROVISIONAL`, in the live rubric, and measured here for
-    its re-read — so a provisional dimension *must* be in the rubric, and a
-    candidate must not be.
+    its re-read — so a provisionally admitted dimension *must* be in the rubric,
+    and a candidate must not be.
     """
     live = {name for name, _weight in dimensions}
     leaked = sorted(

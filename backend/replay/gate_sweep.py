@@ -51,6 +51,7 @@ import math
 import statistics
 import sys
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from datetime import date
 from pathlib import Path
 from typing import Callable, Iterable, Mapping, Sequence
@@ -58,6 +59,7 @@ from typing import Callable, Iterable, Mapping, Sequence
 from screener.detection import Detection, detect, detection_gate
 from screener.indicators import LOOKBACKS
 from screener.ranks import Rank, rank_table
+from screener.relative_strength import session_relative_moves
 from screener.store import Store
 
 from .caching_store import CachingStore
@@ -469,7 +471,10 @@ class SweepSession:
     variant's field is a filter of it rather than a second detection pass:
     detection geometry does not depend on the gate, only on which members reach
     :func:`screener.detection.detect`. ``membership`` is that session's per-lookback
-    top-decile sets.
+    top-decile sets. ``relative_move_of`` is the rubric's ``Relative move`` input
+    (v4, #222) for each detection, computed once here where the store is at hand,
+    so every variant's field is scored under the whole live rubric rather than
+    with one row silently absent.
     """
 
     session: date
@@ -477,6 +482,7 @@ class SweepSession:
     ranks: list[Rank]
     membership: dict[str, set[str]]
     detections: list[Detection]
+    relative_move_of: dict[str, float | None] = dataclass_field(default_factory=dict)
 
 
 def build_sweep_sessions(
@@ -533,6 +539,7 @@ def build_sweep_sessions(
                 ranks=ranks,
                 membership=membership,
                 detections=detections,
+                relative_move_of=session_relative_moves(store, market, detections),
             )
         )
         if progress is not None:
@@ -685,7 +692,10 @@ def measure_variant(
             added_stale += sum(
                 1 for d in added if percentiles.get(d.symbol, 0.0) < FIELD_MEDIAN
             )
-        scored = build_field(detections, s.ranks, lookbacks=variant.lookbacks)
+        scored = build_field(
+            detections, s.ranks, lookbacks=variant.lookbacks,
+            relative_move_of=s.relative_move_of,
+        )
         board = [d.symbol for d in scored[:board_size]]
         boards[s.session] = board
         present = {d.symbol for d in scored}

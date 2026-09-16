@@ -347,8 +347,9 @@ permanently inadmissible**, and they are handed to `contrast_dimensions` as read
 listed in `CANDIDATES`, so the registered list cannot quietly grow one. A candidate that fails
 leaves its measurement behind and takes its wiring with it; one that is admitted takes its
 value with it into the breakdown and leaves the register.
-_Avoid_: experimental dimension, provisional dimension (a **graded dimension** is live; this
-is not).
+_Avoid_: experimental dimension (a **graded dimension** is live; this is not). A dimension
+admitted under ADR 0006 is a **provisional admission** — live, in the rubric, owed a re-read —
+and never a candidate; say "provisionally admitted", not "provisional dimension".
 
 **RS line**:
 `adj_close(name) / adj_close(index)`, hit when today's ratio is at or above the ratio at the

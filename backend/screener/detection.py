@@ -622,13 +622,11 @@ def detection_gate(
     only set the app ever runs. It is a parameter so a study can *price* an
     alternative width (:mod:`replay.gate_sweep`, #149) by handing one in, rather
     than mutating the module constant for the length of a measurement. Nothing in
-    :mod:`screener` passes it."""
-    wanted = set(lookbacks)
-    return {
-        r.symbol
-        for r in rows
-        if r.lookback in wanted and r.percentile >= TOP_DECILE
-    }
+    :mod:`screener` passes it.
+
+    One filter serves the gate and its record: a name clears the gate exactly
+    when :func:`binding_lookbacks` names a window for it."""
+    return set(binding_lookbacks(rows, lookbacks=lookbacks))
 
 
 def binding_lookbacks(

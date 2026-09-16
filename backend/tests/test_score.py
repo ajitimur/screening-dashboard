@@ -19,8 +19,6 @@ the ×0 to Base length's −13.4pp wrong-way gap, and Orderliness drops to ×1 o
 
 from datetime import date
 
-import pytest
-
 from screener.detection import DETECTOR_VERSION, Detection
 from screener.score import DIMENSIONS, PROVISIONAL, RUBRIC_VERSION, star_score
 
@@ -256,19 +254,6 @@ def test_the_rubric_table_retains_v2_and_v3_unedited():
     assert set(RUBRICS[RUBRIC_VERSION].bands) == {"Tightness"}
 
 
-def test_superseded_rubrics_credit_prior_move_as_the_constant_it_was():
-    # `Prior move` was true of every detection by construction (the decile gate
-    # is a detection precondition), so v1–v3 always awarded its point. A v4
-    # breakdown no longer writes the row; re-scored under an older rubric it
-    # must still earn what shipped, or the paired re-run's "before" would move
-    # by half a star along with the "after".
-    from screener.score import RUBRICS
-
-    for version in (1, 2, 3):
-        assert RUBRICS[version].constants == frozenset({"Prior move"})
-    assert RUBRICS[RUBRIC_VERSION].constants == frozenset()
-
-
 def test_stars_under_rescore_a_breakdown_under_an_arbitrary_rubric():
     # stars_under re-totals a breakdown under a supplied rubric, so one field's
     # detections can be scored under any version without re-detecting. Under the
@@ -285,15 +270,20 @@ def test_stars_under_rescore_a_breakdown_under_an_arbitrary_rubric():
 
 
 def test_a_v3_rescore_of_a_v4_row_is_exact_in_both_directions():
-    # The #136 pairing holds the field fixed and swaps only the rubric. A v4 row
-    # missing Relative move re-scores under v3 with its constant point back —
-    # exactly the star v3 would have given the same setup — and a v4 row hitting
-    # it scores the same under both, since the two ×1s swap places.
+    # The #136 pairing holds the field fixed and swaps only the rubric. `Prior
+    # move` was true of every detection by construction (the decile gate is a
+    # detection precondition), so v1–v3 always awarded its point; a v4 row no
+    # longer writes it. Re-scored under v3 the row must still earn what shipped,
+    # or the paired re-run's "before" would move by half a star along with the
+    # "after": a v4 row missing Relative move re-scores under v3 with the
+    # constant's point back, and one hitting it scores the same under both,
+    # since the two ×1s swap places. v1 and v2 credit it the same way.
     from screener.score import RUBRICS, stars_under
 
     _, lagged = star_score(_det(), relative_move=-1.0, sector_share=0.20)
     assert stars_under(lagged, RUBRICS[RUBRIC_VERSION]) == 4.0
     assert stars_under(lagged, RUBRICS[3]) == 4.5
+    assert stars_under(lagged, RUBRICS[2]) == 4.5
     _, outran = star_score(_det(), relative_move=1.0, sector_share=0.20)
     assert stars_under(outran, RUBRICS[RUBRIC_VERSION]) == 4.5
     assert stars_under(outran, RUBRICS[3]) == 4.5
@@ -398,10 +388,3 @@ def test_a_graded_rubric_falls_back_to_the_boolean_when_a_row_carries_no_value()
     assert stars_under(valueless, RUBRICS[RUBRIC_VERSION]) == 2.0
     # Under v3 the absent constant is credited on top: 2.5.
     assert stars_under(valueless, RUBRICS[3]) == 2.5
-
-
-def test_prior_move_is_no_longer_an_input():
-    # The decile gate left the score (#222); it returns as the binding lookback
-    # name on the candidates payload, not as a scoring input.
-    with pytest.raises(TypeError):
-        star_score(_det(), prior_move=True, sector_share=0.20)  # type: ignore[call-arg]

@@ -25,12 +25,14 @@ Two properties are load-bearing and easy to get wrong:
   stays the inverse form (highlight the sub-1×ADR minority), still never a filter;
   nothing is dropped (spec §4.6).
 
-Composed from three streams, mirroring how the sector board composes ranks and
+Composed from four streams, mirroring how the sector board composes ranks and
 labels: the detection rows (the base + trigger + stop + the score's signal
-vector), the rank table (the ``k/5`` breadth badge and the prior-move percentile)
-and the label cache (the industry and the sector for the leave-one-out share). It
-never re-runs detection or ranking — it reads what the pipeline published, and the
-star score is **derived** from those persisted rows, never stored.
+vector), the rank table (the ``k/5`` breadth badge and the decile gate's binding
+lookback), the label cache (the industry and the sector for the leave-one-out
+share) and the index-relative move per name (the rubric's ``Relative move`` row,
+read off the market index's bars by the caller). It never re-runs detection or
+ranking — it reads what the pipeline published, and the star score is **derived**
+from those persisted rows, never stored.
 
 The score is stop-blind and regime-blind by construction: :func:`score.star_score`
 takes neither, so no amount of wiring here can leak them in (spec §4.6 / §4.9).
@@ -38,7 +40,9 @@ takes neither, so no amount of wiring here can leak them in (spec §4.6 / §4.9)
 
 from __future__ import annotations
 
-from .detection import Detection, detection_gate
+from collections.abc import Mapping
+
+from .detection import Detection, binding_lookbacks
 from .models import Candidate, ScoreRow
 from .ranks import Rank, breadth_counts
 from .score import live_points, star_score
@@ -56,6 +60,7 @@ def build_candidates(
     sector_of: dict[str, str],
     dollar_volume_of: dict[str, float | None] | None = None,
     prev_detected: set[str] | frozenset[str] = frozenset(),
+    relative_move_of: Mapping[str, float | None] | None = None,
 ) -> list[Candidate]:
     """The candidate rows for a session, **sorted by star score** (spec §4.7/§5.1).
 
@@ -63,7 +68,12 @@ def build_candidates(
     cached label gets ``None`` rather than being dropped. ``sector_of`` maps
     symbol → GECS sector, for the score's leave-one-out sector share **and** the
     row's ``sector`` fact. ``ranks`` is the session's rank table, read for the
-    ``k/5`` badge, the prior-move percentile and the row's ``decile_ranks``.
+    ``k/5`` badge, the row's ``decile_ranks`` and the decile gate's binding
+    lookback (``gate_lookback``). ``relative_move_of`` maps symbol → the 6m
+    index-relative move in ADR units
+    (:func:`screener.relative_strength.session_relative_moves`), the rubric's
+    ``Relative move`` input since v4; a symbol absent from it, or mapped to
+    ``None``, is **absent** and scores a miss (#222).
 
     The **chart-facts fold** (spec §4.3): a Setups card shows trigger, stop and
     distance without a per-symbol chart fetch, so those facts ride the row too,
@@ -75,29 +85,31 @@ def build_candidates(
     ``new_tonight`` is absence from it, so on the first session every name is new.
 
     The score is derived here from the detection's own signal vector plus two
-    cross-sectional inputs off the same session: the prior-move decile gate and
-    the leave-one-out 1m sector share. The list then sorts by score descending
+    caller-supplied inputs off the same session: the index-relative move and the
+    leave-one-out 1m sector share. The list then sorts by score descending
     with ``line_ok`` failures below equal-scored accepted names — a silent
     tiebreak, ticker breaking any remaining tie for a stable order.
     """
     dollar_volume_of = dollar_volume_of or {}
+    relative_move_of = relative_move_of or {}
     breadth = breadth_counts(ranks)
     # The five decile ranks per name, grouped off the same rank table the chart
     # facts read (spec §4.3); a lookback the name is not ranked in is simply absent.
     decile_ranks: dict[str, dict[str, float]] = {}
     for r in ranks:
         decile_ranks.setdefault(r.symbol, {})[r.lookback] = r.percentile
-    # Prior move (§4.7): the name clears the decile gate. Every detection does by
-    # construction, but computed honestly off the same rank table rather than
-    # assumed. Sector confirmation is the leave-one-out 1m share (§4.4).
-    prior_move = detection_gate(ranks)
+    # The decile gate left the score with rubric v4 (#222) and rides the row as
+    # metadata: the binding lookback's name, computed honestly off the same rank
+    # table the name was gated on rather than assumed. Sector confirmation is the
+    # leave-one-out 1m share (§4.4).
+    gate_lookback = binding_lookbacks(ranks)
     sector_shares = leave_one_out_sector_shares(ranks, sector_of)
 
     rows = []
     for det in detections:
         stars, breakdown = star_score(
             det,
-            prior_move=det.symbol in prior_move,
+            relative_move=relative_move_of.get(det.symbol),
             sector_share=sector_shares.get(det.symbol, 0.0),
         )
         rows.append(
@@ -127,6 +139,7 @@ def build_candidates(
                     adr=det.adr,
                     dollar_volume=dollar_volume_of.get(det.symbol),
                     decile_ranks=decile_ranks.get(det.symbol, {}),
+                    gate_lookback=gate_lookback.get(det.symbol),
                     new_tonight=det.symbol not in prev_detected,
                 ),
             )

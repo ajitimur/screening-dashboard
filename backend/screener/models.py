@@ -308,9 +308,13 @@ class ScoreRow(BaseModel):
     (issue #147); the label is published, so it is qualified here rather than
     renamed. The ceiling is nine points, not ten, and stars are ``points ÷ 2``.
 
-    ``value`` is the graded quantity, present only on a **graded** dimension — since
-    rubric v3 that is ``Tightness`` alone, carrying its three-bar range in ADR
-    (#154). On a graded row ``hit`` is *not* what scored: it is the boolean the
+    ``value`` is the quantity behind the row where the setup has one: on the
+    **graded** dimension — since rubric v3 ``Tightness``, carrying its three-bar
+    range in ADR (#154) — and, since v4, on ``Relative move``, carrying the 6m
+    index-relative move in ADR units (ADR 0006, #222; absent → ``null``). The
+    second is not graded: the row earns its whole weight strictly above zero, and
+    the value rides so a later grading question can be asked without re-scoring
+    history. On a graded row ``hit`` is *not* what scored: it is the boolean the
     setup satisfies (Tightness keeps v1/v2's ``cluster_k >= 5``), kept so a stored
     breakdown re-scores exactly under an older rubric.
 
@@ -333,9 +337,16 @@ class ScoreRow(BaseModel):
 class Candidate(BaseModel):
     """One row of the candidate list — a detection made readable (spec §5.1 / §4.3).
 
-    ``score`` is the star score (0.5–4.5, PRD #138) and the sort key of the list; ``breakdown``
-    carries its eight-row rubric so the row (or the chart panel) can reconstruct
-    the arithmetic (spec §4.7). ``dist_adr`` is the distance to the trigger in ADR
+    ``score`` is the star score (0.0–4.5 since rubric v4, #222; 0.5–4.5 before it)
+    and the sort key of the list; ``breakdown`` carries its eight-row rubric so
+    the row (or the chart panel) can reconstruct the arithmetic (spec §4.7).
+    ``gate_lookback`` is the **binding lookback name** (``"3m"``) — the window the
+    name cleared the decile gate on most strongly
+    (:func:`screener.detection.binding_lookbacks`). It is the record ``Prior
+    move`` used to keep in the breakdown before v4 retired it, published as
+    metadata, non-scored, and deliberately without its percentile (ADR 0005's
+    consequences; findings §7). ``None`` only if the rank table the row was gated
+    on is not the one the list read, which no published run produces. ``dist_adr`` is the distance to the trigger in ADR
     (``(trigger − close) / adr_abs``); ``stopw_adr`` is the **stop width** in ADR —
     the trader's calibrated convention (0.345 ADR, issue #127), never the cluster-low
     distance and never the base tightness the ``Tightness`` dimension scores, which
@@ -390,6 +401,9 @@ class Candidate(BaseModel):
     dollar_volume: float | None
     # lookback -> percentile in [0, 1]; a lookback the name is not ranked in is absent.
     decile_ranks: dict[str, float]
+    # The binding lookback of the decile gate (e.g. "3m") — non-scored metadata,
+    # the name only, never the percentile (rubric v4, #222).
+    gate_lookback: str | None
     # Newly detected — absent from last session's ``detected`` rows (P1, §2.4).
     new_tonight: bool
     # Phase-2 detector verdict; typed now, returned ``None`` (§4.3).
@@ -486,7 +500,7 @@ class SetupOverlay(BaseModel):
       pierce it in both directions — per §3.2 that is the correct picture and must
       not be "fixed" in rendering. Anchored at the cluster's max-high bar with the
       detection's non-positive slope, so it can never exceed the trigger.
-    - ``score`` (0.5–4.5 stars) and ``breakdown`` (the eight §4.7 dimensions, each with
+    - ``score`` (0.0–4.5 stars) and ``breakdown`` (the eight §4.7 dimensions, each with
       its weight and hit) reconstruct the sort key arithmetically beside the chart.
 
     ``None`` for the whole overlay when the name has no detection tonight — there

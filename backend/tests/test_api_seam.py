@@ -350,7 +350,10 @@ def test_the_candidate_list_is_identical_whatever_the_volatility_state():
     import json
 
     def candidates_under(swing):
-        store = _candidates_store()
+        # The index is shaped per cell below; its history starts too late for
+        # a 6m relative move, so that row reads absent under both cells and the
+        # two bodies are comparable byte for byte.
+        store = _candidates_store(index=False)
         try:
             from datetime import date, timedelta
 
@@ -376,16 +379,31 @@ def test_the_candidate_list_is_identical_whatever_the_volatility_state():
 # -- /api/candidates/{market} (ticket 38, spec §4.5 / §5.1) -------------------
 
 
-def _candidates_store() -> Store:
+def _candidates_store(*, index: bool = True) -> Store:
     """A store with a published US run and two detections — one tight (affordable)
-    stop, one wide — plus ranks and one industry label."""
-    from datetime import date, datetime
+    stop, one wide — plus ranks, one industry label, and the bars the rubric's
+    Relative move row reads: AAA doubled over the year against a flat index,
+    ZZZ merely matched it. ``index=False`` leaves the market index out, for a
+    test that shapes its own."""
+    from datetime import date, datetime, timedelta
 
+    from screener.bars import Bar
     from screener.detection import DETECTOR_VERSION, Detection
     from screener.ranks import Rank
 
     store = Store.memory()
     session = date(2026, 8, 5)
+    cal = [session - timedelta(days=239 - i) for i in range(240)]
+
+    def series(closes):
+        return [
+            Bar(s, c, c * 1.01, c * 0.99, c, c, 1000) for s, c in zip(cal, closes)
+        ]
+
+    store.append_bars("US", "AAA", series([50.0 + 50.0 * i / 239 for i in range(240)]))
+    store.append_bars("US", "ZZZ", series([98.0] * 240))
+    if index:
+        store.append_bars("US", "^IXIC", series([1000.0] * 240))
     store.append_run(
         "US", session, status="published",
         symbols_enumerated=2, symbols_resolved=2,
@@ -409,10 +427,11 @@ def _candidates_store() -> Store:
     # ZZZ: cluster_low 99.0 → stop 1.0 / adr_abs 1.96 ≈ 0.51 (affordable).
     # AAA: cluster_low 95.0 → stop 5.0 / adr_abs 1.96 ≈ 2.55 (the majority).
     store.append_detections("US", session, [det("AAA", 95.0), det("ZZZ", 99.0)])
-    # AAA is top-decile in 1m/3m (a prior-move point and a 2/5 breadth badge);
+    # AAA is top-decile in 1m/3m (a 2/5 breadth badge and a binding lookback);
     # ZZZ is in no decile. Both score tight+orderly+MA+volume; both miss base
-    # length (30), sector (lone member) and ADR (0.02) — AAA's prior-move point
-    # puts it a half-star ahead, so score, not ticker, decides the order.
+    # length (30), sector (lone member) and ADR (0.02) — AAA's relative-move
+    # point (it outran the flat index; ZZZ only matched it, and the cut is
+    # strict) puts it a half-star ahead, so score, not ticker, decides the order.
     store.append_ranks("US", session, [
         Rank("AAA", "1m", 0.95, 1.2), Rank("AAA", "3m", 0.95, 1.1),
     ])
@@ -430,16 +449,29 @@ def test_candidates_endpoint_returns_score_ordered_five_column_rows():
         assert body["ordered_by"] == "score"
         assert [c["symbol"] for c in body["candidates"]] == ["AAA", "ZZZ"]
 
-        # Recalibrated rubric (PRD #138): tight ×2 + orderly ×1 + MA ×1 + volume ×1
-        # = 5 points, plus AAA's prior-move point = 6 → 3.0; ZZZ misses prior move.
-        aaa = body["candidates"][0]
+        # Recalibrated rubric (PRD #138, v4 by #222): tight ×2 + orderly ×1 + MA
+        # ×1 + volume ×1 = 5 points, plus AAA's relative-move point = 6 → 3.0;
+        # ZZZ matched the index exactly and the cut is strict, so it misses.
+        aaa, zzz = body["candidates"]
         assert aaa["score"] == 3.0
-        assert body["candidates"][1]["score"] == 2.5  # ZZZ misses the prior-move point
+        assert zzz["score"] == 2.5
         # The payload carries the eight-row breakdown that reconstructs the score,
         # and the rubric version stamp that says which weights produced it.
-        assert body["rubric_version"] == RUBRIC_VERSION
+        assert body["rubric_version"] == RUBRIC_VERSION == 4
         assert len(aaa["breakdown"]) == 8
         assert sum(r["weight"] for r in aaa["breakdown"] if r["hit"]) == 6
+        # The relative move row carries its value in ADR units off the store's
+        # own bars; ZZZ's is a real zero, not an absence.
+        rel = {c["symbol"]: next(r for r in c["breakdown"] if r["dimension"] == "Relative move")
+               for c in (aaa, zzz)}
+        assert rel["AAA"]["hit"] is True and rel["AAA"]["value"] > 0
+        assert rel["ZZZ"]["hit"] is False and rel["ZZZ"]["value"] == 0.0
+        assert "Prior move" not in {r["dimension"] for r in aaa["breakdown"]}
+        # The decile gate rides the row as its binding lookback's name — 1m and
+        # 3m tie at 0.95, the shorter window binds — and no percentile field.
+        assert aaa["gate_lookback"] == "1m"
+        assert zzz["gate_lookback"] is None
+        assert "gate_percentile" not in aaa
         # Nothing marks the line_ok tiebreak — no such field on the row.
         assert "line_ok" not in aaa
         assert aaa["industry"] == "Semiconductors"  # the theme layer
@@ -559,6 +591,9 @@ def _chart_store() -> Store:
     cal = [date(2026, 1, 1) + timedelta(days=i) for i in range(120)]
     store.append_bars("US", "AAA", [Bar(s, 98.0, 99.0, 97.0, 98.0, 98.0, 1000) for s in cal])
     store.append_bars("US", "BBB", [Bar(s, 50.0, 51.0, 49.0, 50.0, 50.0, 2000) for s in cal])
+    # The market index, flat like AAA: the rubric's Relative move row reads a
+    # real zero off it (a miss on the strict cut), not an absence.
+    store.append_bars("US", "^IXIC", [Bar(s, 1e3, 1.01e3, 0.99e3, 1e3, 1e3, 1) for s in cal])
     store.append_run(
         "US", session, status="published",
         symbols_enumerated=2, symbols_resolved=2,
@@ -613,13 +648,15 @@ def test_chart_endpoint_returns_candles_ma_set_and_facts_in_one_call():
         assert s["cluster_start"] > s["base_start"]  # cluster sits inside the base
         assert len(s["envelope"]) == 30     # one line point per base bar
         assert [d["dimension"] for d in s["breakdown"]] == [
-            "Tightness", "Orderliness", "Prior move", "Base length",
+            "Tightness", "Orderliness", "Relative move", "Base length",
             "MA support", "Volume", "Sector", "ADR",
         ]
         points = sum(d["weight"] for d in s["breakdown"] if d["hit"])
         assert s["score"] == points / 2
-        # Prior move scored: AAA clears the decile gate on 1m/3m (spec §4.7).
-        assert next(d["hit"] for d in s["breakdown"] if d["dimension"] == "Prior move")
+        # Relative move scored off the store's own index bars, exactly as the
+        # list scores it (rubric v4): AAA matched a flat index, a real zero.
+        rel = next(d for d in s["breakdown"] if d["dimension"] == "Relative move")
+        assert rel["value"] == 0.0 and rel["hit"] is False
     finally:
         store.close()
 

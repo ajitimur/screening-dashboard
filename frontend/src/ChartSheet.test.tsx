@@ -34,15 +34,18 @@ afterEach(() => {
   addedSeries.length = 0;
 });
 
-// The recalibrated rubric (PRD #138): ADR ×2, Orderliness ×1, Base length ×0,
-// nine-point ceiling. Points here sum to 1(T, graded)+1(O)+1(P)+1(MA) = 4 → 2.0★.
+// The recalibrated rubric (PRD #138, v4 by #222): ADR ×2, Orderliness ×1, Base
+// length ×0, nine-point ceiling. Points here sum to 1(T, graded)+1(O)+1(R)+1(MA)
+// = 4 → 2.0★.
 const BREAKDOWN = [
   // Tightness is the graded dimension (rubric v3, #154): it carries the value it
   // was graded on and earns part of its weight, so `points` is what totals — not
   // `hit ? weight : 0`.
   scoreRow({ dimension: "Tightness", weight: 2, hit: true, value: 1.31, points: 1 }),
   scoreRow({ dimension: "Orderliness", weight: 1, hit: true, points: 1 }),
-  scoreRow({ dimension: "Prior move", weight: 1, hit: true, points: 1 }),
+  // Relative move (rubric v4) carries its value in ADR units but is not graded:
+  // the whole point above zero, nothing otherwise.
+  scoreRow({ dimension: "Relative move", weight: 1, hit: true, value: 0.8, points: 1 }),
   scoreRow({ dimension: "Base length", weight: 0, hit: false, points: 0 }),
   scoreRow({ dimension: "MA support", weight: 1, hit: true, points: 1 }),
   scoreRow({ dimension: "Volume", weight: 1, hit: false, points: 0 }),

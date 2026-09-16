@@ -41,8 +41,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from collections.abc import Mapping
+
 from .bars import Bar
-from .detection import Detection, detection_gate
+from .detection import Detection
 from .ranks import Rank
 from .score import RUBRIC_VERSION, star_score
 from .sectors import leave_one_out_sector_shares
@@ -78,22 +80,25 @@ def build_digest(
     industry_of: dict[str, str],
     sector_of: dict[str, str],
     last_reported: dict[str, date],
+    relative_move_of: Mapping[str, float | None] | None = None,
 ) -> list[DigestBreak]:
     """Tonight's breaks, **ordered by star score descending** (spec §6).
 
     ``yesterday_detections`` are the setups that carry a ``trigger_yesterday``;
     ``today_bars`` maps symbol → today's bar (its close is the level tested, its
     low the breakout-day stop). ``ranks_yesterday`` is yesterday's rank table, read
-    for the score's prior-move gate and leave-one-out sector share — the score of
-    the setup that broke, computed exactly as the list computed it. ``last_reported``
-    maps symbol → the most recent prior session it was reported, for the repeat
-    marker; a symbol absent from it is a first-time break.
+    for the score's leave-one-out sector share, and ``relative_move_of`` maps
+    symbol → yesterday's 6m index-relative move in ADR units (absent → ``None``,
+    a miss) — the score of the setup that broke, computed exactly as the list
+    computed it. ``last_reported`` maps symbol → the most recent prior session it
+    was reported, for the repeat marker; a symbol absent from it is a first-time
+    break.
 
     A name is reported **iff** its today close exceeds its yesterday trigger — the
     score, the stop and ``line_ok`` are computed for the row but never gate
     membership. A name with no bar today cannot be tested and is silently absent.
     """
-    prior_move = detection_gate(ranks_yesterday)
+    relative_move_of = relative_move_of or {}
     sector_shares = leave_one_out_sector_shares(ranks_yesterday, sector_of)
 
     rows = []
@@ -103,7 +108,7 @@ def build_digest(
             continue  # no bar to test, or the close did not clear the trigger
         stars, _breakdown = star_score(
             det,
-            prior_move=det.symbol in prior_move,
+            relative_move=relative_move_of.get(det.symbol),
             sector_share=sector_shares.get(det.symbol, 0.0),
         )
         # §7's real default stop: entry − breakout_day_low, normalised to one ADR
@@ -150,12 +155,13 @@ def render_digest(market: str, session: date, breaks: list[DigestBreak]) -> str:
 
     The header carries the **rubric version** (PRD #138): a digest freezes its
     stars, so this records which weights produced them and keeps last week's frozen
-    star comparable to today's derived-on-read one after a rubric change.
+    star comparable to today's derived-on-read one after a rubric change. Digests
+    written under v3 say ``0.5–4.5`` and ``rubric v3``, and are never recomputed.
     """
     lines = [
         f"# {market} digest — {session.isoformat()}",
         "",
-        f"Stars on the 0.5–4.5 scale, rubric v{RUBRIC_VERSION}.",
+        f"Stars on the 0.0–4.5 scale, rubric v{RUBRIC_VERSION}.",
         "",
         "Report a name when today's close is above yesterday's trigger — "
         "i.e. today's close is above the last four sessions' high.",

@@ -239,14 +239,18 @@ close is above the last `k` sessions' high.
 
 **Star score**:
 The rubric — 8 dimensions, 9 weighted points, halved to stars. The sort key of the only list
-in the app. Its range is 0.5–4.5, never 0–5: one dimension always fires (`Prior move`) and one
-is weighted zero (`Base length`). Seven dimensions are booleans; `Tightness` is a **graded
-dimension**. Derived on read everywhere except a digest, which freezes the
-value it was written with. Recalibrated to the method's revealed selection by PRD #138:
-`Tightness` and `ADR` weigh ×2 (the two sharpest §5b selectors), `Base length` ×0 (its largest
-wrong-way gap), everything else ×1. Weights come from the *ordering* of the measured selection
-gaps, never their magnitude. The three-weight ordinal swap inside that recalibration — `ADR`
-×1→×2, `Orderliness` ×2→×1, `Base length` ×1→×0 — is ticketed as #135.
+in the app. Its range is 0.0–4.5, never 0–5: one dimension is weighted zero (`Base length`),
+and since rubric v4 (#222) none fires for every detection by construction, so zero is
+reachable. Through v3 the range was 0.5–4.5, because `Prior move` — the decile gate the
+detector already requires — sat in the rubric as a permanent half-star floor. Seven dimensions
+are booleans; `Tightness` is a **graded dimension**; **Relative move** is a boolean that carries
+its value. Derived on read everywhere except a digest, which freezes the value it was written
+with. Recalibrated to the method's revealed selection by PRD #138: `Tightness` and `ADR` weigh
+×2 (the two sharpest §5b selectors), `Base length` ×0 (its largest wrong-way gap), everything
+else ×1 — `Relative move` included, from the ordering of its +3.6pp gap (ADR 0006). Weights
+come from the *ordering* of the measured selection gaps, never their magnitude. The
+three-weight ordinal swap inside that recalibration — `ADR` ×1→×2, `Orderliness` ×2→×1,
+`Base length` ×1→×0 — is ticketed as #135.
 
 **Graded dimension**:
 A score dimension that maps a real-valued quantity to points in bands, rather than awarding
@@ -276,23 +280,34 @@ and the tightness restructure.
 
 **Constant dimension**:
 A score dimension true for every detection by construction, so it shifts every score equally
-and can never move the sort. `Prior move` is the only one, measured at pooled spread 0.000 in
+and can never move the sort. `Prior move` was the only one, measured at pooled spread 0.000 in
 findings §5b and again in §5d, on a field 171% larger.
 
-**It stays at ×1, and is retired only when something takes its slot** (#160/#161) — and
-**#221 took it**: `Relative move` is admitted, so `Prior move` retires with the replacement
-metadata, in **#222**. Until that ships it is still ×1 and still the rubric's floor. ADR 0005
-calls keeping it "documentation bought at the price of a point", but that presumes
-the point is **scarce** — and it is not: the ceiling is the sum of the weights, not a budget, so
-a ninth dimension can be added without retiring the eighth and retiring this one frees nothing.
-The measurement is not in doubt; what fails is the case for acting on it alone. Because the
-dimension hits on every row its weight lands on every score, so zeroing *or* deleting it moves
-the scale identically — ceiling 9 → 8, stars 0.5–4.5 → 0.0–4.0 — which re-bases every frozen
-digest, `HERO_MIN` and acceptance B9 **while reordering nothing**. It is also the only breakdown
-row recording that the name cleared the decile gate ADR 0003 is about, so retiring it before
-that metadata exists loses information outright.
-_Avoid_: reading §5b's 0.000 as a standing instruction to retire it; the spread says the
-dimension cannot discriminate, not that removing it is free.
+**It stayed at ×1 until something took its slot** (#160/#161) — `Relative move` did (ADR 0006,
+#221) — and **#222 retired it** as rubric v4. ADR 0005 called keeping it "documentation bought
+at the price of a point", but that presumed the point was **scarce**, and it was not: the
+ceiling is the sum of the weights, not a budget, so retiring it freed nothing; it went because
+its slot was taken, not because the measurement demanded it. Because it hit on every row its
+weight landed on every score, so retiring it moved the scale identically for everyone — the
+floor went from 0.5★ to 0.0★, the ceiling stayed at 4.5★ since the ×1 slot was refilled — and
+**reordered nothing**. `HERO_MIN` and acceptance B9 keep their values against the unchanged
+ceiling and now demand every point be earned; digests written under v3 are not recomputed. It
+was also the only breakdown row recording that the name cleared the decile gate ADR 0003 is
+about, so the gate returned as the **binding lookback** on the candidates payload. The
+superseded rubrics (`score.RUBRICS` v1–v3) declare it as a constant, so a v4 breakdown — which
+no longer writes the row — re-scores under them exactly, with the point they always awarded.
+_Avoid_: reading §5b's 0.000 as what retired it; the spread said the dimension could not
+discriminate, and the slot being taken is what made removing it free.
+
+**Binding lookback**:
+The window a detected name clears the decile gate on most strongly — the highest percentile
+among the gated lookbacks (`1m`/`3m`/`6m`/`12m`) it is top-decile in, ties to the shorter
+window (`detection.binding_lookbacks`). Rides the candidates payload as `gate_lookback`,
+non-scored, since rubric v4: it is the record `Prior move` used to keep. Its **percentile is
+deliberately not emitted** — findings §7 holds a percentile against a holed field permanently
+inadmissible, and though that governs the replay rather than the live app, the name is the
+honest thing to publish (ADR 0005's consequences).
+_Avoid_: gate percentile, prior-move percentile.
 
 **Crowded dimension**:
 A **candidate dimension** true of **85% or more** of the not-taken detections — or within one
@@ -319,14 +334,19 @@ since #195 — as a cohort of the **candidate outcome test**, and weighted by no
 rubric slot on a measured non-zero gap with non-zero pooled spread, and until that measurement
 exists it must be unable to move a star, a sort or a board place. So it lives on a field member
 of its own (`RS line` on `replay.field.ScoredDetection.rs_line`), never inside `SevenDimScore`,
-and nothing in `screener` scores it. Two are registered, both measured, **one admitted** —
-`RS line` (rejected on a wrong-way gap) and **Relative move** (crowded, and admitted on a
-candidate outcome test under ADR 0006, #221; the rubric change is **#222**). **Pre-registered as one variant, pass or fail** — trying several
+and nothing in `screener` scores it. Two were registered and both measured: `RS line` (rejected
+on a wrong-way gap) is the one still registered; **Relative move** (crowded, admitted on a
+candidate outcome test under ADR 0006, #221, shipped as rubric v4 by **#222**) left the register
+when it entered the rubric — the contrast reads it off the breakdown now, at ×1, and the
+candidate outcome test keeps measuring it as a **provisional** admission
+(`score.PROVISIONAL`) for the re-read ADR 0006 owes. The register is open for a third.
+**Pre-registered as one variant, pass or fail** — trying several
 and keeping the largest gap is magnitude-fitting (#128 Q2). A study may report further columns
 beside a candidate, as §5e does for the raw and other-window moves; those are **descriptive and
 permanently inadmissible**, and they are handed to `contrast_dimensions` as readers rather than
 listed in `CANDIDATES`, so the registered list cannot quietly grow one. A candidate that fails
-leaves its measurement behind and takes its wiring with it.
+leaves its measurement behind and takes its wiring with it; one that is admitted takes its
+value with it into the breakdown and leaves the register.
 _Avoid_: experimental dimension, provisional dimension (a **graded dimension** is live; this
 is not).
 
@@ -343,7 +363,7 @@ could only ever be computed in a caller (`screener.relative_strength`), never in
 The first **candidate dimension**, and **rejected** (findings §5d, #160): Δ −2.1pp, a wrong-way
 gap, on 11.2% disagreement with the break test it nearly restates. The live app does not
 compute it — only the replay and the study script do, so §5d stays reproducible. The slot it
-was proposed for is still open, and **Relative move** is the second candidate for it.
+was proposed for went to **Relative move** (rubric v4, #222).
 
 **Relative move**:
 The `6m` return **relative to `MARKET_INDEX`**, compounded — `(1 + stock) / (1 + index) − 1` —
@@ -354,26 +374,30 @@ pre-registered ~85% ceiling, 0.29 standard errors inside it (findings §5e, #171
 **crowded dimension**, which under ADR 0006 owes a **candidate outcome test** rather than a
 refusal; it passed — IDX +1.927R [+0.57, +3.14] clears, and no market points the wrong way — and
 was admitted **at ×1** from the selection-gap ordering, **provisionally**, to be re-read at the
-next out-of-sample measurement (#221). `RUBRIC_VERSION` is still 3 and `Prior move` still holds
-its ×1 until **#222** ships the change. Both legs read `calendar_return`, so the anchor is
-calendar-dated and resolves to the last bar on or before it, and a missing leg is **absent**,
-scoring `False` and never carried forward. Named apart from `Prior move` on purpose — a
-**rubric version** re-scores a stored row by dimension name, so one label cannot mean two
-quantities. The cut sits at zero, which makes the boolean ADR-invariant; the units are there
-for the *value* a row would carry, so a later grading question can be asked without re-scoring
-history.
+next out-of-sample measurement (#221). **Shipped as rubric v4 by #222**, in `Prior move`'s slot:
+the row carries the value in ADR units and earns its point strictly above zero; the live list,
+chart, digest, acceptance and replay all read it through one store-facing helper
+(`relative_strength.session_relative_moves`), anchored at the detection's own session. Both
+legs read `calendar_return`, so the anchor is calendar-dated and resolves to the last bar on or
+before it, and a missing leg is **absent**, scoring `False`, writing no value, and never carried
+forward. Named apart from `Prior move` on purpose — a **rubric version** re-scores a stored row
+by dimension name, so one label cannot mean two quantities. The cut sits at zero, which makes
+the boolean ADR-invariant; the units are there for the *value* the row carries, so a later
+grading question (ADR 0004) can be asked without re-scoring history — it ships as a boolean,
+and the rank correlation is −0.021 on the US against +0.068 on IDX, which is why.
 _Avoid_: RS, outperformance. "Relative strength" names the *module* both candidates live
 in (`screener.relative_strength`) and nothing narrower — never the dimension.
 
 **Rubric version**:
 The stamp identifying which weights and mappings produced a star score (`score.RUBRIC_VERSION`,
-currently 3 — v2's nine weights with `Tightness` graded, #154; v2 was the PRD #138 nine-point
-boolean rubric, v1 the ten-point one). Rides the API candidates payload and the digest header.
-A star figure quoted without one cannot be compared to another. Every superseded version stays
-live in `score.RUBRICS` so the paired A2 re-run can hold a field fixed and swap only the
-rubric; adding a version never edits an older one. **v4 is decided and not shipped**: #221
-admitted `Relative move` and retired `Prior move`, #222 lands it, and the star range goes
-0.5–4.5 → **0.0–4.5** when it does.
+currently **4** — v3 with `Relative move` at ×1 in `Prior move`'s slot, #222; v3 was v2's nine
+weights with `Tightness` graded, #154; v2 the PRD #138 nine-point boolean rubric; v1 the
+ten-point one). Rides the API candidates payload and the digest header. A star figure quoted
+without one cannot be compared to another. Every superseded version stays live in
+`score.RUBRICS`, spelled out literally, so the paired A2 re-run can hold a field fixed and swap
+only the rubric; adding a version never edits an older one, and v1–v3 declare `Prior move` a
+**constant dimension** so a v4 breakdown re-scores under them exactly. The star range went
+0.5–4.5 → **0.0–4.5** with v4; digests written under v3 are not recomputed.
 
 **Regime**:
 `FRIENDLY`, `CHOPPY` or `HOSTILE` per market, from one index each. Advisory only — never

@@ -23,9 +23,10 @@ discipline, not of the dimension's uselessness. So each dimension reports its
 **spread** within the sample next to its correlation (user story 18), and a null
 on a dimension with no spread is labelled **untestable** rather than absent (user
 story 19) — deleting a filter that generated the sample in the first place is
-exactly the mistake the label guards against. The "Prior move" dimension is
-untestable by construction: every detection cleared the decile gate, so it never
-varies within the field.
+exactly the mistake the label guards against. Through rubric v3 the "Prior move"
+dimension was untestable by construction — every detection cleared the decile
+gate, so it never varied within the field; v4 retired it for ``Relative move``
+(#222), which does vary.
 
 **The sector dimension is absent throughout** (PRD "Star score in replay"): the
 seven regressed dimensions are the app's eight less Sector, whose 2020 history is
@@ -222,7 +223,7 @@ def build_feature_vector(
     entry_date: date,
     eval_session: date | None,
     det: Detection | None,
-    prior_move: bool,
+    relative_move: float | None,
     adr_at_entry: float | None,
     stop_pct: float,
     mfe: float | None,
@@ -232,12 +233,13 @@ def build_feature_vector(
 
     A detected trade carries the seven surviving score dimensions
     (:func:`replay.field.seven_dimension_score`, sector struck); an undetected one
-    carries no dimensions and is excluded from the regression. ``stop_width_adr``
-    is his own stop as a multiple of the night's ADR — ``None`` when the ADR is
-    unavailable or non-positive.
+    carries no dimensions and is excluded from the regression. ``relative_move``
+    is the field member's own value, so the vector's ``Relative move`` row is the
+    one the field scored. ``stop_width_adr`` is his own stop as a multiple of the
+    night's ADR — ``None`` when the ADR is unavailable or non-positive.
     """
     dimensions = (
-        seven_dimension_score(det, prior_move=prior_move).breakdown
+        seven_dimension_score(det, relative_move=relative_move).breakdown
         if det is not None
         else []
     )
@@ -323,13 +325,6 @@ def _adr_at(bars: list[Bar], as_of: date) -> float | None:
     return _adr(up_to)
 
 
-def _dim_hit(breakdown: list[Dimension], name: str) -> bool:
-    for d in breakdown:
-        if d.dimension == name:
-            return d.hit
-    return False
-
-
 def build_regression(
     replayable: list[ExecutedTrade],
     calendar: list[date],
@@ -361,13 +356,13 @@ def build_regression(
         adr_at_entry = _adr_at(bars, eval_session) if eval_session is not None else None
 
         det: Detection | None = None
-        prior_move = False
+        relative_move: float | None = None
         field = by_session.get(eval_session) if eval_session is not None else None
         if field is not None:
             for sd in field.detections:
                 if sd.symbol == trade.ticker:
                     det = sd.detection
-                    prior_move = _dim_hit(sd.score.breakdown, "Prior move")
+                    relative_move = sd.relative_move
                     break
 
         outcome = trade.outcomes.get(exit_label)
@@ -377,7 +372,7 @@ def build_regression(
                 entry_date=trade.entry_date,
                 eval_session=eval_session,
                 det=det,
-                prior_move=prior_move,
+                relative_move=relative_move,
                 adr_at_entry=adr_at_entry,
                 stop_pct=trade.stop_pct,
                 mfe=outcome.mfe_pct if outcome else None,

@@ -27,6 +27,10 @@ import ChartSheet, { type SheetTarget } from "./ChartSheet";
 // placeholder slots** — two cards then the next section is honest. The cut is
 // `≥3.5`, not `>3.5`: on half-star granularity `>3.5` means 4.0+, which would
 // collapse IDX to one card on the market that is already sparsest (spec §11.1).
+// Held at 3.5 across rubric v4 (#222): the nine-point ceiling did not move, only
+// the floor did — `Prior move`'s free half star is gone, so 3.5★ now means seven
+// of nine points *earned* where it used to mean six plus the constant. The cut
+// keeps its value and demands a little more; fewer heroes is the rubric working.
 const HERO_MIN = 3.5;
 const HERO_CAP = 4;
 

@@ -98,9 +98,17 @@ def test_the_star_score_and_industry_ride_the_row():
     [b] = build_digest(
         [det], today, ranks,
         {"AAA": "Semiconductors"}, {"AAA": "Technology", "PEER": "Technology"}, {},
+        relative_move_of={"AAA": 1.0},
     )
     assert b.score == 4.5
     assert b.industry == "Semiconductors"
+    # Without the relative move the row is absent and the point is not earned
+    # (rubric v4, #222): the digest scores exactly as the list does.
+    [b_absent] = build_digest(
+        [det], today, ranks,
+        {"AAA": "Semiconductors"}, {"AAA": "Technology", "PEER": "Technology"}, {},
+    )
+    assert b_absent.score == 4.0
 
 
 def test_repeats_are_marked_with_the_last_reported_date_never_suppressed():

@@ -63,7 +63,7 @@ def _setup(
     detection: Detection | None,
     bars: list[Bar],
     *,
-    prior_move: bool,
+    relative_move: float | None,
     sector_share: float,
 ) -> SetupOverlay | None:
     """The setup overlay for the chart (spec §5.1 / ticket 41), or ``None`` when the
@@ -91,7 +91,7 @@ def _setup(
         for t in range(base_i, n)
     ]
     stars, breakdown = star_score(
-        detection, prior_move=prior_move, sector_share=sector_share
+        detection, relative_move=relative_move, sector_share=sector_share
     )
     return SetupOverlay(
         base_start=bars[base_i].session,
@@ -135,17 +135,18 @@ def build_chart(
     ranks_for_symbol: list[Rank],
     sector: str | None,
     *,
-    prior_move: bool = False,
+    relative_move: float | None = None,
     sector_share: float = 0.0,
     window: int | None = None,
 ) -> ChartResponse:
     """One symbol's evidence bundle (spec §5.1). ``bars`` is the name's clean,
     oldest-first series (already scoped to the as-of session by the caller);
     ``detection`` / ``ranks_for_symbol`` / ``sector`` are its published rows for
-    tonight, feeding the facts block. ``prior_move`` / ``sector_share`` are the two
-    cross-sectional inputs to the star score (the decile gate and the leave-one-out
-    1m sector share), supplied by the caller off the same session — they feed the
-    setup overlay's breakdown, mirroring how :mod:`.candidates` scores the list.
+    tonight, feeding the facts block. ``relative_move`` / ``sector_share`` are the
+    two caller-supplied inputs to the star score (the 6m index-relative move in
+    ADR units, ``None`` when absent, and the leave-one-out 1m sector share), off
+    the same session — they feed the setup overlay's breakdown, mirroring how
+    :mod:`.candidates` scores the list.
 
     ``window`` is how many trailing bars to draw; ``None`` falls back to the
     :data:`CHART_BARS` default. A thumbnail passes a small ``window`` (e.g. 60) so
@@ -181,7 +182,7 @@ def build_chart(
         sma50=_ma_points(sessions, sma50[lo:]),
         ema65=_ma_points(sessions, ema65[lo:]),
         setup=_setup(
-            detection, bars, prior_move=prior_move, sector_share=sector_share
+            detection, bars, relative_move=relative_move, sector_share=sector_share
         ),
         facts=_facts(detection, bars, ranks_for_symbol, sector),
     )

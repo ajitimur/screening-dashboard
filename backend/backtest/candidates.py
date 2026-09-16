@@ -1,7 +1,10 @@
-"""Do the registered candidate dimensions predict, or only select? (issue #195).
+"""Do the candidate dimensions predict, or only select? (issue #195).
 
-Both dimensions ADR 0005 has registered, measured against **outcomes** rather than
-against the trader's selection, per market, on the mechanical denominator.
+Both dimensions ADR 0005 registered, measured against **outcomes** rather than
+against the trader's selection, per market, on the mechanical denominator. One
+of them — ``Relative move`` — has since been admitted on this measurement (ADR
+0006, rubric v4, #222), **provisionally**, and stays under test here for the
+re-read that admission owes.
 
 Why this measurement exists
 ---------------------------
@@ -25,7 +28,9 @@ Both registrations then ran into the limits of that instrument:
   refuses it. The ADR calls that magnitude "the one magnitude in this design with
   nothing behind it", and it now decides an admission by six hundredths of a
   point. The ADR declined to resolve it and recorded that no third candidate
-  should register until the threshold is argued on its own.
+  should register until the threshold is argued on its own. ADR 0006 then argued
+  it: a dimension on that bound is **crowded** and owes exactly this measurement,
+  and ``Relative move`` passed it and was admitted at ×1.
 
 This run gives the same two dimensions an outcome variable: **R after costs**, on
 trades taken mechanically over two markets and fourteen years, which no rubric
@@ -75,11 +80,15 @@ two dimensions.
 
 Nothing here admits a dimension
 -------------------------------
-Not by construction and not by omission: :func:`check_not_admitted` refuses to run
-if a registered candidate has entered the live rubric, and :data:`ADMISSION_NOTE`
-says on the payload that admission is ADR 0005's instrument rather than this one's.
-The result is evidence that goes through the calibration rule like any other
-change.
+Not by construction and not by omission: :func:`check_admission` refuses to run
+if a dimension under test sits in the live rubric without being declared a
+**provisional** admission (:data:`screener.score.PROVISIONAL`), and
+:data:`ADMISSION_NOTE` says on the payload that admission is ADR 0005's
+instrument, as narrowed by ADR 0006, rather than this one's. The result is
+evidence that goes through the admission rule like any other change. A
+provisionally admitted dimension is measured here for the re-read ADR 0006
+requires — its cell says so under ``status`` — and no weight, version or register
+moves because of what it reports.
 
 Everything else is the metric's
 -------------------------------
@@ -97,12 +106,12 @@ import json
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from replay.contrast import CANDIDATES
 from replay.field import ScoredDetection
-from screener.relative_strength import RELATIVE_MOVE_CUT
-from screener.score import DIMENSIONS
+from screener.relative_strength import RELATIVE_MOVE_CUT, relative_move_hit
+from screener.score import DIMENSIONS, PROVISIONAL
 from screener.store import Store
 
 from .cohort import DetectionIndex, detection_index, join_detections
@@ -156,6 +165,16 @@ VALUE_GRADED = "graded"
 # two ratios, so what persists is the verdict and there is no degree to rank.
 VALUE_BOOLEAN = "boolean"
 
+# -- what a dimension under test is, to the rubric ----------------------------
+
+# Still a **candidate**: registered in :data:`replay.contrast.CANDIDATES`, in no
+# rubric, weighted by nothing.
+STATUS_CANDIDATE = "candidate"
+# **Provisionally admitted** (ADR 0006): in the live rubric, declared in
+# :data:`screener.score.PROVISIONAL`, and measured here for the re-read that
+# admission owes at the next out-of-sample measurement.
+STATUS_PROVISIONAL = "provisional"
+
 
 @dataclass(frozen=True)
 class CandidateDimension:
@@ -176,6 +195,10 @@ class CandidateDimension:
     value: Callable[[ScoredDetection], Any]
     cut: str
     absent_means: str
+    # The record of a **provisional** admission (:data:`screener.score.PROVISIONAL`)
+    # — ``None`` for a candidate still under measurement. A provisionally admitted
+    # dimension is in the live rubric and is measured here for its re-read.
+    admission: str | None = None
     # The **degree** reader, or ``None`` where the row keeps only a verdict. One
     # field carries that fact rather than a ``value_kind`` string switched on at
     # three sites: a candidate either has a number to rank or it does not, and
@@ -187,6 +210,12 @@ class CandidateDimension:
     def value_kind(self) -> str:
         """What the persisted row carries, for the payload and the printed page."""
         return VALUE_GRADED if self.degree is not None else VALUE_BOOLEAN
+
+    @property
+    def status(self) -> str:
+        """``candidate`` (registered, weighted by nothing) or ``provisional``
+        (admitted with an outcome test in the loop, owed a re-read)."""
+        return STATUS_PROVISIONAL if self.admission is not None else STATUS_CANDIDATE
 
 
 def _relative_move_degree(detection: ScoredDetection) -> float | None:
@@ -210,6 +239,10 @@ _READERS: dict[str, dict[str, Any]] = {
         ),
     ),
     "Relative move": dict(
+        # Admitted (rubric v4), so no longer in the register that would supply
+        # its boolean: the rubric's own reader is named here instead, so the cut
+        # this measurement reads is the one the live score applies.
+        hit=lambda d: relative_move_hit(d.relative_move),
         value=lambda d: d.relative_move,
         degree=_relative_move_degree,
         cut=(
@@ -228,16 +261,20 @@ def check_registry(
     registered: Sequence[tuple[str, int, Callable[[ScoredDetection], bool]]] = (
         CANDIDATES
     ),
+    provisional: Mapping[str, str] = PROVISIONAL,
 ) -> None:
-    """Refuse to measure if a registered candidate has no value reader here.
+    """Refuse to measure if a dimension under test has no value reader here.
 
     #195 asks for **both** registered candidates, and a third registration would
     make that sentence mean something new. This module cannot read a row for a
     dimension it has never heard of — it would not know where the value lives or
     what an absent one means — so a new registration stops the measurement instead
     of being quietly left out of a report that still claims to cover the register.
+    The same holds for a provisional admission (ADR 0006): one this module cannot
+    read could never be re-read.
     """
-    unknown = sorted({name for name, _w, _r in registered} - set(_READERS))
+    under_test = {name for name, _w, _r in registered} | set(provisional)
+    unknown = sorted(under_test - set(_READERS))
     if unknown:
         raise ContractDrift(
             f"registered candidate(s) {unknown} have no value reader in "
@@ -248,12 +285,24 @@ def check_registry(
 
 
 def _under_test() -> tuple[CandidateDimension, ...]:
-    """The register, in its own order, with this module's readers attached."""
+    """The register, in its own order, then the provisional admissions in
+    theirs, each with this module's readers attached.
+
+    A candidate's boolean is the register's own reader; a provisional
+    dimension's is the rubric's, named in :data:`_READERS` — so in both cases the
+    cut this measurement reads is the one the contrast read and the score
+    applies, never a second implementation.
+    """
     check_registry()
-    return tuple(
+    candidates = tuple(
         CandidateDimension(name=name, hit=hit, **_READERS[name])
         for name, _weight, hit in CANDIDATES
     )
+    provisional = tuple(
+        CandidateDimension(name=name, admission=note, **_READERS[name])
+        for name, note in PROVISIONAL.items()
+    )
+    return candidates + provisional
 
 
 CANDIDATES_UNDER_TEST: tuple[CandidateDimension, ...] = _under_test()
@@ -274,31 +323,48 @@ def named_candidate(name: str) -> CandidateDimension:
 
 ADMISSION_NOTE = (
     "this measurement admits no dimension and retires none. ADR 0005's admission "
-    "instrument is the selection contrast, and an outcome claim is not one — it "
-    "is evidence that goes through the calibration rule like any other change. "
-    "Neither candidate's weight, the rubric version, nor the register moves here"
+    "instrument is the selection contrast, as narrowed by ADR 0006 — a crowded "
+    "dimension owes this outcome test, and passing it is what admitted Relative "
+    "move at ×1, provisionally. That admission was decided in ADR 0006 and landed "
+    "by #222, not by anything reported here; a provisional dimension is measured "
+    "for the re-read it owes, and no weight, the rubric version, nor the register "
+    "moves on what this run reports"
 )
 
 
-def check_not_admitted(
+def check_admission(
     dimensions: Sequence[tuple[str, int]] = DIMENSIONS,
+    provisional: Mapping[str, str] = PROVISIONAL,
 ) -> None:
-    """Refuse if a registered candidate has entered the live rubric.
+    """Refuse if the rubric and the roster under test disagree about admission.
 
     A candidate is a dimension **under measurement**, weighted by nothing and
     unable to move a star, a sort or a board place. One that had reached
-    :data:`screener.score.DIMENSIONS` would make this a report about a live rubric
-    row under a banner saying the opposite, and #195's last criterion — that
-    neither dimension is admitted by this ticket — would be false in a way no
-    reader of the output could see.
+    :data:`screener.score.DIMENSIONS` without a rule saying so would make this a
+    report about a live rubric row under a banner saying the opposite, in a way
+    no reader of the output could see. The one licensed exception is a
+    **provisional** admission (ADR 0006): declared in
+    :data:`screener.score.PROVISIONAL`, in the live rubric, and measured here for
+    its re-read — so a provisional dimension *must* be in the rubric, and a
+    candidate must not be.
     """
     live = {name for name, _weight in dimensions}
-    admitted = sorted(live & {c.name for c in CANDIDATES_UNDER_TEST})
-    if admitted:
+    leaked = sorted(
+        c.name for c in CANDIDATES_UNDER_TEST
+        if c.name in live and c.name not in provisional
+    )
+    if leaked:
         raise ContractDrift(
-            f"{admitted} is in the live rubric: this measurement reports on "
-            "candidate dimensions, which are weighted by nothing, and an admitted "
-            "one is a different subject under the same name"
+            f"{leaked} is in the live rubric without a provisional admission: "
+            "this measurement reports on candidate dimensions, which are weighted "
+            "by nothing, and an admitted one is a different subject under the "
+            "same name"
+        )
+    unshipped = sorted(name for name in provisional if name not in live)
+    if unshipped:
+        raise ContractDrift(
+            f"{unshipped} is declared a provisional admission but is not in the "
+            "live rubric: the declaration and the table have drifted apart"
         )
 
 
@@ -344,15 +410,25 @@ SELECTION_CONTRAST: dict[str, dict[str, Any]] = {
         "not_taken_n": 34543,
         "delta_pp": 3.6,
         "pooled_spread": 0.357,
+        # What ADR 0005's instrument said, and what ADR 0006 then made of it.
+        # The first is kept verbatim: the selection contrast did not separate
+        # the criteria and admitted nothing on its own; the admission came from
+        # the outcome test this module runs, read under ADR 0006.
         "adr_0005_verdict": "not admitted",
         "recorded_as": "on_the_bound — the criteria do not separate",
+        "adr_0006_reading": (
+            "crowded — owed a candidate outcome test; passed (IDX +1.927R clears, "
+            "US does not point the wrong way); admitted at ×1 as rubric v4 (#222), "
+            "provisionally"
+        ),
         "why": (
             "positive on both fields, and then 0.06pp inside criterion 1's ~85% "
             "not-taken hit-rate ceiling — 0.29 standard errors from it. That "
             "ceiling and criterion 2's ~15% disagreement floor are one threshold "
             "read from two sides, so the two criteria give opposite answers on "
-            "the same number, and the ADR calls that magnitude a judgement rather "
-            "than a measurement. The criteria do not separate, so nothing shipped"
+            "the same number, and ADR 0005 calls that magnitude a judgement rather "
+            "than a measurement. ADR 0006 reads that bound as crowding, which owes "
+            "this outcome test instead of a refusal"
         ),
     },
 }
@@ -822,7 +898,7 @@ def candidates_report(
     have been computed.
     """
     check_registry()
-    check_not_admitted()
+    check_admission()
     named = tuple(markets) if markets else tuple(contract.value(SCOPE_MARKETS_KEY))
     markets_body = [
         market_candidates(
@@ -834,13 +910,16 @@ def candidates_report(
         contract,
         {
             "question": (
-                "do the registered candidate dimensions predict outcomes, or only "
-                "match the trader's selection?"
+                "do the candidate dimensions — registered, or provisionally "
+                "admitted and owed a re-read — predict outcomes, or only match "
+                "the trader's selection?"
             ),
             "arm": PRIMARY_ARM,
             "registered": [
                 {
                     "candidate": candidate.name,
+                    "status": candidate.status,
+                    "admission": candidate.admission,
                     "cut": candidate.cut,
                     "value_kind": candidate.value_kind,
                     "absent_means": candidate.absent_means,

@@ -120,7 +120,7 @@ def test_setup_overlay_shades_base_and_cluster_and_draws_the_envelope():
     det = _det("AAA", CAL[99], trigger=100.0, close=98.0, cluster_low=97.0, adr=0.02)
     chart = build_chart(
         "US", "AAA", CAL[99], bars, det, [], "Technology",
-        prior_move=True, sector_share=0.2,
+        relative_move=1.0, sector_share=0.2,
     )
 
     s = chart.setup
@@ -152,16 +152,19 @@ def test_setup_breakdown_reconstructs_the_star_score_arithmetically():
     det = _det("AAA", CAL[99])  # cluster_k=5, churn_l=0.45, sma20_rising, dryup=0.90
     chart = build_chart(
         "US", "AAA", CAL[99], bars, det, [], "Technology",
-        prior_move=True, sector_share=0.2,
+        relative_move=1.0, sector_share=0.2,
     )
     s = chart.setup
     assert s is not None
     assert [d.dimension for d in s.breakdown] == [
-        "Tightness", "Orderliness", "Prior move", "Base length",
+        "Tightness", "Orderliness", "Relative move", "Base length",
         "MA support", "Volume", "Sector", "ADR",
     ]
     points = sum(d.weight for d in s.breakdown if d.hit)
     assert s.score == points / 2
+    # The relative move row carries its ADR-unit value and earned its point.
+    rel = next(d for d in s.breakdown if d.dimension == "Relative move")
+    assert rel.value == 1.0 and rel.hit is True and rel.points == 1
 
 
 def test_setup_is_none_without_a_detection():

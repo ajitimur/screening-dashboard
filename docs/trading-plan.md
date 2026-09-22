@@ -164,7 +164,7 @@ Every one of these must be true. One miss means no trade, at any grade.
 7. **Stop at the low of the entry day, and the stop is at most 1 ADR below the entry.**
    If the low of the day is more than 1 ADR away, there is no trade. Wait for it to set up
    again.
-8. **Pressure confirmation** on the break day (section 5.4).
+8. **Pressure confirmation** at the close before the break day (section 5.4).
 9. Regime gate checked (section 3) and the size it allows is the size placed.
 
 The stop in rule 7 is set by the entry day's own range, not by the base. His stops sit at a
@@ -179,8 +179,11 @@ Marks are the things that make a setup textbook. They are not required.
 - The NR7 day is also an inside day.
 - Close at least 2 ADR above the SMA50. His best cell: ≥ 2 ADR above the 50 and ≤ 1.5 ADR
   above the 10, +1.57R at a 27% hit rate.
-- Break-day volume above 1.5 × the median of the prior 10 sessions (the indicator's
-  **surge**).
+- A solid ▲ (buyer **surge**) on the break day: volume above 1.5 × the median of the prior
+  10 sessions *and* buyers won the day. Volume alone is not enough; a gap-up that sells off
+  all session clears the volume bar and prints a ▼. The ▲ fires only on the first surge day
+  of a run, so a surge the day before leaves the break day without one. The day's volume is
+  not known until the close: with a buy stop early in the session, count this mark missing.
 - The sector or theme is moving as a pack.
 - ADR ≥ 5%.
 - Above the SMA200.
@@ -198,24 +201,44 @@ taken.
 
 Read from the **Buying / Selling Pressure** indicator
 (`~/Projects/pinescript-selling-buying-pressure/buying-selling-pressure.pine`) on the daily
-chart, at its defaults: short average 5, long average 20, surge 1.5 × the 10-day median.
-The settings are part of the rule. A signal at other settings does not count.
+chart, with every input at its shipped default (short average 5, long average 20, surge
+1.5 × the 10-day median, price-holding lookback 5) and **Mirror signals on**. With mirror
+signals off, orange never paints and the veto below silently stops working. The settings
+are part of the rule. A signal at other settings does not count.
 
 The indicator confirms; it never triggers. A stock that fails a hard rule in section 5.2 is
 not rescued by any reading here.
 
-On the break day, one of these must be true:
+**Read it on the completed bar of the session before the break day**, usually the NR7 day.
+The break day's own bar is not usable at entry: until the close it is built from a partial
+day's 5-minute bars, so both lines dip (the selling line nearly always looks like it is
+falling), and the tint and crossings can still change.
 
-- The **Selling trend** line is sloping down and sits under the **Buying trend** line, or
-- the **Buying trend** line has crossed above the **Selling trend** line.
+On that bar, all three must be true:
 
-And this must be false:
+- **Blue (Seller Exhaustion) has appeared inside the base.** Sellers stopped pushing while
+  price held its lows. Without it, a buying day is a buying day inside an unresolved fight,
+  not a turn.
+- **The most recent state tint is not orange (Buyer Exhaustion).** Checking the last tint,
+  not only the break day, matters: a breakout usually lifts the highs, which switches orange
+  off on the very day it would be checked.
+- **The Buying trend line (teal) is above the Selling trend line (red).**
 
-- The background tint is orange (**Buyer Exhaustion**). Orange on the break day vetoes the
-  trade. A buying day inside an unresolved fight is not a turn.
+Grey (Tightening) describes a healthy, quiet base and is worth noticing, but is not
+required. Grey and blue can come in either order. The faint crossing ▲ is not a signal on
+its own; it is only the moment the third condition became true.
 
-The grey (Tightening) and blue (Seller Exhaustion) tints describe a healthy base and are
-worth noticing, but neither is required. The faint crossing ▲ is ignored.
+Two cautions:
+
+- **Within a few weeks of a volume climax**, the long averages are inflated, so blue and
+  orange come easily. A continuation setup soon after a big momentum leg is exactly this
+  case: weigh the lines over the tint.
+- **No tint is not a healthy tint.** The indicator suppresses tint for the first 20 bars of
+  intrabar history. That does not affect current bars, but a missing tint never counts as
+  blue.
+
+This rule is a stance. No study in `references/` has measured the indicator's effect on
+outcomes; the journal is the evidence until one does.
 
 ### 5.5 Anti-patterns
 
@@ -288,8 +311,11 @@ SMA20 rising, price within ±2 ADR:  yes / no   (distance:     ADR)
 Distance above SMA10:       ADR   (< 1.5)
 NR7 on break day or day before:  yes / no      Inside day:  yes / no
 Sideways sessions before break:
-Pressure: selling line down & under / buying crossed above:  yes / no
-Orange tint on break day:   yes / no   (yes = no trade)
+Pressure (read at prior close, defaults, mirror on):
+  Blue in base:        yes / no   (no = no trade)
+  Last tint orange:    yes / no   (yes = no trade)
+  Teal above red:      yes / no   (no = no trade)
+Solid ▲ on break day:       yes / no / unknown at entry
 Entry:           Stop (LOD):          Stop width:      ADR   (≤ 1.0)
 Risk %:          Risk amount:         Shares:
 Marks present:   /7                  Grade:  A / B
@@ -307,8 +333,10 @@ Exit rule governing:  2×ADR or day 5 → 1/3; then trail SMA5 (IDX) / SMA10 (US
 - The setup description, the MA catch-up preference, and the anti-patterns:
   [`references/qullamaggie-method.md`](../references/qullamaggie-method.md) §3.
 - The IDX ADR floor field data: [`references/backtest_idx_adr_floor.md`](../references/backtest_idx_adr_floor.md).
-- The pressure indicator's states and events:
-  `~/Projects/pinescript-selling-buying-pressure/docs/reading-the-indicator.md`.
+- The pressure indicator's states and events, and the sequence rule (blue before the turn,
+  no ▲ inside orange):
+  `~/Projects/pinescript-selling-buying-pressure/docs/reading-the-indicator.md`. The
+  confirmation rule in 5.4 is untested; no outcome study backs it.
 - The regime states: `backend/screener/regime.py`, the same rules the screener prints.
 - The trailing-trades table, release trigger, and exit rules 1, 4, 5, 6: the Notion page this plan
   replaces, unchanged.

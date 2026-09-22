@@ -56,33 +56,52 @@ these units.
 
 ## 3. Regime gate
 
-Two gates, both checked at the start of every session, before any chart is opened.
+Checked at the start of every session, before any chart is opened. The regime state
+decides the risk per trade; the trailing closed trades only matter when the state is
+`CHOPPY`.
 
-### 3.1 Market edge
+### 3.1 Regime state
 
-The book's index (`$JKSE` for the IDX book, `$QQQ` for the US book) must be above its
-SMA10 and SMA20, and both SMAs must be sloping up.
+The same three states the screener prints, computed the same way
+(`backend/screener/regime.py`). One index per book: `^JKSE` for IDX, `^IXIC` (Nasdaq
+Composite) for US. All slopes are the section 2 test: today against 5 sessions ago.
 
-If it is, sizing follows the trailing-trades table below. If it is not, size is capped at
-0.25% risk regardless of the table.
+| State | Condition on the index | Risk per trade |
+| --- | --- | --- |
+| **FRIENDLY** | Close above both SMA10 and SMA20, and both sloping up | **1%, full risk.** The trailing table is not consulted. |
+| **CHOPPY** | Anything that is neither FRIENDLY nor HOSTILE | **Read the trailing table** (section 3.2). |
+| **HOSTILE** | SMA10 sloping down, SMA20 sloping down, and SMA10 below SMA20 | **0.25%, A-grade setups only.** The trailing table is not consulted. |
 
-### 3.2 Trailing closed trades
+The two named states cannot both hold (one needs the SMA10 rising, the other falling), so
+exactly one state applies every session. `CHOPPY` is the gap between them, not a third
+definition.
+
+### 3.2 Trailing closed trades (CHOPPY only)
 
 Computed on the trailing 20 closed trades in that book, real and paper.
 
-| Trailing expectancy | State | Risk per trade |
+| Trailing expectancy | Level | Risk per trade |
 | --- | --- | --- |
 | ≥ 0R | Full risk | 1% |
 | −0.3R to 0R | Slowing down | 0.5% |
 | < −0.3R | Defensive | 0.25%, A-grade setups only (section 5.3) |
 | Five consecutive stops | Defensive | 0.25% regardless of expectancy |
 
-### 3.3 Release trigger
+### 3.3 Release trigger (CHOPPY only)
 
 Step up one row in the table when both hold:
 
 - A follow-through day is logged on the book's index, and
 - two of the last five closed trades in that book are profitable. Paper trades count.
+
+### 3.4 What the backtest says about the states
+
+The screener's own backtest priced each state's advice
+([`references/backtest_regime_posture.txt`](../references/backtest_regime_posture.txt)).
+On IDX, FRIENDLY is the one cell with a clear edge: +1.50R over 414 trades, interval
+[+0.20, +3.05]. Every other cell, both markets, is **undecided**: the intervals straddle
+zero, and US HOSTILE (−0.15R) is the only negative estimate over the full window. So the full-risk-in-FRIENDLY rule has support on IDX; the
+reduced sizing in CHOPPY and HOSTILE is a stance, not a measured result.
 
 ---
 
@@ -171,7 +190,8 @@ Marks are the things that make a setup textbook. They are not required.
 | **B** | All hard rules pass. One or more marks missing. |
 | Below B | A hard rule failed. Not a trade. |
 
-In the Defensive regime state, only A-grade setups are taken.
+In `HOSTILE`, and at the Defensive level of the `CHOPPY` table, only A-grade setups are
+taken.
 
 ### 5.4 Pressure confirmation
 
@@ -259,7 +279,7 @@ The IDX trail on the SMA5 is my choice, not his. The studies in `references/` me
 Copy this into the journal entry before the order goes in. Every line filled, or no order.
 
 ```
-Book:            IDX / US          Regime state:   Full / Slowing / Defensive / Capped
+Book:            IDX / US          Regime:  FRIENDLY / CHOPPY (Full / Slowing / Defensive) / HOSTILE
 Ticker:                            Date (day 1):
 ADR:             %                 RS phase:       yes / no
 SMA50 rising, price above:  yes / no
@@ -288,5 +308,6 @@ Exit rule governing:  2×ADR or day 5 → 1/3; then trail SMA5 (IDX) / SMA10 (US
 - The IDX ADR floor field data: [`references/backtest_idx_adr_floor.md`](../references/backtest_idx_adr_floor.md).
 - The pressure indicator's states and events:
   `~/Projects/pinescript-selling-buying-pressure/docs/reading-the-indicator.md`.
-- The regime gate, sizing table, and exit rules 1, 4, 5, 6: the Notion page this plan
+- The regime states: `backend/screener/regime.py`, the same rules the screener prints.
+- The trailing-trades table, release trigger, and exit rules 1, 4, 5, 6: the Notion page this plan
   replaces, unchanged.

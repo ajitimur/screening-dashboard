@@ -480,7 +480,13 @@ as a single number.
 **Continuation entry**:
 An executed trade within 5 sessions of a prior entry in the same ticker — an add to a
 position, not a fresh base. Counted in the recall denominator and tagged, never removed
-from it.
+from it. Not the **continuation setup**, which is the pattern itself.
+
+**Continuation setup**:
+The Breakout/Continuation pattern the whole method trades: a consolidation inside an
+uptrend that breaks upward. The trading plan's word for what the app calls a detection.
+Distinct from a **continuation entry**, which is an add to an existing position.
+_Avoid_: continuation (unqualified), breakout setup.
 
 **Outcome label**:
 The dependent variable a study regresses features against. `rr10sma` is the headline

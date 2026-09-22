@@ -100,8 +100,9 @@ The screener's own backtest priced each state's advice
 ([`references/backtest_regime_posture.txt`](../references/backtest_regime_posture.txt)).
 On IDX, FRIENDLY is the one cell with a clear edge: +1.50R over 414 trades, interval
 [+0.20, +3.05]. Every other cell, both markets, is **undecided**: the intervals straddle
-zero, and US HOSTILE (−0.15R) is the only negative estimate over the full window. So the full-risk-in-FRIENDLY rule has support on IDX; the
-reduced sizing in CHOPPY and HOSTILE is a stance, not a measured result.
+zero, and US HOSTILE (−0.15R) is the only negative estimate over the full window. So the
+full-risk-in-FRIENDLY rule has support on IDX; the reduced sizing in CHOPPY and HOSTILE is
+a stance, not a measured result.
 
 ---
 

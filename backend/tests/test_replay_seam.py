@@ -4935,12 +4935,18 @@ def test_the_reference_exclusion_is_pinned_against_the_stores_own_enumeration(st
     assert "BASE" not in held
 
 
-def test_the_detection_gate_is_the_four_lookback_width_at_detector_v3(store, denominator):
+def test_the_detection_gate_is_the_four_lookback_width_at_the_live_detector(store, denominator):
     """The denominator is built against the width ADR 0003's amendment settled —
-    ``1m``/``3m``/``6m``/``12m``, detector v3 — and the contract cell and the live
-    constant cannot drift apart without this failing."""
+    ``1m``/``3m``/``6m``/``12m`` — and the contract cell and the live constant
+    cannot drift apart without this failing.
+
+    The gate *width* and the detector *version* are independent since ADR 0007:
+    the width has not moved since #149, while the version has, because the
+    detector's own geometry gained the Trend gate. Pinning the version here to a
+    literal would couple two things that move for unrelated reasons, so this
+    asserts the width and leaves the stamp to the anchor rows."""
     assert tuple(DEFAULT_CONTRACT.value(DETECTION_GATE_KEY)) == DETECTION_LOOKBACKS
-    assert DETECTOR_VERSION == 3
+    assert DETECTOR_VERSION >= 3
 
     dates = _seed_denominator_store(store)
     _short_run(store, denominator, dates)
@@ -9709,7 +9715,7 @@ def _coverage_measurement(**overrides) -> Measurement:
                        quantity="reference-coverage", values=values)
 
 
-def _recall(passed: int = 549, total: int = 656) -> StageRecall:
+def _recall(passed: int = 421, total: int = 656) -> StageRecall:
     return StageRecall(stage=STAGE_DETECTION, passed=passed, total=total,
                        passed_ex_continuation=passed, total_ex_continuation=total)
 
@@ -9797,13 +9803,14 @@ def test_every_anchor_is_stamped_with_the_detector_version_it_was_measured_at():
     # unstamped — an empty stamp reads as "not recorded".
     for anchor in GEOMETRY_ANCHORS:
         assert stamps[anchor.key] == "detector-independent (bar geometry)"
-    # Gate-invariant, and measured under both versions' geometry.
-    assert ANCHORS_BY_KEY["detection_recall"].measured_at == (2, 3)
-    assert ANCHORS_BY_KEY["detection_recall"].holds_at(2)
+    # Invariant to the decile gate's *width* — which is why it once held at v2 and
+    # v3 together — but never to the detector's own geometry, which ADR 0007 moved.
+    assert ANCHORS_BY_KEY["detection_recall"].measured_at == (DETECTOR_VERSION,)
+    assert not ANCHORS_BY_KEY["detection_recall"].holds_at(2)
     # Per version, because the quantity is per version.
-    assert ANCHORS_BY_KEY["in_field"].measured_at == (3,)
+    assert ANCHORS_BY_KEY["in_field"].measured_at == (DETECTOR_VERSION,)
     assert not ANCHORS_BY_KEY["in_field"].holds_at(2)
-    assert stamps["in_field"] == "detector v3"
+    assert stamps["in_field"] == f"detector v{DETECTOR_VERSION}"
 
 
 def test_the_in_field_anchor_is_taken_at_the_live_detector_and_flagged_first():
@@ -9817,6 +9824,17 @@ def test_the_in_field_anchor_is_taken_at_the_live_detector_and_flagged_first():
     assert anchor.measured_at == (DETECTOR_VERSION,)
     assert anchor.first_measurement is True
     assert not ANCHORS_BY_KEY["detection_recall"].first_measurement
+
+
+def test_the_recall_anchor_records_what_adr_0007_cost_it():
+    """549 of 656 held at v2 and v3; ADR 0007's Trend gate and two-sided catch-up
+    band moved it to 421, and the old figure is a pin rather than a comment —
+    quoted at a v4 run it would fail for a reason unrelated to the pipeline."""
+    anchor = ANCHORS_BY_KEY["detection_recall"]
+
+    assert anchor.committed == {"passed": 421, "of": 656}
+    assert any("549 of 656" in p.value for p in anchor.superseded)
+    assert all(p.why for p in anchor.superseded)
 
 
 def test_every_superseded_pin_is_recorded_beside_its_live_value():
@@ -9833,6 +9851,8 @@ def test_every_superseded_pin_is_recorded_beside_its_live_value():
     assert all(p.why for p in in_field.superseded)
     # The other two gate-dependent rows have moved too, and carry their own.
     assert any("380 of 658" in p.value
+               for p in ANCHORS_BY_KEY["detection_recall"].superseded)
+    assert any("549 of 656" in p.value
                for p in ANCHORS_BY_KEY["detection_recall"].superseded)
     assert ANCHORS_BY_KEY["coverage_blind_spot"].superseded
 
@@ -9909,7 +9929,7 @@ def test_a_gate_dependent_mismatch_fails_loudly_with_both_figures():
         check_anchors(_all_measurements(recall={"passed": 500}))
 
     assert "detection_recall" in str(excinfo.value)
-    assert "500" in str(excinfo.value) and "549" in str(excinfo.value)
+    assert "500" in str(excinfo.value) and "421" in str(excinfo.value)
 
 
 def test_detection_recall_admits_no_tolerance():
@@ -10364,7 +10384,7 @@ def test_the_command_writes_a_stamped_result_when_every_anchor_is_offered(
     path, reference = _anchor_cli_store(tmp_path)
     field = tmp_path / "field.json"
     field.write_text(json.dumps({
-        "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
+        "detection_recall": {"passed": 421, "of": 656, "stage": "detection"},
         "in_field": {"in_field": 395, "of": 656, "gap_pp": 1.9,
                      "field": "whole", "universe": UNIVERSE_APP, "detector_version": 3},
     }))
@@ -10402,7 +10422,7 @@ def test_the_command_fails_on_a_field_anchor_from_the_wrong_version(tmp_path):
     path, reference = _anchor_cli_store(tmp_path)
     field = tmp_path / "field.json"
     field.write_text(json.dumps({
-        "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
+        "detection_recall": {"passed": 421, "of": 656, "stage": "detection"},
         "in_field": {"in_field": 349, "of": 656, "gap_pp": 2.02,
                      "field": "whole", "universe": UNIVERSE_APP, "detector_version": 2},
     }))
@@ -10462,7 +10482,7 @@ def test_the_command_enforces_the_same_two_gates_its_adapters_do(tmp_path, capsy
 
     truncated = tmp_path / "truncated.json"
     truncated.write_text(json.dumps({
-        "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
+        "detection_recall": {"passed": 421, "of": 656, "stage": "detection"},
         "in_field": {"in_field": 397, "of": 656, "gap_pp": 1.95,
                      "field": "truncated", "universe": UNIVERSE_APP,
                      "detector_version": 3},
@@ -10473,7 +10493,7 @@ def test_the_command_enforces_the_same_two_gates_its_adapters_do(tmp_path, capsy
 
     wrong_stage = tmp_path / "stage.json"
     wrong_stage.write_text(json.dumps({
-        "detection_recall": {"passed": 549, "of": 656, "stage": "liquidity"},
+        "detection_recall": {"passed": 421, "of": 656, "stage": "liquidity"},
         "in_field": {"in_field": 397, "of": 656, "gap_pp": 1.95,
                      "field": "whole", "universe": UNIVERSE_APP,
                      "detector_version": 3},

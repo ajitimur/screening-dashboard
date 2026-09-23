@@ -402,22 +402,35 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
     ),
     Anchor(
         key="detection_recall",
-        label="Detection recall (A1), gate-invariant",
+        label="Detection recall (A1), invariant to the decile gate",
         kind=GATE_DEPENDENT,
         quantity=QUANTITY_DETECTION_RECALL,
-        committed={"passed": 549, "of": 656},
+        committed={"passed": 421, "of": 656},
         tolerance={"passed": 0, "of": 0},
         unit="trades",
-        source="findings §3, §3b",
-        # Gate-invariant: the funnel evaluates every stage unconditionally, so
-        # #149's gate width does not move it. It is stamped at both versions whose
-        # geometry it was measured under, and holds at either.
-        measured_at=(2, 3),
+        source="ADR 0007's pre-ship measurement, over replay.duckdb's bars",
+        # **Invariant to the decile gate, not to the detector.** The funnel
+        # evaluates every stage unconditionally, so #149's gate *width* cannot move
+        # this row — which is why it held at v2 and v3 alike. A change to
+        # :func:`screener.detection.detect`'s own geometry moves it every time, as
+        # v1 → v2 did and as ADR 0007 has now done. The old label read
+        # "gate-invariant" flat, and that is the reading this row has to stop: it
+        # was never invariant to the gates inside the detector.
+        measured_at=(4,),
         note=(
             "whether the detector would have fired on his name at all — never "
-            "whether the name reached that night's field"
+            "whether the name reached that night's field. ADR 0007's Trend gate "
+            "costs 128 of his trades: 132 now fail `trend` first, and the four "
+            "the arithmetic does not account for are trades that used to fail "
+            "`catch_up` and now fail `trend`, which is checked earlier"
         ),
         superseded=(
+            Pin("549 of 656 at detector v2 and v3",
+                "ADR 0007 added the Trend gate (adj_close >= SMA50) and made "
+                "catch-up two-sided on the 20. A fidelity change, not a "
+                "performance one: the ADR accepts the cost explicitly, and the "
+                "reference measured Kullamägi entering below his own SMA50 on "
+                "12.0% of trades at a mean R of +0.88"),
             Pin("380 of 658",
                 "measured under v1's hard 1.5×ADR cluster cut, before #154's "
                 "far-outlier guard, and on the pre-#139 replayable population"),

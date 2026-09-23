@@ -4,6 +4,14 @@ status: accepted
 
 # Which of the trading plan's hard rules the detector enforces
 
+> **Implemented, and the open measurement is closed.** The Consequences below say the
+> population cost "is not yet measured" and make measuring it a condition of shipping. It has
+> since been measured: **31.7%** of the live store's v3 detections drop, the Trend gate
+> accounting for 30.7 points of that and the two-sided band for 1.0 — roughly half what this
+> ADR budgeted for. Detection recall against his 656 replayable entries falls **549 → 421**.
+> Neither number revises the decision; both are recorded in
+> `references/adr-0007-population-cost.md`, which also names the one anchor still unmeasured.
+
 `docs/trading-plan.md` §5.2 lists eight hard rules, every one of which must hold before a
 name can be traded. Three of them are moving-average preconditions (rule 2, above a rising
 SMA50; rule 3, within ±2 ADR of a rising SMA20; rule 4, entry under 1.5 ADR above the

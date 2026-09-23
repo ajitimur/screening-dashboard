@@ -31,7 +31,15 @@ Gates (a name is a detection iff all hold):
   3). A **far-outlier guard**, not a cut on how quiet the base is: since #145/#154
   that is *graded* by the rubric, and only a name genuinely in motion is rejected
   here (ADR 0004).
-- **Catch-up** — price is back at the 10/20 MA (step 2).
+- **Trend** — the adjusted close sits at or above its SMA50 (ADR 0007). The
+  trading plan's §5.2 hard rule 2, minus its ``rising`` clause: slope is what the
+  eye reads off the card in a second, so the screener runs looser than the plan
+  and the chart closes the gap.
+- **Catch-up** — price sits at its 10/20 MA (step 2): a **band** of ±2 ADR around
+  the SMA20 (the plan's hard rule 3, again without ``rising``) and a one-sided
+  ceiling of 1 ADR over the SMA10. Two-sided since ADR 0007 — as a pure ceiling it
+  admitted a name that had fallen through every average, which is why the Setups
+  grid showed broken-down names beside real bases.
 - **Decile** — top decile in **any of 1m/3m/6m/12m**, off the rank table
   (:func:`detection_gate`). Only ``1w`` is excluded: a name top-decile in the last
   week alone is a momentum burst, not §3.1's big prior move. ``12m`` was excluded
@@ -46,11 +54,20 @@ Three parameters from the reference are **deleted and must not be reintroduced**
 (redundant — it catches only 4.4% of what the ADR overshoot test already does),
 and the prior-move ≥25% floor (redundant against the decile gate).
 
-Everything here is pure over a clean, oldest-first ``list[Bar]`` — the detector
-operates on the **unadjusted** OHLC series, because the trigger and stop are real
-order levels a trader places, not adjusted prices. ``adr``/``adr_abs`` (both
-unadjusted-consistent) are reused from :mod:`.indicators`; the catch-up MA is on
-the same unadjusted close, distinct from ``indicators.sma``'s adjusted definition.
+Four of the plan's eight hard rules are deliberately **not** here: rules 5, 6 and 7
+are facts about a session that has not happened when the detector runs, and rule 4
+is a property of the entry, which the plan says in so many words. ADR 0007 sets
+down the rule that decided, and a future proposal should be tested against it
+rather than against this list.
+
+Everything here is pure over a clean, oldest-first ``list[Bar]``. The series split
+follows ``bars.py``'s house rule: the **unadjusted** OHLC carries the base, the
+cluster, the envelope, the trigger and the stop, because those are real order
+levels a trader places; the **adjusted** close carries the Trend gate and the
+catch-up band, because a trend floor and a maturity band are geometry. On an IDX
+bonus issue the two conventions would otherwise disagree about the same name for
+fifty bars. ``adr`` is a ratio and so basis-free; each side multiplies it by its
+own close to reach price units.
 """
 
 from __future__ import annotations
@@ -107,7 +124,39 @@ TIGHT_MULT = 1.5
 # (`docs/out-of-sample-backtest-plan.md`).
 OUTLIER_MULT = 3.0
 
-# Catch-up: price back at the 10/20 MA, in ADR units (spec §4.5 step 2).
+# Trend — the trading plan's §5.2 hard rule 2, "above a rising SMA50", entered as
+# a gate by ADR 0007 **without its `rising` clause**. Slope is the single most
+# legible thing on a chart and every Setups card carries one, so a screener that
+# pre-judges it removes names its user could have triaged in a second (ADR 0007
+# condition 2). The screener runs looser than the plan and the eye closes the gap.
+#
+# Named to match `backtest.universe.passes_trend_gate`, so both paths share a word
+# for one idea. They remain **different classifiers** and ADR 0007 does not merge
+# them: that one is strict (`>`), this one is `>=` because the plan says "above it"
+# and a close sitting exactly on the average is not the complaint that prompted it.
+#
+# This is **fidelity, not performance**, and the distinction is load-bearing. The
+# evidence mildly argues the other way — Kullamägi entered below his own SMA50 on
+# 12.0% of trades, n = 69, mean R +0.88, Spearman +0.048 against R, which is noise
+# (`references/qullamaggie-entry-ma-distance.md`). Those 12% are a master's
+# discretion, and a rule-following trader does not get to replicate discretion.
+# No outcome claim is made by this gate and none may be read into it later.
+TREND_WINDOW = 50
+
+# Catch-up: price sits at its 10/20 MA (spec §4.5 step 2), in ADR units.
+#
+# **Two-sided on the 20 since ADR 0007** — the plan's §5.2 hard rule 3, within
+# ±2 ADR of the SMA20, again without `rising`. It reads as a *band*: the old
+# one-sided ceiling admitted a name however far it had fallen through its own
+# averages, which is why the Setups grid showed broken-down names beside real
+# bases. The 10 stays a **ceiling**. Removing it in favour of a trigger-to-SMA10
+# distance on the card is a *loosening*, goes through ADR 0002 on its own evidence,
+# and is not licensed here — note that CATCHUP_10 = 1.0 is a borrowed q-scanner-v2
+# default fitted to nothing, and the plan's measured line is 1.5.
+#
+# The condition keeps the name ``catch_up`` even though the word now describes a
+# band: it is persisted as a ``failed_condition`` value in the replay funnel, and
+# renaming it would orphan stored rows.
 CATCHUP_10, CATCHUP_20 = 1.0, 2.0
 
 # The envelope: an asymmetric loss over the base's highs, overshoot weighted 3×
@@ -188,7 +237,14 @@ DETECTION_LOOKBACKS = ("1m", "3m", "6m", "12m")
 # change moves the population by 2.6 points of universe. Comparing a v2 session's
 # field size, or any share derived from it, against a v3 session's is the silent
 # error this exists to prevent.
-DETECTOR_VERSION = 3
+# v4 (ADR 0007): the Trend gate entered and catch-up became two-sided on the 20,
+# both read off the **adjusted** close. Every one of those moves the population —
+# a trend floor roughly halves members per session in the backtest's differently-
+# shaped field, and a two-sided band narrows further — so a v3 session's field
+# size, detected-count anchor and every share derived from either is not
+# comparable against a v4 session's. That silent comparison is the whole reason
+# this stamp exists.
+DETECTOR_VERSION = 4
 
 
 @dataclass(frozen=True)
@@ -485,13 +541,76 @@ def _dryup(vol: list[int], base_start: int, as_of: int) -> float:
     return median(vol[base_start:as_of + 1]) / pre_med
 
 
-def _sma_close(close: list[float], as_of: int, window: int) -> float | None:
-    """SMA of the **unadjusted** close over ``window`` traded bars ending at
-    ``as_of``. Distinct from ``indicators.sma`` (adjusted close, for returns):
-    the catch-up MA is a support level in the same price the trigger lives in."""
+def _sma_close(values: list[float], as_of: int, window: int) -> float | None:
+    """SMA over ``window`` traded bars of ``values`` ending at ``as_of``.
+
+    **The caller chooses the basis**, as with ``indicators.sma_series``. Since ADR
+    0007 the two callers here disagree on purpose: the Trend gate and the catch-up
+    band are geometry and read ``adj_close`` (``bars.py``'s house rule — the
+    unadjusted OHLC for order levels, the adjusted close for everything
+    geometric), while ``sma20_rising`` is a rubric input this change deliberately
+    leaves on the unadjusted close. ADR 0004 condition 3 is narrower than that
+    restraint — what it forbids is a dimension's *weight* moving in the same change
+    as its shape — but the reason it gives is the one that applies: two things
+    moving at once leave neither attributable, and ADR 0007 is an argument about a
+    gate. Moving the rubric's basis belongs to whatever change is about the rubric.
+
+    Distinct from ``indicators.sma``, which takes bars and fixes the basis."""
     if as_of + 1 < window:
         return None
-    return sum(close[as_of - window + 1:as_of + 1]) / window
+    return sum(values[as_of - window + 1:as_of + 1]) / window
+
+
+# -- the two MA gates ADR 0007 brought in from the plan's §5.2 ----------------
+#
+# Both live here as named predicates rather than inline in :func:`detect`, because
+# :func:`replay.funnel.diagnose_detection` has to apply the *same* test to
+# attribute a miss to the right gate. That module already reuses this one's
+# helpers and constants for exactly this reason — the geometry under test has to
+# be the app's, not a second copy of it that can drift (PRD user story 31). Two
+# inline copies of a condition is how the two get to disagree quietly.
+#
+# Both read the **adjusted** close and denominate their bounds in the adjusted
+# series' own ADR-in-price. A trend floor and a maturity band are geometry, and
+# ``bars.py``'s house rule sends geometry to ``adj_close``; the trigger and the
+# stop stay unadjusted, which is why they exist. Scaling an adjusted-price
+# distance by the *unadjusted* close's ADR would compare two series' units, which
+# is the disagreement this split exists to prevent — on an IDX bonus issue the two
+# conventions part company for fifty bars. For a name with no corporate action in
+# the window the two bases are identical and the distinction costs nothing.
+
+
+def passes_trend(adj: list[float], as_of: int) -> bool:
+    """The adjusted close sits at or above its SMA50 (ADR 0007, plan §5.2 rule 2).
+
+    ``False`` until 50 traded bars exist, so it doubles as a listing-age floor —
+    the same way :func:`backtest.universe.passes_trend_gate` does. That one is
+    strict (``>``); this one is ``>=`` because the plan says "above it" and a close
+    sitting exactly on the average is not the complaint that prompted the gate.
+    The slope clause is **not** tested; see :data:`TREND_WINDOW`.
+    """
+    s50 = _sma_close(adj, as_of, TREND_WINDOW)
+    return s50 is not None and adj[as_of] >= s50
+
+
+def is_caught_up(adj: list[float], as_of: int, adr: float) -> bool:
+    """Price sits at its 10/20 MA: a band on the 20, a ceiling on the 10.
+
+    Within ``CATCHUP_20 × ADR`` **either side** of the SMA20 (the plan's §5.2 rule
+    3, without its slope clause) and no more than ``CATCHUP_10 × ADR`` *above* the
+    SMA10. ``adr`` is the ratio :func:`screener.indicators.adr` returns; it is
+    multiplied by the adjusted close here, so the bound is in the same series as
+    the distance it bounds.
+    """
+    adr_abs_adj = adr * adj[as_of]
+    s10 = _sma_close(adj, as_of, 10)
+    s20 = _sma_close(adj, as_of, SMA_SUPPORT)
+    if s10 is None or s20 is None:
+        return False
+    return (
+        adj[as_of] - s10 <= CATCHUP_10 * adr_abs_adj
+        and abs(adj[as_of] - s20) <= CATCHUP_20 * adr_abs_adj
+    )
 
 
 def _as_of_index(bars: list[Bar], as_of: date) -> int | None:
@@ -505,9 +624,10 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
     """The base for ``(symbol, as_of)``, or ``None`` if the name is not a setup.
 
     Returns ``None`` when the per-name gates fail: too little history (< 80 bars)
-    or non-positive ADR, no prior move, a base shorter than 3 bars, price not yet
-    caught up to the 10/20, or a trailing 3-bar range past ``OUTLIER_MULT × ADR``
-    — the far-outlier guard, the only base-tightness rejection left. The
+    or non-positive ADR, no prior move, a base shorter than 3 bars, an adjusted
+    close under its SMA50, price outside the 10/20 catch-up band, or a trailing
+    3-bar range past ``OUTLIER_MULT × ADR`` — the far-outlier guard, the only
+    base-tightness rejection left. The
     **decile** gate is not applied here — it is cross-sectional and lives in the
     pipeline; a caller detecting a single name in isolation has already decided it
     is eligible.
@@ -518,6 +638,7 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
     high = [b.high for b in bars]
     low = [b.low for b in bars]
     close = [b.close for b in bars]
+    adj = [b.adj_close for b in bars]
     vol = [b.volume for b in bars]
 
     a = _adr(bars[:idx + 1])
@@ -537,14 +658,9 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
     if base_len < MIN_BASE_LEN:
         return None
 
-    s10 = _sma_close(close, idx, 10)
-    s20 = _sma_close(close, idx, 20)
-    caught_up = (
-        s10 is not None and s20 is not None
-        and close[idx] - s10 <= CATCHUP_10 * adr_abs
-        and close[idx] - s20 <= CATCHUP_20 * adr_abs
-    )
-    if not caught_up:
+    if not passes_trend(adj, idx):
+        return None
+    if not is_caught_up(adj, idx, a):
         return None
 
     cluster = _find_cluster(high, low, idx, adr_abs)

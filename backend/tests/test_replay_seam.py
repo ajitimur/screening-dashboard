@@ -2942,6 +2942,25 @@ def test_the_v1_field_is_the_v2_field_with_the_names_past_the_hard_cut_struck():
     ]
 
 
+def test_the_v4_field_cannot_be_reconstructed_by_striking_rows():
+    """The identity above runs out at ADR 0007. v1→v3 differ only in bounds on
+    quantities the detection row carries, so each earlier field is a filter on a
+    later one. v4's Trend gate tests the adjusted close against its SMA50 and no
+    row carries that distance — so a filter would hand back a v3 population
+    wearing a v4 label, which is the silent comparison the version stamp exists to
+    prevent. It is refused instead."""
+    from replay.discrimination_grid import DETECTORS, under_detector
+
+    assert DETECTORS[DETECTOR_VERSION].reconstructable is False
+    assert all(DETECTORS[v].reconstructable for v in (1, 2, 3))
+
+    with pytest.raises(ValueError) as excinfo:
+        under_detector([_det("AAA", cluster_k=5)], DETECTORS[DETECTOR_VERSION])
+
+    message = str(excinfo.value)
+    assert "v4" in message and "has to be detected" in message
+
+
 def test_a_detector_version_carries_its_own_gate_width_not_the_live_one():
     """The stamp is a claim about the **population**, and #149 moved that population
     by admitting ``12m`` — so a version's lookbacks ride on the version rather than
@@ -3074,6 +3093,8 @@ def test_the_grid_never_mutates_the_live_detector_constants():
 
     before = (detection_module.OUTLIER_MULT, detection_module.DETECTION_LOOKBACKS)
     for spec in DETECTORS.values():
+        if not spec.reconstructable:
+            continue  # refused outright — see the test below
         under_detector([_det("AAA", cluster_k=5)], spec)
     assert (
         detection_module.OUTLIER_MULT,
@@ -4935,12 +4956,18 @@ def test_the_reference_exclusion_is_pinned_against_the_stores_own_enumeration(st
     assert "BASE" not in held
 
 
-def test_the_detection_gate_is_the_four_lookback_width_at_detector_v3(store, denominator):
+def test_the_detection_gate_is_the_four_lookback_width_at_the_live_detector(store, denominator):
     """The denominator is built against the width ADR 0003's amendment settled —
-    ``1m``/``3m``/``6m``/``12m``, detector v3 — and the contract cell and the live
-    constant cannot drift apart without this failing."""
+    ``1m``/``3m``/``6m``/``12m`` — and the contract cell and the live constant
+    cannot drift apart without this failing.
+
+    The gate *width* and the detector *version* are independent since ADR 0007:
+    the width has not moved since #149, while the version has, because the
+    detector's own geometry gained the Trend gate. Pinning the version here to a
+    literal would couple two things that move for unrelated reasons, so this
+    asserts the width and leaves the stamp to the anchor rows."""
     assert tuple(DEFAULT_CONTRACT.value(DETECTION_GATE_KEY)) == DETECTION_LOOKBACKS
-    assert DETECTOR_VERSION == 3
+    assert DETECTOR_VERSION >= 3
 
     dates = _seed_denominator_store(store)
     _short_run(store, denominator, dates)
@@ -9709,20 +9736,23 @@ def _coverage_measurement(**overrides) -> Measurement:
                        quantity="reference-coverage", values=values)
 
 
-def _recall(passed: int = 549, total: int = 656) -> StageRecall:
+def _recall(passed: int = 421, total: int = 656) -> StageRecall:
     return StageRecall(stage=STAGE_DETECTION, passed=passed, total=total,
                        passed_ex_continuation=passed, total_ex_continuation=total)
 
 
 def _cell(
     *,
-    version: int = 3,
-    in_field: int = 397,
-    picks_share: float = 0.1360,
-    field_share: float = 0.1165,
+    version: int = DETECTOR_VERSION,
+    in_field: int = 331,
+    picks_share: float = 0.1571,
+    field_share: float = 0.1429,
     field_source=FIELD_WHOLE,
 ) -> CellMeasurement:
-    """A grid cell whose ≥3.5★ shares land on the pair §4b's v3 row reports.
+    """A grid cell whose ≥3.5★ shares land on the pair the live row reports.
+
+    The pair is ADR 0007's v4 measurement (331 of 656, +1.42pp). Through v3 it was
+    §4b's (397, +1.95pp), which is now the superseded pin on the same anchor.
 
     The shares are built as histograms rather than stored as rates, because
     ``CellMeasurement.edge`` reads them off the distributions and a cell carrying
@@ -9797,26 +9827,40 @@ def test_every_anchor_is_stamped_with_the_detector_version_it_was_measured_at():
     # unstamped — an empty stamp reads as "not recorded".
     for anchor in GEOMETRY_ANCHORS:
         assert stamps[anchor.key] == "detector-independent (bar geometry)"
-    # Gate-invariant, and measured under both versions' geometry.
-    assert ANCHORS_BY_KEY["detection_recall"].measured_at == (2, 3)
-    assert ANCHORS_BY_KEY["detection_recall"].holds_at(2)
+    # Invariant to the decile gate's *width* — which is why it once held at v2 and
+    # v3 together — but never to the detector's own geometry, which ADR 0007 moved.
+    assert ANCHORS_BY_KEY["detection_recall"].measured_at == (DETECTOR_VERSION,)
+    assert not ANCHORS_BY_KEY["detection_recall"].holds_at(2)
     # Per version, because the quantity is per version.
-    assert ANCHORS_BY_KEY["in_field"].measured_at == (3,)
+    assert ANCHORS_BY_KEY["in_field"].measured_at == (DETECTOR_VERSION,)
     assert not ANCHORS_BY_KEY["in_field"].holds_at(2)
-    assert stamps["in_field"] == "detector v3"
+    assert stamps["in_field"] == f"detector v{DETECTOR_VERSION}"
 
 
 def test_the_in_field_anchor_is_taken_at_the_live_detector_and_flagged_first():
-    """397 of 656 at v3 is a first measurement with no second one agreeing with
+    """331 of 656 at v4 is a first measurement with no second one agreeing with
     it, so a mismatch is investigated in both directions rather than charged
-    straight to the new pipeline."""
+    straight to the new pipeline. It supersedes §4b's 397 at v3, which stays on
+    the row as a pin."""
     anchor = ANCHORS_BY_KEY["in_field"]
 
-    assert anchor.committed["in_field"] == 397
+    assert anchor.committed["in_field"] == 331
     assert anchor.committed["of"] == 656
+    assert any("397 of 656" in p.value for p in anchor.superseded)
     assert anchor.measured_at == (DETECTOR_VERSION,)
     assert anchor.first_measurement is True
     assert not ANCHORS_BY_KEY["detection_recall"].first_measurement
+
+
+def test_the_recall_anchor_records_what_adr_0007_cost_it():
+    """549 of 656 held at v2 and v3; ADR 0007's Trend gate and two-sided catch-up
+    band moved it to 421, and the old figure is a pin rather than a comment —
+    quoted at a v4 run it would fail for a reason unrelated to the pipeline."""
+    anchor = ANCHORS_BY_KEY["detection_recall"]
+
+    assert anchor.committed == {"passed": 421, "of": 656}
+    assert any("549 of 656" in p.value for p in anchor.superseded)
+    assert all(p.why for p in anchor.superseded)
 
 
 def test_every_superseded_pin_is_recorded_beside_its_live_value():
@@ -9833,6 +9877,8 @@ def test_every_superseded_pin_is_recorded_beside_its_live_value():
     assert all(p.why for p in in_field.superseded)
     # The other two gate-dependent rows have moved too, and carry their own.
     assert any("380 of 658" in p.value
+               for p in ANCHORS_BY_KEY["detection_recall"].superseded)
+    assert any("549 of 656" in p.value
                for p in ANCHORS_BY_KEY["detection_recall"].superseded)
     assert ANCHORS_BY_KEY["coverage_blind_spot"].superseded
 
@@ -9909,7 +9955,7 @@ def test_a_gate_dependent_mismatch_fails_loudly_with_both_figures():
         check_anchors(_all_measurements(recall={"passed": 500}))
 
     assert "detection_recall" in str(excinfo.value)
-    assert "500" in str(excinfo.value) and "549" in str(excinfo.value)
+    assert "500" in str(excinfo.value) and "421" in str(excinfo.value)
 
 
 def test_detection_recall_admits_no_tolerance():
@@ -9925,7 +9971,7 @@ def test_the_contamination_tolerance_absorbs_a_few_trades_on_the_field_row():
     """A fresh build shifts percentile denominators by ~0.5%, which moves decile
     membership at the margin. That is the fix landing, not a bug."""
     report = check_anchors(
-        _all_measurements(cell={"in_field": 397 - CONTAMINATION_TRADES})
+        _all_measurements(cell={"in_field": 331 - CONTAMINATION_TRADES})
     )
 
     check = next(c for c in report.gate_dependent if c.anchor.key == "in_field")
@@ -10286,10 +10332,10 @@ def test_the_stamp_and_the_pins_ride_on_the_serialised_result():
     body = anchors_report(DEFAULT_CONTRACT, check_anchors(_all_measurements()))
     in_field = next(c for c in body["gate_dependent"] if c["anchor"] == "in_field")
 
-    assert in_field["detector_stamp"] == "detector v3"
+    assert in_field["detector_stamp"] == f"detector v{DETECTOR_VERSION}"
     assert in_field["first_measurement"] is True
     assert "#162" in in_field["tolerance_reason"]
-    assert len(in_field["superseded"]) == 4
+    assert len(in_field["superseded"]) == 5
 
 
 def test_the_printed_report_separates_the_two_kinds_of_anchor():
@@ -10364,9 +10410,10 @@ def test_the_command_writes_a_stamped_result_when_every_anchor_is_offered(
     path, reference = _anchor_cli_store(tmp_path)
     field = tmp_path / "field.json"
     field.write_text(json.dumps({
-        "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
-        "in_field": {"in_field": 395, "of": 656, "gap_pp": 1.9,
-                     "field": "whole", "universe": UNIVERSE_APP, "detector_version": 3},
+        "detection_recall": {"passed": 421, "of": 656, "stage": "detection"},
+        "in_field": {"in_field": 329, "of": 656, "gap_pp": 1.4,
+                     "field": "whole", "universe": UNIVERSE_APP,
+                     "detector_version": DETECTOR_VERSION},
     }))
     out_json = tmp_path / "anchors.json"
 
@@ -10389,7 +10436,7 @@ def test_the_command_writes_a_stamped_result_when_every_anchor_is_offered(
     in_field = next(
         c for c in written["gate_dependent"] if c["anchor"] == "in_field"
     )
-    assert in_field["verdict"] == "match"       # 395 is inside the #162 band
+    assert in_field["verdict"] == "match"       # 329 is inside the #162 band
     assert written["passes"] is True
     geometry = written["geometry"][0]
     assert geometry["verdict"] == "diverged (explained)"
@@ -10402,7 +10449,7 @@ def test_the_command_fails_on_a_field_anchor_from_the_wrong_version(tmp_path):
     path, reference = _anchor_cli_store(tmp_path)
     field = tmp_path / "field.json"
     field.write_text(json.dumps({
-        "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
+        "detection_recall": {"passed": 421, "of": 656, "stage": "detection"},
         "in_field": {"in_field": 349, "of": 656, "gap_pp": 2.02,
                      "field": "whole", "universe": UNIVERSE_APP, "detector_version": 2},
     }))
@@ -10462,7 +10509,7 @@ def test_the_command_enforces_the_same_two_gates_its_adapters_do(tmp_path, capsy
 
     truncated = tmp_path / "truncated.json"
     truncated.write_text(json.dumps({
-        "detection_recall": {"passed": 549, "of": 656, "stage": "detection"},
+        "detection_recall": {"passed": 421, "of": 656, "stage": "detection"},
         "in_field": {"in_field": 397, "of": 656, "gap_pp": 1.95,
                      "field": "truncated", "universe": UNIVERSE_APP,
                      "detector_version": 3},
@@ -10473,7 +10520,7 @@ def test_the_command_enforces_the_same_two_gates_its_adapters_do(tmp_path, capsy
 
     wrong_stage = tmp_path / "stage.json"
     wrong_stage.write_text(json.dumps({
-        "detection_recall": {"passed": 549, "of": 656, "stage": "liquidity"},
+        "detection_recall": {"passed": 421, "of": 656, "stage": "liquidity"},
         "in_field": {"in_field": 397, "of": 656, "gap_pp": 1.95,
                      "field": "whole", "universe": UNIVERSE_APP,
                      "detector_version": 3},
@@ -10527,11 +10574,12 @@ def test_the_arms_never_anchored_are_derived_once():
 def _stateless_cell(**overrides) -> CellMeasurement:
     """A grid cell landing on the pair the contract's own universe measured.
 
-    ``in_field`` 165 of 503, and shares whose difference is §4b's gap with the
-    sign #211 attributed to the ADR floor and the trend gate together.
+    ``in_field`` 164 of 503, and shares whose difference is §4b's gap with the
+    sign #211 attributed to the ADR floor and the trend gate together — a sign
+    ADR 0007 left alone, because this universe already gated on the SMA50.
     """
     return _cell(**{
-        "in_field": 165, "picks_share": 0.1335, "field_share": 0.1836,
+        "in_field": 164, "picks_share": 0.1354, "field_share": 0.1971,
         **overrides,
     })
 
@@ -10556,19 +10604,25 @@ def _stateless_measurements(**overrides) -> list[Measurement]:
 
 
 def test_the_table_scopes_in_field_to_the_universe_it_was_measured_over():
-    """§4b's +1.95pp and the run's own −5.01pp are one quantity over two different
-    universes, and #211 measured that the pair is what the number is a property
-    of. Two anchors, each naming its universe, is that finding as data: a run is
-    checked against the pin measured over the universe it actually ran."""
+    """The app row's positive gap and the stateless row's −5.01pp are one quantity
+    over two different universes, and #211 measured that the pair is what the
+    number is a property of. Two anchors, each naming its universe, is that
+    finding as data: a run is checked against the pin measured over the universe
+    it actually ran.
+
+    ADR 0007 moved both rows and changed neither sign — the app's gap narrowed
+    +1.95 → +1.42, the stateless row lost one trade of 165."""
     app = ANCHORS_BY_KEY["in_field"]
     stateless = ANCHORS_BY_KEY["in_field_stateless"]
 
     assert app.universe == UNIVERSE_APP
     assert stateless.universe == UNIVERSE_STATELESS
     assert app.quantity == stateless.quantity == QUANTITY_IN_FIELD
-    assert app.committed["gap_pp"] == 1.95
-    assert stateless.committed["in_field"] == 165
+    assert app.committed["gap_pp"] == 1.42
+    assert stateless.committed["in_field"] == 164
     assert stateless.committed["of"] == 503
+    # the signs are what the pair is about, and they survived the narrowing
+    assert app.committed["gap_pp"] > 0 > stateless.committed["gap_pp"]
 
 
 def test_the_geometry_anchors_hold_over_either_universe():

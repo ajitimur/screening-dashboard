@@ -190,6 +190,37 @@ that licenses it, and the sense in which ADR 0002 does not, is
 _Avoid_: tightness gate; `TIGHT_MULT`, which no longer gates. (`cluster` stays the name of the
 detector's condition and of the funnel's `failed_condition` value — it is persisted.)
 
+**Catch-up**:
+The detector's condition that price sits at its own 10/20 MA. Since ADR 0007 it is a **band
+on the 20** — `abs(adj_close − SMA20) ≤ 2.0 × ADR`, the trading plan's §5.2 hard rule 3 — and
+a one-sided **ceiling on the 10**, `adj_close − SMA10 ≤ 1.0 × ADR`. Read the word as a band,
+not a ceiling: through v3 it tested only how far price had run *above* the averages, so a
+name that had fallen through every one of them passed it trivially, which is why the Setups
+grid showed broken-down names beside real bases.
+
+Two things the name does not tell you. It carries **no slope clause** — the plan says a
+*rising* SMA20 and the detector does not test it, because slope is what the eye reads off the
+card in a second (ADR 0007 condition 2). And it is **not renameable**: `catch_up` is persisted
+as a `failed_condition` value on stored funnel rows, so the word outlived the shape it
+described. A pre-v4 row tagged `catch_up` means "too far above"; a v4 row may mean either side.
+_Avoid_: MA proximity, `MA_PROX_ADR` (deleted, never read), "the 20-day has caught up" as a
+description of the *gate* — that phrase is the plan's, and the plan's version has the slope.
+
+**Trend gate**:
+The detector's fourth gate since ADR 0007: `adj_close ≥ SMA50`, the plan's §5.2 hard rule 2
+minus its `rising` clause. It shares a word, deliberately, with
+`backtest.universe.passes_trend_gate` — one idea, two paths — but the two are **different
+classifiers** and ADR 0007 does not merge them: the backtest's is strict (`>`) and sits in a
+universe that also has an ADR floor and an ADTV floor the app has neither of.
+
+Argued as **fidelity, not performance**, and the evidence mildly argues the other way:
+Kullamägi entered below his own SMA50 on 12.0% of trades, n = 69, mean R +0.88, Spearman
++0.048 against R (`references/qullamaggie-entry-ma-distance.md`). Those 12% are read as a
+master's discretion, which a rule-following trader does not get to replicate. No outcome claim
+is made by it and none may be read into it later.
+_Avoid_: trend filter, "the 50-day gate" as a synonym for the universe's — the universe has no
+such gate, and putting one there would re-rank the whole market as a side effect.
+
 **Base tightness**:
 How quiet the stock was *before* the break — the span of a trailing 3–7 bar window in ADR.
 Setup geometry: it is what the **far-outlier guard** tests and what the rubric's ×2
@@ -230,8 +261,11 @@ are independently tunable and independently evidenced.
 _Avoid_: risk_adr, tight stop, cluster-low stop, risk.
 
 **Detection**:
-A name with a valid base, a cluster inside the **far-outlier guard**, and MA catch-up, inside
-the detection gate, on a session. A dated row.
+A name with a valid base, a cluster inside the **far-outlier guard**, above its SMA50
+(**trend gate**) and inside the **catch-up** band, inside the detection gate, on a session. A
+dated row. The last two entered at `DETECTOR_VERSION` 4 (ADR 0007), so a v4 session's field is
+drawn from a narrower population than a v3 session's and no share derived from one is
+comparable against the other.
 
 **Break**:
 An event, not a state: today's close above yesterday's trigger. Equivalently, today's

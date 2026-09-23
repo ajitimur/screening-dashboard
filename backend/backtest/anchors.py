@@ -402,22 +402,35 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
     ),
     Anchor(
         key="detection_recall",
-        label="Detection recall (A1), gate-invariant",
+        label="Detection recall (A1), invariant to the decile gate",
         kind=GATE_DEPENDENT,
         quantity=QUANTITY_DETECTION_RECALL,
-        committed={"passed": 549, "of": 656},
+        committed={"passed": 421, "of": 656},
         tolerance={"passed": 0, "of": 0},
         unit="trades",
-        source="findings §3, §3b",
-        # Gate-invariant: the funnel evaluates every stage unconditionally, so
-        # #149's gate width does not move it. It is stamped at both versions whose
-        # geometry it was measured under, and holds at either.
-        measured_at=(2, 3),
+        source="ADR 0007's pre-ship measurement, over replay.duckdb's bars",
+        # **Invariant to the decile gate, not to the detector.** The funnel
+        # evaluates every stage unconditionally, so #149's gate *width* cannot move
+        # this row — which is why it held at v2 and v3 alike. A change to
+        # :func:`screener.detection.detect`'s own geometry moves it every time, as
+        # v1 → v2 did and as ADR 0007 has now done. The old label read
+        # "gate-invariant" flat, and that is the reading this row has to stop: it
+        # was never invariant to the gates inside the detector.
+        measured_at=(4,),
         note=(
             "whether the detector would have fired on his name at all — never "
-            "whether the name reached that night's field"
+            "whether the name reached that night's field. ADR 0007's Trend gate "
+            "costs 128 of his trades: 132 now fail `trend` first, and the four "
+            "the arithmetic does not account for are trades that used to fail "
+            "`catch_up` and now fail `trend`, which is checked earlier"
         ),
         superseded=(
+            Pin("549 of 656 at detector v2 and v3",
+                "ADR 0007 added the Trend gate (adj_close >= SMA50) and made "
+                "catch-up two-sided on the 20. A fidelity change, not a "
+                "performance one: the ADR accepts the cost explicitly, and the "
+                "reference measured Kullamägi entering below his own SMA50 on "
+                "12.0% of trades at a mean R of +0.88"),
             Pin("380 of 658",
                 "measured under v1's hard 1.5×ADR cluster cut, before #154's "
                 "far-outlier guard, and on the pre-#139 replayable population"),
@@ -435,15 +448,18 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
         universe=UNIVERSE_APP,
         # The gap rides on the same anchor as the count, because the count's
         # tolerance is only defensible while the gap's sign holds.
-        committed={"in_field": 397, "of": 656, "gap_pp": 1.95},
+        committed={"in_field": 331, "of": 656, "gap_pp": 1.42},
         tolerance={
             "in_field": CONTAMINATION_TRADES,
             "of": 0,
             "gap_pp": FREE,
         },
         unit="trades",
-        source="findings §4b",
-        measured_at=(3,),
+        source=(
+            "ADR 0007's pre-ship measurement, a full replay.study run; §4b for "
+            "the v3 figure it supersedes"
+        ),
+        measured_at=(4,),
         first_measurement=True,
         tolerance_reason=(
             "#162: both committed in_field values were measured on a store that "
@@ -456,9 +472,21 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
         note=(
             "a first measurement with no second one agreeing with it, so a "
             "mismatch is investigated in both directions rather than charged "
-            "straight to the new pipeline"
+            "straight to the new pipeline. **The run that measured it was "
+            "calibrated first**: the same pipeline over the same store at v3 "
+            "returns 396 of 656 against §4b's 397, and a gap of +1.97 against "
+            "+1.95 — one trade and two hundredths, which is the fresh-build "
+            "denominator shift the tolerance below exists for. So the v3 → v4 "
+            "move from 397 to 331 is ADR 0007's gates, not the instrument"
         ),
         superseded=(
+            Pin("397 of 656 (+1.95pp) at detector v3",
+                "ADR 0007's Trend gate and two-sided catch-up band. 66 of his "
+                "trades stop reaching the field; the gap keeps its sign and "
+                "loses about a quarter of its magnitude, which is the "
+                "`MA support` collapse the ADR predicted arriving in the figure "
+                "it was predicted to arrive in "
+                "(references/adr-0007-population-cost.md)"),
             Pin("349 of 656 at detector v2",
                 "the live gate has moved v2 → v3; the v2 → v3 widening admits 48 "
                 "more of his trades without any of them changing. Measured on the "
@@ -480,7 +508,7 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
         kind=GATE_DEPENDENT,
         quantity=QUANTITY_IN_FIELD,
         universe=UNIVERSE_STATELESS,
-        committed={"in_field": 165, "of": 503, "gap_pp": -5.01},
+        committed={"in_field": 164, "of": 503, "gap_pp": -6.17},
         tolerance={
             # Zero on both counts, and deliberately not the app row's
             # contamination band: that band exists because both committed values
@@ -492,8 +520,11 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
             "gap_pp": FREE,
         },
         unit="trades",
-        source="#198's full run, attributed by #211",
-        measured_at=(3,),
+        source=(
+            "#198's full run, attributed by #211; carried to v4 by ADR 0007's "
+            "pre-ship measurement"
+        ),
+        measured_at=(4,),
         first_measurement=True,
         sign_checked=("gap_pp",),
         note=(
@@ -503,7 +534,21 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
             "floor and the trend gate acting together, each of which duplicates a "
             "rubric dimension and lifts the field's hit rate on it until no "
             "spread is left. Neither gate alone restores the sign and no constant "
-            "was moved (references/backtest_gate_isolation.md)"
+            "was moved (references/backtest_gate_isolation.md). "
+            "**ADR 0007 barely touched this row, and the reason is the same one.** "
+            "This universe already gates on `adj_close > sma50`, so the detector's "
+            "new Trend floor is very nearly redundant inside it: the field on his "
+            "evaluation sessions lost 3.6% (8,180 -> 7,889) against 31.7% over the "
+            "app's field, and one trade of his 165 — APT at 2020-05-05, to the "
+            "two-sided catch-up band. "
+            "**`gap_pp` is this row's weakest number and should be read as a sign, "
+            "not a magnitude.** Both components are v4, so the row does not quote "
+            "across versions — but the gap comes from a reconstruction over the "
+            "persisted field rather than from a full run, and that reconstruction "
+            "reads -5.61 where #198 read -5.01. Its magnitude is therefore "
+            "calibrated to about half a point, which is why this row has never "
+            "checked it: only the sign is checked, and the sign is what was "
+            "re-established at v4 (references/adr-0007-population-cost.md)"
         ),
         tolerance_reason=(
             "a first measurement anchoring against the run that produced it, so "
@@ -512,6 +557,14 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
             "it instead: §4b's own 397/656 (+1.95pp) reproduced exactly, and the "
             "same 503 names held fixed giving 324/503 (+1.86pp) — the pin is "
             "sound and the sign belongs to the pair of universes, not to a bug"
+        ),
+        superseded=(
+            Pin("165 of 503 (-5.01pp) at detector v3",
+                "ADR 0007's Trend gate and two-sided catch-up band. The count "
+                "moved by one because this universe's own trend gate already did "
+                "almost all of the new gate's work. The gap is quoted from the "
+                "same reconstruction as the live value, never against #198's "
+                "-5.01 directly — the two are different instruments"),
         ),
     ),
 )

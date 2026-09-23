@@ -17,6 +17,7 @@ Everything here is pure over an oldest-first ``list[Bar]`` — no store, no netw
 import random
 from datetime import date, timedelta
 
+from replay.funnel import COND_CATCH_UP, COND_TREND, diagnose_detection
 from screener.bars import Bar
 from screener.detection import (
     DETECTION_LOOKBACKS,
@@ -367,3 +368,104 @@ def test_detection_gate_takes_an_injected_lookback_set():
     # gate ran at before #149 moved it.
     assert detection_gate(rows, lookbacks=("1m", "3m", "6m")) == {"REAL"}
     assert DETECTION_LOOKBACKS == ("1m", "3m", "6m", "12m")
+
+
+# -- the Trend gate and the two-sided catch-up band (ADR 0007) -----------------
+#
+# The trading plan's §5.2 hard rules 2 and 3 entered the detector as gates, without
+# their `rising` clauses (ADR 0007 condition 2 — slope is the single most legible
+# thing on a chart, and the card carries one). Both read the **adjusted** series:
+# a trend floor and a maturity band are geometry, and `bars.py`'s house rule sends
+# geometry to `adj_close`. The trigger and the stop stay unadjusted, which is why
+# they exist.
+
+
+def _below_sma50_series():
+    """A base that sits *under* its SMA50: a long high plateau, then a step down
+    to a flat consolidation low enough that the 50-bar average stays above it.
+
+    Every trailing window sits inside the far-outlier guard and price is at its
+    own 10/20, so this name clears every other gate — the Trend gate is the only
+    thing that can reject it.
+    """
+    hlc = [(120.5, 119.5, 120.0)] * 85    # the plateau the SMA50 still remembers
+    hlc += [(100.5, 99.5, 100.0)] * 20    # the base, 20 points under it
+    return hlc
+
+
+def test_a_name_below_its_sma50_is_not_a_detection():
+    # Hard rule 2: above the SMA50. The gap ADR 0007 closes — a name that has
+    # fallen through every average used to pass `catch_up` trivially, because that
+    # condition was a one-sided *ceiling*.
+    bars = _bars(_below_sma50_series())
+    assert detect("AAA", bars, CAL[104]) is None
+    # every other gate passes — the Trend floor is what rejects it
+    assert diagnose_detection(bars, CAL[104]) == COND_TREND
+
+
+def test_a_name_above_its_sma50_is_still_a_detection():
+    # The same shape with the step *up*: the Trend gate is a floor, not a band, so
+    # a name trading above its 50 is untouched by it.
+    d = detect("AAA", _bars(_base_series()), CAL[104])
+    assert d is not None
+
+
+def _broken_down_series():
+    """A name above its SMA50 but *below* the SMA20 band: a run-up, a short top,
+    then a slow bleed. The 50-bar average still sits down in the run-up, so the
+    Trend gate passes; only the two-sided band can reject it.
+
+    The bleed is gentle enough (0.4/bar against a 1.0-wide daily range) that every
+    trailing window stays inside the far-outlier guard — the rejection is the
+    catch-up band's, not the cluster's.
+    """
+    hlc = [(50.5, 49.5, 50.0)] * 60
+    for i in range(1, 16):                       # run-up 50 -> 99
+        p = 50.0 + (99.0 - 50.0) * i / 15
+        hlc.append((p + 0.5, p - 0.5, p))
+    hlc += [(100.5, 99.5, 100.0)] * 15           # a short top
+    for i in range(1, 16):                       # the bleed, 0.4 a bar
+        p = 100.0 - 0.4 * i
+        hlc.append((p + 0.5, p - 0.5, p))
+    return hlc
+
+
+def test_catch_up_is_two_sided_on_the_20():
+    # Hard rule 3: within ±2 ADR of the SMA20. The condition keeps the name
+    # `catch_up` — it is persisted as a `failed_condition` value and renaming it
+    # would orphan stored rows — but it now describes a band, not a ceiling. A
+    # name that has broken *down* through its 20 by more than the band fails it,
+    # where the old one-sided ceiling admitted it however far it had fallen.
+    bars = _bars(_broken_down_series())
+    assert detect("AAA", bars, CAL[104]) is None
+    # and it is the band that rejects it, not the guard or the trend floor
+    assert diagnose_detection(bars, CAL[104]) == COND_CATCH_UP
+
+
+def test_the_sma10_ceiling_still_rejects_an_extended_name():
+    # The upper side is unchanged. Removing the SMA10 ceiling is a *loosening* and
+    # goes through ADR 0002 on its own evidence; ADR 0007 does not license it.
+    hlc = [(100.5, 99.5, 100.0)] * 100
+    hlc += [(h, h - 1, h) for h in (110.0, 120.0, 130.0)]
+    assert detect("AAA", _bars(hlc), CAL[102]) is None
+
+
+def test_the_gates_read_the_adjusted_close_not_the_raw_one():
+    # `bars.py`'s house rule: the unadjusted OHLC for order levels, the adjusted
+    # close for everything geometric. On a split the two series disagree for fifty
+    # bars, and a trend floor read off the raw close would reject a name that never
+    # moved. Here the raw close sits far below the raw SMA50 while the adjusted
+    # series is flat — the detection survives, and its trigger stays *unadjusted*.
+    raw = [(100.5, 99.5, 100.0)] * 105
+    bars = [
+        Bar(CAL[i], c, h, lo, c, 100.0, 1000)
+        for i, (h, lo, c) in enumerate(raw)
+    ]
+    # a 1:2 split 30 bars back: the raw series halves, the adjusted one does not
+    bars = bars[:75] + [
+        Bar(b.session, b.open / 2, b.high / 2, b.low / 2, b.close / 2, b.adj_close, b.volume)
+        for b in bars[75:]
+    ]
+    d = detect("AAA", bars, CAL[104])
+    assert d is not None
+    assert d.trigger == 50.25     # the cluster high, on the *unadjusted* series

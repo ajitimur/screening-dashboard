@@ -60,8 +60,6 @@ from typing import TYPE_CHECKING, Callable, Iterable, Sequence
 
 from screener.bars import Bar
 from screener.detection import (
-    CATCHUP_10,
-    CATCHUP_20,
     MAX_BASE_LEN,
     MIN_BASE_LEN,
     MIN_HISTORY,
@@ -69,7 +67,8 @@ from screener.detection import (
     _as_of_index,
     _find_cluster,
     _prior_move,
-    _sma_close,
+    is_caught_up,
+    passes_trend,
     range_3bar_adr,
     detect,
     detection_gate,
@@ -105,7 +104,12 @@ COND_HISTORY = "history"          # < MIN_HISTORY bars before the eval session
 COND_ADR = "adr"                  # non-positive ADR
 COND_PRIOR_MOVE = "prior_move"    # no qualifying low->high prior move
 COND_BASE_LENGTH = "base_length"  # base shorter than MIN_BASE_LEN
-COND_CATCH_UP = "catch_up"        # price not back at the 10/20 MA
+COND_TREND = "trend"              # adjusted close under its SMA50 (ADR 0007)
+# ``catch_up`` keeps its name although ADR 0007 turned it from a ceiling into a
+# band: the string is persisted on stored funnel rows, and renaming it would
+# orphan every one of them. A pre-ADR-0007 row tagged ``catch_up`` means "too far
+# *above* the 10/20"; a row written since may also mean "too far below the 20".
+COND_CATCH_UP = "catch_up"        # price outside the 10/20 catch-up band
 COND_CLUSTER = "cluster"          # 3-bar range past the far-outlier guard
 
 # A `cluster` miss whose trailing 3-bar range sits within this multiple of ADR is
@@ -412,15 +416,15 @@ def diagnose_detection(bars: list[Bar], as_of: date) -> str | None:
     if idx - base_start + 1 < MIN_BASE_LEN:
         return COND_BASE_LENGTH
 
-    s10 = _sma_close(close, idx, 10)
-    s20 = _sma_close(close, idx, 20)
-    caught_up = (
-        s10 is not None
-        and s20 is not None
-        and close[idx] - s10 <= CATCHUP_10 * adr_abs
-        and close[idx] - s20 <= CATCHUP_20 * adr_abs
-    )
-    if not caught_up:
+    # The two MA gates are the detector's own predicates, called rather than
+    # restated (ADR 0007). They carry the adjusted basis and the ADR denomination
+    # with them, so this walk cannot drift from what :func:`detect` actually does —
+    # which is the whole point of reusing its helpers rather than reimplementing
+    # its geometry.
+    adj = [b.adj_close for b in bars]
+    if not passes_trend(adj, idx):
+        return COND_TREND
+    if not is_caught_up(adj, idx, a):
         return COND_CATCH_UP
 
     if _find_cluster(high, low, idx, adr_abs) is None:

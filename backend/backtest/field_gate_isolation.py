@@ -169,8 +169,15 @@ WINDOW_BURN_IN = 126
 # IDX-only Rp 100 price trim never applies.
 ISOLATION_MARKET = "US"
 
-# The cell the anchor is quoted at: the live detector over the whole field
+# The cell the anchor is quoted at: detector v3 over the whole field
 # (``backtest_field_anchors.json``, ``detector_version: 3``, ``field: "whole"``).
+#
+# **A pin to that artifact, not a reference to the live detector.** It read as the
+# live one until ADR 0007 moved the stamp to v4, and it does not follow: this
+# isolation reproduces a measurement taken at v3, so quoting it at v4 would
+# compare a v3 figure against a field drawn from a narrower population. Moving it
+# means re-measuring `backtest_field_anchors.json`, which a v4 cell cannot be
+# filtered into (`discrimination_grid.under_detector` refuses).
 ANCHOR_DETECTOR = 3
 ANCHOR_FIELD = "whole"
 

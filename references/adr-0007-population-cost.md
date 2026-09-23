@@ -116,11 +116,46 @@ gate as fidelity to the plan and said in terms that "if a future study shows the
 expectancy, that is not a surprise this ADR failed to anticipate; it is a price this ADR
 knowingly accepted." This file is the size of that price, not a re-argument of it.
 
-## What is still not measured
+## The stateless universe barely notices, and the reason is structural
 
-`in_field_stateless` — field membership counted over the backtest contract's stateless
-universe (165 of 503 at v3, from #198's full run) — is **not** re-measured here. It needs a
-reproduction of the full backtest run over `data/backtest.duckdb` and its denominator, which
-is a separate exercise from the one the ADR made a precondition. Until it is run, no figure
-from a v4 backtest run over that universe is anchored on field membership, which is the
-anchor table refusing rather than failing.
+`in_field_stateless` counts the same quantity over the backtest contract's stateless universe:
+**165 of 503 at v3**, from #198's full run. Re-measuring it does not need that run reproduced,
+because of a property of this change: **ADR 0007 moves `detect` and nothing else.** The ADR
+explicitly declined to put the SMA50 test in the universe — a trend condition there would
+re-rank the whole market as a side effect — so the universe, the ranks and the decile gate are
+all invariant under it, and field membership is *monotone*: the v4 field is exactly the v3
+field minus the members that stop detecting.
+
+So `in_field(v4) = in_field(v3) − {trades whose ticker stops detecting}`, computable off the
+persisted field with one `detect` call per name. Validated the same way as the recall
+instrument: replayed at v3 it returns **165 of 503**, the committed figure exactly.
+
+| | v3 | v4 |
+| --- | ---: | ---: |
+| his trades in field | 165 / 503 | **164 / 503** |
+| the field on his evaluation sessions | 8,180 | 7,889 (**−3.6%**) |
+
+**A 3.6% field loss here against 31.7% over the app's field**, and one trade of his 165 — APT
+at 2020-05-05, to the catch-up band, not to the Trend gate. The reason is that this universe
+**already gates on `adj_close > sma50`** (`backend/backtest/universe.py:107`). The detector's
+new floor is very nearly redundant inside it, so the gate that costs the app a third of its
+field costs this one nothing. That is worth holding onto: the two paths now agree about the
+SMA50 for the first time, and the agreement is why this row hardly moved.
+
+`gap_pp`'s sign was re-established rather than assumed. A reconstruction of §4b's gap over the
+same field — stars re-totalled under `PUBLISHED_RUBRIC` from the denominator's stored hit
+booleans — gives **−5.61 at v3 and −6.17 at v4**. It does not reproduce #198's committed −5.01
+exactly and is not offered as a second measurement of the magnitude; the anchor does not check
+the magnitude (`gap_pp`'s tolerance is `FREE`) and checks only the sign, which holds, and moves
+slightly further from zero in the direction the ADR's own `MA support` reasoning predicts.
+
+## What the grid cannot do, and now says so
+
+`replay.discrimination_grid.under_detector` reconstructs an older detector's population by
+*striking rows* out of a richer pass. That rests on every v1→v3 difference being a bound on a
+quantity the detection row already carries. **It runs out at v4**: the Trend gate tests the
+adjusted close against its SMA50 and no row carries that distance, so filtering would return a
+v3 population wearing a v4 label — precisely the silent comparison `DETECTOR_VERSION` exists to
+prevent. `DetectorSpec` now carries `reconstructable`, and asking for a v4 field by filtering
+raises rather than answering. A v4 cell in the grid has to be *detected*, and building one is
+its own change.

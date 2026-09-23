@@ -493,7 +493,7 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
         kind=GATE_DEPENDENT,
         quantity=QUANTITY_IN_FIELD,
         universe=UNIVERSE_STATELESS,
-        committed={"in_field": 165, "of": 503, "gap_pp": -5.01},
+        committed={"in_field": 164, "of": 503, "gap_pp": -5.01},
         tolerance={
             # Zero on both counts, and deliberately not the app row's
             # contamination band: that band exists because both committed values
@@ -505,8 +505,11 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
             "gap_pp": FREE,
         },
         unit="trades",
-        source="#198's full run, attributed by #211",
-        measured_at=(3,),
+        source=(
+            "#198's full run, attributed by #211; carried to v4 by ADR 0007's "
+            "pre-ship measurement"
+        ),
+        measured_at=(4,),
         first_measurement=True,
         sign_checked=("gap_pp",),
         note=(
@@ -516,7 +519,16 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
             "floor and the trend gate acting together, each of which duplicates a "
             "rubric dimension and lifts the field's hit rate on it until no "
             "spread is left. Neither gate alone restores the sign and no constant "
-            "was moved (references/backtest_gate_isolation.md)"
+            "was moved (references/backtest_gate_isolation.md). "
+            "**ADR 0007 barely touched this row, and the reason is the same one.** "
+            "This universe already gates on `adj_close > sma50`, so the detector's "
+            "new Trend floor is very nearly redundant inside it: the field on his "
+            "evaluation sessions lost 3.6% (8,180 -> 7,889) against 31.7% over the "
+            "app's field, and one trade of his 165 — APT at 2020-05-05, to the "
+            "two-sided catch-up band. `gap_pp` keeps #198's magnitude because this "
+            "row has never checked it; only its sign is checked, and the sign was "
+            "re-established at v4 rather than assumed "
+            "(references/adr-0007-population-cost.md)"
         ),
         tolerance_reason=(
             "a first measurement anchoring against the run that produced it, so "
@@ -525,6 +537,12 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
             "it instead: §4b's own 397/656 (+1.95pp) reproduced exactly, and the "
             "same 503 names held fixed giving 324/503 (+1.86pp) — the pin is "
             "sound and the sign belongs to the pair of universes, not to a bug"
+        ),
+        superseded=(
+            Pin("165 of 503 at detector v3",
+                "ADR 0007's Trend gate and two-sided catch-up band. The count "
+                "moved by one because this universe's own trend gate already did "
+                "almost all of the new gate's work"),
         ),
     ),
 )

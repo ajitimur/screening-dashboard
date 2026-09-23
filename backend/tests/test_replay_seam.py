@@ -2942,6 +2942,25 @@ def test_the_v1_field_is_the_v2_field_with_the_names_past_the_hard_cut_struck():
     ]
 
 
+def test_the_v4_field_cannot_be_reconstructed_by_striking_rows():
+    """The identity above runs out at ADR 0007. v1→v3 differ only in bounds on
+    quantities the detection row carries, so each earlier field is a filter on a
+    later one. v4's Trend gate tests the adjusted close against its SMA50 and no
+    row carries that distance — so a filter would hand back a v3 population
+    wearing a v4 label, which is the silent comparison the version stamp exists to
+    prevent. It is refused instead."""
+    from replay.discrimination_grid import DETECTORS, under_detector
+
+    assert DETECTORS[DETECTOR_VERSION].reconstructable is False
+    assert all(DETECTORS[v].reconstructable for v in (1, 2, 3))
+
+    with pytest.raises(ValueError) as excinfo:
+        under_detector([_det("AAA", cluster_k=5)], DETECTORS[DETECTOR_VERSION])
+
+    message = str(excinfo.value)
+    assert "v4" in message and "has to be detected" in message
+
+
 def test_a_detector_version_carries_its_own_gate_width_not_the_live_one():
     """The stamp is a claim about the **population**, and #149 moved that population
     by admitting ``12m`` — so a version's lookbacks ride on the version rather than
@@ -3074,6 +3093,8 @@ def test_the_grid_never_mutates_the_live_detector_constants():
 
     before = (detection_module.OUTLIER_MULT, detection_module.DETECTION_LOOKBACKS)
     for spec in DETECTORS.values():
+        if not spec.reconstructable:
+            continue  # refused outright — see the test below
         under_detector([_det("AAA", cluster_k=5)], spec)
     assert (
         detection_module.OUTLIER_MULT,
@@ -9722,7 +9743,7 @@ def _recall(passed: int = 421, total: int = 656) -> StageRecall:
 
 def _cell(
     *,
-    version: int = 3,
+    version: int = DETECTOR_VERSION,
     in_field: int = 397,
     picks_share: float = 0.1360,
     field_share: float = 0.1165,
@@ -10547,11 +10568,12 @@ def test_the_arms_never_anchored_are_derived_once():
 def _stateless_cell(**overrides) -> CellMeasurement:
     """A grid cell landing on the pair the contract's own universe measured.
 
-    ``in_field`` 165 of 503, and shares whose difference is §4b's gap with the
-    sign #211 attributed to the ADR floor and the trend gate together.
+    ``in_field`` 164 of 503, and shares whose difference is §4b's gap with the
+    sign #211 attributed to the ADR floor and the trend gate together — a sign
+    ADR 0007 left alone, because this universe already gated on the SMA50.
     """
     return _cell(**{
-        "in_field": 165, "picks_share": 0.1335, "field_share": 0.1836,
+        "in_field": 164, "picks_share": 0.1335, "field_share": 0.1836,
         **overrides,
     })
 

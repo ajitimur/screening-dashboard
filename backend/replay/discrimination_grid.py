@@ -157,12 +157,22 @@ class DetectorSpec:
     a later ticket moves either one — the reproducibility discipline
     :data:`replay.gate_sweep.GATE_AS_MEASURED` sets down. ``note`` is the ticket
     that set the version, carried onto the report so no cell is quoted without it.
+
+    ``reconstructable`` is whether :func:`under_detector` can build this version's
+    population by *striking rows* out of a richer pass. It holds for v1–v3 because
+    every difference between them is a bound on a quantity the detection row
+    already carries. It does **not** hold for v4: ADR 0007's Trend gate tests the
+    adjusted close against its SMA50, and no detection row carries that distance,
+    so there is nothing to filter on. A v4 population has to be *detected*, not
+    reconstructed, and the flag exists so asking for it fails loudly instead of
+    silently handing back a v3 field wearing a v4 label.
     """
 
     version: int
     cluster_cut: float
     lookbacks: tuple[str, ...]
     note: str
+    reconstructable: bool = True
 
 
 # The three stamped populations, keyed by their :data:`~screener.detection.DETECTOR_VERSION`.
@@ -186,6 +196,15 @@ DETECTORS: Mapping[int, DetectorSpec] = {
         cluster_cut=3.0,
         lookbacks=GATE_AS_MEASURED + ("12m",),
         note="guard at 3.0, gate admits 12m (#149)",
+    ),
+    4: DetectorSpec(
+        version=4,
+        cluster_cut=3.0,
+        lookbacks=GATE_AS_MEASURED + ("12m",),
+        note="Trend gate and a two-sided catch-up band (ADR 0007)",
+        # Forward-only: neither knob above moved, and the two gates that did are
+        # not bounds on anything a detection row carries. See the class docstring.
+        reconstructable=False,
     ),
 }
 
@@ -215,7 +234,20 @@ def under_detector(
 
     The gate width is applied separately (:func:`variant_gate`), because it decides
     which members reach the detector rather than what the detector emits.
+
+    A spec the identity does not hold for is **refused**. Since ADR 0007 the live
+    detector gates on where the adjusted close sits against its SMA50, and that
+    distance is on no detection row — filtering by ``cluster_cut`` would hand back
+    a v3 population labelled v4, which is the silent comparison
+    :data:`~screener.detection.DETECTOR_VERSION` exists to stop.
     """
+    if not spec.reconstructable:
+        raise ValueError(
+            f"detector v{spec.version} cannot be reconstructed by filtering a "
+            f"richer pass ({spec.note}); its population has to be detected. "
+            "Striking rows here would return a reconstructable version's field "
+            "under this one's name"
+        )
     return [d for d in detections if d.range_3bar_adr <= spec.cluster_cut]
 
 

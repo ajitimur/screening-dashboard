@@ -59,6 +59,19 @@ class FakeClock:
 # -- a fake source client -----------------------------------------------------
 
 
+def _settled_row() -> dict:
+    """One raw source row for a settled session — a close that actually printed."""
+    return {
+        "Date": date(2026, 8, 5),
+        "Open": 10.0,
+        "High": 11.0,
+        "Low": 9.0,
+        "Close": 10.5,
+        "Adj Close": 10.5,
+        "Volume": 1000,
+    }
+
+
 class FakeClient:
     """Fakes the two network operations: enumerate and per-symbol fetch.
 
@@ -66,6 +79,14 @@ class FakeClient:
     symbol can return empty (silence), then data, on retries. An outcome of
     ``"429"`` raises :class:`RateLimitedError`, ``"refused"`` raises
     :class:`PermanentlyUnavailableError`; a list is returned as bars.
+
+    The marker ``"bar"`` inside such a list means "one ordinary bar" and is
+    expanded here into the raw row the provider really emits. It has to be a
+    real row now: a payload whose newest bar never printed a close is
+    silence, not a resolution (:func:`screener.bars.newest_bar_has_close`), so a
+    fake that yielded opaque markers would no longer stand in for a healthy
+    answer. Tests that care about an *unsettled* close live in
+    ``test_unsettled_close.py``.
     """
 
     def __init__(self, instruments=None, responses=None) -> None:
@@ -85,7 +106,7 @@ class FakeClient:
             raise RateLimitedError(symbol)
         if outcome == "refused":
             raise PermanentlyUnavailableError(f"{symbol}: period 'max' is invalid")
-        return outcome
+        return [_settled_row() if row == "bar" else row for row in outcome]
 
 
 def make_source(client, **kw):
@@ -193,7 +214,7 @@ def test_empty_then_data_resolves_on_retry():
     result = src.resolve("SLOW")
 
     assert result.status == "resolved"
-    assert result.bars == ["bar"]
+    assert result.bars == [_settled_row()]  # the retry's payload, carried through
     assert client.fetch_calls == ["SLOW", "SLOW", "SLOW"]
 
 

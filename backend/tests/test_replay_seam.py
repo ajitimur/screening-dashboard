@@ -10579,7 +10579,7 @@ def _stateless_cell(**overrides) -> CellMeasurement:
     ADR 0007 left alone, because this universe already gated on the SMA50.
     """
     return _cell(**{
-        "in_field": 164, "picks_share": 0.1335, "field_share": 0.1836,
+        "in_field": 164, "picks_share": 0.1354, "field_share": 0.1971,
         **overrides,
     })
 

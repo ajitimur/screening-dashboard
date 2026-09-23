@@ -549,13 +549,68 @@ def _sma_close(values: list[float], as_of: int, window: int) -> float | None:
     band are geometry and read ``adj_close`` (``bars.py``'s house rule — the
     unadjusted OHLC for order levels, the adjusted close for everything
     geometric), while ``sma20_rising`` is a rubric input this change deliberately
-    leaves on the unadjusted close, because ADR 0004 condition 3 forbids a gate
-    change and a rubric change riding together.
+    leaves on the unadjusted close. ADR 0004 condition 3 is narrower than that
+    restraint — what it forbids is a dimension's *weight* moving in the same change
+    as its shape — but the reason it gives is the one that applies: two things
+    moving at once leave neither attributable, and ADR 0007 is an argument about a
+    gate. Moving the rubric's basis belongs to whatever change is about the rubric.
 
     Distinct from ``indicators.sma``, which takes bars and fixes the basis."""
     if as_of + 1 < window:
         return None
     return sum(values[as_of - window + 1:as_of + 1]) / window
+
+
+# -- the two MA gates ADR 0007 brought in from the plan's §5.2 ----------------
+#
+# Both live here as named predicates rather than inline in :func:`detect`, because
+# :func:`replay.funnel.diagnose_detection` has to apply the *same* test to
+# attribute a miss to the right gate. That module already reuses this one's
+# helpers and constants for exactly this reason — the geometry under test has to
+# be the app's, not a second copy of it that can drift (PRD user story 31). Two
+# inline copies of a condition is how the two get to disagree quietly.
+#
+# Both read the **adjusted** close and denominate their bounds in the adjusted
+# series' own ADR-in-price. A trend floor and a maturity band are geometry, and
+# ``bars.py``'s house rule sends geometry to ``adj_close``; the trigger and the
+# stop stay unadjusted, which is why they exist. Scaling an adjusted-price
+# distance by the *unadjusted* close's ADR would compare two series' units, which
+# is the disagreement this split exists to prevent — on an IDX bonus issue the two
+# conventions part company for fifty bars. For a name with no corporate action in
+# the window the two bases are identical and the distinction costs nothing.
+
+
+def passes_trend(adj: list[float], as_of: int) -> bool:
+    """The adjusted close sits at or above its SMA50 (ADR 0007, plan §5.2 rule 2).
+
+    ``False`` until 50 traded bars exist, so it doubles as a listing-age floor —
+    the same way :func:`backtest.universe.passes_trend_gate` does. That one is
+    strict (``>``); this one is ``>=`` because the plan says "above it" and a close
+    sitting exactly on the average is not the complaint that prompted the gate.
+    The slope clause is **not** tested; see :data:`TREND_WINDOW`.
+    """
+    s50 = _sma_close(adj, as_of, TREND_WINDOW)
+    return s50 is not None and adj[as_of] >= s50
+
+
+def is_caught_up(adj: list[float], as_of: int, adr: float) -> bool:
+    """Price sits at its 10/20 MA: a band on the 20, a ceiling on the 10.
+
+    Within ``CATCHUP_20 × ADR`` **either side** of the SMA20 (the plan's §5.2 rule
+    3, without its slope clause) and no more than ``CATCHUP_10 × ADR`` *above* the
+    SMA10. ``adr`` is the ratio :func:`screener.indicators.adr` returns; it is
+    multiplied by the adjusted close here, so the bound is in the same series as
+    the distance it bounds.
+    """
+    adr_abs_adj = adr * adj[as_of]
+    s10 = _sma_close(adj, as_of, 10)
+    s20 = _sma_close(adj, as_of, SMA_SUPPORT)
+    if s10 is None or s20 is None:
+        return False
+    return (
+        adj[as_of] - s10 <= CATCHUP_10 * adr_abs_adj
+        and abs(adj[as_of] - s20) <= CATCHUP_20 * adr_abs_adj
+    )
 
 
 def _as_of_index(bars: list[Bar], as_of: date) -> int | None:
@@ -603,25 +658,9 @@ def detect(symbol: str, bars: list[Bar], as_of: date) -> Detection | None:
     if base_len < MIN_BASE_LEN:
         return None
 
-    # Trend and catch-up read the **adjusted** series, and are denominated in the
-    # adjusted series' own ADR-in-price. A trend floor and a maturity band are
-    # geometry; the trigger and the stop above stay unadjusted, which is why they
-    # exist. On an IDX bonus issue the two conventions would otherwise disagree
-    # about the same name for fifty bars (ADR 0007).
-    adr_abs_adj = a * adj[idx]
-
-    s50 = _sma_close(adj, idx, TREND_WINDOW)
-    if s50 is None or adj[idx] < s50:
+    if not passes_trend(adj, idx):
         return None
-
-    s10 = _sma_close(adj, idx, 10)
-    s20 = _sma_close(adj, idx, 20)
-    caught_up = (
-        s10 is not None and s20 is not None
-        and adj[idx] - s10 <= CATCHUP_10 * adr_abs_adj
-        and abs(adj[idx] - s20) <= CATCHUP_20 * adr_abs_adj
-    )
-    if not caught_up:
+    if not is_caught_up(adj, idx, a):
         return None
 
     cluster = _find_cluster(high, low, idx, adr_abs)

@@ -37,11 +37,25 @@ By the gate that rejected them:
 | gate | dropped | share of the v3 population |
 | --- | ---: | ---: |
 | `trend` | 2,610 | **30.7%** |
-| `catch_up` (the new lower side) | 84 | **1.0%** |
+| `catch_up` | 84 | **1.0%** |
 
-**The Trend gate does essentially all of the work.** Widening catch-up into a band removes
-1% of the field on its own, which is worth knowing before anyone attributes a future
-population change to it: whatever this pair of gates does, the SMA50 floor is doing it.
+**The Trend gate does essentially all of the work.** Catch-up removes 1% of the field on its
+own, which is worth knowing before anyone attributes a future population change to it:
+whatever this pair of gates does, the SMA50 floor is doing it.
+
+The catch-up column needs splitting, because ADR 0007 moved two things about that condition
+at once — it became two-sided *and* it moved from the unadjusted close to the adjusted one —
+and a column labelled "the band" would charge both to the band:
+
+| what the drop breaches | dropped | |
+| --- | ---: | ---: |
+| the **new lower bound** on the SMA20 | 67 | 0.8% |
+| the SMA10/SMA20 **ceilings**, which existed at v3 | 17 | 0.2% |
+
+All 84 pass v3's own test — unadjusted, one-sided — so the 17 are names the **basis switch**
+moved across a bound that did not change, not names the band caught. Two-sidedness costs 67
+detections, and re-denominating the ceilings on the adjusted series costs 17. Whoever reads
+this table next should not have to re-derive that split to know what the band did.
 
 By market, and the spread across sessions:
 
@@ -61,6 +75,21 @@ against members, not against detections that had already cleared a base.
 The US/IDX split is the largest structured difference in the measurement and is not explained
 here. It is consistent with IDX names sitting closer to their averages over this window, but
 one month of two markets is not evidence for that and this file does not claim it.
+
+### One place the code reads the ADR rather than quoting it
+
+The ADR writes the band as `abs(adj_close − sma20) <= 2.0 × adr_abs`, and `adr_abs` in the
+detector is `adr × close` — the **unadjusted** close. The code uses `adr × adj_close` instead.
+
+This is deliberate. Scaling an adjusted-price distance by the unadjusted close's ADR compares
+two series' units, which is the exact disagreement the ADR's own "both read the adjusted
+series" paragraph exists to prevent. Taking the formula literally would leave the bound
+drifting against the distance it bounds for fifty bars after a split.
+
+It has a cost, and the table above prices it: the same re-denomination applies to the SMA10
+and SMA20 **ceilings**, which the ADR did not otherwise touch, and that moves 17 detections.
+For a name with no corporate action in its window the two bases are identical and the choice
+costs nothing, which is why the number is small.
 
 ## A sample of what drops
 
@@ -168,10 +197,16 @@ SMA50 for the first time, and the agreement is why this row hardly moved.
 
 `gap_pp`'s sign was re-established rather than assumed. A reconstruction of §4b's gap over the
 same field — stars re-totalled under `PUBLISHED_RUBRIC` from the denominator's stored hit
-booleans — gives **−5.61 at v3 and −6.17 at v4**. It does not reproduce #198's committed −5.01
-exactly and is not offered as a second measurement of the magnitude; the anchor does not check
-the magnitude (`gap_pp`'s tolerance is `FREE`) and checks only the sign, which holds, and moves
-slightly further from zero in the direction the ADR's own `MA support` reasoning predicts.
+booleans — gives **−5.61 at v3 and −6.17 at v4**. The anchor commits −6.17, so both of its
+components are v4 figures and the row does not quote across versions.
+
+**Read that number as a sign, not a magnitude.** The reconstruction reads −5.61 where #198's
+full run read −5.01, so it is calibrated to about half a point — good enough to establish
+which side of zero the gap sits on, not good enough to be a second measurement of its size.
+That is the only claim the anchor makes of it: `gap_pp`'s tolerance is `FREE` and only its
+sign is checked. The sign holds, and moves slightly further from zero, the direction the ADR's
+own `MA support` reasoning predicts. A full backtest run is what would replace it with a
+measured magnitude, and this change does not attempt one.
 
 ## What the grid cannot do, and now says so
 

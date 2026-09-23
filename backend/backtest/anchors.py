@@ -508,7 +508,7 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
         kind=GATE_DEPENDENT,
         quantity=QUANTITY_IN_FIELD,
         universe=UNIVERSE_STATELESS,
-        committed={"in_field": 164, "of": 503, "gap_pp": -5.01},
+        committed={"in_field": 164, "of": 503, "gap_pp": -6.17},
         tolerance={
             # Zero on both counts, and deliberately not the app row's
             # contamination band: that band exists because both committed values
@@ -540,10 +540,15 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
             "new Trend floor is very nearly redundant inside it: the field on his "
             "evaluation sessions lost 3.6% (8,180 -> 7,889) against 31.7% over the "
             "app's field, and one trade of his 165 — APT at 2020-05-05, to the "
-            "two-sided catch-up band. `gap_pp` keeps #198's magnitude because this "
-            "row has never checked it; only its sign is checked, and the sign was "
-            "re-established at v4 rather than assumed "
-            "(references/adr-0007-population-cost.md)"
+            "two-sided catch-up band. "
+            "**`gap_pp` is this row's weakest number and should be read as a sign, "
+            "not a magnitude.** Both components are v4, so the row does not quote "
+            "across versions — but the gap comes from a reconstruction over the "
+            "persisted field rather than from a full run, and that reconstruction "
+            "reads -5.61 where #198 read -5.01. Its magnitude is therefore "
+            "calibrated to about half a point, which is why this row has never "
+            "checked it: only the sign is checked, and the sign is what was "
+            "re-established at v4 (references/adr-0007-population-cost.md)"
         ),
         tolerance_reason=(
             "a first measurement anchoring against the run that produced it, so "
@@ -554,10 +559,12 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
             "sound and the sign belongs to the pair of universes, not to a bug"
         ),
         superseded=(
-            Pin("165 of 503 at detector v3",
+            Pin("165 of 503 (-5.01pp) at detector v3",
                 "ADR 0007's Trend gate and two-sided catch-up band. The count "
                 "moved by one because this universe's own trend gate already did "
-                "almost all of the new gate's work"),
+                "almost all of the new gate's work. The gap is quoted from the "
+                "same reconstruction as the live value, never against #198's "
+                "-5.01 directly — the two are different instruments"),
         ),
     ),
 )

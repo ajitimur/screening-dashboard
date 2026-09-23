@@ -60,17 +60,15 @@ from typing import TYPE_CHECKING, Callable, Iterable, Sequence
 
 from screener.bars import Bar
 from screener.detection import (
-    CATCHUP_10,
-    CATCHUP_20,
     MAX_BASE_LEN,
     MIN_BASE_LEN,
     MIN_HISTORY,
-    TREND_WINDOW,
     _argmax,
     _as_of_index,
     _find_cluster,
     _prior_move,
-    _sma_close,
+    is_caught_up,
+    passes_trend,
     range_3bar_adr,
     detect,
     detection_gate,
@@ -418,25 +416,15 @@ def diagnose_detection(bars: list[Bar], as_of: date) -> str | None:
     if idx - base_start + 1 < MIN_BASE_LEN:
         return COND_BASE_LENGTH
 
-    # Trend and catch-up read the adjusted series and its own ADR-in-price, as
-    # :func:`detect` does (ADR 0007) — the point of reusing its constants and
-    # helpers is that the geometry under test stays the app's.
+    # The two MA gates are the detector's own predicates, called rather than
+    # restated (ADR 0007). They carry the adjusted basis and the ADR denomination
+    # with them, so this walk cannot drift from what :func:`detect` actually does —
+    # which is the whole point of reusing its helpers rather than reimplementing
+    # its geometry.
     adj = [b.adj_close for b in bars]
-    adr_abs_adj = a * adj[idx]
-
-    s50 = _sma_close(adj, idx, TREND_WINDOW)
-    if s50 is None or adj[idx] < s50:
+    if not passes_trend(adj, idx):
         return COND_TREND
-
-    s10 = _sma_close(adj, idx, 10)
-    s20 = _sma_close(adj, idx, 20)
-    caught_up = (
-        s10 is not None
-        and s20 is not None
-        and adj[idx] - s10 <= CATCHUP_10 * adr_abs_adj
-        and abs(adj[idx] - s20) <= CATCHUP_20 * adr_abs_adj
-    )
-    if not caught_up:
+    if not is_caught_up(adj, idx, a):
         return COND_CATCH_UP
 
     if _find_cluster(high, low, idx, adr_abs) is None:

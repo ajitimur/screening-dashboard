@@ -175,9 +175,10 @@ class DetectorSpec:
     reconstructable: bool = True
 
 
-# The three stamped populations, keyed by their :data:`~screener.detection.DETECTOR_VERSION`.
+# The stamped populations, keyed by their :data:`~screener.detection.DETECTOR_VERSION`.
 # v1 → v2 moves the cluster rule alone; v2 → v3 moves the gate alone. That is what
-# makes each pair of cells a one-variable step.
+# makes each pair of cells a one-variable step. v3 → v4 moves neither, and is the
+# first step this table cannot reconstruct — see ``DetectorSpec.reconstructable``.
 DETECTORS: Mapping[int, DetectorSpec] = {
     1: DetectorSpec(
         version=1,

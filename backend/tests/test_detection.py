@@ -384,8 +384,9 @@ def _below_sma50_series():
     """A base that sits *under* its SMA50: a long high plateau, then a step down
     to a flat consolidation low enough that the 50-bar average stays above it.
 
-    Every trailing window is tight and price is at its own 10/20, so this name
-    clears every other gate — the Trend gate is the only thing that can reject it.
+    Every trailing window sits inside the far-outlier guard and price is at its
+    own 10/20, so this name clears every other gate — the Trend gate is the only
+    thing that can reject it.
     """
     hlc = [(120.5, 119.5, 120.0)] * 85    # the plateau the SMA50 still remembers
     hlc += [(100.5, 99.5, 100.0)] * 20    # the base, 20 points under it

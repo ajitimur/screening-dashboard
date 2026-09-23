@@ -33,6 +33,9 @@ from screener.source import (
 )
 from screener.store import Store
 
+from conftest import answered_row
+
+
 NY = ZoneInfo("America/New_York")
 NOW = datetime(2026, 8, 7, 22, 56, tzinfo=NY)
 
@@ -111,7 +114,7 @@ def test_silence_that_survived_its_retries_resolves_after_a_rest():
     # The exact shape of the tail: the pull's four attempts all fell inside the
     # exhausted window and it handed the symbol here as silence; one rest later
     # the same request answers in full.
-    client = SequenceClient({"TEVA": [[{"row": "TEVA"}]]})
+    client = SequenceClient({"TEVA": [[answered_row("TEVA")]]})
     source, clock = make_source(client)
 
     results = list(sweep_silence(source, ["TEVA"], workers=1))
@@ -123,7 +126,7 @@ def test_silence_that_survived_its_retries_resolves_after_a_rest():
 
 def test_the_sweep_rests_before_it_asks_not_after():
     order: list[str] = []
-    client = SequenceClient({"TEVA": [[{"row": "TEVA"}]]})
+    client = SequenceClient({"TEVA": [[answered_row("TEVA")]]})
     clock = FakeClock()
 
     def sleep(seconds):
@@ -156,7 +159,7 @@ def test_a_symbol_silent_through_every_rest_stays_unresolved():
 
 
 def test_a_symbol_that_recovers_is_not_asked_again():
-    client = SequenceClient({"BACK": [[{"row": "BACK"}]], "GONE": [[]]})
+    client = SequenceClient({"BACK": [[answered_row("BACK")]], "GONE": [[]]})
     source, _ = make_source(client)
 
     list(sweep_silence(source, ["BACK", "GONE"], workers=1))
@@ -209,7 +212,7 @@ def test_the_sweep_asks_for_each_symbols_own_window():
             starts[symbol] = start
             return super().fetch(symbol, start)
 
-    client = RecordingClient({"AAA": [[{"row": "AAA"}]]})
+    client = RecordingClient({"AAA": [[answered_row("AAA")]]})
     source, _ = make_source(client)
 
     list(sweep_silence(source, ["AAA"], workers=1, start_for={"AAA": date(2026, 7, 1)}.get))
@@ -247,7 +250,7 @@ def test_the_sweeps_verdict_supersedes_the_pulls():
 def test_a_resolved_symbol_is_never_marked_throttled():
     # Even one that was throttled on the way: it answered, so the flag would say
     # nothing about a failure the run needs explained.
-    client = SequenceClient({"SLOW": ["429", [{"row": "SLOW"}]]})
+    client = SequenceClient({"SLOW": ["429", [answered_row("SLOW")]]})
     source, _ = make_source(client)
 
     result = source.resolve("SLOW")

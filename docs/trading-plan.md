@@ -164,8 +164,7 @@ Every one of these must be true. One miss means no trade, at any grade.
 7. **Stop at the low of the entry day, and the stop is at most 1 ADR below the entry.**
    If the low of the day is more than 1 ADR away, there is no trade. Wait for it to set up
    again.
-8. **Pressure confirmation** at the close before the break day (section 5.4).
-9. Regime gate checked (section 3) and the size it allows is the size placed.
+8. Regime gate checked (section 3) and the size it allows is the size placed.
 
 The stop in rule 7 is set by the entry day's own range, not by the base. His stops sit at a
 median 0.345 ADR, about a quarter of the base's width, well inside it. A stop under the base
@@ -177,6 +176,9 @@ Marks are the things that make a setup textbook. They are not required.
 
 - At least 3 sideways sessions before the break.
 - The NR7 day is also an inside day.
+- **Grey (Tightening) has painted inside the base** on the pressure indicator (section 5.4):
+  both sides' pressure below their own normal while the range contracts. The one state the
+  indicator paints clearly more often in real setups than on random days.
 - Close at least 2 ADR above the SMA50. His best cell: ≥ 2 ADR above the 50 and ≤ 1.5 ADR
   above the 10, +1.57R at a 27% hit rate.
 - A solid ▲ (buyer **surge**) on the break day: volume above 1.5 × the median of the prior
@@ -197,48 +199,64 @@ Marks are the things that make a setup textbook. They are not required.
 In `HOSTILE`, and at the Defensive level of the `CHOPPY` table, only A-grade setups are
 taken.
 
-### 5.4 Pressure confirmation
+### 5.4 The pressure indicator
 
 Read from the **Buying / Selling Pressure** indicator
 (`~/Projects/pinescript-selling-buying-pressure/buying-selling-pressure.pine`) on the daily
 chart, with every input at its shipped default (short average 5, long average 20, surge
-1.5 × the 10-day median, price-holding lookback 5) and **Mirror signals on**. With mirror
-signals off, orange never paints and the veto below silently stops working. The settings
-are part of the rule. A signal at other settings does not count.
+1.5 × the 10-day median, price-holding lookback 5) and **Mirror signals on**. The settings
+are part of the reading. How to read it is in
+`~/Projects/pinescript-selling-buying-pressure/docs/reading-the-indicator.md`.
 
-The indicator confirms; it never triggers. A stock that fails a hard rule in section 5.2 is
-not rescued by any reading here.
+**The indicator is a description of the base, not a gate.** Until 2026-09-22 this section
+was hard rule 8: blue had to have painted inside the base, the last tint could not be
+orange, and teal had to sit above red. That rule is withdrawn. It was a stance with no
+study behind it, and the study that was then run (below) found that it would have refused
+15 of 32 of Kris's own setups, and that none of its three conditions predicts anything.
 
-**Read it on the completed bar of the session before the break day**, usually the NR7 day.
-The break day's own bar is not usable at entry: until the close it is built from a partial
-day's 5-minute bars, so both lines dip (the selling line nearly always looks like it is
-falling), and the tint and crossings can still change.
+What the indicator contributes now, both as marks in section 5.3:
 
-On that bar, all three must be true:
+- **Grey inside the base.** Tightening is the state that distinguishes a real setup from a
+  random stretch of chart. It is what a continuation setup looks like from the inside.
+- **A solid ▲ on the break day.** Volume above 1.5 × the prior 10-day median and buyers
+  won it. Confirms participation, and is only known at the close.
 
-- **Blue (Seller Exhaustion) has appeared inside the base.** Sellers stopped pushing while
-  price held its lows. Without it, a buying day is a buying day inside an unresolved fight,
-  not a turn.
-- **The most recent state tint is not orange (Buyer Exhaustion).** Checking the last tint,
-  not only the break day, matters: a breakout usually lifts the highs, which switches orange
-  off on the very day it would be checked.
-- **The Buying trend line (teal) is above the Selling trend line (red).**
+And what it does not:
 
-Grey (Tightening) describes a healthy, quiet base and is worth noticing, but is not
-required. Grey and blue can come in either order. The faint crossing ▲ is not a signal on
-its own; it is only the moment the third condition became true.
+- **Orange inside the base is not a veto.** A flag after a big move paints orange because
+  buying fades while the highs hold. That is the flag forming, not distribution. Kris's
+  setups painted orange on 32% of their days, more than the 24% of ordinary days.
+- **Blue is not required.** Seller Exhaustion belongs to the post-crash base, where sellers
+  have to run out first. In a continuation setup it appears no more often than anywhere
+  else, and its absence says nothing.
+- **Teal above red is not required.** It held at the last close before the break in 56% of
+  his setups, a coin flip.
+- **A ▼ after a strong leg is not a top call.** Selling surges after a rally were followed
+  by higher prices, not lower, in the study. ▼ means something only where nothing is
+  exhausted and the columns have turned, at the end of a run.
 
-Two cautions:
+**Read it on the completed bar of the session before the break day.** The break day's own
+bar is built from a partial day's 5-minute bars until the close, so the lines, the tint and
+the ▲ can still change. A ▲ counted before the close is a guess.
 
-- **Within a few weeks of a volume climax**, the long averages are inflated, so blue and
-  orange come easily. A continuation setup soon after a big momentum leg is exactly this
-  case: weigh the lines over the tint.
-- **No tint is not a healthy tint.** The indicator suppresses tint for the first 20 bars of
-  intrabar history. That does not affect current bars, but a missing tint never counts as
-  blue.
+Two cautions carry over. Within a few weeks of a volume climax the long averages are
+inflated, so every tint comes easily; weigh the lines over the tint. And no tint is not a
+healthy tint: the indicator suppresses tint for the first 20 bars of intrabar history.
 
-This rule is a stance. No study in `references/` has measured the indicator's effect on
-outcomes; the journal is the evidence until one does.
+**What the study says.** Event study of every state and event on 40 US and 38 IDX names,
+2020 to 2026, plus 32 hand-labelled bases from Kris's own setup charts, in
+`~/Projects/pinescript-selling-buying-pressure/backtest/report.md` and
+`.scratch/backtest/spec.md` there.
+
+- Taken over all days, no event or state is followed by returns different from any other
+  day, in either market. A crossing ▲ inside blue on US ran slightly *below* baseline.
+- A close-location estimate of pressure from daily bars gives the same signals and the same
+  results as the 5-minute estimate. The indicator's precision is not real.
+- Inside Kris's bases, in the last five days before the break: grey in 47% against 21% for
+  a random five-day window; blue 59% against 50%; a ▲ 72% against 64%. Grey is the only
+  reading that separates his bases from noise, and it does so at about twice the base rate.
+- Those bases broke out to +20% at 10 days with a 91% hit rate. That is selection, not the
+  indicator: they are in the set because they worked.
 
 ### 5.5 Anti-patterns
 
@@ -312,13 +330,11 @@ Distance above SMA10:       ADR   (< 1.5)
 NR7 on break day or day before:  yes / no      Inside day:  yes / no
 Sideways sessions before break:
 Pressure (read at prior close, defaults, mirror on):
-  Blue in base:        yes / no   (no = no trade)
-  Last tint orange:    yes / no   (yes = no trade)
-  Teal above red:      yes / no   (no = no trade)
-Solid ▲ on break day:       yes / no / unknown at entry
+  Grey in base:        yes / no   (mark)
+Solid ▲ on break day:       yes / no / unknown at entry   (mark)
 Entry:           Stop (LOD):          Stop width:      ADR   (≤ 1.0)
 Risk %:          Risk amount:         Shares:
-Marks present:   /7                  Grade:  A / B
+Marks present:   /8                  Grade:  A / B
 Exit rule governing:  2×ADR or day 5 → 1/3; then trail SMA5 (IDX) / SMA10 (US)
 ```
 
@@ -333,10 +349,11 @@ Exit rule governing:  2×ADR or day 5 → 1/3; then trail SMA5 (IDX) / SMA10 (US
 - The setup description, the MA catch-up preference, and the anti-patterns:
   [`references/qullamaggie-method.md`](../references/qullamaggie-method.md) §3.
 - The IDX ADR floor field data: [`references/backtest_idx_adr_floor.md`](../references/backtest_idx_adr_floor.md).
-- The pressure indicator's states and events, and the sequence rule (blue before the turn,
-  no ▲ inside orange):
+- The pressure indicator's states and events:
   `~/Projects/pinescript-selling-buying-pressure/docs/reading-the-indicator.md`. The
-  confirmation rule in 5.4 is untested; no outcome study backs it.
+  numbers in 5.4 and the withdrawal of the old confirmation rule:
+  `~/Projects/pinescript-selling-buying-pressure/backtest/report.md` (event study, 78
+  names, 2021–2026) and its section (c), 32 labelled bases from Kris's setup charts.
 - The regime states: `backend/screener/regime.py`, the same rules the screener prints.
 - The trailing-trades table, release trigger, and exit rules 1, 4, 5, 6: the Notion page this plan
   replaces, unchanged.

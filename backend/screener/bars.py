@@ -29,6 +29,7 @@ each bar's own date and the exchange's normal close.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
@@ -89,6 +90,56 @@ def parse_bars(rows: list[dict]) -> list[Bar]:
         )
         for row in rows
     ]
+
+
+def newest_bar_has_close(rows: list[dict]) -> bool:
+    """Did the newest raw row actually print a close — in **both** series (§3.5)?
+
+    The provider can answer a session with the *scaffolding* of a bar — open,
+    high, low and volume all populated — and no close at all, which arrives as
+    NaN rather than as a missing row. That is not a bar: every geometric figure
+    downstream is computed off a close, and NaN propagates through all of them
+    without ever raising, so a shell bar poisons a run quietly instead of failing
+    it. On 2026-09-22 it did exactly that to 5,320 of 5,338 US bars — 2,065 of
+    2,070 names carried a NaN return, every percentile collapsed to 1.0 (NaN
+    sorts as greatest, so the whole universe tied at the top) and the night
+    published anyway.
+
+    So the source treats such a payload as silence (:meth:`Source.resolve`).
+
+    **Both** series are asked because §3.5 splits them: the unadjusted close
+    carries dollar volume, the adjusted close carries returns, MAs, gaps, ADR and
+    tightness — everything geometric. A row with a finite ``Close`` and a NaN
+    ``Adj Close`` reproduces the whole of 2026-09-22, so guarding one alone would
+    leave the defect reachable.
+
+    Only the **newest** row is asked. A genuine history carries the odd NaN close
+    deep in the past (a healthy 2026-09-21 pull had four), and refusing those
+    would quarantine every night; it is the session about to be ingested that has
+    to have printed. Rows arrive date-ascending from the provider — the same
+    order :func:`parse_bars` is handed them in — so the newest is the last.
+    """
+    if not rows:
+        return False
+    newest = rows[-1]
+    return _printed(newest.get("Close")) and _printed(newest.get("Adj Close"))
+
+
+def _printed(value: object) -> bool:
+    """Did this field arrive as a real number — not absent, not NaN, not an inf?
+
+    A close that never printed arrives as NaN, and NaN is a perfectly good float:
+    every comparison against it is False and every arithmetic result is NaN
+    again, which is how it reached the rank table without anything raising.
+    ``bool`` is excluded deliberately — ``True`` is finite and would pass, but a
+    boolean in a price field is a parse accident, never a price.
+    """
+    if value is None or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(float(value))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return False
 
 
 def _as_date(value: object) -> date:

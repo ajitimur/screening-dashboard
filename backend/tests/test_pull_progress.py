@@ -32,6 +32,9 @@ from screener.source import (
 )
 from screener.store import Store
 
+from conftest import answered_row
+
+
 WIB = ZoneInfo("Asia/Jakarta")
 NOW = datetime(2026, 8, 20, 20, 0, tzinfo=WIB)
 
@@ -132,7 +135,7 @@ def test_resolve_all_runs_symbols_concurrently():
 
     def block(symbol):
         barrier.wait()
-        return [{"row": symbol}]
+        return [answered_row(symbol)]
 
     source = _source(_Client(behaviour=block))
     symbols = [f"S{i}" for i in range(workers * 3)]
@@ -144,7 +147,7 @@ def test_resolve_all_runs_symbols_concurrently():
 
 
 def test_resolve_all_returns_every_symbol_exactly_once():
-    source = _source(_Client(behaviour=lambda symbol: [{"row": symbol}]))
+    source = _source(_Client(behaviour=lambda symbol: [answered_row(symbol)]))
     symbols = [f"S{i}" for i in range(500)]
 
     results = list(resolve_all(source, symbols, workers=12))
@@ -166,7 +169,7 @@ def test_resolve_all_keeps_the_resolution_semantics_under_concurrency():
             raise PermanentlyUnavailableError(f"{symbol}: period 'max' is invalid")
         if symbol.startswith("SILENT"):
             return []
-        return [{"row": symbol}]
+        return [answered_row(symbol)]
 
     symbols = [f"{kind}{i}" for kind in ("OK", "SILENT", "REFUSED") for i in range(20)]
     source = _source(_Client(behaviour=behaviour), max_attempts=4)
@@ -192,7 +195,7 @@ def test_resolve_all_bounds_how_many_symbols_are_in_flight():
     def behaviour(symbol):
         started.append(symbol)
         gate.wait(timeout=10)
-        return [{"row": symbol}]
+        return [answered_row(symbol)]
 
     source = _source(_Client(behaviour=behaviour))
     symbols = [f"S{i}" for i in range(200)]
@@ -212,7 +215,7 @@ def test_resolve_all_bounds_how_many_symbols_are_in_flight():
 
 def test_resolve_all_with_one_worker_is_the_sequential_loop():
     order: list[str] = []
-    source = _source(_Client(behaviour=lambda s: order.append(s) or [{"row": s}]))
+    source = _source(_Client(behaviour=lambda s: order.append(s) or [answered_row(s)]))
     symbols = [f"S{i}" for i in range(20)]
 
     results = list(resolve_all(source, symbols, workers=1))

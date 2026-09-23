@@ -45,6 +45,8 @@ from typing import Callable, Iterable, Iterator, Literal, Protocol, Sequence
 
 from pydantic import BaseModel
 
+from .bars import newest_bar_has_close
+
 # Pacing: 12 requests/second with exponential backoff on 429. Measured
 # (spec §3.3): unthrottled returns only 52.9% of the US universe while blaming
 # the losses on delisting; 12 req/s gives 99.93% coverage with zero 429s.
@@ -188,6 +190,14 @@ class Resolution:
     # because the two point at different remedies, and a quarantine that cannot
     # say which one it hit can only be diagnosed by re-running the pull by hand.
     throttled: bool = False
+    # Whether the silence was a payload the provider *answered* with, carrying a
+    # newest bar that never printed a close — the scaffolding of a session with
+    # no close in it (:func:`screener.bars.newest_bar_has_close`). Carried for
+    # the same reason as ``throttled`` and to the same effect on policy, which is
+    # none: it is silence, retried, unresolved-not-absent. The remedy it points
+    # at is a third one again — neither the pacing nor the listing, but a session
+    # the provider has not settled yet, which rests rather than re-asks.
+    unsettled: bool = False
 
 
 @dataclass(frozen=True)
@@ -455,7 +465,24 @@ class Source:
             except PermanentlyUnavailableError:
                 return Resolution(symbol, "refused", [])
             if bars:
-                return Resolution(symbol, "resolved", list(bars))
+                if newest_bar_has_close(bars):
+                    return Resolution(symbol, "resolved", list(bars))
+                # The provider *answered* — with the shape of a session and none
+                # of the number every geometric figure is computed from. Unlike
+                # silence there is nothing here to wait out inside this call: the
+                # retry budget is 1+2+4 seconds, and a close that has not settled
+                # upstream does not settle inside seven of them. So it is asked
+                # once, like a stated refusal, rather than burning four fetches
+                # per symbol on an answer that will not change — market-wide, that
+                # difference is the whole pull's runtime over again.
+                #
+                # It is *counted* like silence, though, not like a refusal: the
+                # run still cannot rank the name, so it belongs in the gate's
+                # denominator and the night quarantines (§3.4 rules 5, 7). The
+                # minutes-long wait that could genuinely recover it belongs to
+                # the tail sweep (issue #104), which re-asks on this same
+                # ``unresolved`` verdict once the provider has been left alone.
+                return Resolution(symbol, "unresolved", [], unsettled=True)
             if attempt < self._max_attempts:
                 self._sleep(delay)
                 delay *= 2

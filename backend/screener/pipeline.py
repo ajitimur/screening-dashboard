@@ -504,13 +504,15 @@ def summarize_pull(record: RunRecord, failures: list[ResolutionFailure]) -> str:
     counted = [f for f in failures if f.counted]
     silent = [f for f in counted if f.status in SILENT_STATUSES]
     throttled = [f for f in silent if f.status == "throttled"]
+    unsettled = [f for f in silent if f.status == "unsettled"]
     refused = [f for f in failures if f.status == "refused"]
     excluded = [f for f in failures if not f.counted and f.status != "refused"]
     lines.append(
         f"{record.market}: {len(failures)} enumerated candidates left no bars — "
         f"{len(silent)} silent and counted against the gate "
-        f"({len(throttled)} throttled, {len(silent) - len(throttled)} answered "
-        "empty, both after the tail sweep), "
+        f"({len(throttled)} throttled, {len(unsettled)} answered with an "
+        f"unsettled close, {len(silent) - len(throttled) - len(unsettled)} "
+        "answered empty, all after the tail sweep), "
         f"{len(refused)} refused by the provider, "
         f"{len(excluded)} silent but excluded on instrument type"
     )
@@ -587,6 +589,7 @@ def _resolution_failures(
     candidates: list[Instrument],
     status: dict[str, str],
     throttled: set[str],
+    unsettled: set[str],
 ) -> list[ResolutionFailure]:
     """Every enumerated candidate that came back with no bars, and why (#91).
 
@@ -597,12 +600,16 @@ def _resolution_failures(
     wall of ``refused`` or instrument-type-excluded ones that do not is a listing
     file carrying instruments the provider never serves (#90).
 
-    Silence itself splits in two here (issue #104): a symbol in ``throttled``
-    was answered with a 429 rather than an empty frame, and having survived both
+    Silence itself splits in three here. A symbol in ``throttled`` was answered
+    with a 429 rather than an empty frame (issue #104), and having survived both
     the retries and the tail sweep's rests it says the session's pacing is still
-    too hot — where an empty answer, after the same treatment, says the listing.
-    The distinction is recorded and nothing else: both statuses count, and the
-    run reached its verdict without consulting either.
+    too hot. One in ``unsettled`` was answered with a bar whose close never
+    printed (the 2026-09-22 US session) — the provider is reachable and the
+    listing is alive, but the session has not closed upstream yet. An empty
+    answer, after the same treatment, says the listing. The three are recorded
+    and nothing else: all of them count, and the run reached its verdict without
+    consulting any — but they are three different mornings' work, which is why a
+    quarantine says which it hit.
 
     References — the index, ETFs — are not here: they are enumerated but were
     never part of the tradeable denominator (§3.4 rule 7), so their silence is a
@@ -618,6 +625,8 @@ def _resolution_failures(
             continue
         if i.symbol in throttled:
             outcome = "throttled"
+        elif i.symbol in unsettled:
+            outcome = "unsettled"
         failures.append(
             ResolutionFailure(
                 market=market,
@@ -868,6 +877,12 @@ def run_market_universe(
     # Both are silence and both count against the gate; they are separated only
     # in the failure record, where the difference is the diagnosis (issue #104).
     throttled: set[str] = set()
+    # Which silences were a payload carrying a newest bar that never printed a
+    # close (the 2026-09-22 US session). Silence like the other two and counted
+    # the same; separated only in the failure record, where it is the difference
+    # between "the pacing is hot", "the listing is dead" and "the session has not
+    # settled upstream".
+    unsettled: set[str] = set()
     started = time.monotonic()
     # Shrink the fetch set before the resolve loop ever starts (:func:`fetch_set`,
     # issue #99). A refused symbol is dropped on top of that: its status is
@@ -906,6 +921,8 @@ def run_market_universe(
             store.mark_refused(market, resolution.symbol, session)
         if resolution.status == "unresolved" and resolution.throttled:
             throttled.add(resolution.symbol)
+        if resolution.status == "unresolved" and resolution.unsettled:
+            unsettled.add(resolution.symbol)
         _ingest_bars(
             store, source, market, resolution, start=starts.get(resolution.symbol), now=now
         )
@@ -953,6 +970,10 @@ def run_market_universe(
             throttled.add(resolution.symbol)
         else:
             throttled.discard(resolution.symbol)
+        if resolution.status == "unresolved" and resolution.unsettled:
+            unsettled.add(resolution.symbol)
+        else:
+            unsettled.discard(resolution.symbol)
         recovered += resolution.status == "resolved"
         if resolution.status == "refused":
             store.mark_refused(market, resolution.symbol, session)
@@ -1002,7 +1023,7 @@ def run_market_universe(
     # function; a quarantine that records nothing else can be diagnosed no other
     # way than re-running the pull by hand against the live provider.
     failures = _resolution_failures(
-        market, session, candidate_instruments, status, throttled
+        market, session, candidate_instruments, status, throttled, unsettled
     )
     if not published:
         recorded = store.run(market, session)

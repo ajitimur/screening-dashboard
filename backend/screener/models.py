@@ -49,12 +49,16 @@ class RunRecord(BaseModel):
 # resolution *policy* has no use for the difference between an empty answer and a
 # stated 429 — both are silence, both retried, both unresolved-not-absent — while
 # the person reading a quarantine afterwards has nothing else to go on (#104).
-FailureStatus = Literal["unresolved", "throttled", "refused"]
+FailureStatus = Literal["unresolved", "throttled", "unsettled", "refused"]
 
-# The two of those that are *silence*: a symbol that produced no bars and no
-# explanation. They behave identically everywhere the run reasons about
-# completeness — both re-asked by the tail sweep, both counted against the gate.
-SILENT_STATUSES: tuple[FailureStatus, ...] = ("unresolved", "throttled")
+# The three of those that are *silence*: a symbol that produced no usable bars
+# and no explanation. They behave identically everywhere the run reasons about
+# completeness — all re-asked by the tail sweep, all counted against the gate.
+# ``unsettled`` joins them for that reason and no other: the provider answered,
+# but with a newest bar carrying no close, which leaves the run exactly as unable
+# to rank the name as an empty answer would (see
+# :func:`screener.bars.newest_bar_has_close`).
+SILENT_STATUSES: tuple[FailureStatus, ...] = ("unresolved", "throttled", "unsettled")
 
 
 class ResolutionFailure(BaseModel):
@@ -64,12 +68,16 @@ class ResolutionFailure(BaseModel):
     *why*, which is the difference between a diagnosable quarantine and one that
     can only be investigated by re-running the pull by hand. ``status`` is the
     source's stated outcome — ``throttled`` is silence the provider stated (a
-    429) and ``unresolved`` is silence it answered empty, both of them surviving
-    the retries *and* the tail sweep's rests (issue #104); ``refused`` is the
-    provider stating it serves no history for this listing (the shape of a
-    listing-quality problem). Silence that is throttled at the end of all that
-    says the pacing is still too hot for the session; silence that is empty says
-    the listing, which are opposite fixes.
+    429), ``unresolved`` is silence it answered empty, and ``unsettled`` is a
+    session it answered with a bar that never printed a close, all three of them
+    surviving the retries *and* the tail sweep's rests (issue #104, and the
+    2026-09-22 US session for ``unsettled``);
+    ``refused`` is the provider stating it serves no history for this listing
+    (the shape of a listing-quality problem). Silence that is throttled at the
+    end of all that says the pacing is still too hot for the session; silence
+    that is empty says the listing; silence that is unsettled says neither — the
+    session has not closed upstream yet and the remedy is to wait, which is why
+    the three are worth telling apart.
     ``counted`` is whether the symbol sat in the completeness gate's denominator:
     refused and instrument-type-excluded listings are recorded but held out of
     it (§3.4 rule 7, issue #90), so a quarantine's arithmetic is legible too.

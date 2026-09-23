@@ -448,15 +448,18 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
         universe=UNIVERSE_APP,
         # The gap rides on the same anchor as the count, because the count's
         # tolerance is only defensible while the gap's sign holds.
-        committed={"in_field": 397, "of": 656, "gap_pp": 1.95},
+        committed={"in_field": 331, "of": 656, "gap_pp": 1.42},
         tolerance={
             "in_field": CONTAMINATION_TRADES,
             "of": 0,
             "gap_pp": FREE,
         },
         unit="trades",
-        source="findings §4b",
-        measured_at=(3,),
+        source=(
+            "ADR 0007's pre-ship measurement, a full replay.study run; §4b for "
+            "the v3 figure it supersedes"
+        ),
+        measured_at=(4,),
         first_measurement=True,
         tolerance_reason=(
             "#162: both committed in_field values were measured on a store that "
@@ -469,9 +472,21 @@ GATE_DEPENDENT_ANCHORS: tuple[Anchor, ...] = (
         note=(
             "a first measurement with no second one agreeing with it, so a "
             "mismatch is investigated in both directions rather than charged "
-            "straight to the new pipeline"
+            "straight to the new pipeline. **The run that measured it was "
+            "calibrated first**: the same pipeline over the same store at v3 "
+            "returns 396 of 656 against §4b's 397, and a gap of +1.97 against "
+            "+1.95 — one trade and two hundredths, which is the fresh-build "
+            "denominator shift the tolerance below exists for. So the v3 → v4 "
+            "move from 397 to 331 is ADR 0007's gates, not the instrument"
         ),
         superseded=(
+            Pin("397 of 656 (+1.95pp) at detector v3",
+                "ADR 0007's Trend gate and two-sided catch-up band. 66 of his "
+                "trades stop reaching the field; the gap keeps its sign and "
+                "loses about a quarter of its magnitude, which is the "
+                "`MA support` collapse the ADR predicted arriving in the figure "
+                "it was predicted to arrive in "
+                "(references/adr-0007-population-cost.md)"),
             Pin("349 of 656 at detector v2",
                 "the live gate has moved v2 → v3; the v2 → v3 widening admits 48 "
                 "more of his trades without any of them changing. Measured on the "

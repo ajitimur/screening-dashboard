@@ -116,6 +116,30 @@ gate as fidelity to the plan and said in terms that "if a future study shows the
 expectancy, that is not a surprise this ADR failed to anticipate; it is a price this ADR
 knowingly accepted." This file is the size of that price, not a re-argument of it.
 
+## Field membership over the app's universe
+
+A full `replay.study` run at v4 over `replay.duckdb`'s bars — the same 947-session forward
+chain §4b was measured on, rebuilt from the stored bars — gives the `in_field` anchor's own
+quantity, how many of his trades reached that night's star-ranked field:
+
+| | v3 | v4 |
+| --- | ---: | ---: |
+| in field | 397 / 656 (§4b) | **331 / 656** |
+| §4b's gap (`gap_pp`) | +1.95 | **+1.42** |
+
+**66 of his trades stop reaching the field, and the gap keeps its sign.** The sign is the only
+part of the gap the anchor checks, and it survives; the magnitude loses about a quarter, which
+is the `MA support` collapse the ADR predicted arriving in the figure it was predicted to
+arrive in. Requiring `close > SMA50` lifts the field's own hit rate on a dimension that used to
+separate, so the field catches up with his picks and the spread between them narrows.
+
+The run was **calibrated before it was read**, as the other two instruments were. The same
+pipeline over the same store at v3 returns **396 of 656** against §4b's 397, and **+1.97**
+against +1.95 — one trade and two hundredths of a point, which is exactly the fresh-build
+denominator shift `CONTAMINATION_TRADES` exists to absorb (#162). So 397 → 331 is ADR 0007's
+gates, not the instrument. It also independently reproduces **detection recall 421 of 656**,
+matching the cheap chain-free measurement above to the trade.
+
 ## The stateless universe barely notices, and the reason is structural
 
 `in_field_stateless` counts the same quantity over the backtest contract's stateless universe:

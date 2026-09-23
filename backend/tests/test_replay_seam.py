@@ -9744,12 +9744,15 @@ def _recall(passed: int = 421, total: int = 656) -> StageRecall:
 def _cell(
     *,
     version: int = DETECTOR_VERSION,
-    in_field: int = 397,
-    picks_share: float = 0.1360,
-    field_share: float = 0.1165,
+    in_field: int = 331,
+    picks_share: float = 0.1571,
+    field_share: float = 0.1429,
     field_source=FIELD_WHOLE,
 ) -> CellMeasurement:
-    """A grid cell whose ≥3.5★ shares land on the pair §4b's v3 row reports.
+    """A grid cell whose ≥3.5★ shares land on the pair the live row reports.
+
+    The pair is ADR 0007's v4 measurement (331 of 656, +1.42pp). Through v3 it was
+    §4b's (397, +1.95pp), which is now the superseded pin on the same anchor.
 
     The shares are built as histograms rather than stored as rates, because
     ``CellMeasurement.edge`` reads them off the distributions and a cell carrying
@@ -9835,13 +9838,15 @@ def test_every_anchor_is_stamped_with_the_detector_version_it_was_measured_at():
 
 
 def test_the_in_field_anchor_is_taken_at_the_live_detector_and_flagged_first():
-    """397 of 656 at v3 is a first measurement with no second one agreeing with
+    """331 of 656 at v4 is a first measurement with no second one agreeing with
     it, so a mismatch is investigated in both directions rather than charged
-    straight to the new pipeline."""
+    straight to the new pipeline. It supersedes §4b's 397 at v3, which stays on
+    the row as a pin."""
     anchor = ANCHORS_BY_KEY["in_field"]
 
-    assert anchor.committed["in_field"] == 397
+    assert anchor.committed["in_field"] == 331
     assert anchor.committed["of"] == 656
+    assert any("397 of 656" in p.value for p in anchor.superseded)
     assert anchor.measured_at == (DETECTOR_VERSION,)
     assert anchor.first_measurement is True
     assert not ANCHORS_BY_KEY["detection_recall"].first_measurement
@@ -9966,7 +9971,7 @@ def test_the_contamination_tolerance_absorbs_a_few_trades_on_the_field_row():
     """A fresh build shifts percentile denominators by ~0.5%, which moves decile
     membership at the margin. That is the fix landing, not a bug."""
     report = check_anchors(
-        _all_measurements(cell={"in_field": 397 - CONTAMINATION_TRADES})
+        _all_measurements(cell={"in_field": 331 - CONTAMINATION_TRADES})
     )
 
     check = next(c for c in report.gate_dependent if c.anchor.key == "in_field")
@@ -10327,10 +10332,10 @@ def test_the_stamp_and_the_pins_ride_on_the_serialised_result():
     body = anchors_report(DEFAULT_CONTRACT, check_anchors(_all_measurements()))
     in_field = next(c for c in body["gate_dependent"] if c["anchor"] == "in_field")
 
-    assert in_field["detector_stamp"] == "detector v3"
+    assert in_field["detector_stamp"] == f"detector v{DETECTOR_VERSION}"
     assert in_field["first_measurement"] is True
     assert "#162" in in_field["tolerance_reason"]
-    assert len(in_field["superseded"]) == 4
+    assert len(in_field["superseded"]) == 5
 
 
 def test_the_printed_report_separates_the_two_kinds_of_anchor():
@@ -10406,8 +10411,9 @@ def test_the_command_writes_a_stamped_result_when_every_anchor_is_offered(
     field = tmp_path / "field.json"
     field.write_text(json.dumps({
         "detection_recall": {"passed": 421, "of": 656, "stage": "detection"},
-        "in_field": {"in_field": 395, "of": 656, "gap_pp": 1.9,
-                     "field": "whole", "universe": UNIVERSE_APP, "detector_version": 3},
+        "in_field": {"in_field": 329, "of": 656, "gap_pp": 1.4,
+                     "field": "whole", "universe": UNIVERSE_APP,
+                     "detector_version": DETECTOR_VERSION},
     }))
     out_json = tmp_path / "anchors.json"
 
@@ -10430,7 +10436,7 @@ def test_the_command_writes_a_stamped_result_when_every_anchor_is_offered(
     in_field = next(
         c for c in written["gate_dependent"] if c["anchor"] == "in_field"
     )
-    assert in_field["verdict"] == "match"       # 395 is inside the #162 band
+    assert in_field["verdict"] == "match"       # 329 is inside the #162 band
     assert written["passes"] is True
     geometry = written["geometry"][0]
     assert geometry["verdict"] == "diverged (explained)"
@@ -10598,19 +10604,25 @@ def _stateless_measurements(**overrides) -> list[Measurement]:
 
 
 def test_the_table_scopes_in_field_to_the_universe_it_was_measured_over():
-    """§4b's +1.95pp and the run's own −5.01pp are one quantity over two different
-    universes, and #211 measured that the pair is what the number is a property
-    of. Two anchors, each naming its universe, is that finding as data: a run is
-    checked against the pin measured over the universe it actually ran."""
+    """The app row's positive gap and the stateless row's −5.01pp are one quantity
+    over two different universes, and #211 measured that the pair is what the
+    number is a property of. Two anchors, each naming its universe, is that
+    finding as data: a run is checked against the pin measured over the universe
+    it actually ran.
+
+    ADR 0007 moved both rows and changed neither sign — the app's gap narrowed
+    +1.95 → +1.42, the stateless row lost one trade of 165."""
     app = ANCHORS_BY_KEY["in_field"]
     stateless = ANCHORS_BY_KEY["in_field_stateless"]
 
     assert app.universe == UNIVERSE_APP
     assert stateless.universe == UNIVERSE_STATELESS
     assert app.quantity == stateless.quantity == QUANTITY_IN_FIELD
-    assert app.committed["gap_pp"] == 1.95
-    assert stateless.committed["in_field"] == 165
+    assert app.committed["gap_pp"] == 1.42
+    assert stateless.committed["in_field"] == 164
     assert stateless.committed["of"] == 503
+    # the signs are what the pair is about, and they survived the narrowing
+    assert app.committed["gap_pp"] > 0 > stateless.committed["gap_pp"]
 
 
 def test_the_geometry_anchors_hold_over_either_universe():

@@ -8,9 +8,11 @@ status: accepted
 > population cost "is not yet measured" and make measuring it a condition of shipping. It has
 > since been measured: **31.7%** of the live store's v3 detections drop, the Trend gate
 > accounting for 30.7 points of that and the two-sided band for 1.0 — roughly half what this
-> ADR budgeted for. Detection recall against his 656 replayable entries falls **549 → 421**.
-> Neither number revises the decision; both are recorded in
-> `references/adr-0007-population-cost.md`, which also names the one anchor still unmeasured.
+> ADR budgeted for. Detection recall against his 656 replayable entries falls **549 → 421**,
+> field membership **397 → 331**, and both `in_field` gaps keep their signs. None of it
+> revises the decision. All three gate-dependent anchors are re-measured at v4, each
+> calibrated against the figure it supersedes first; the numbers and their method are in
+> `references/adr-0007-population-cost.md`.
 
 `docs/trading-plan.md` §5.2 lists eight hard rules, every one of which must hold before a
 name can be traded. Three of them are moving-average preconditions (rule 2, above a rising

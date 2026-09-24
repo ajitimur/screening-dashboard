@@ -2,7 +2,7 @@ fastapi
 uvicorn[standard]
 duckdb
 pydantic>=2
-yfinance
+yfinance>=1.7
 # dev
 pytest
 httpx
